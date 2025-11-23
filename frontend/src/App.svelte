@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte'
   import Navigation from './components/Navigation.svelte'
-  import HeroSection from './components/HeroSection.svelte'
   import PasteForm from './components/PasteForm.svelte'
   import PasteViewer from './components/PasteViewer.svelte'
   import RecentPastes from './components/RecentPastes.svelte'
@@ -59,22 +58,86 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50">
-  <Navigation {currentUser} on:navigate={(e) => handleNavigation(e.detail.section)} />
+<svelte:head>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+</svelte:head>
 
-  <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    {#if currentSection === 'paste' && currentPasteId}
-      <PasteViewer pasteId={currentPasteId} />
-    {:else if currentSection === 'new' || currentSection === 'default' || currentSection === ''}
-      <HeroSection />
-      <PasteForm />
-    {:else if currentSection === 'recent'}
-      <RecentPastes />
-    {:else if currentSection === 'my-pastes'}
-      <MyPastes {currentUser} />
-    {:else if currentSection === 'api'}
-      <ApiDocs />
-    {/if}
+<div class="min-h-screen flex flex-col font-ubuntu bg-[#F7F7F7] text-[#333333]">
+  <!-- Header with Navigation -->
+  <header class="bg-[#772953] text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo and Brand -->
+        <div class="flex items-center gap-3">
+          <div class="font-bold text-xl tracking-tight">RELIC <span class="font-light opacity-80">PASTE</span></div>
+          <span class="text-xs bg-black/20 px-2 py-0.5 rounded text-white/70">v1.0.0</span>
+        </div>
+
+        <!-- Top Navigation -->
+        <nav class="hidden md:flex items-center space-x-1">
+          <button
+            on:click={() => handleNavigation('new')}
+            class="maas-nav-top {currentSection === 'new' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-plus mr-2"></i>New Paste
+          </button>
+          <button
+            on:click={() => handleNavigation('recent')}
+            class="maas-nav-top {currentSection === 'recent' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-clock mr-2"></i>Recent
+          </button>
+          <button
+            on:click={() => handleNavigation('my-pastes')}
+            class="maas-nav-top {currentSection === 'my-pastes' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-user mr-2"></i>My Pastes
+          </button>
+          <button
+            on:click={() => handleNavigation('api')}
+            class="maas-nav-top {currentSection === 'api' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-code mr-2"></i>API
+          </button>
+        </nav>
+
+        <!-- User Menu -->
+        <div class="flex items-center gap-4">
+          {#if currentSection === 'new' || currentSection === 'recent'}
+            <button
+              on:click={() => handleNavigation('new')}
+              class="bg-[#0E8420] hover:bg-[#0a6b19] text-white px-4 py-1.5 text-sm rounded shadow-sm font-medium transition-colors"
+            >
+              <i class="fas fa-plus mr-1"></i>
+              New Paste
+            </button>
+          {/if}
+          <div class="flex items-center gap-2 opacity-90 hover:opacity-100 cursor-pointer">
+            <i class="fa-regular fa-circle-user"></i>
+            <span class="text-sm">admin</span>
+          </div>
+          <div class="border-l border-white/20 h-4 mx-1"></div>
+          <i class="fa-solid fa-gear opacity-70 hover:opacity-100 cursor-pointer"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-auto">
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      {#if currentSection === 'paste' && currentPasteId}
+        <PasteViewer pasteId={currentPasteId} />
+      {:else if currentSection === 'new' || currentSection === 'default' || currentSection === ''}
+        <PasteForm />
+      {:else if currentSection === 'recent'}
+        <RecentPastes />
+      {:else if currentSection === 'my-pastes'}
+        <MyPastes {currentUser} />
+      {:else if currentSection === 'api'}
+        <ApiDocs />
+      {/if}
+    </div>
   </main>
 
   <Toast />
@@ -84,6 +147,142 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Ubuntu', sans-serif;
+    background-color: #F7F7F7;
+    color: #333333;
+  }
+
+  :global(*) {
+    box-sizing: border-box;
+  }
+
+  /* Ubuntu Mono for code */
+  :global(.font-mono), :global(code), :global(pre) {
+    font-family: 'Ubuntu Mono', monospace;
+  }
+
+  /* MAAS-style button primary */
+  :global(.maas-btn-primary) {
+    background-color: #0E8420;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  :global(.maas-btn-primary:hover) {
+    background-color: #0a6b19;
+  }
+
+  /* MAAS-style button secondary */
+  :global(.maas-btn-secondary) {
+    background-color: white;
+    border: 1px solid #cdcdcd;
+    color: #333;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  :global(.maas-btn-secondary:hover) {
+    background-color: #f9f9f9;
+    border-color: #999;
+  }
+
+  /* MAAS-style inputs */
+  :global(.maas-input) {
+    border: 1px solid #AEA79F;
+    border-radius: 2px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  :global(.maas-input:focus) {
+    border-color: #E95420;
+    outline: none;
+    box-shadow: 0 0 0 1px #E95420;
+  }
+
+  /* Status pills */
+  :global(.status-pill) {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  :global(.status-public) { background-color: #e3f2fd; color: #0c5460; }
+  :global(.status-private) { background-color: #fce4ec; color: #772953; }
+  :global(.status-unlisted) { background-color: #fff3e0; color: #e65100; }
+
+  /* Card styling */
+  :global(.maas-card) {
+    background-color: white;
+    border: 1px solid #dfdcd9;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  /* Table styling */
+  :global(.maas-table th) {
+    font-weight: 400;
+    color: #111;
+    border-bottom: 1px solid #AEA79F;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  :global(.maas-table td) {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dfdcd9;
+    vertical-align: middle;
+  }
+
+  :global(.maas-table tr:hover td) {
+    background-color: #fcfcfc;
+  }
+
+  /* Top Navigation Styles */
+  :global(.maas-nav-top) {
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  :global(.maas-nav-top:hover) {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.maas-nav-top.active) {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.15);
+    font-weight: 500;
+  }
+
+  :global(.maas-nav-top.active::after) {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 2px;
+    background-color: #E95420;
+    border-radius: 1px;
+  }
+
+  :global(.maas-nav-top:focus) {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
   }
 </style>

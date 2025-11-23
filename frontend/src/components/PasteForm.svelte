@@ -210,71 +210,84 @@
   }
 </script>
 
-<div class="px-4 sm:px-0 mb-8">
+<div class="mb-8">
   <div class="bg-white shadow-sm rounded-lg border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
       <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-        <i class="fas fa-edit text-blue-600 mr-2"></i>
+        <i class="fas fa-plus text-blue-600 mr-2"></i>
         Create New Paste
       </h2>
+      <div class="flex items-center gap-4">
+        <div class="text-xs text-gray-500">
+          {content.length} characters
+        </div>
+      </div>
     </div>
+
     <div class="p-6">
       <form on:submit={handleSubmit} class="space-y-6">
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label for="title" class="block text-sm font-medium text-gray-700">Title (Optional)</label>
+            <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <input
               type="text"
               id="title"
               bind:value={title}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Enter paste title..."
+              placeholder="e.g. Nginx Configuration"
+              class="w-full px-3 py-2 text-sm maas-input"
             />
+            <p class="text-xs text-gray-500 mt-1">A descriptive name for this paste</p>
           </div>
+
           <div>
-            <label for="syntax" class="block text-sm font-medium text-gray-700">Syntax</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Syntax Highlighting</label>
             <select
               id="syntax"
               bind:value={syntax}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm maas-input bg-white"
             >
               <option value="auto">Auto-detect</option>
               <option value="text">Plain Text</option>
               <option value="markdown">Markdown</option>
               <option value="html">HTML</option>
+              <option value="css">CSS</option>
               <option value="json">JSON</option>
               <option value="xml">XML</option>
               <option value="javascript">JavaScript</option>
               <option value="python">Python</option>
               <option value="bash">Bash</option>
               <option value="sql">SQL</option>
-              <option value="css">CSS</option>
               <option value="java">Java</option>
             </select>
           </div>
         </div>
 
-        <div>
-          <label for="content" class="block text-sm font-medium text-gray-700">Content</label>
-          <textarea
-            id="content"
-            bind:value={content}
-            on:dragover={handleDragOver}
-            on:dragleave={handleDragLeave}
-            on:drop={handleDrop}
-            rows="12"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm border-2 border-dashed border-gray-300 transition-colors"
-            placeholder="Paste your content here or drag & drop files..."
-          ></textarea>
-        </div>
-
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label for="expiry" class="block text-sm font-medium text-gray-700">Expires</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+            <select
+              id="visibility"
+              bind:value={visibility}
+              class="w-full px-3 py-2 text-sm maas-input bg-white"
+            >
+              <option value="public">Public</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="private">Private</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">
+              {#if visibility === 'public'}Anyone can view this paste
+              {:else if visibility === 'unlisted'}Only those with link can view
+              {:else}Only you can view this paste
+              {/if}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Expires</label>
             <select
               id="expiry"
               bind:value={expiry}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm maas-input bg-white"
             >
               <option value="never">Never</option>
               <option value="1h">1 Hour</option>
@@ -283,56 +296,57 @@
               <option value="30d">30 Days</option>
             </select>
           </div>
-          <div>
-            <label for="visibility" class="block text-sm font-medium text-gray-700">Visibility</label>
-            <select
-              id="visibility"
-              bind:value={visibility}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="public">Public</option>
-              <option value="unlisted">Unlisted</option>
-              <option value="private">Private</option>
-            </select>
+        </div>
+
+        <div>
+          <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Content</label>
+          <div class="relative">
+            <textarea
+              id="content"
+              bind:value={content}
+              on:dragover={handleDragOver}
+              on:dragleave={handleDragLeave}
+              on:drop={handleDrop}
+              rows="16"
+              class="w-full h-64 font-mono text-sm p-4 maas-input resize-y focus:shadow-none border border-[#dfdcd9] transition-colors"
+              placeholder="// Paste your code here..."
+            ></textarea>
           </div>
-          <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password (Optional)</label>
-            <input
-              type="password"
-              id="password"
-              bind:value={password}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Password protect"
-            />
+          <div class="flex items-center gap-4 text-sm text-gray-500 mt-2">
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                on:click={() => fileInput?.click()}
+                class="maas-btn-secondary px-3 py-1 text-xs rounded font-medium"
+              >
+                <i class="fas fa-upload mr-1"></i>
+                Upload File
+              </button>
+              <input
+                type="file"
+                bind:this={fileInput}
+                on:change={handleFileUpload}
+                class="hidden"
+                multiple
+              />
+            </div>
+            <span class="text-xs">or drag & drop files</span>
           </div>
         </div>
 
-        <div class="flex items-center justify-between pt-4">
-          <div class="flex items-center space-x-4">
-            <button
-              type="button"
-              on:click={() => fileInput?.click()}
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <i class="fas fa-upload mr-2"></i>
-              Upload File
-            </button>
-            <input
-              type="file"
-              bind:this={fileInput}
-              on:change={handleFileUpload}
-              class="hidden"
-              multiple
-            />
-            <span class="text-sm text-gray-500">or drag & drop files</span>
-          </div>
+        <div class="flex justify-end pt-4 border-t border-gray-200">
           <button
             type="submit"
             disabled={isLoading}
-            class="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <i class="fas fa-share mr-2"></i>
-            {isLoading ? 'Creating...' : 'Create Paste'}
+            {#if isLoading}
+              <i class="fas fa-spinner fa-spin mr-1"></i>
+              Creating...
+            {:else}
+              <i class="fas fa-plus mr-1"></i>
+              Create Paste
+            {/if}
           </button>
         </div>
       </form>
