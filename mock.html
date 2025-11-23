@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudPaste - Professional Pastebin Service</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-cloud text-blue-600 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-900">CloudPaste</span>
+                        <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Pro</span>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="#new" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-plus mr-1"></i>New Paste
+                        </a>
+                        <a href="#recent" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-clock mr-1"></i>Recent
+                        </a>
+                        <a href="#my-pastes" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-user mr-1"></i>My Pastes
+                        </a>
+                        <a href="#api" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-code mr-1"></i>API
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500">User:</span>
+                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                            J
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">john.doe</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Hero Section -->
+        <div class="px-4 py-6 sm:px-0">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 text-white">
+                <h1 class="text-4xl font-bold mb-2">Professional Pastebin Service</h1>
+                <p class="text-xl opacity-90 mb-6">Support for text, ANSI, HTML, images, markdown, diffs, patches & more. Powered by AWS S3.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">Text</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">Markdown</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">Diff/Patch</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">Images</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">ANSI</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">JSON/XML</span>
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">Code</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Paste Form -->
+        <div id="new-paste" class="px-4 sm:px-0 mb-8">
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-edit text-blue-600 mr-2"></i>
+                        Create New Paste
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <form id="paste-form" class="space-y-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <div>
+                                <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+                                <input type="text" id="title" name="title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter paste title...">
+                            </div>
+                            <div>
+                                <label for="syntax" class="block text-sm font-medium text-gray-700">Syntax</label>
+                                <select id="syntax" name="syntax" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="auto">Auto-detect</option>
+                                    <option value="text">Plain Text</option>
+                                    <option value="markdown">Markdown</option>
+                                    <option value="html">HTML</option>
+                                    <option value="ansi">ANSI</option>
+                                    <option value="diff">Diff</option>
+                                    <option value="patch">Patch</option>
+                                    <option value="json">JSON</option>
+                                    <option value="xml">XML</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="python">Python</option>
+                                    <option value="bash">Bash</option>
+                                    <option value="sql">SQL</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="content" class="block text-sm font-medium text-gray-700">Content</label>
+                            <textarea id="content" name="content" rows="12" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm" placeholder="Paste your content here or drag & drop files..."></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                            <div>
+                                <label for="expiry" class="block text-sm font-medium text-gray-700">Expires</label>
+                                <select id="expiry" name="expiry" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="never">Never</option>
+                                    <option value="1h">1 Hour</option>
+                                    <option value="24h">24 Hours</option>
+                                    <option value="7d">7 Days</option>
+                                    <option value="30d">30 Days</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="visibility" class="block text-sm font-medium text-gray-700">Visibility</label>
+                                <select id="visibility" name="visibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="public">Public</option>
+                                    <option value="unlisted">Unlisted</option>
+                                    <option value="private">Private</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="password" class="block text-sm font-medium text-gray-700">Password (optional)</label>
+                                <input type="password" id="password" name="password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Password protect">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-4">
+                            <div class="flex items-center space-x-4">
+                                <button type="button" id="upload-btn" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <i class="fas fa-upload mr-2"></i>
+                                    Upload File
+                                </button>
+                                <input type="file" id="file-input" class="hidden" multiple>
+                                <span class="text-sm text-gray-500">or drag & drop files</span>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button type="button" id="preview-btn" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <i class="fas fa-eye mr-2"></i>
+                                    Preview
+                                </button>
+                                <button type="submit" class="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <i class="fas fa-share mr-2"></i>
+                                    Create Paste
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Pastes -->
+        <div id="recent-pastes" class="px-4 sm:px-0 mb-8">
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center justify-between">
+                        <span class="flex items-center">
+                            <i class="fas fa-clock text-blue-600 mr-2"></i>
+                            Recent Pastes
+                        </span>
+                        <button class="text-sm text-blue-600 hover:text-blue-500">View All</button>
+                    </h2>
+                </div>
+                <div class="divide-y divide-gray-200" id="recent-pastes-list">
+                    <!-- Recent pastes will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- My Pastes -->
+        <div id="my-pastes" class="px-4 sm:px-0 mb-8">
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center justify-between">
+                        <span class="flex items-center">
+                            <i class="fas fa-user text-blue-600 mr-2"></i>
+                            My Pastes
+                        </span>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-500">Total: </span>
+                            <span class="text-sm font-medium text-gray-900" id="my-paste-count">0</span>
+                        </div>
+                    </h2>
+                </div>
+                <div class="divide-y divide-gray-200" id="my-pastes-list">
+                    <!-- User pastes will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div id="api-docs" class="px-4 sm:px-0 mb-8">
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-code text-blue-600 mr-2"></i>
+                        API Documentation
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-md font-semibold text-gray-900 mb-3">Command Line Usage</h3>
+                            <div class="bg-gray-900 rounded-lg p-4">
+                                <pre class="text-green-400 text-sm"><code># Basic usage
+echo "Hello World" | curl -X POST https://api.cloudpaste.dev/v1/pastes \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: text/plain"
+
+# Advanced usage with options
+cat logfile.txt | curl -X POST https://api.cloudpaste.dev/v1/pastes \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Log File",
+    "syntax": "text",
+    "expiry": "24h",
+    "visibility": "public"
+  }'</code></pre>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-md font-semibold text-gray-900 mb-3">REST API Endpoints</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">POST</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/v1/pastes</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">Create new paste</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/v1/pastes</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">List recent pastes</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/v1/pastes/{id}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">Get paste by ID</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DELETE</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/v1/pastes/{id}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">Delete paste</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will appear here -->
+    </div>
+
+    <script>
+        // Sample data for demonstration
+        const sampleRecentPastes = [
+            {
+                id: 'abc123',
+                title: 'Docker Compose Configuration',
+                syntax: 'yaml',
+                content: 'version: "3.8"\nservices:\n  web:\n    image: nginx\n    ports:\n      - "80:80"',
+                author: 'dev_user',
+                created_at: '2024-01-15T10:30:00Z',
+                views: 42,
+                expiry: '30d'
+            },
+            {
+                id: 'def456',
+                title: 'Python Data Processing Script',
+                syntax: 'python',
+                content: 'import pandas as pd\nimport numpy as np\n\n# Data processing logic\ndf = pd.read_csv("data.csv")\nresult = df.groupby("category").sum()',
+                author: 'data_scientist',
+                created_at: '2024-01-15T09:15:00Z',
+                views: 28,
+                expiry: '24h'
+            },
+            {
+                id: 'ghi789',
+                title: 'Git Diff Output',
+                syntax: 'diff',
+                content: 'diff --git a/src/app.py b/src/app.py\nindex 1234567..abcdefg 100644\n--- a/src/app.py\n+++ b/src/app.py\n@@ -10,7 +10,7 @@ def main():\n     print("Hello World")\n-    return False\n+    return True',
+                author: 'git_user',
+                created_at: '2024-01-15T08:45:00Z',
+                views: 15,
+                expiry: '7d'
+            }
+        ];
+
+        const sampleMyPastes = [
+            {
+                id: 'my123',
+                title: 'Personal Notes',
+                syntax: 'markdown',
+                content: '# Project Ideas\n\n1. Build a CLI tool\n2. Learn Rust\n3. Contribute to open source',
+                author: 'john.doe',
+                created_at: '2024-01-14T16:20:00Z',
+                views: 5,
+                expiry: 'never'
+            },
+            {
+                id: 'my456',
+                title: 'API Response Example',
+                syntax: 'json',
+                content: '{\n  "status": "success",\n  "data": {\n    "id": 123,\n    "name": "Example"\n  }\n}',
+                author: 'john.doe',
+                created_at: '2024-01-14T14:10:00Z',
+                views: 12,
+                expiry: '30d'
+            }
+        ];
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecentPastes();
+            loadMyPastes();
+            setupEventListeners();
+            setupFileUpload();
+            setupDragAndDrop();
+        });
+
+        function setupEventListeners() {
+            const form = document.getElementById('paste-form');
+            const previewBtn = document.getElementById('preview-btn');
+            
+            form.addEventListener('submit', handlePasteSubmit);
+            previewBtn.addEventListener('click', showPreview);
+            
+            // Navigation
+            document.querySelectorAll('nav a').forEach(link => {
+                link.addEventListener('click', handleNavigation);
+            });
+        }
+
+        function setupFileUpload() {
+            const uploadBtn = document.getElementById('upload-btn');
+            const fileInput = document.getElementById('file-input');
+            
+            uploadBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileUpload);
+        }
+
+        function setupDragAndDrop() {
+            const contentArea = document.getElementById('content');
+            
+            contentArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                contentArea.classList.add('border-blue-500', 'bg-blue-50');
+            });
+            
+            contentArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                contentArea.classList.remove('border-blue-500', 'bg-blue-50');
+            });
+            
+            contentArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                contentArea.classList.remove('border-blue-500', 'bg-blue-50');
+                handleFileDrop(e);
+            });
+        }
+
+        function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = document.getElementById('content');
+                    content.value = e.target.result;
+                    showToast(`File "${file.name}" loaded successfully`, 'success');
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function handleFileDrop(e) {
+            const files = Array.from(e.dataTransfer.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = document.getElementById('content');
+                    content.value = e.target.result;
+                    showToast(`File "${file.name}" dropped and loaded`, 'success');
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function handlePasteSubmit(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const pasteData = {
+                title: formData.get('title'),
+                syntax: formData.get('syntax'),
+                content: formData.get('content'),
+                expiry: formData.get('expiry'),
+                visibility: formData.get('visibility'),
+                password: formData.get('password')
+            };
+
+            // Simulate API call
+            setTimeout(() => {
+                const pasteId = generateId();
+                const pasteUrl = `${window.location.origin}/p/${pasteId}`;
+                
+                showToast(`Paste created successfully!`, 'success');
+                
+                // Copy URL to clipboard
+                navigator.clipboard.writeText(pasteUrl).then(() => {
+                    showToast('URL copied to clipboard!', 'info');
+                });
+                
+                // Reset form
+                e.target.reset();
+            }, 1000);
+        }
+
+        function showPreview() {
+            const content = document.getElementById('content').value;
+            const syntax = document.getElementById('syntax').value;
+            
+            if (!content.trim()) {
+                showToast('Please enter some content to preview', 'warning');
+                return;
+            }
+
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+            modal.innerHTML = `
+                <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Preview</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="bg-gray-900 rounded-lg p-4 overflow-auto max-h-96">
+                            <pre><code class="language-${syntax}">${escapeHtml(content)}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Highlight syntax
+            if (window.Prism) {
+                Prism.highlightAllUnder(modal);
+            }
+        }
+
+        function loadRecentPastes() {
+            const container = document.getElementById('recent-pastes-list');
+            container.innerHTML = '';
+            
+            sampleRecentPastes.forEach(paste => {
+                const pasteElement = createPasteElement(paste, false);
+                container.appendChild(pasteElement);
+            });
+        }
+
+        function loadMyPastes() {
+            const container = document.getElementById('my-pastes-list');
+            container.innerHTML = '';
+            
+            sampleMyPastes.forEach(paste => {
+                const pasteElement = createPasteElement(paste, true);
+                container.appendChild(pasteElement);
+            });
+            
+            document.getElementById('my-paste-count').textContent = sampleMyPastes.length;
+        }
+
+        function createPasteElement(paste, isMine) {
+            const div = document.createElement('div');
+            div.className = 'p-6 hover:bg-gray-50';
+            div.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <h3 class="text-sm font-medium text-gray-900 truncate">
+                                <a href="/p/${paste.id}" class="hover:text-blue-600">${escapeHtml(paste.title || 'Untitled')}</a>
+                            </h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                ${paste.syntax}
+                            </span>
+                            ${isMine ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Mine</span>' : ''}
+                        </div>
+                        <p class="text-sm text-gray-500 mb-2 font-mono">
+                            ${escapeHtml(paste.content.substring(0, 100))}${paste.content.length > 100 ? '...' : ''}
+                        </p>
+                        <div class="flex items-center space-x-4 text-xs text-gray-500">
+                            <span class="flex items-center">
+                                <i class="fas fa-user mr-1"></i>
+                                ${paste.author}
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fas fa-eye mr-1"></i>
+                                ${paste.views} views
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fas fa-clock mr-1"></i>
+                                ${formatTimeAgo(paste.created_at)}
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fas fa-hourglass-half mr-1"></i>
+                                ${paste.expiry}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex space-x-2">
+                        <button onclick="sharePaste('${paste.id}')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-share"></i>
+                        </button>
+                        ${isMine ? `
+                            <button onclick="editPaste('${paste.id}')" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deletePaste('${paste.id}')" class="text-red-400 hover:text-red-600">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function handleNavigation(e) {
+            e.preventDefault();
+            const target = e.target.getAttribute('href');
+            
+            // Update active state
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('border-blue-500', 'text-gray-900');
+                link.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            e.target.classList.remove('border-transparent', 'text-gray-500');
+            e.target.classList.add('border-blue-500', 'text-gray-900');
+            
+            // Scroll to section
+            if (target === '#new') {
+                document.getElementById('new-paste').scrollIntoView({ behavior: 'smooth' });
+            } else if (target === '#recent') {
+                document.getElementById('recent-pastes').scrollIntoView({ behavior: 'smooth' });
+            } else if (target === '#my-pastes') {
+                document.getElementById('my-pastes').scrollIntoView({ behavior: 'smooth' });
+            } else if (target === '#api') {
+                document.getElementById('api-docs').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function sharePaste(id) {
+            const url = `${window.location.origin}/p/${id}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Paste URL copied to clipboard!', 'success');
+            });
+        }
+
+        function editPaste(id) {
+            showToast('Edit functionality would be implemented here', 'info');
+        }
+
+        function deletePaste(id) {
+            if (confirm('Are you sure you want to delete this paste?')) {
+                showToast('Paste deleted successfully', 'success');
+                // Remove from list
+                loadMyPastes();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 transform transition-all duration-300 translate-x-full`;
+            toast.innerHTML = `
+                <i class="${icons[type]}"></i>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Remove after delay
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15);
+        }
+
+        function formatTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // CLI Tool Integration Example
+        window.pasteCLI = {
+            // This would be used by the CLI tool
+            createPaste: async function(data) {
+                const response = await fetch('/api/v1/pastes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${data.apiKey}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                return response.json();
+            }
+        };
+    </script>
+</body>
+</html>
