@@ -1,6 +1,6 @@
 <script>
   import { showToast } from '../stores/toastStore'
-  import { deletePaste } from '../services/api'
+  import { deletePaste, getPasteRaw } from '../services/api'
 
   export let paste = {}
   export let isMine = false
@@ -25,8 +25,20 @@
     })
   }
 
-  function handleEdit() {
-    showToast('Edit functionality would be implemented here', 'info')
+  async function copyContent() {
+    try {
+      const response = await getPasteRaw(paste.id)
+      const text = await response.data.text()
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Content copied to clipboard!', 'success')
+      })
+    } catch (error) {
+      showToast('Failed to copy content', 'error')
+    }
+  }
+
+  function viewRaw() {
+    window.open(`/${paste.id}/raw`, '_blank')
   }
 
   function handleNavigateToPaste(e) {
@@ -83,14 +95,21 @@
       >
         <i class="fas fa-share"></i>
       </button>
+      <button
+        on:click={copyContent}
+        class="text-gray-400 hover:text-gray-600 transition-colors"
+        title="Copy content"
+      >
+        <i class="fas fa-copy"></i>
+      </button>
+      <button
+        on:click={viewRaw}
+        class="text-gray-400 hover:text-gray-600 transition-colors"
+        title="View raw"
+      >
+        <i class="fas fa-file-code"></i>
+      </button>
       {#if isMine}
-        <button
-          on:click={handleEdit}
-          class="text-gray-400 hover:text-gray-600 transition-colors"
-          title="Edit"
-        >
-          <i class="fas fa-edit"></i>
-        </button>
         <button
           on:click={handleDelete}
           class="text-red-400 hover:text-red-600 transition-colors"
