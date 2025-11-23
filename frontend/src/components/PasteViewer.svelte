@@ -35,7 +35,7 @@
       const content = await rawResponse.data.arrayBuffer()
       console.log('[PasteViewer] Raw content received, processing...')
 
-      processed = processContent(
+      processed = await processContent(
         new Uint8Array(content),
         paste.content_type,
         paste.language_hint

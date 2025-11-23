@@ -10,36 +10,222 @@ code {
   @apply font-mono;
 }
 
-/* Code highlighting styles */
-.language-python {
-  @apply text-blue-600;
+/* Enhanced markdown styling for unified ecosystem */
+.prose {
+  color: #374151;
+  max-width: none;
 }
 
-.language-javascript {
-  @apply text-yellow-600;
+.prose h1 {
+  @apply text-3xl font-bold text-gray-900 border-b-2 border-gray-200 pb-4 mb-6 mt-8;
 }
 
-.language-bash {
-  @apply text-green-600;
+.prose h2 {
+  @apply text-2xl font-semibold text-gray-900 mt-8 mb-4;
 }
 
-/* Syntax highlighting for Prism */
-.token.punctuation {
-  @apply text-gray-600;
+.prose h3 {
+  @apply text-xl font-medium text-gray-900 mt-6 mb-3;
 }
 
-.token.keyword {
-  @apply text-purple-600;
+.prose h4 {
+  @apply text-lg font-medium text-gray-900 mt-4 mb-2;
 }
 
-.token.string {
-  @apply text-green-600;
+.prose h5 {
+  @apply text-base font-medium text-gray-900 mt-3 mb-2;
 }
 
-.token.function {
-  @apply text-blue-600;
+.prose h6 {
+  @apply text-sm font-medium text-gray-900 mt-2 mb-1;
 }
 
-.token.comment {
-  @apply text-gray-500;
+/* Links */
+.prose a {
+  @apply text-blue-600 hover:text-blue-700 font-medium no-underline hover:underline;
+}
+
+/* Paragraphs */
+.prose p {
+  @apply text-gray-700 mb-4 leading-relaxed;
+}
+
+/* Lists */
+.prose ul {
+  @apply list-disc list-inside mb-4 space-y-2;
+}
+
+.prose ol {
+  @apply list-decimal list-inside mb-4 space-y-2;
+}
+
+.prose li {
+  @apply text-gray-700 pl-1;
+}
+
+.prose li > p {
+  @apply mb-1;
+}
+
+/* Blockquotes */
+.prose blockquote {
+  @apply border-l-4 border-blue-500 pl-6 py-3 my-6 bg-blue-50 italic text-gray-700 rounded-r-lg;
+  font-style: italic;
+}
+
+.prose blockquote p {
+  @apply mb-0;
+}
+
+/* Code blocks - improved styling */
+.prose pre {
+  @apply bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 overflow-x-auto text-sm;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-gray-800 font-mono text-sm leading-relaxed;
+  display: block;
+}
+
+/* Inline code */
+.prose :not(pre) > code {
+  @apply bg-gray-100 text-pink-600 px-2 py-1 rounded text-sm font-mono font-medium;
+  border: 1px solid #e5e7eb;
+}
+
+/* Tables */
+.prose table {
+  @apply w-full border-collapse border border-gray-200 rounded-lg overflow-hidden mb-6;
+}
+
+.prose thead {
+  @apply bg-gray-50;
+}
+
+.prose th {
+  @apply border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900;
+}
+
+.prose td {
+  @apply border border-gray-200 px-4 py-3 text-sm text-gray-700;
+}
+
+.prose tbody tr:hover {
+  @apply bg-gray-50;
+}
+
+/* Horizontal rule */
+.prose hr {
+  @apply border-0 border-t-2 border-gray-200 my-8;
+}
+
+/* Task lists */
+.prose .task-list-item {
+  @apply list-none;
+}
+
+.prose .task-list-item input {
+  @apply mr-2 rounded;
+}
+
+/* Images */
+.prose img {
+  @apply rounded-lg shadow-sm border border-gray-200 max-w-full h-auto;
+}
+
+/* Details/summary for collapsible content */
+.prose details {
+  @apply border border-gray-200 rounded-lg mb-4;
+}
+
+.prose summary {
+  @apply px-4 py-3 bg-gray-50 cursor-pointer font-medium text-gray-900 hover:bg-gray-100;
+}
+
+.prose details[open] summary {
+  @apply border-b border-gray-200;
+}
+
+.prose details > div {
+  @apply p-4;
+}
+
+/* Error styling */
+.markdown-error {
+  @apply bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg;
+}
+
+/* Highlight.js theme overrides for light mode */
+.hljs {
+  background: #f8f9fa !important;
+  color: #24292e !important;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #6a737d !important;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #d73a49 !important;
+  font-weight: bold;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag .hljs-attr {
+  color: #005cc5 !important;
+}
+
+.hljs-string,
+.hljs-doctag {
+  color: #032f62 !important;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: #6f42c1 !important;
+  font-weight: bold;
+}
+
+.hljs-subst {
+  font-weight: normal;
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-tag,
+.hljs-regexp,
+.hljs-link {
+  color: #22863a !important;
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #e36209 !important;
+}
+
+.hljs-meta,
+.hljs-deletion {
+  color: #b31d28 !important;
+}
+
+.hljs-addition {
+  color: #22863a !important;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
 }

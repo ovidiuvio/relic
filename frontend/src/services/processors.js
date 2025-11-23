@@ -4,21 +4,7 @@
  */
 
 import hljs from 'highlight.js'
-import MarkdownIt from 'markdown-it'
-
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight: function (str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
-      } catch (__) {}
-    }
-    return '' // use external default escaping
-  }
-})
+import { processMarkdown } from './markdownProcessor.js'
 
 /**
  * Detect programming language from content
@@ -108,20 +94,7 @@ export function processImage(content) {
 /**
  * Process markdown content
  */
-export function processMarkdown(content) {
-  const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
-  const html = md.render(text)
-
-  return {
-    type: 'markdown',
-    html,
-    preview: text,
-    metadata: {
-      lineCount: text.split('\n').length,
-      charCount: text.length
-    }
-  }
-}
+export { processMarkdown }
 
 /**
  * Process CSV content
@@ -153,12 +126,13 @@ export function processCSV(content) {
 /**
  * Main processor function that delegates to type-specific processors
  */
-export function processContent(content, contentType, languageHint) {
+export async function processContent(content, contentType, languageHint) {
   const contentTypeLower = contentType.toLowerCase()
 
   // Markdown
   if (
     contentTypeLower.includes('markdown') ||
+    contentTypeLower.includes('text/markdown') ||
     languageHint === 'markdown' ||
     languageHint === 'md'
   ) {
