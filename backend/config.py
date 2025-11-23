@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings."""
 
     # App
-    APP_NAME: str = "CloudPaste"
+    APP_NAME: str = "Relic"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 

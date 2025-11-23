@@ -4,7 +4,7 @@ services:
   # Nginx reverse proxy
   nginx:
     image: nginx:alpine
-    container_name: cloudpaste-nginx
+    container_name: Relic-nginx
     ports:
       - "80:80"
     volumes:
@@ -13,14 +13,14 @@ services:
       - backend
       - frontend
     networks:
-      - cloudpaste
+      - Relic
 
   # Backend API Service
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: cloudpaste-backend
+    container_name: Relic-backend
     expose:
       - "8000"
     environment:
@@ -42,14 +42,14 @@ services:
         condition: service_healthy
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
-      - cloudpaste
+      - Relic
 
   # Frontend Development Server
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: cloudpaste-frontend
+    container_name: Relic-frontend
     expose:
       - "5173"
     volumes:
@@ -61,12 +61,12 @@ services:
       - backend
     command: npm run dev -- --host 0.0.0.0
     networks:
-      - cloudpaste
+      - Relic
 
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
-    container_name: cloudpaste-minio
+    container_name: Relic-minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -82,12 +82,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - cloudpaste
+      - Relic
 
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: cloudpaste-postgres
+    container_name: Relic-postgres
     ports:
       - "5432:5432"
     environment:
@@ -102,12 +102,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - cloudpaste
+      - Relic
 
 volumes:
   minio_data:
   postgres_data:
 
 networks:
-  cloudpaste:
+  Relic:
     driver: bridge

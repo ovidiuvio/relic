@@ -1,6 +1,6 @@
-# CloudPaste Setup Guide
+# Relic Setup Guide
 
-This guide will help you set up CloudPaste on your system.
+This guide will help you set up Relic on your system.
 
 ## System Requirements
 
@@ -169,8 +169,8 @@ source venv/bin/activate
 
 **Solution 2:** Use conda (if installed)
 ```bash
-conda create -n cloudpaste python=3.10
-conda activate cloudpaste
+conda create -n Relic python=3.10
+conda activate Relic
 pip install -r requirements.txt
 ```
 

@@ -1,6 +1,6 @@
 # Container-Based Development Setup
 
-CloudPaste now runs entirely in Docker containers for development, making it easy to start, stop, and manage all services.
+Relic now runs entirely in Docker containers for development, making it easy to start, stop, and manage all services.
 
 ## Quick Start
 
@@ -21,10 +21,10 @@ All services run in Docker containers and communicate via a shared network:
 
 | Service | Port | Container Name | Purpose |
 |---------|------|-----------------|---------|
-| **Frontend** | 5173 | cloudpaste-frontend | Svelte dev server with HMR |
-| **Backend** | 8000 | cloudpaste-backend | FastAPI with auto-reload |
-| **PostgreSQL** | 5432 | cloudpaste-postgres | Main database |
-| **MinIO** | 9000/9001 | cloudpaste-minio | S3-compatible file storage |
+| **Frontend** | 5173 | Relic-frontend | Svelte dev server with HMR |
+| **Backend** | 8000 | Relic-backend | FastAPI with auto-reload |
+| **PostgreSQL** | 5432 | Relic-postgres | Main database |
+| **MinIO** | 9000/9001 | Relic-minio | S3-compatible file storage |
 
 ## Available Commands
 
@@ -197,7 +197,7 @@ Key variables:
 
 ## Network Communication
 
-All services communicate via the `cloudpaste` Docker network:
+All services communicate via the `Relic` Docker network:
 
 - Backend connects to: `postgres:5432`, `minio:9000`
 - Frontend connects to: Backend at `http://localhost:8000` (from browser)
@@ -210,8 +210,8 @@ To create production images:
 
 ```bash
 # Build without development dependencies
-docker build -f backend/Dockerfile.prod -t cloudpaste-backend:latest backend/
-docker build -f frontend/Dockerfile.prod -t cloudpaste-frontend:latest frontend/
+docker build -f backend/Dockerfile.prod -t Relic-backend:latest backend/
+docker build -f frontend/Dockerfile.prod -t Relic-frontend:latest frontend/
 
 # Or use production docker-compose file
 docker compose -f docker-compose.prod.yml up

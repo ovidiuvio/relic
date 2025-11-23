@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CloudPaste** is a professional pastebin service with immutable pastes, complete version history tracking, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+**Relic** is a professional pastebin service with immutable pastes, complete version history tracking, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
 
 Key principle: Pastes cannot be edited - edits create new versions linked to the original, preserving complete history.
 

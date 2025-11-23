@@ -1,6 +1,6 @@
-# CloudPaste Quick Start Guide
+# Relic Quick Start Guide
 
-Get CloudPaste running in 5 minutes.
+Get Relic running in 5 minutes.
 
 ## Prerequisites
 

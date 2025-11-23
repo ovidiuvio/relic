@@ -1,10 +1,10 @@
 #!/bin/bash
-# CloudPaste Setup Script
+# Relic Setup Script
 # This script sets up the development environment
 
 set -e
 
-echo "🚀 CloudPaste Setup"
+echo "🚀 Relic Setup"
 echo "===================="
 echo ""
 

@@ -1,4 +1,4 @@
-# ✅ CloudPaste Setup Complete!
+# ✅ Relic Setup Complete!
 
 Your development environment is ready. Here's what you need to do next:
 

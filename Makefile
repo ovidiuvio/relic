@@ -1,7 +1,7 @@
 .PHONY: help up down logs logs-backend logs-frontend logs-nginx stop restart build rebuild clean test db-init shell-backend shell-frontend
 
 help:
-	@echo "CloudPaste Development Commands (Container-based)"
+	@echo "Relic Development Commands (Container-based)"
 	@echo "=================================================="
 	@echo "Quick Start:"
 	@echo "  make up            - Start all containers (nginx, backend, frontend, PostgreSQL, MinIO)"
@@ -34,7 +34,7 @@ help:
 
 # Start all containers in development mode
 up:
-	@echo "Starting CloudPaste services..."
+	@echo "Starting Relic services..."
 	docker compose up -d
 	@echo ""
 	@echo "✓ Services started!"
@@ -49,7 +49,7 @@ up:
 
 # Stop all containers
 down:
-	@echo "Stopping CloudPaste services..."
+	@echo "Stopping Relic services..."
 	docker compose down
 	@echo "✓ Services stopped"
 

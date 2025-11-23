@@ -1,4 +1,4 @@
-# CloudPaste - Professional Pastebin Service
+# Relic - Professional Pastebin Service
 
 A modern, feature-rich pastebin service with immutable pastes, complete version history, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
 
@@ -268,7 +268,7 @@ Configure S3-compatible storage or AWS S3:
 S3_ENDPOINT_URL=https://s3.amazonaws.com
 S3_ACCESS_KEY=your-key
 S3_SECRET_KEY=your-secret
-S3_BUCKET_NAME=cloudpaste
+S3_BUCKET_NAME=Relic
 ```
 
 ### Docker Deployment

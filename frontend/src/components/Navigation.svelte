@@ -17,7 +17,7 @@
       <div class="flex items-center">
         <div class="flex-shrink-0 flex items-center">
           <i class="fas fa-cloud text-blue-600 text-2xl mr-2"></i>
-          <span class="text-xl font-bold text-gray-900">CloudPaste</span>
+          <span class="text-xl font-bold text-gray-900">Relic</span>
           <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Pro</span>
         </div>
         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
