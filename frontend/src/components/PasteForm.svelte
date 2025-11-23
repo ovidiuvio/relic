@@ -238,7 +238,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label for="syntax" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
             <select
               id="syntax"
               bind:value={syntax}
@@ -262,7 +262,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+            <label for="visibility" class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
             <select
               id="visibility"
               bind:value={visibility}
@@ -281,7 +281,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Expires</label>
+            <label for="expiry" class="block text-sm font-medium text-gray-700 mb-1">Expires</label>
             <select
               id="expiry"
               bind:value={expiry}
