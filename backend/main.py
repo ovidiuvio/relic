@@ -17,7 +17,6 @@ from backend.schemas import (
 from backend.storage import storage_service
 from backend.utils import generate_paste_id, parse_expiry_string, is_expired, hash_password
 from backend.processors import process_content
-from backend.rate_limit import RateLimitMiddleware
 
 
 app = FastAPI(
@@ -26,12 +25,6 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
-# Add rate limiting middleware (before CORS)
-app.add_middleware(
-    RateLimitMiddleware,
-    upload_limit=settings.RATE_LIMIT_UPLOAD,
-    read_limit=settings.RATE_LIMIT_READ
-)
 
 # Add CORS middleware
 app.add_middleware(

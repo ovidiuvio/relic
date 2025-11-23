@@ -229,10 +229,8 @@ Frontend uses simple section-based routing (not a full router). To add new pages
 - **Diff**: <200ms for 10KB text
 - **History query**: <50ms
 
-## Rate Limiting & Security
+## Security
 
-- **Upload**: 10 uploads/min per IP
-- **Read**: 100 reads/min per IP
 - **File type validation**: MIME detection (not just extension)
 - **Size limits**: 100MB max
 - **HTML sanitization**: Required for display

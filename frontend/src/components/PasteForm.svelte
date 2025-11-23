@@ -11,6 +11,41 @@
   let isLoading = false
   let fileInput
 
+  // Map syntax selections to MIME types
+  function getContentType(syntax) {
+    const mimeTypes = {
+      'text': 'text/plain',
+      'markdown': 'text/markdown',
+      'html': 'text/html',
+      'json': 'application/json',
+      'xml': 'application/xml',
+      'javascript': 'application/javascript',
+      'python': 'text/x-python',
+      'bash': 'text/x-shellscript',
+      'sql': 'application/sql',
+      'css': 'text/css',
+      'java': 'text/x-java-source'
+    }
+    return mimeTypes[syntax] || 'text/plain'
+  }
+
+  function getFileExtension(syntax) {
+    const extensions = {
+      'text': 'txt',
+      'markdown': 'md',
+      'html': 'html',
+      'json': 'json',
+      'xml': 'xml',
+      'javascript': 'js',
+      'python': 'py',
+      'bash': 'sh',
+      'sql': 'sql',
+      'css': 'css',
+      'java': 'java'
+    }
+    return extensions[syntax] || 'txt'
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
 
@@ -22,14 +57,20 @@
     isLoading = true
 
     try {
-      // Create a File object from the content
-      const blob = new Blob([content], { type: 'text/plain' })
-      const file = new File([blob], title || 'paste.txt', { type: 'text/plain' })
+      // Determine content type based on syntax selection
+      const contentType = syntax !== 'auto' ? getContentType(syntax) : 'text/plain'
+      const fileExtension = syntax !== 'auto' ? getFileExtension(syntax) : 'txt'
+
+      // Create a File object from the content with proper MIME type
+      const blob = new Blob([content], { type: contentType })
+      const fileName = title || `paste.${fileExtension}`
+      const file = new File([blob], fileName, { type: contentType })
 
       // Create FormData and append the file
       const formData = new FormData()
       formData.append('file', file)
       formData.append('name', title || 'Untitled')
+      formData.append('content_type', contentType)
       if (syntax !== 'auto') {
         formData.append('language_hint', syntax)
       }
@@ -82,9 +123,35 @@
 
     reader.onload = (event) => {
       content = event.target.result
+      // Set title based on filename (without extension)
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "")
+      if (!title) title = nameWithoutExt
+
+      // Try to detect syntax based on file extension
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (ext && syntax === 'auto') {
+        // Map extensions to syntax options
+        const extToSyntax = {
+          'js': 'javascript', 'ts': 'javascript', 'jsx': 'javascript', 'tsx': 'javascript',
+          'py': 'python', 'pyx': 'python', 'pyi': 'python',
+          'html': 'html', 'htm': 'html',
+          'css': 'css', 'scss': 'css', 'sass': 'css', 'less': 'css',
+          'json': 'json', 'jsonc': 'json',
+          'md': 'markdown', 'markdown': 'markdown',
+          'xml': 'xml', 'xsl': 'xml', 'xslt': 'xml',
+          'sh': 'bash', 'bash': 'bash', 'zsh': 'bash', 'fish': 'bash',
+          'sql': 'sql',
+          'java': 'java', 'class': 'java'
+        }
+        if (extToSyntax[ext]) {
+          syntax = extToSyntax[ext]
+        }
+      }
+
       showToast(`File "${file.name}" loaded successfully`, 'success')
     }
 
+    // Read as text to preserve content
     reader.readAsText(file)
   }
 
@@ -110,9 +177,35 @@
 
     reader.onload = (event) => {
       content = event.target.result
+      // Set title based on filename (without extension)
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "")
+      if (!title) title = nameWithoutExt
+
+      // Try to detect syntax based on file extension
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (ext && syntax === 'auto') {
+        // Map extensions to syntax options
+        const extToSyntax = {
+          'js': 'javascript', 'ts': 'javascript', 'jsx': 'javascript', 'tsx': 'javascript',
+          'py': 'python', 'pyx': 'python', 'pyi': 'python',
+          'html': 'html', 'htm': 'html',
+          'css': 'css', 'scss': 'css', 'sass': 'css', 'less': 'css',
+          'json': 'json', 'jsonc': 'json',
+          'md': 'markdown', 'markdown': 'markdown',
+          'xml': 'xml', 'xsl': 'xml', 'xslt': 'xml',
+          'sh': 'bash', 'bash': 'bash', 'zsh': 'bash', 'fish': 'bash',
+          'sql': 'sql',
+          'java': 'java', 'class': 'java'
+        }
+        if (extToSyntax[ext]) {
+          syntax = extToSyntax[ext]
+        }
+      }
+
       showToast(`File "${file.name}" dropped and loaded`, 'success')
     }
 
+    // Read as text to preserve content
     reader.readAsText(file)
   }
 </script>

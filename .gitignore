@@ -40,10 +40,25 @@ env/
 *.sqlite
 *.sqlite3
 
-# Frontend
+# Frontend (all Node.js related files)
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+frontend/.env
+frontend/build/
+frontend/.cache/
+frontend/.temp/
+frontend/.vite/
+
+# Root level Node.js files (if any)
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npm
+.yarn
+.pnp*
+.pnp.js
 
 # Environment
 .env

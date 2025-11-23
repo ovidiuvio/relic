@@ -27,10 +27,7 @@ class Settings(BaseSettings):
     # Upload limits
     MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100 MB
 
-    # Rate limiting
-    RATE_LIMIT_UPLOAD: int = 10  # uploads per minute
-    RATE_LIMIT_READ: int = 100   # reads per minute
-
+  
     # JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM: str = "HS256"
