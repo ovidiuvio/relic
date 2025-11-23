@@ -4,36 +4,49 @@ Get CloudPaste running in 5 minutes.
 
 ## Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- Docker (for MinIO and PostgreSQL)
-- Git
+- **Python 3.10+** (required)
+- **Node.js 18+** (required for frontend)
+- **Docker & Docker Compose** (required for local development)
 
 ## Installation
 
-### 1. Clone the repository
-```bash
-cd paste
-```
+### Option 1: Using setup script (Recommended)
 
-### 2. Install dependencies
 ```bash
-make install
+./setup.sh
 ```
 
 This will:
-- Install Python packages from `requirements.txt`
-- Install Node.js packages for the frontend
+- Create a Python virtual environment
+- Install all Python dependencies
+- Install all Node.js dependencies
+- Check for Docker and other requirements
 
-### 3. Start services
+Then activate the virtual environment:
+```bash
+source venv/bin/activate
+```
+
+### Option 2: Manual installation
+
+```bash
+# 1. Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# 2. Install dependencies
+make install
+```
+
+### 3. Start Docker services
 ```bash
 make docker-up
 ```
 
 This starts:
-- MinIO (S3 storage) on port 9000
-- MinIO Console on port 9001 (credentials: minioadmin/minioadmin)
-- PostgreSQL database on port 5432 (optional for production)
+- **MinIO** (S3 storage) on port 9000
+- **MinIO Console** on port 9001 (credentials: minioadmin/minioadmin)
+- **PostgreSQL** database on port 5432
 
 ### 4. Run the application
 ```bash
