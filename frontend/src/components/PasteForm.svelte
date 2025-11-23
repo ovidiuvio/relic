@@ -11,7 +11,7 @@
   let isLoading = false
   let fileInput
 
-  // Map syntax selections to MIME types
+  // Map type selections to MIME types
   function getContentType(syntax) {
     const mimeTypes = {
       'text': 'text/plain',
@@ -57,7 +57,7 @@
     isLoading = true
 
     try {
-      // Determine content type based on syntax selection
+      // Determine content type based on type selection
       const contentType = syntax !== 'auto' ? getContentType(syntax) : 'text/plain'
       const fileExtension = syntax !== 'auto' ? getFileExtension(syntax) : 'txt'
 
@@ -127,7 +127,7 @@
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "")
       if (!title) title = nameWithoutExt
 
-      // Try to detect syntax based on file extension
+      // Try to detect type based on file extension
       const ext = file.name.split('.').pop()?.toLowerCase()
       if (ext && syntax === 'auto') {
         // Map extensions to syntax options
@@ -181,7 +181,7 @@
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "")
       if (!title) title = nameWithoutExt
 
-      // Try to detect syntax based on file extension
+      // Try to detect type based on file extension
       const ext = file.name.split('.').pop()?.toLowerCase()
       if (ext && syntax === 'auto') {
         // Map extensions to syntax options
@@ -240,7 +240,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Syntax Highlighting</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
             <select
               id="syntax"
               bind:value={syntax}

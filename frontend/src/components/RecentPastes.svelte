@@ -46,7 +46,7 @@
     return `<span class="status-pill ${statusClass}">${statusText}</span>`
   }
 
-  function getSyntaxLabel(contentType) {
+  function getTypeLabel(contentType) {
     if (!contentType) return 'Text'
     if (contentType.includes('javascript')) return 'JavaScript'
     if (contentType.includes('python')) return 'Python'
@@ -67,7 +67,7 @@
     return (
       (paste.name && paste.name.toLowerCase().includes(term)) ||
       paste.id.toLowerCase().includes(term) ||
-      (paste.content_type && getSyntaxLabel(paste.content_type).toLowerCase().includes(term))
+      (paste.content_type && getTypeLabel(paste.content_type).toLowerCase().includes(term))
     )
   })
 </script>
@@ -84,7 +84,7 @@
         <input
           type="text"
           bind:value={searchTerm}
-          placeholder="Filter by name, syntax, or id..."
+          placeholder="Filter by name, type, or id..."
           class="w-full pl-9 pr-3 py-1.5 text-sm maas-input"
         />
       </div>
@@ -111,7 +111,7 @@
             <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50">
               <th class="w-8"><input type="checkbox" class="rounded border-gray-300"></th>
               <th>Title / ID</th>
-              <th>Syntax</th>
+              <th>Type</th>
               <th>Visibility</th>
               <th>Created</th>
               <th>Size</th>
@@ -130,7 +130,7 @@
                   <span class="text-xs text-gray-400 font-mono">{paste.id}</span>
                 </td>
                 <td>
-                  <span class="text-sm">{getSyntaxLabel(paste.content_type)}</span>
+                  <span class="text-sm">{getTypeLabel(paste.content_type)}</span>
                 </td>
                 <td>
                   {@html getStatusPill(paste.access_level)}
