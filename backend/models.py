@@ -43,6 +43,7 @@ class Relic(Base):
 
     id = Column(String(32), primary_key=True)  # 32-char hex IDs
     user_id = Column(String, ForeignKey('user.id'), nullable=True)
+    client_id = Column(String, ForeignKey('client_key.id'), nullable=True, index=True)
 
     # Content metadata
     name = Column(String, nullable=True)
@@ -79,6 +80,18 @@ class Relic(Base):
     user = relationship("User", back_populates="relics")
     parent = relationship("Relic", remote_side=[id], backref="children", foreign_keys=[parent_id])
     tags = relationship("Tag", secondary=relic_tags, back_populates="relics")
+
+class ClientKey(Base):
+    """Client identification key."""
+    __tablename__ = "client_key"
+
+    id = Column(String(32), primary_key=True)  # 32-char hex client ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+    relic_count = Column(Integer, default=0)
+
+    # Relationships
+    relics = relationship("Relic", backref="owner_client")
+
 
 class Tag(Base):
     """Tag model."""

@@ -79,18 +79,17 @@
         formData.append('expires_in', expiry)
       }
 
-      // Use axios directly for FormData
-      const response = await fetch('/api/v1/relics', {
-        method: 'POST',
-        body: formData
+      // Use our API function which includes client key authentication
+      const response = await createRelic({
+        file: file,
+        name: title || undefined,
+        content_type: contentType,
+        language_hint: syntax !== 'auto' ? syntax : undefined,
+        access_level: visibility,
+        expires_in: expiry !== 'never' ? expiry : undefined
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to create relic')
-      }
-
-      const data = await response.json()
+      const data = response.data
       const relicUrl = `/${data.id}`
       showToast('Relic created successfully!', 'success')
 

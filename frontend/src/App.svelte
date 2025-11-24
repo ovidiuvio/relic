@@ -1,17 +1,18 @@
 <script>
   import { onMount } from 'svelte'
-  import Navigation from './components/Navigation.svelte'
-  import RelicForm from './components/RelicForm.svelte'
+    import RelicForm from './components/RelicForm.svelte'
   import RelicViewer from './components/RelicViewer.svelte'
   import RecentRelics from './components/RecentRelics.svelte'
   import MyRelics from './components/MyRelics.svelte'
   import ApiDocs from './components/ApiDocs.svelte'
   import Toast from './components/Toast.svelte'
   import { toastStore } from './stores/toastStore'
+  import { getOrCreateClientKey } from './services/api'
+  import { showToast } from './stores/toastStore'
 
-  let currentUser = null
   let currentSection = 'new'
   let currentRelicId = null
+  let showKeyDropdown = false
 
   function updateRouting() {
     const path = window.location.pathname
@@ -38,6 +39,9 @@
   }
 
   onMount(() => {
+    // Initialize client key on app start
+    getOrCreateClientKey()
+
     // Initial routing on page load
     updateRouting()
 
@@ -55,6 +59,76 @@
     } else {
       window.history.pushState({}, '', `/${section}`)
     }
+  }
+
+  function downloadClientKey() {
+    const clientKey = getOrCreateClientKey()
+    const blob = new Blob([clientKey], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `relic-client-key-${clientKey.substring(0, 8)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    showToast('Client key downloaded successfully', 'success')
+    showKeyDropdown = false
+  }
+
+  function copyClientKey() {
+    const clientKey = getOrCreateClientKey()
+    navigator.clipboard.writeText(clientKey).then(() => {
+      showToast('Client key copied to clipboard', 'success')
+    }).catch(() => {
+      showToast('Failed to copy client key', 'error')
+    })
+    showKeyDropdown = false
+  }
+
+  function uploadClientKey(event) {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const clientKey = e.target.result.trim()
+
+      // Validate client key format (32 hex characters)
+      if (!/^[a-f0-9]{32}$/i.test(clientKey)) {
+        showToast('Invalid client key format. Please use a valid 32-character hexadecimal key.', 'error')
+        return
+      }
+
+      // Store the new client key
+      localStorage.setItem('relic_client_key', clientKey)
+
+      // Re-register with server
+      fetch('/api/v1/client/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Key': clientKey
+        }
+      }).then(response => response.json()).then(data => {
+        if (data.message.includes('successfully') || data.message.includes('already registered')) {
+          showToast('Client key imported successfully! Reloading...', 'success')
+          setTimeout(() => {
+            window.location.reload()
+          }, 1500)
+        } else {
+          showToast('Failed to import client key', 'error')
+        }
+      }).catch(() => {
+        showToast('Failed to import client key', 'error')
+      })
+    }
+    reader.readAsText(file)
+
+    // Reset file input
+    event.target.value = ''
+    showKeyDropdown = false
   }
 </script>
 
@@ -101,8 +175,62 @@
           </button>
         </nav>
 
-        <!-- User Menu -->
+        <!-- Client Key Menu -->
         <div class="flex items-center gap-4">
+          <div class="client-key-dropdown relative">
+            <button
+              on:click={() => showKeyDropdown = !showKeyDropdown}
+              class="p-2 text-white/80 hover:text-white transition-colors"
+              title="Relic Key"
+            >
+              <i class="fas fa-key"></i>
+            </button>
+
+            {#if showKeyDropdown}
+              <div class="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <div class="p-3 border-b border-gray-200">
+                  <p class="text-sm font-medium text-gray-900">Manage Your Relic Key</p>
+                  <p class="text-xs text-gray-500 mt-1">Backup your key to access your relics from any device</p>
+                </div>
+
+                <div class="py-2">
+                  <button
+                    on:click={downloadClientKey}
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                  >
+                    <i class="fas fa-download w-5 text-blue-600"></i>
+                    <span>Download Key</span>
+                  </button>
+
+                  <button
+                    on:click={copyClientKey}
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                  >
+                    <i class="fas fa-copy w-5 text-green-600"></i>
+                    <span>Copy to Clipboard</span>
+                  </button>
+
+                  <label class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center">
+                    <i class="fas fa-upload w-5 text-purple-600"></i>
+                    <span>Import Key</span>
+                    <input
+                      type="file"
+                      accept=".txt"
+                      on:change={uploadClientKey}
+                      class="hidden"
+                    />
+                  </label>
+                </div>
+
+                <div class="px-4 py-3 bg-gray-50 rounded-b-lg">
+                  <p class="text-xs text-gray-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Your relic key identifies you as the owner of your relics
+                  </p>
+                </div>
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
@@ -118,7 +246,7 @@
       {:else if currentSection === 'recent'}
         <RecentRelics />
       {:else if currentSection === 'my-relics'}
-        <MyRelics {currentUser} />
+        <MyRelics />
       {:else if currentSection === 'api'}
         <ApiDocs />
       {/if}

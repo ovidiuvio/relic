@@ -72,6 +72,19 @@ def is_expired(expires_at: Optional[datetime]) -> bool:
     return datetime.utcnow() > expires_at
 
 
+def generate_client_id() -> str:
+    """
+    Generate client identification key.
+
+    Uses the same approach as relic IDs - cryptographically secure
+    32-character hexadecimal string with 128 bits of entropy.
+
+    Returns:
+        Cryptographically secure 32-character hex string
+    """
+    return secrets.token_hex(16)
+
+
 def format_file_size(size_bytes: int) -> str:
     """Format bytes to human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB']:

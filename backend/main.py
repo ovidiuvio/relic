@@ -9,13 +9,13 @@ import io
 
 from backend.config import settings
 from backend.database import init_db, get_db, SessionLocal
-from backend.models import Relic, User
+from backend.models import Relic, User, ClientKey
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse, RelicEdit,
     RelicFork, DiffResponse, UserCreate, UserResponse
 )
 from backend.storage import storage_service
-from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password
+from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
 from backend.processors import process_content
 
 
@@ -47,6 +47,111 @@ async def startup_event():
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.post("/api/v1/client/register", response_model=dict)
+async def register_client(request: Request, db: Session = Depends(get_db)):
+    """
+    Register a new client key.
+
+    If the client key already exists, returns the existing client.
+    If not, creates a new client record.
+    """
+    x_client_key = request.headers.get("X-Client-Key")
+    if not x_client_key:
+        raise HTTPException(status_code=400, detail="X-Client-Key header required")
+
+    # Check if client already exists
+    existing_client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
+    if existing_client:
+        return {
+            "client_id": existing_client.id,
+            "created_at": existing_client.created_at,
+            "relic_count": existing_client.relic_count,
+            "message": "Client already registered"
+        }
+
+    # Create new client
+    client = ClientKey(
+        id=x_client_key,
+        created_at=datetime.utcnow()
+    )
+    db.add(client)
+    db.commit()
+
+    return {
+        "client_id": client.id,
+        "created_at": client.created_at,
+        "relic_count": 0,
+        "message": "Client registered successfully"
+    }
+
+
+@app.get("/api/v1/client/relics", response_model=dict)
+async def get_client_relics(request: Request, db: Session = Depends(get_db)):
+    """
+    Get all relics owned by this client.
+
+    Requires valid X-Client-Key header.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Valid client key required")
+
+    relics = db.query(Relic).filter(
+        Relic.client_id == client.id,
+        Relic.deleted_at.is_(None)
+    ).order_by(Relic.created_at.desc()).all()
+
+    return {
+        "client_id": client.id,
+        "relic_count": len(relics),
+        "relics": [
+            {
+                "id": relic.id,
+                "name": relic.name,
+                "content_type": relic.content_type,
+                "size_bytes": relic.size_bytes,
+                "created_at": relic.created_at,
+                "access_level": relic.access_level,
+                "version_number": relic.version_number
+            }
+            for relic in relics
+        ]
+    }
+
+
+# ==================== Client Key Functions ====================
+
+def get_client_key(request: Request, db: Session) -> Optional[ClientKey]:
+    """Extract and validate client key from request headers."""
+    x_client_key = request.headers.get("X-Client-Key")
+    if not x_client_key:
+        return None
+
+    client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
+    return client
+
+
+def get_or_create_client_key(request: Request, db: Session) -> Optional[ClientKey]:
+    """Get existing client or create new one if key provided."""
+    x_client_key = request.headers.get("X-Client-Key")
+    if not x_client_key:
+        return None
+
+    # Try to get existing client
+    client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
+    if client:
+        return client
+
+    # Create new client if it doesn't exist
+    client = ClientKey(
+        id=x_client_key,
+        created_at=datetime.utcnow()
+    )
+    db.add(client)
+    db.commit()
+    return client
 
 
 # ==================== Helper Functions ====================
@@ -87,6 +192,7 @@ def generate_unique_relic_id(db: Session, max_retries: int = 5) -> str:
 # ==================== Relic Operations ====================
 @app.post("/api/v1/relics", response_model=dict)
 async def create_relic(
+    request: Request,
     file: Optional[UploadFile] = File(None),
     name: Optional[str] = Form(None),
     content_type: Optional[str] = Form(None),
@@ -108,6 +214,9 @@ async def create_relic(
             status_code=400,
             detail="Invalid access_level. Must be 'public' or 'private'."
         )
+
+    # Get or create client
+    client = get_or_create_client_key(request, db)
 
     try:
         # Read file content
@@ -141,6 +250,7 @@ async def create_relic(
         relic = Relic(
             id=relic_id,
             user_id=user_id,
+            client_id=client.id if client else None,
             name=name,
             content_type=content_type,
             language_hint=language_hint,
@@ -151,6 +261,10 @@ async def create_relic(
             expires_at=expires_at,
             processing_metadata={"processed_metadata": metadata, "preview": preview}
         )
+
+        # Update client relic count
+        if client:
+            client.relic_count += 1
 
         db.add(relic)
         db.commit()
@@ -227,25 +341,32 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
 @app.post("/api/v1/relics/{relic_id}/edit", response_model=dict)
 async def edit_relic(
     relic_id: str,
+    request: Request,
     file: UploadFile = File(...),
     name: Optional[str] = None,
-    user_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     Edit a relic (create new version).
 
     Creates a new relic with parent_id pointing to the original.
+    Only client owner can edit.
     """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Client key required")
+
     parent = db.query(Relic).filter(Relic.id == relic_id).first()
 
     if not parent:
-        raise HTTPException(status_code=404, detail="Relic` not found")
+        raise HTTPException(status_code=404, detail="Relic not found")
 
     if parent.deleted_at:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    # TODO: Check ownership
+    # Check client ownership
+    if parent.client_id != client.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this relic")
 
     try:
         content = await file.read()
@@ -263,7 +384,8 @@ async def edit_relic(
         # Create new relic as child
         new_relic = Relic(
             id=new_id,
-            user_id=user_id,
+            user_id=parent.user_id,
+            client_id=client.id,  # Inherit ownership from client
             name=name or parent.name,
             content_type=parent.content_type,
             language_hint=parent.language_hint,
@@ -276,6 +398,9 @@ async def edit_relic(
             expires_at=parent.expires_at,
             processing_metadata={"processed_metadata": metadata, "preview": preview}
         )
+
+        # Update client relic count
+        client.relic_count += 1
 
         db.add(new_relic)
         db.commit()
@@ -297,16 +422,20 @@ async def edit_relic(
 @app.post("/api/v1/relics/{relic_id}/fork", response_model=dict)
 async def fork_relic(
     relic_id: str,
+    request: Request,
     file: Optional[UploadFile] = File(None),
     name: Optional[str] = None,
-    user_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     Fork a relic (create new independent lineage).
 
     Creates a new relic with fork_of pointing to the original.
+    Public endpoint - anyone can fork. Fork belongs to forking client if key provided.
     """
+    # Get client (optional - fork is public)
+    client = get_or_create_client_key(request, db)
+
     original = db.query(Relic).filter(Relic.id == relic_id).first()
 
     if not original:
@@ -337,7 +466,8 @@ async def fork_relic(
         # Create fork with version 1
         fork = Relic(
             id=new_id,
-            user_id=user_id,
+            user_id=original.user_id,  # Preserve original user
+            client_id=client.id if client else None,  # Fork belongs to client if provided
             name=name or original.name,
             content_type=content_type,
             language_hint=original.language_hint,
@@ -349,6 +479,10 @@ async def fork_relic(
             access_level=original.access_level,
             processing_metadata={"processed_metadata": metadata, "preview": preview}
         )
+
+        # Update client relic count if client exists
+        if client:
+            client.relic_count += 1
 
         db.add(fork)
         db.commit()
@@ -368,21 +502,38 @@ async def fork_relic(
 
 
 @app.delete("/api/v1/relics/{relic_id}")
-async def delete_relic(relic_id: str, user_id: Optional[str] = None, db: Session = Depends(get_db)):
+async def delete_relic(relic_id: str, request: Request, db: Session = Depends(get_db)):
     """
     Delete a relic (soft delete).
 
-    Only owner can delete.
+    Only client owner can delete.
     """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Client key required")
+
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    # TODO: Check user ownership
-    if relic.user_id != user_id:
+    # Check client ownership
+    if relic.client_id != client.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this relic")
 
+    # Delete file from S3 storage
+    try:
+        await storage_service.delete(relic.s3_key)
+    except Exception as e:
+        # Log error but don't fail the delete operation
+        print(f"Failed to delete file from S3: {e}")
+
+    # Soft delete in database
     relic.deleted_at = datetime.utcnow()
+
+    # Update client relic count
+    if client.relic_count > 0:
+        client.relic_count -= 1
+
     db.commit()
 
     return {"message": "Relic deleted successfully"}
