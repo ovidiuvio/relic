@@ -39,13 +39,7 @@
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
   }
 
-  function getStatusPill(visibility) {
-    const statusClass = visibility === 'public' ? 'status-public' :
-                       visibility === 'private' ? 'status-private' : 'status-unlisted'
-    const statusText = visibility.charAt(0).toUpperCase() + visibility.slice(1)
-    return `<span class="status-pill ${statusClass}">${statusText}</span>`
-  }
-
+  
   function getTypeLabel(contentType) {
     if (!contentType) return 'Text'
     if (contentType.includes('javascript')) return 'JavaScript'
@@ -114,7 +108,6 @@
               <th class="w-8"><input type="checkbox" class="rounded border-gray-300"></th>
               <th>Title / ID</th>
               <th>Type</th>
-              <th>Visibility</th>
               <th>Created</th>
               <th>Size</th>
               <th class="w-40">Actions</th>
@@ -134,9 +127,6 @@
                 </td>
                 <td>
                   <span class="text-sm">{getTypeLabel(relic.content_type)}</span>
-                </td>
-                <td>
-                  {@html getStatusPill(relic.access_level)}
                 </td>
                 <td class="text-gray-500 text-xs">
                   {formatTimeAgo(relic.created_at)}

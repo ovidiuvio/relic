@@ -194,20 +194,7 @@
     box-shadow: 0 0 0 1px #E95420;
   }
 
-  /* Status pills */
-  :global(.status-pill) {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-  }
-
-  :global(.status-public) { background-color: #e3f2fd; color: #0c5460; }
-  :global(.status-private) { background-color: #fce4ec; color: #772953; }
-  :global(.status-unlisted) { background-color: #fff3e0; color: #e65100; }
-
+  
   /* Card styling */
   :global(.maas-card) {
     background-color: white;
