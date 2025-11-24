@@ -105,7 +105,6 @@
         <table class="w-full maas-table text-sm">
           <thead>
             <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50">
-              <th class="w-8"><input type="checkbox" class="rounded border-gray-300"></th>
               <th>Title / ID</th>
               <th>Type</th>
               <th>Created</th>
@@ -116,9 +115,6 @@
           <tbody>
             {#each filteredRelics as relic (relic.id)}
               <tr class="hover:bg-gray-50 cursor-pointer">
-                <td class="text-center">
-                  <input type="checkbox" class="rounded border-gray-300" />
-                </td>
                 <td>
                   <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline block">
                     {relic.name || 'Untitled'}
