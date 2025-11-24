@@ -65,7 +65,7 @@
 <div class="min-h-screen flex flex-col font-ubuntu bg-[#F7F7F7] text-[#333333]">
   <!-- Header with Navigation -->
   <header class="bg-[#772953] text-white shadow-lg">
-    <div class="max-w-7xl mx-auto px-4">
+    <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center justify-between h-16">
         <!-- Logo and Brand -->
         <div class="flex items-center gap-3">
@@ -74,7 +74,7 @@
         </div>
 
         <!-- Top Navigation -->
-        <nav class="hidden md:flex items-center space-x-1">
+        <nav class="hidden md:flex items-center space-x-1 ml-auto">
           <button
             on:click={() => handleNavigation('new')}
             class="maas-nav-top {currentSection === 'new' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
