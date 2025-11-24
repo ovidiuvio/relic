@@ -1,6 +1,6 @@
 """Pydantic schemas for request/response validation."""
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 
 
@@ -37,34 +37,34 @@ class TagResponse(TagBase):
         from_attributes = True
 
 
-class PasteBase(BaseModel):
-    """Base paste schema."""
+class RelicBase(BaseModel):
+    """Base relic schema."""
     name: Optional[str] = None
     description: Optional[str] = None
     language_hint: Optional[str] = None
-    access_level: str = "public"
+    access_level: Literal["public", "private"] = "public"
     password: Optional[str] = None
     expires_in: Optional[str] = None  # "1h", "24h", "7d", "30d", or None
     tags: List[str] = []
 
 
-class PasteCreate(PasteBase):
-    """Paste creation schema."""
+class RelicCreate(RelicBase):
+    """Relic creation schema."""
     content_type: Optional[str] = "text/plain"
 
 
-class PasteEdit(BaseModel):
-    """Paste edit schema (creates new version)."""
+class RelicEdit(BaseModel):
+    """Relic edit schema (creates new version)."""
     name: Optional[str] = None
 
 
-class PasteFork(BaseModel):
-    """Paste fork schema."""
+class RelicFork(BaseModel):
+    """Relic fork schema."""
     name: Optional[str] = None
 
 
-class PasteResponse(BaseModel):
-    """Paste response schema."""
+class RelicResponse(BaseModel):
+    """Relic response schema."""
     id: str
     user_id: Optional[str]
     name: Optional[str]
@@ -76,7 +76,7 @@ class PasteResponse(BaseModel):
     root_id: Optional[str]
     version_number: int
     fork_of: Optional[str]
-    access_level: str
+    access_level: Literal["public", "private"]
     created_at: datetime
     expires_at: Optional[datetime]
     deleted_at: Optional[datetime]
@@ -88,14 +88,14 @@ class PasteResponse(BaseModel):
         extra = "ignore"
 
 
-class PasteListResponse(BaseModel):
-    """Paste list response schema."""
-    pastes: List[PasteResponse]
+class RelicListResponse(BaseModel):
+    """Relic list response schema."""
+    relics: List[RelicResponse]
     total: int
 
 
-class PasteHistoryResponse(BaseModel):
-    """Paste history response schema."""
+class RelicHistoryResponse(BaseModel):
+    """Relic history response schema."""
     root_id: str
     current_id: str
     current_version: int

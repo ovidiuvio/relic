@@ -8,7 +8,7 @@ from backend.config import settings
 
 
 class StorageService:
-    """Service for storing and retrieving paste content."""
+    """Service for storing and retrieving relic content."""
 
     def __init__(self):
         """Initialize MinIO/S3 client."""
@@ -23,8 +23,8 @@ class StorageService:
     def ensure_bucket(self) -> None:
         """Ensure bucket exists, create if not."""
         try:
-            if not self.client.bucket_exists(self.bucket_name):
-                self.client.make_bucket(self.bucket_name)
+            if not self.client.bucket_exists(bucket_name=self.bucket_name):
+                self.client.make_bucket(bucket_name=self.bucket_name)
         except S3Error as e:
             print(f"Error ensuring bucket exists: {e}")
 
@@ -43,9 +43,9 @@ class StorageService:
         try:
             data_stream = io.BytesIO(data)
             self.client.put_object(
-                self.bucket_name,
-                key,
-                data_stream,
+                bucket_name=self.bucket_name,
+                object_name=key,
+                data=data_stream,
                 length=len(data),
                 content_type=content_type
             )
@@ -64,7 +64,10 @@ class StorageService:
             Content as bytes
         """
         try:
-            response = self.client.get_object(self.bucket_name, key)
+            response = self.client.get_object(
+                bucket_name=self.bucket_name,
+                object_name=key
+            )
             return response.read()
         except S3Error as e:
             raise Exception(f"Failed to download from S3: {e}")
@@ -72,14 +75,20 @@ class StorageService:
     async def delete(self, key: str) -> None:
         """Delete object from S3."""
         try:
-            self.client.remove_object(self.bucket_name, key)
+            self.client.remove_object(
+                bucket_name=self.bucket_name,
+                object_name=key
+            )
         except S3Error as e:
             raise Exception(f"Failed to delete from S3: {e}")
 
     async def exists(self, key: str) -> bool:
         """Check if object exists in S3."""
         try:
-            self.client.stat_object(self.bucket_name, key)
+            self.client.stat_object(
+                bucket_name=self.bucket_name,
+                object_name=key
+            )
             return True
         except S3Error as e:
             if e.code == "NoSuchKey":

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Relic** is a professional pastebin service with immutable pastes, complete version history tracking, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+**Relic** is a professional artifact storage service with immutable artifacts, complete version history tracking, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
 
-Key principle: Pastes cannot be edited - edits create new versions linked to the original, preserving complete history.
+Key principle: Relics cannot be edited - edits create new versions linked to the original, preserving complete history.
 
 ### Tech Stack
 - **Backend**: FastAPI + SQLAlchemy + MinIO/S3
@@ -16,22 +16,22 @@ Key principle: Pastes cannot be edited - edits create new versions linked to the
 
 ## Core Architecture Concepts
 
-### 1. Immutable Paste Model
+### 1. Immutable Relic Model
 
-- Each paste is permanent and cannot be edited after creation
-- "Editing" creates a **new paste** with `parent_id` pointing to the original
+- Each relic is permanent and cannot be edited after creation
+- "Editing" creates a **new relic** with `parent_id` pointing to the original
 - "Forking" creates an independent lineage with `fork_of` reference
 - All versions accessible at unique URLs and via history API
 
 **Database fields:**
 - `id`: Base62 ID (7-8 chars), primary key
 - `parent_id`: Link to previous version (null if original)
-- `root_id`: First paste in version chain (for efficient history lookup)
+- `root_id`: First relic in version chain (for efficient history lookup)
 - `version_number`: Sequential counter (1, 2, 3...)
-- `fork_of`: Source paste if forked (creates new root_id)
+- `fork_of`: Source relic if forked (creates new root_id)
 - `user_id`: Owner (nullable for anonymous)
-- `s3_key`: Storage location (format: `pastes/{id}`)
-- `access_level`: public/unlisted/private
+- `s3_key`: Storage location (format: `relics/{id}`)
+- `access_level`: public (listed in recents) or private (URL is the access token)
 - `created_at`, `expires_at`, `deleted_at`: Timestamps
 
 ### 2. Universal Content Support
@@ -58,47 +58,50 @@ Original:  a3Bk9Zx (v1)
 
 Key queries:
 - Get full history: traverse using `parent_id` or query by `root_id`
-- Get children: query all pastes with this `id` as `parent_id`
+- Get children: query all relics with this `id` as `parent_id`
 - Check if fork: look at `fork_of` field
 - Find root: use `root_id` field directly
 
 ### 4. Access Control & Expiration
 
-- **Access levels**: Public, Unlisted (direct URL only), Private (owner only)
+- **Access levels**:
+  - **Public**: Listed in recent relics, discoverable via UI
+  - **Private**: Not listed in recents, only accessible via direct URL (which serves as the access token with 128 bits of entropy)
+- **Optional password protection**: Can be applied to any relic (public or private) for additional security
 - **Expiration options**: 1h, 24h, 7d, 30d, never (default: never)
-- **Authentication**: Required for private pastes and deletion
-- **Soft delete**: Deleted pastes marked with `deleted_at` timestamp (hard delete after 30 days)
-- **Anonymous pastes**: `user_id` is null
+- **Soft delete**: Deleted relics marked with `deleted_at` timestamp (hard delete after 30 days)
+- **Anonymous relics**: `user_id` is null
+- **URL format**: 32-character hexadecimal (GitHub Gist-style), cryptographically secure, practically collision-proof
 
 ## Storage Architecture
 
-- **Primary storage**: S3-compatible (MinIO) - one object per paste
+- **Primary storage**: S3-compatible (MinIO) - one object per relic
 - **Database**: Stores metadata (id, user_id, parent_id, root_id, version_number, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, deleted_at, access_count, tags, etc.)
 - **Max upload**: 100MB (configurable)
-- **No S3 versioning needed**: Immutable model means each paste is independent
+- **No S3 versioning needed**: Immutable model means each relic is independent
 
 ## API Structure
 
 ### Key Endpoint Patterns
 
 ```
-POST   /api/pastes                    Create paste
-GET    /api/pastes/:id                Get paste metadata
+POST   /api/relics                    Create relic
+GET    /api/relics/:id                Get relic metadata
 GET    /:id/raw                       Get raw content
-POST   /api/pastes/:id/edit           Create new version
-POST   /api/pastes/:id/fork           Create fork (new lineage)
-DELETE /api/pastes/:id                Delete paste (soft delete)
+POST   /api/relics/:id/edit           Create new version
+POST   /api/relics/:id/fork           Create fork (new lineage)
+DELETE /api/relics/:id                Delete relic (soft delete)
 
-GET    /api/pastes/:id/history        Get full version history
-GET    /api/pastes/:id/parent         Get parent paste
-GET    /api/pastes/:id/children       Get child pastes
-GET    /api/diff?from=:id1&to=:id2    Compare any two pastes
-GET    /api/pastes/:id/diff           Compare with parent
+GET    /api/relics/:id/history        Get full version history
+GET    /api/relics/:id/parent         Get parent relic
+GET    /api/relics/:id/children       Get child relics
+GET    /api/diff?from=:id1&to=:id2    Compare any two relics
+GET    /api/relics/:id/diff           Compare with parent
 
-GET    /api/pastes/:id/preview        Get type-specific preview
-GET    /api/pastes/:id/thumbnail      Get thumbnail image
-GET    /api/pastes/search             Search by content/tags/type
-GET    /api/pastes                    List recent pastes
+GET    /api/relics/:id/preview        Get type-specific preview
+GET    /api/relics/:id/thumbnail      Get thumbnail image
+GET    /api/relics/search             Search by content/tags/type
+GET    /api/relics                    List recent relics
 ```
 
 ### Request/Response Pattern
@@ -111,10 +114,10 @@ GET    /api/pastes                    List recent pastes
 ## Project Structure
 
 ```
-paste/
+relic/
 ├── backend/
 │   ├── main.py              # FastAPI application and routes
-│   ├── models.py            # SQLAlchemy ORM models (Paste, User, Tag)
+│   ├── models.py            # SQLAlchemy ORM models (Relic, User, Tag)
 │   ├── schemas.py           # Pydantic validation schemas
 │   ├── database.py          # Database initialization and session management
 │   ├── config.py            # Configuration (settings, env vars)
@@ -129,12 +132,11 @@ paste/
 │   │   ├── app.css          # Tailwind styles
 │   │   ├── components/
 │   │   │   ├── Navigation.svelte
-│   │   │   ├── HeroSection.svelte
-│   │   │   ├── PasteForm.svelte
-│   │   │   ├── PasteViewer.svelte
-│   │   │   ├── PasteItem.svelte
-│   │   │   ├── RecentPastes.svelte
-│   │   │   ├── MyPastes.svelte
+│   │   │   ├── RelicForm.svelte
+│   │   │   ├── RelicViewer.svelte
+│   │   │   ├── RelicItem.svelte
+│   │   │   ├── RecentRelics.svelte
+│   │   │   ├── MyRelics.svelte
 │   │   │   ├── ApiDocs.svelte
 │   │   │   └── Toast.svelte
 │   │   ├── stores/
@@ -151,7 +153,7 @@ paste/
 ├── docker-compose.yml       # MinIO and PostgreSQL services
 ├── .env                     # Environment variables
 ├── .gitignore
-├── PASTE.md                 # Feature specification
+├── RELIC.md                 # Feature specification
 ├── CLAUDE.md                # This file
 └── README.md                # User documentation
 ```
@@ -192,10 +194,10 @@ For queries across version chains:
 Example:
 ```python
 # Get all versions in chain
-db.query(Paste).filter(Paste.root_id == original_root_id).order_by(Paste.created_at)
+db.query(Relic).filter(Relic.root_id == original_root_id).order_by(Relic.created_at)
 
 # Get children
-db.query(Paste).filter(Paste.parent_id == paste_id)
+db.query(Relic).filter(Relic.parent_id == relic_id)
 ```
 
 ### Diff Implementation
@@ -209,7 +211,7 @@ In `backend/main.py`, diff endpoints:
 
 Not yet implemented. Plan:
 - **By content**: Full-text search (SQLite `MATCH`, PostgreSQL `tsvector`, or external index)
-- **By tags**: Many-to-many via `paste_tags` table
+- **By tags**: Many-to-many via `relic_tags` table
 - **By type**: Simple filter on `content_type` field
 - **By user**: Filter on `user_id` field
 - **Pagination**: Use `offset` and `limit` parameters
@@ -235,13 +237,13 @@ Frontend uses simple section-based routing (not a full router). To add new pages
 - **Size limits**: 100MB max
 - **HTML sanitization**: Required for display
 - **Authenticated deletion**: Only owner can delete
-- **Expiration cleanup**: Hourly job to hard-delete expired pastes
+- **Expiration cleanup**: Hourly job to hard-delete expired relics
 
 ## Key Implementation Decisions
 
 1. **Immutability over editability**: This is the core philosophy - edits create new versions
 2. **Soft delete**: Allows recovery and maintains referential integrity (children stay linked)
-3. **S3 storage**: Scales to millions of pastes, supports any file type
+3. **S3 storage**: Scales to millions of relics, supports any file type
 4. **Base62 IDs**: URL-friendly, shorter than UUIDs
 5. **Version chains**: Preserve complete history without manual tracking
 6. **Smart processing**: Different previews for different types (syntax highlighting vs. image thumbnails vs. stats)

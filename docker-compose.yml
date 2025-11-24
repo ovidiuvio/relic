@@ -24,11 +24,11 @@ services:
     expose:
       - "8000"
     environment:
-      DATABASE_URL: postgresql://paste_user:paste_password@postgres:5432/paste_db
+      DATABASE_URL: postgresql://relic_user:relic_password@postgres:5432/relic_db
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: pastes
+      MINIO_BUCKET: relics
       MINIO_USE_SSL: "false"
       DEBUG: "true"
       ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
@@ -91,13 +91,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: paste_user
-      POSTGRES_PASSWORD: paste_password
-      POSTGRES_DB: paste_db
+      POSTGRES_USER: relic_user
+      POSTGRES_PASSWORD: relic_password
+      POSTGRES_DB: relic_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U paste_user"]
+      test: ["CMD-SHELL", "pg_isready -U relic_user"]
       interval: 10s
       timeout: 5s
       retries: 5

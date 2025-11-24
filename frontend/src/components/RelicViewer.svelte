@@ -1,14 +1,14 @@
 <script>
   import { onMount } from 'svelte'
-  import { getPaste, getPasteRaw, getPasteHistory } from '../services/api'
+  import { getRelic, getRelicRaw, getRelicHistory } from '../services/api'
   import { processContent } from '../services/processors'
   import { showToast } from '../stores/toastStore'
-  import { sharePaste, copyPasteContent, downloadPaste, viewRaw } from '../services/pasteActions'
+  import { shareRelic, copyRelicContent, downloadRelic, viewRaw } from '../services/relicActions'
   import MonacoEditor from './MonacoEditor.svelte'
 
-  export let pasteId = ''
+  export let relicId = ''
 
-  let paste = null
+  let relic = null
   let processed = null
   let loading = true
   let history = []
@@ -20,56 +20,55 @@
   let htmlEditor
   let markdownEditor
 
-  async function loadPaste(id) {
+  async function loadRelic(id) {
     if (!id) return
     loading = true
-    paste = null
+    relic = null
     processed = null
     history = []
 
-    console.log('[PasteViewer] Loading paste:', id)
-
+    console.log('[RelicViewer] Loading relic:', id)
     try {
-      console.log('[PasteViewer] Fetching paste metadata...')
-      const pasteResponse = await getPaste(id)
-      console.log('[PasteViewer] Paste metadata received:', pasteResponse.data)
-      paste = pasteResponse.data
+      console.log('[RelicViewer] Fetching relic metadata...')
+      const relicResponse = await getRelic(id)
+      console.log('[RelicViewer] Relic metadata received:', relicResponse.data)
+      relic = relicResponse.data
 
       // Fetch and process raw content
-      console.log('[PasteViewer] Fetching raw content...')
-      const rawResponse = await getPasteRaw(id)
+      console.log('[RelicViewer] Fetching raw content...')
+      const rawResponse = await getRelicRaw(id)
       const content = await rawResponse.data.arrayBuffer()
-      console.log('[PasteViewer] Raw content received, processing...')
+      console.log('[RelicViewer] Raw content received, processing...')
 
       processed = await processContent(
         new Uint8Array(content),
-        paste.content_type,
-        paste.language_hint
+        relic.content_type,
+        relic.language_hint
       )
-      console.log('[PasteViewer] Content processed:', processed)
+      console.log('[RelicViewer] Content processed:', processed)
 
       // Load history if this is part of a version chain
-      if (paste.root_id) {
-        console.log('[PasteViewer] Loading history...')
-        const historyResponse = await getPasteHistory(id)
+      if (relic.root_id) {
+        console.log('[RelicViewer] Loading history...')
+        const historyResponse = await getRelicHistory(id)
         history = historyResponse.data.versions
       }
-      console.log('[PasteViewer] Paste loaded successfully')
+      console.log('[RelicViewer] Relic loaded successfully')
     } catch (error) {
-      console.error('[PasteViewer] Error loading paste:', error)
-      showToast('Failed to load paste: ' + error.message, 'error')
+      console.error('[RelicViewer] Error loading relic:', error)
+      showToast('Failed to load relic: ' + error.message, 'error')
     } finally {
       loading = false
     }
   }
 
-  $: if (pasteId) {
-    loadPaste(pasteId)
+  $: if (relicId) {
+    loadRelic(relicId)
   }
 
   onMount(() => {
-    if (pasteId) {
-      loadPaste(pasteId)
+    if (relicId) {
+      loadRelic(relicId)
     }
   })
 
@@ -87,11 +86,11 @@
     return `${size.toFixed(2)} ${units[unitIndex]}`
   }
 
-  function navigateToPaste(newId) {
+  function navigateToRelic(newId) {
     window.history.pushState({}, '', `/${newId}`)
     window.dispatchEvent(new PopStateEvent('popstate', {}))
-    // Update current paste ID
-    pasteId = newId
+    // Update current relic ID
+    relicId = newId
   }
 
   // Initialize Monaco editor for HTML source view
@@ -210,7 +209,7 @@
   <div class="flex items-center justify-center py-12">
     <i class="fas fa-spinner fa-spin text-blue-600 text-4xl"></i>
   </div>
-{:else if paste}
+{:else if relic}
   <div class="max-w-7xl mx-auto px-4 py-6">
     <!-- Header -->
     <div class="bg-white shadow-sm rounded-lg border border-gray-200 mb-6">
@@ -218,36 +217,36 @@
         <div class="flex items-center">
           <h2 class="text-lg font-semibold text-gray-900 flex items-center">
             <i class="fas fa-file text-blue-600 mr-2"></i>
-            {paste.name || 'Untitled'}
+            {relic.name || 'Untitled'}
           </h2>
-          <span class="ml-3 text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-mono">{pasteId}</span>
+          <span class="ml-3 text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-mono">{relicId}</span>
         </div>
         <div class="flex items-center gap-1">
           <button
-            on:click={() => sharePaste(pasteId)}
+            on:click={() => shareRelic(relicId)}
             class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Share paste"
+            title="Share relic"
           >
             <i class="fas fa-share text-xs"></i>
           </button>
           <button
-            on:click={() => copyPasteContent(pasteId)}
+            on:click={() => copyRelicContent(relicId)}
             class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
             title="Copy content to clipboard"
           >
             <i class="fas fa-copy text-xs"></i>
           </button>
           <button
-            on:click={() => viewRaw(pasteId)}
+            on:click={() => viewRaw(relicId)}
             class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
             title="View raw content"
           >
             <i class="fas fa-code text-xs"></i>
           </button>
           <button
-            on:click={() => downloadPaste(pasteId, paste.name, paste.content_type)}
+            on:click={() => downloadRelic(relicId, relic.name, relic.content_type)}
             class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-            title="Download paste"
+            title="Download relic"
           >
             <i class="fas fa-download text-xs"></i>
           </button>
@@ -259,25 +258,25 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span class="text-xs text-gray-500 block mb-1">Type</span>
-            <span class="block font-mono text-gray-900 text-xs">{paste.content_type}</span>
+            <span class="block font-mono text-gray-900 text-xs">{relic.content_type}</span>
           </div>
           <div>
             <span class="text-xs text-gray-500 block mb-1">Size</span>
-            <span class="block font-mono text-gray-900 text-xs">{formatFileSize(paste.size_bytes)}</span>
+            <span class="block font-mono text-gray-900 text-xs">{formatFileSize(relic.size_bytes)}</span>
           </div>
           <div>
             <span class="text-xs text-gray-500 block mb-1">Views</span>
-            <span class="block font-mono text-gray-900 text-xs">{paste.access_count}</span>
+            <span class="block font-mono text-gray-900 text-xs">{relic.access_count}</span>
           </div>
           <div>
             <span class="text-xs text-gray-500 block mb-1">Version</span>
-            <span class="block font-mono text-gray-900 text-xs">v{paste.version_number}</span>
+            <span class="block font-mono text-gray-900 text-xs">v{relic.version_number}</span>
           </div>
         </div>
-        {#if paste.description}
+        {#if relic.description}
           <div class="mt-4 pt-4 border-t border-gray-100">
             <span class="text-xs text-gray-500 block mb-1">Description</span>
-            <p class="text-sm text-gray-700">{paste.description}</p>
+            <p class="text-sm text-gray-700">{relic.description}</p>
           </div>
         {/if}
       </div>
@@ -394,12 +393,12 @@
         />
         {#if processed.truncated}
           <div class="bg-blue-50 border-t border-gray-200 px-6 py-4 text-center text-sm text-blue-700 mb-6 rounded-b-lg">
-            Content truncated. <a href="/{pasteId}/raw" class="font-semibold hover:underline">Download full file</a>
+            Content truncated. <a href="/{relicId}/raw" class="font-semibold hover:underline">Download full file</a>
           </div>
         {/if}
       {:else if processed.type === 'image'}
         <div class="bg-white shadow-sm rounded-lg border border-gray-200 mb-6 p-6">
-          <img src={processed.url} alt={paste.name} class="max-w-full h-auto rounded" />
+          <img src={processed.url} alt={relic.name} class="max-w-full h-auto rounded" />
         </div>
       {:else if processed.type === 'csv'}
         <div class="bg-white shadow-sm rounded-lg border border-gray-200 mb-6 p-6">
@@ -431,7 +430,7 @@
           <i class="fas fa-file text-gray-400 text-6xl mb-4"></i>
           <p class="text-gray-600 mb-4">Preview not available for this file type</p>
           <button
-            on:click={downloadPaste}
+            on:click={downloadRelic}
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             <i class="fas fa-download mr-2"></i>
@@ -463,7 +462,7 @@
           <div class="divide-y divide-gray-200">
             {#each history as version (version.id)}
               <button
-                on:click={() => navigateToPaste(version.id)}
+                on:click={() => navigateToRelic(version.id)}
                 class="w-full p-4 hover:bg-gray-50 transition-colors block text-left border-0 bg-transparent cursor-pointer"
               >
                 <div class="flex items-center justify-between">
@@ -484,7 +483,7 @@
   <div class="flex items-center justify-center py-12">
     <div class="text-center">
       <i class="fas fa-search text-gray-400 text-6xl mb-4"></i>
-      <p class="text-gray-600">Paste not found</p>
+      <p class="text-gray-600">Relic not found</p>
     </div>
   </div>
 {/if}

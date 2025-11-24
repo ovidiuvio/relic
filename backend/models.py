@@ -1,4 +1,4 @@
-"""Database models for the paste application."""
+"""Database models for the relic application."""
 from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -9,11 +9,11 @@ import uuid
 Base = declarative_base()
 
 
-# Association table for many-to-many relationship between pastes and tags
-paste_tags = Table(
-    'paste_tags',
+# Association table for many-to-many relationship between relics and tags
+relic_tags = Table(
+    'relic_tags',
     Base.metadata,
-    Column('paste_id', String, ForeignKey('paste.id')),
+    Column('relic_id', String, ForeignKey('relic.id')),
     Column('tag_id', String, ForeignKey('tag.id'))
 )
 
@@ -28,18 +28,18 @@ class User(Base):
     hashed_password = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    pastes = relationship("Paste", back_populates="user")
+    relics = relationship("Relic", back_populates="user")
 
 
-class Paste(Base):
+class Relic(Base):
     """
-    Paste model.
+    Relic model.
 
     ID format: 32-character hexadecimal (GitHub Gist-style)
     Example: f47ac10b58cc4372a5670e02b2c3d479
     Generated via secrets.token_hex(16) for 128 bits of entropy
     """
-    __tablename__ = "paste"
+    __tablename__ = "relic"
 
     id = Column(String(32), primary_key=True)  # 32-char hex IDs
     user_id = Column(String, ForeignKey('user.id'), nullable=True)
@@ -52,7 +52,7 @@ class Paste(Base):
     size_bytes = Column(Integer)
 
     # Version tracking
-    parent_id = Column(String, ForeignKey('paste.id'), nullable=True)
+    parent_id = Column(String, ForeignKey('relic.id'), nullable=True)
     root_id = Column(String, nullable=True, index=True)
     version_number = Column(Integer, default=1)
     fork_of = Column(String, nullable=True)
@@ -61,7 +61,9 @@ class Paste(Base):
     s3_key = Column(String)
 
     # Access control
-    access_level = Column(String, default="public")  # public, unlisted, private
+    # public: Listed in recents, discoverable
+    # private: Not listed, only accessible via direct URL (which serves as the access token)
+    access_level = Column(String, default="public")
     password_hash = Column(String, nullable=True)
 
     # Lifecycle
@@ -74,10 +76,9 @@ class Paste(Base):
     processing_metadata = Column(JSON, default={})
 
     # Relationships
-    user = relationship("User", back_populates="pastes")
-    parent = relationship("Paste", remote_side=[id], backref="children", foreign_keys=[parent_id])
-    tags = relationship("Tag", secondary=paste_tags, back_populates="pastes")
-
+    user = relationship("User", back_populates="relics")
+    parent = relationship("Relic", remote_side=[id], backref="children", foreign_keys=[parent_id])
+    tags = relationship("Tag", secondary=relic_tags, back_populates="relics")
 
 class Tag(Base):
     """Tag model."""
@@ -86,5 +87,4 @@ class Tag(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    pastes = relationship("Paste", secondary=paste_tags, back_populates="tags")
+    relics = relationship("Relic", secondary=relic_tags, back_populates="tags")

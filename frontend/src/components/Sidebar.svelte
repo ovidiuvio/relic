@@ -3,7 +3,7 @@
 
   export let currentSection = 'new'
   export let currentUser = null
-  export let pasteCount = 0
+  export let relicCount = 0
   const dispatch = createEventDispatcher()
 
   function navigate(section) {
@@ -16,7 +16,7 @@
 </script>
 
 <aside class="w-64 bg-[#F2F2F2] border-r border-[#dfdcd9] flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)] overflow-y-auto shrink-0">
-  <div class="p-4 text-xs font-bold text-[#AEA79F] uppercase tracking-wider mb-1">Pastebin Controller</div>
+  <div class="p-4 text-xs font-bold text-[#AEA79F] uppercase tracking-wider mb-1">Relicbin Controller</div>
 
   <nav class="flex flex-col">
     <button
@@ -24,22 +24,22 @@
       class="maas-nav-item {isActive('new') ? 'active' : ''} px-6 py-3 text-sm flex items-center gap-3 text-left w-full"
     >
       <i class="fa-solid fa-plus w-4 text-center text-gray-500"></i>
-      New Paste
+      New Relic
     </button>
     <button
       on:click={() => navigate('recent')}
       class="maas-nav-item {isActive('recent') ? 'active' : ''} px-6 py-3 text-sm flex items-center gap-3 text-left w-full"
     >
       <i class="fa-solid fa-clock w-4 text-center text-gray-500"></i>
-      Recent Pastes
-      <span class="ml-auto bg-[#dfdcd9] text-gray-600 text-xs px-1.5 rounded-full">{pasteCount}</span>
+      Recent Relics
+      <span class="ml-auto bg-[#dfdcd9] text-gray-600 text-xs px-1.5 rounded-full">{relicCount}</span>
     </button>
     <button
-      on:click={() => navigate('my-pastes')}
-      class="maas-nav-item {isActive('my-pastes') ? 'active' : ''} px-6 py-3 text-sm flex items-center gap-3 text-left w-full"
+      on:click={() => navigate('my-relics')}
+      class="maas-nav-item {isActive('my-relics') ? 'active' : ''} px-6 py-3 text-sm flex items-center gap-3 text-left w-full"
     >
       <i class="fa-solid fa-user w-4 text-center text-gray-500"></i>
-      My Pastes
+      My Relics
     </button>
 
     <div class="mt-6 mb-2 px-6 text-xs font-bold text-[#AEA79F] uppercase tracking-wider">Configuration</div>

@@ -1,4 +1,4 @@
-import { getPasteRaw } from './api'
+import { getRelicRaw } from './api'
 import { showToast } from '../stores/toastStore'
 
 export function getFileExtension(contentType) {
@@ -91,33 +91,33 @@ export async function copyToClipboard(text, successMessage = 'Copied to clipboar
   }
 }
 
-export function sharePaste(pasteId) {
-  const shareUrl = `${window.location.origin}/${pasteId}`
+export function shareRelic(relicId) {
+  const shareUrl = `${window.location.origin}/${relicId}`
   copyToClipboard(shareUrl, 'Link copied to clipboard!')
 }
 
-export async function copyPasteContent(pasteId) {
+export async function copyRelicContent(relicId) {
   try {
-    const response = await getPasteRaw(pasteId)
+    const response = await getRelicRaw(relicId)
     const content = await response.data.text()
     copyToClipboard(content, 'Content copied to clipboard!')
   } catch (error) {
-    console.error('Failed to copy paste content:', error)
-    showToast('Failed to copy paste content', 'error')
+    console.error('Failed to copy relic content:', error)
+    showToast('Failed to copy relic content', 'error')
   }
 }
 
-export async function downloadPaste(pasteId, pasteName, contentType) {
+export async function downloadRelic(relicId, relicName, contentType) {
   try {
-    const response = await getPasteRaw(pasteId)
+    const response = await getRelicRaw(relicId)
     const blob = new Blob([response.data], { type: contentType || 'text/plain' })
     const url = window.URL.createObjectURL(blob)
 
     // Generate appropriate file extension based on content type
     const extension = getFileExtension(contentType)
 
-    // Generate filename from paste name with correct extension, or use default
-    const cleanName = pasteName ? pasteName.replace(/[^a-zA-Z0-9-_]/g, '_') : pasteId
+    // Generate filename from relic name with correct extension, or use default
+    const cleanName = relicName ? relicName.replace(/[^a-zA-Z0-9-_]/g, '_') : relicId
     const filename = `${cleanName}.${extension}`
 
     // Create temporary link and trigger download
@@ -133,11 +133,11 @@ export async function downloadPaste(pasteId, pasteName, contentType) {
 
     showToast(`Downloading ${filename}...`, 'success')
   } catch (error) {
-    console.error('Failed to download paste:', error)
-    showToast('Failed to download paste', 'error')
+    console.error('Failed to download relic:', error)
+    showToast('Failed to download relic', 'error')
   }
 }
 
-export function viewRaw(pasteId) {
-  window.open(`/${pasteId}/raw`, '_blank')
+export function viewRaw(relicId) {
+  window.open(`/${relicId}/raw`, '_blank')
 }

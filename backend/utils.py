@@ -6,7 +6,7 @@ from typing import Optional
 import hashlib
 
 
-def generate_paste_id() -> str:
+def generate_relic_id() -> str:
     """
     Generate GitHub Gist-style 32-character hexadecimal ID.
 
@@ -23,7 +23,7 @@ def generate_paste_id() -> str:
     Security properties:
         - 128 bits of entropy (16 bytes)
         - Uses os.urandom() via secrets.token_hex()
-        - 50% collision probability: ~1.8×10^19 pastes
+        - 50% collision probability: ~1.8×10^19 relics
         - Brute force at 1M attempts/sec: ~1.1×10^25 years
         - Same approach as GitHub Gists
     """
@@ -66,7 +66,7 @@ def parse_expiry_string(expires_in: Optional[str]) -> Optional[datetime]:
 
 
 def is_expired(expires_at: Optional[datetime]) -> bool:
-    """Check if a paste has expired."""
+    """Check if a relic has expired."""
     if not expires_at:
         return False
     return datetime.utcnow() > expires_at

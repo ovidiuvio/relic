@@ -9,7 +9,7 @@ const api = axios.create({
   }
 })
 
-export async function createPaste(formData) {
+export async function createRelic(formData) {
   const data = new FormData()
   if (formData.file) {
     data.append('file', formData.file)
@@ -21,65 +21,65 @@ export async function createPaste(formData) {
   if (formData.expires_in) data.append('expires_in', formData.expires_in)
   if (formData.tags) data.append('tags', JSON.stringify(formData.tags))
 
-  return api.post('/pastes', data, {
+  return api.post('/relics', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
-export async function getPaste(pasteId) {
-  return api.get(`/pastes/${pasteId}`)
+export async function getRelic(relicId) {
+  return api.get(`/relics/${relicId}`)
 }
 
-export async function listPastes(limit = 50, offset = 0) {
-  return api.get('/pastes', { params: { limit, offset } })
+export async function listRelics(limit = 50, offset = 0) {
+  return api.get('/relics', { params: { limit, offset } })
 }
 
-export async function editPaste(pasteId, file, name) {
+export async function editRelic(relicId, file, name) {
   const data = new FormData()
   data.append('file', file)
   if (name) data.append('name', name)
 
-  return api.post(`/pastes/${pasteId}/edit`, data, {
+  return api.post(`/relics/${relicId}/edit`, data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
-export async function forkPaste(pasteId, file, name) {
+export async function forkRelic(relicId, file, name) {
   const data = new FormData()
   if (file) data.append('file', file)
   if (name) data.append('name', name)
 
-  return api.post(`/pastes/${pasteId}/fork`, data, {
+  return api.post(`/relics/${relicId}/fork`, data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
-export async function deletePaste(pasteId) {
-  return api.delete(`/pastes/${pasteId}`)
+export async function deleteRelic(relicId) {
+  return api.delete(`/relics/${relicId}`)
 }
 
-export async function getPasteHistory(pasteId) {
-  return api.get(`/pastes/${pasteId}/history`)
+export async function getRelicHistory(relicId) {
+  return api.get(`/relics/${relicId}/history`)
 }
 
-export async function getPasteParent(pasteId) {
-  return api.get(`/pastes/${pasteId}/parent`)
+export async function getRelicParent(relicId) {
+  return api.get(`/relics/${relicId}/parent`)
 }
 
-export async function getPasteChildren(pasteId) {
-  return api.get(`/pastes/${pasteId}/children`)
+export async function getRelicChildren(relicId) {
+  return api.get(`/relics/${relicId}/children`)
 }
 
-export async function diffPastes(fromId, toId) {
+export async function diffRelics(fromId, toId) {
   return api.get('/diff', { params: { from: fromId, to: toId } })
 }
 
-export async function diffWithParent(pasteId) {
-  return api.get(`/pastes/${pasteId}/diff`)
+export async function diffWithParent(relicId) {
+  return api.get(`/relics/${relicId}/diff`)
 }
 
-export async function getPasteRaw(pasteId) {
-  return axios.get(`/${pasteId}/raw`, {
+export async function getRelicRaw(relicId) {
+  return axios.get(`/${relicId}/raw`, {
     responseType: 'blob'
   })
 }

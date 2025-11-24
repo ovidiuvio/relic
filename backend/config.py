@@ -1,4 +1,4 @@
-"""Configuration for the paste application."""
+"""Configuration for the relic application."""
 import os
 import json
 from pydantic_settings import BaseSettings
@@ -15,13 +15,13 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./paste.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://relic_user:relic_password@postgres:5432/relic_db")
 
     # Storage (S3/MinIO) - support both S3_* and MINIO_* env var names
     S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL") or os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
     S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY") or os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY") or os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME") or os.getenv("MINIO_BUCKET", "pastes")
+    S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME") or os.getenv("MINIO_BUCKET", "relics")
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 
     # Upload limits

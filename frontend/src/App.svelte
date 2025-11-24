@@ -1,17 +1,17 @@
 <script>
   import { onMount } from 'svelte'
   import Navigation from './components/Navigation.svelte'
-  import PasteForm from './components/PasteForm.svelte'
-  import PasteViewer from './components/PasteViewer.svelte'
-  import RecentPastes from './components/RecentPastes.svelte'
-  import MyPastes from './components/MyPastes.svelte'
+  import RelicForm from './components/RelicForm.svelte'
+  import RelicViewer from './components/RelicViewer.svelte'
+  import RecentRelics from './components/RecentRelics.svelte'
+  import MyRelics from './components/MyRelics.svelte'
   import ApiDocs from './components/ApiDocs.svelte'
   import Toast from './components/Toast.svelte'
   import { toastStore } from './stores/toastStore'
 
   let currentUser = null
   let currentSection = 'new'
-  let currentPasteId = null
+  let currentRelicId = null
 
   function updateRouting() {
     const path = window.location.pathname
@@ -19,22 +19,22 @@
 
     console.log('[App] Route update - path:', path, 'parts:', parts)
 
-    if (parts.length === 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-pastes' && parts[0] !== 'new') {
-      // This looks like a paste ID
-      console.log('[App] Detected paste ID:', parts[0])
-      currentPasteId = parts[0]
-      currentSection = 'paste'
+    if (parts.length === 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-relics' && parts[0] !== 'new') {
+      // This looks like a relic ID
+      console.log('[App] Detected relic ID:', parts[0])
+      currentRelicId = parts[0]
+      currentSection = 'relic'
     } else if (parts.length === 0) {
       console.log('[App] Navigating to home')
       currentSection = 'new'
-      currentPasteId = null
+      currentRelicId = null
     } else {
       console.log('[App] Navigating to section:', parts[0])
       currentSection = parts[0]
-      currentPasteId = null
+      currentRelicId = null
     }
 
-    console.log('[App] Routing result - section:', currentSection, 'pasteId:', currentPasteId)
+    console.log('[App] Routing result - section:', currentSection, 'relicId:', currentRelicId)
   }
 
   onMount(() => {
@@ -48,7 +48,7 @@
 
   function handleNavigation(section) {
     currentSection = section
-    currentPasteId = null
+    currentRelicId = null
 
     if (section === 'new') {
       window.history.pushState({}, '', '/')
@@ -69,7 +69,7 @@
       <div class="flex items-center justify-between h-16">
         <!-- Logo and Brand -->
         <div class="flex items-center gap-3">
-          <div class="font-bold text-xl tracking-tight">RELIC <span class="font-light opacity-80">PASTE</span></div>
+          <div class="font-bold text-xl tracking-tight">RELIC <span class="font-light opacity-80">Bin</span></div>
           <span class="text-xs bg-black/20 px-2 py-0.5 rounded text-white/70">v1.0.0</span>
         </div>
 
@@ -79,7 +79,7 @@
             on:click={() => handleNavigation('new')}
             class="maas-nav-top {currentSection === 'new' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           >
-            <i class="fas fa-plus mr-2"></i>New Paste
+            <i class="fas fa-plus mr-2"></i>New Relic
           </button>
           <button
             on:click={() => handleNavigation('recent')}
@@ -88,10 +88,10 @@
             <i class="fas fa-clock mr-2"></i>Recent
           </button>
           <button
-            on:click={() => handleNavigation('my-pastes')}
-            class="maas-nav-top {currentSection === 'my-pastes' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            on:click={() => handleNavigation('my-relics')}
+            class="maas-nav-top {currentSection === 'my-relics' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           >
-            <i class="fas fa-user mr-2"></i>My Pastes
+            <i class="fas fa-user mr-2"></i>My Relics
           </button>
           <button
             on:click={() => handleNavigation('api')}
@@ -111,14 +111,14 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto">
     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-      {#if currentSection === 'paste' && currentPasteId}
-        <PasteViewer pasteId={currentPasteId} />
+      {#if currentSection === 'relic' && currentRelicId}
+        <RelicViewer relicId={currentRelicId} />
       {:else if currentSection === 'new' || currentSection === 'default' || currentSection === ''}
-        <PasteForm />
+        <RelicForm />
       {:else if currentSection === 'recent'}
-        <RecentPastes />
-      {:else if currentSection === 'my-pastes'}
-        <MyPastes {currentUser} />
+        <RecentRelics />
+      {:else if currentSection === 'my-relics'}
+        <MyRelics {currentUser} />
       {:else if currentSection === 'api'}
         <ApiDocs />
       {/if}

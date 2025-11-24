@@ -52,7 +52,7 @@ def client(db):
 @pytest.fixture
 def test_file_content():
     """Sample file content for testing."""
-    return b"Hello, World! This is a test paste."
+    return b"Hello, World! This is a test relic."
 
 
 @pytest.fixture

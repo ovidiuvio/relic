@@ -16,12 +16,12 @@
           <h3 class="text-md font-semibold text-gray-900 mb-3">Command Line Usage</h3>
           <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm font-mono overflow-x-auto">
             <pre>{`# Basic usage
-echo "Hello World" | curl -X POST http://localhost:8000/api/v1/pastes \\
+echo "Hello World" | curl -X POST http://localhost:8000/api/v1/relics \\
   -F "file=@-" \\
   -F "name=Example"
 
 # Create with options
-curl -X POST http://localhost:8000/api/v1/pastes \\
+curl -X POST http://localhost:8000/api/v1/relics \\
   -F "file=@myfile.txt" \\
   -F "name=My File" \\
   -F "access_level=public" \\
@@ -43,18 +43,18 @@ curl -X POST http://localhost:8000/api/v1/pastes \\
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">POST</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">Create new paste</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">Create new relic</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">List recent pastes</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">List recent relics</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes/:id</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">Get paste metadata</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics/:id</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">Get relic metadata</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
@@ -63,28 +63,28 @@ curl -X POST http://localhost:8000/api/v1/pastes \\
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">POST</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes/:id/edit</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics/:id/edit</td>
                   <td class="px-6 py-4 text-sm text-gray-500">Create new version</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">POST</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes/:id/fork</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">Fork paste (new lineage)</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics/:id/fork</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">Fork relic (new lineage)</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DELETE</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes/:id</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">Delete paste (soft delete)</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics/:id</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">Delete relic (soft delete)</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/pastes/:id/history</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/relics/:id/history</td>
                   <td class="px-6 py-4 text-sm text-gray-500">Get version history</td>
                 </tr>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">GET</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">/api/v1/diff</td>
-                  <td class="px-6 py-4 text-sm text-gray-500">Compare two pastes</td>
+                  <td class="px-6 py-4 text-sm text-gray-500">Compare two relics</td>
                 </tr>
               </tbody>
             </table>
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8000/api/v1/pastes \\
           <ul class="space-y-2 text-sm text-gray-600">
             <li class="flex items-start">
               <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
-              <span><strong>Immutable Pastes:</strong> Each paste is permanent. Edits create new versions with complete history.</span>
+              <span><strong>Immutable Relics:</strong> Each relic is permanent. Edits create new versions with complete history.</span>
             </li>
             <li class="flex items-start">
               <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
@@ -112,15 +112,15 @@ curl -X POST http://localhost:8000/api/v1/pastes \\
             </li>
             <li class="flex items-start">
               <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
-              <span><strong>Diff Support:</strong> Compare any two pastes with full diff output.</span>
+              <span><strong>Diff Support:</strong> Compare any two relics with full diff output.</span>
             </li>
             <li class="flex items-start">
               <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
-              <span><strong>Access Control:</strong> Public, unlisted, and private pastes with optional password protection.</span>
+              <span><strong>Access Control:</strong> Public, unlisted, and private relics with optional password protection.</span>
             </li>
             <li class="flex items-start">
               <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
-              <span><strong>Expiration:</strong> Set pastes to expire after 1h, 24h, 7d, 30d, or never.</span>
+              <span><strong>Expiration:</strong> Set relics to expire after 1h, 24h, 7d, 30d, or never.</span>
             </li>
           </ul>
         </div>

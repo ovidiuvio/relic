@@ -1,25 +1,25 @@
 <script>
   import { showToast } from '../stores/toastStore'
-  import { deletePaste, getPasteRaw } from '../services/api'
+  import { deleteRelic, getRelicRaw } from '../services/api'
 
-  export let paste = {}
+  export let relic = {}
   export let isMine = false
   export let formatTimeAgo = (date) => date
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this paste?')) return
+    if (!confirm('Are you sure you want to delete this relic?')) return
 
     try {
-      await deletePaste(paste.id)
-      showToast('Paste deleted successfully', 'success')
+      await deleteRelic(relic.id)
+      showToast('Relic deleted successfully', 'success')
       // TODO: Refresh list
     } catch (error) {
-      showToast('Failed to delete paste', 'error')
+      showToast('Failed to delete relic', 'error')
     }
   }
 
   function copyToClipboard() {
-    const url = `${window.location.origin}/${paste.id}`
+    const url = `${window.location.origin}/${relic.id}`
     navigator.clipboard.writeText(url).then(() => {
       showToast('URL copied to clipboard!', 'success')
     })
@@ -27,7 +27,7 @@
 
   async function copyContent() {
     try {
-      const response = await getPasteRaw(paste.id)
+      const response = await getRelicRaw(relic.id)
       const text = await response.data.text()
       navigator.clipboard.writeText(text).then(() => {
         showToast('Content copied to clipboard!', 'success')
@@ -38,12 +38,12 @@
   }
 
   function viewRaw() {
-    window.open(`/${paste.id}/raw`, '_blank')
+    window.open(`/${relic.id}/raw`, '_blank')
   }
 
-  function handleNavigateToPaste(e) {
+  function handleNavigateToRelic(e) {
     e.preventDefault()
-    window.history.pushState({}, '', `/${paste.id}`)
+    window.history.pushState({}, '', `/${relic.id}`)
     // Trigger a popstate event to notify App component
     window.dispatchEvent(new PopStateEvent('popstate', {}))
   }
@@ -54,13 +54,13 @@
     <div class="flex-1 min-w-0">
       <div class="flex items-center space-x-2 mb-2">
         <h3 class="text-sm font-medium text-gray-900 truncate">
-          <a href="/{paste.id}" on:click={handleNavigateToPaste} class="hover:text-blue-600 transition-colors">
-            {paste.name || 'Untitled'}
+          <a href="/{relic.id}" on:click={handleNavigateToRelic} class="hover:text-blue-600 transition-colors">
+            {relic.name || 'Untitled'}
           </a>
         </h3>
-        {#if paste.language_hint}
+        {#if relic.language_hint}
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-            {paste.language_hint}
+            {relic.language_hint}
           </span>
         {/if}
         {#if isMine}
@@ -70,20 +70,20 @@
         {/if}
       </div>
       <p class="text-sm text-gray-500 mb-2 font-mono truncate">
-        {paste.description || 'No description'}
+        {relic.description || 'No description'}
       </p>
       <div class="flex items-center space-x-4 text-xs text-gray-500">
         <span class="flex items-center">
           <i class="fas fa-eye mr-1"></i>
-          {paste.access_count} views
+          {relic.access_count} views
         </span>
         <span class="flex items-center">
           <i class="fas fa-clock mr-1"></i>
-          {formatTimeAgo(paste.created_at)}
+          {formatTimeAgo(relic.created_at)}
         </span>
         <span class="flex items-center">
           <i class="fas fa-code-branch mr-1"></i>
-          v{paste.version_number}
+          v{relic.version_number}
         </span>
       </div>
     </div>

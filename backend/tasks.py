@@ -1,58 +1,58 @@
-"""Background tasks for paste expiration and cleanup."""
+"""Background tasks for relic expiration and cleanup."""
 import asyncio
 from datetime import datetime, timedelta
 from sqlalchemy import delete
 from backend.database import SessionLocal
-from backend.models import Paste
+from backend.models import Relic
 from backend.storage import storage_service
 
 
-async def cleanup_expired_pastes():
+async def cleanup_expired_relics():
     """
-    Background task to delete expired pastes.
+    Background task to delete expired relics.
 
-    Runs periodically to hard-delete pastes that have expired.
-    Soft-deleted pastes are hard-deleted after 30 days.
+    Runs periodically to hard-delete relics that have expired.
+    Soft-deleted relics are hard-deleted after 30 days.
     """
     db = SessionLocal()
     try:
         now = datetime.utcnow()
 
-        # Find expired pastes
-        expired_pastes = db.query(Paste).filter(
-            Paste.expires_at <= now,
-            Paste.deleted_at == None
+        # Find expired relics
+        expired_relics = db.query(Relic).filter(
+            Relic.expires_at <= now,
+            Relic.deleted_at == None
         ).all()
 
-        for paste in expired_pastes:
+        for relic in expired_relics:
             try:
                 # Delete from storage
-                await storage_service.delete(paste.s3_key)
+                await storage_service.delete(relic.s3_key)
                 # Mark as deleted
-                paste.deleted_at = now
+                relic.deleted_at = now
                 db.commit()
-                print(f"Expired paste {paste.id} marked for deletion")
+                print(f"Expired relic {relic.id} marked for deletion")
             except Exception as e:
-                print(f"Error cleaning up paste {paste.id}: {e}")
+                print(f"Error cleaning up relic {relic.id}: {e}")
                 db.rollback()
 
-        # Find soft-deleted pastes older than 30 days
+        # Find soft-deleted relics older than 30 days
         soft_deleted_cutoff = now - timedelta(days=30)
-        old_deleted = db.query(Paste).filter(
-            Paste.deleted_at <= soft_deleted_cutoff
+        old_deleted = db.query(Relic).filter(
+            Relic.deleted_at <= soft_deleted_cutoff
         ).all()
 
-        for paste in old_deleted:
+        for relic in old_deleted:
             try:
                 # Delete from storage if exists
-                if await storage_service.exists(paste.s3_key):
-                    await storage_service.delete(paste.s3_key)
+                if await storage_service.exists(relic.s3_key):
+                    await storage_service.delete(relic.s3_key)
                 # Hard delete from database
-                db.query(Paste).filter(Paste.id == paste.id).delete()
+                db.query(Relic).filter(Relic.id == relic.id).delete()
                 db.commit()
-                print(f"Permanently deleted paste {paste.id}")
+                print(f"Permanently deleted relic {relic.id}")
             except Exception as e:
-                print(f"Error permanently deleting paste {paste.id}: {e}")
+                print(f"Error permanently deleting relic {relic.id}: {e}")
                 db.rollback()
 
     finally:
@@ -64,7 +64,7 @@ async def start_background_tasks():
     # Run cleanup every hour
     while True:
         try:
-            await cleanup_expired_pastes()
+            await cleanup_expired_relics()
         except Exception as e:
             print(f"Error in cleanup task: {e}")
 
@@ -76,7 +76,7 @@ async def start_background_tasks():
 def get_cleanup_job_config():
     """Return APScheduler job configuration for expiration cleanup."""
     return {
-        'func': 'backend.tasks:cleanup_expired_pastes',
+        'func': 'backend.tasks:cleanup_expired_relics',
         'trigger': 'interval',
         'hours': 1
     }

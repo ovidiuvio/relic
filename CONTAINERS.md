@@ -128,10 +128,10 @@ exit
 ### Connect to Database
 ```bash
 # From host machine
-psql -h localhost -U paste_user -d paste_db
+psql -h localhost -U relic_user -d relic_db
 
 # Or from backend container
-docker compose exec backend psql -h postgres -U paste_user -d paste_db
+docker compose exec backend psql -h postgres -U relic_user -d relic_db
 ```
 
 ## Troubleshooting

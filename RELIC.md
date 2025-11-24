@@ -1,22 +1,22 @@
-# Pastebin Feature Specification
+# RelicBin Feature Specification
 
 ## Overview
 
-Modern pastebin service with immutable pastes, version lineage tracking, and rich file processing. Users can share text, code, images, documents, and any binary content. Each paste is permanent with a unique URL. Edits create new pastes linked to the original.
+Modern artifacts service with immutable artifacts, version lineage tracking, and rich file processing. Users can share text, code, images, documents, and any binary content. Each relic is permanent with a unique URL. Edits create new relics linked to the original.
 
 ## Core Features
 
-### 1. Immutable Pastes
+### 1. Immutable Relics
 
 **Concept:**
-- Pastes cannot be edited after creation
-- Each paste has a unique ID and permanent URL
-- "Editing" creates a new paste linked to the original
+- Relics cannot be edited after creation
+- Each relic has a unique ID and permanent URL
+- "Editing" creates a new relic linked to the original
 - Complete version history preserved through parent-child relationships
 
 **Example:**
 ```
-Original paste:  a3Bk9Zx  → /a3Bk9Zx
+Original relic:  a3Bk9Zx  → /a3Bk9Zx
 User edits:      b4Ck2Ty  → /b4Ck2Ty  (parent: a3Bk9Zx)
 User edits:      c5Dm3Uz  → /c5Dm3Uz  (parent: b4Ck2Ty)
 
@@ -27,13 +27,13 @@ Lineage tracked: a3Bk9Zx → b4Ck2Ty → c5Dm3Uz
 ### 2. Version Lineage Tracking
 
 **Version Chain:**
-- Each paste knows its parent (previous version)
-- Each paste knows its root (original in chain)
+- Each relic knows its parent (previous version)
+- Each relic knows its root (original in chain)
 - Sequential version numbers (1, 2, 3...)
 - Full history queryable
 
 **Fork Support:**
-- Users can fork any paste to start new lineage
+- Users can fork any relic to start new lineage
 - Fork creates independent version chain
 - Original lineage preserved
 - Attribution tracked via `fork_of` field
@@ -61,7 +61,7 @@ Original:  a3Bk9Zx (v1)
 - Binary files (any content type)
 
 **All content types are:**
-- Versionable (can be edited → new paste)
+- Versionable (can be edited → new relic)
 - Diffable (text) or comparable (binary)
 - Processable (smart previews based on type)
 
@@ -118,42 +118,42 @@ Original:  a3Bk9Zx (v1)
 - Visual side-by-side for images (optional)
 
 **Diff Endpoints:**
-- Compare any two pastes
-- Compare paste with its parent
+- Compare any two relics
+- Compare relic with its parent
 - Compare across version chain
 
 ### 6. User Features
 
-**Paste Management:**
-- Create paste (upload file or paste text)
-- View paste (with processing/preview)
-- Edit paste (creates new version)
-- Fork paste (creates new lineage)
-- Delete paste (soft delete, user must own it)
-- Tag pastes for organization
+**Relic Management:**
+- Create relic (upload file or relic text)
+- View relic (with processing/preview)
+- Edit relic (creates new version)
+- Fork relic (creates new lineage)
+- Delete relic (soft delete, user must own it)
+- Tag relics for organization
 
 **Discovery:**
-- List recent pastes
+- List recent relics
 - Search by content, tags, type
 - Filter by content type
-- User's paste history
+- User's relic history
 
 **Expiration:**
 - Optional TTL: 1h, 24h, 7d, 30d, never
 - Default: never expires
-- Expired pastes auto-deleted
+- Expired relics auto-deleted
 - Version chains: if parent expires, children unaffected
 
 **Access Control:**
 - Public: anyone can view
 - Unlisted: only via direct URL
 - Private: only owner can view (requires auth)
-- Anonymous pastes (no user_id)
-- Authenticated pastes (with user_id)
+- Anonymous relics (no user_id)
+- Authenticated relics (with user_id)
 
 ## Data Model
 
-### Paste Entity
+### Relic Entity
 
 ```
 id              Unique identifier (base62, 7-8 chars)
@@ -162,9 +162,9 @@ name            Optional display name
 description     Optional description
 
 parent_id       Previous version (null if original)
-root_id         First paste in version chain
+root_id         First relic in version chain
 version_number  Sequential position (1, 2, 3...)
-fork_of         Source paste if forked
+fork_of         Source relic if forked
 
 content_type    MIME type
 language_hint   Programming language (for code)
@@ -179,25 +179,25 @@ access_count    View counter
 
 ### Relationships
 
-- Each paste has 0 or 1 parent
-- Each paste has 0 to N children
-- Each paste belongs to 0 or 1 user
-- Each paste can have 0 to N tags
+- Each relic has 0 or 1 parent
+- Each relic has 0 to N children
+- Each relic belongs to 0 or 1 user
+- Each relic can have 0 to N tags
 
 ## API Endpoints
 
-### Paste Operations
+### Relic Operations
 
-**Create Paste**
+**Create Relic**
 ```
-POST /api/pastes
+POST /api/relics
 Body: {content, name?, type?, language?, expires?, tags?}
 Returns: {id, url, parent_id, version}
 ```
 
-**Get Paste**
+**Get Relic**
 ```
-GET /api/pastes/:id
+GET /api/relics/:id
 Returns: {id, name, content_type, size, parent_id, root_id, version, ...}
 ```
 
@@ -207,24 +207,24 @@ GET /:id/raw
 Returns: raw file content with appropriate Content-Type
 ```
 
-**Edit Paste (Create New Version)**
+**Edit Relic (Create New Version)**
 ```
-POST /api/pastes/:id/edit
+POST /api/relics/:id/edit
 Body: {content, name?}
 Returns: {id: new_id, url, parent_id: old_id, version}
 ```
 
-**Fork Paste (New Lineage)**
+**Fork Relic (New Lineage)**
 ```
-POST /api/pastes/:id/fork
+POST /api/relics/:id/fork
 Body: {content?, name?}
 Returns: {id: new_id, url, fork_of: old_id, version: 1}
 ```
 
-**Delete Paste**
+**Delete Relic**
 ```
-DELETE /api/pastes/:id
-Requires: Authentication (must own paste)
+DELETE /api/relics/:id
+Requires: Authentication (must own relic)
 Returns: 204 No Content
 ```
 
@@ -232,23 +232,23 @@ Returns: 204 No Content
 
 **Get Version History**
 ```
-GET /api/pastes/:id/history
+GET /api/relics/:id/history
 Returns: {root_id, current, versions: [{id, version, created_at, size}, ...]}
 ```
 
 **Get Parent**
 ```
-GET /api/pastes/:id/parent
+GET /api/relics/:id/parent
 Returns: {id, name, content_type, ...}
 ```
 
 **Get Children**
 ```
-GET /api/pastes/:id/children
+GET /api/relics/:id/children
 Returns: {children: [{id, version, created_at}, ...]}
 ```
 
-**Diff Two Pastes**
+**Diff Two Relics**
 ```
 GET /api/diff?from=:id1&to=:id2
 Returns: {from_id, to_id, diff, additions, deletions}
@@ -256,7 +256,7 @@ Returns: {from_id, to_id, diff, additions, deletions}
 
 **Diff With Parent**
 ```
-GET /api/pastes/:id/diff
+GET /api/relics/:id/diff
 Returns: {from_id: parent, to_id: id, diff, additions, deletions}
 ```
 
@@ -264,7 +264,7 @@ Returns: {from_id: parent, to_id: id, diff, additions, deletions}
 
 **Get Preview**
 ```
-GET /api/pastes/:id/preview
+GET /api/relics/:id/preview
 Returns: Type-specific preview:
   - Images: {metadata, thumbnail_url}
   - CSV: {rows, columns, preview[], stats}
@@ -274,20 +274,20 @@ Returns: Type-specific preview:
 
 **Get Thumbnail**
 ```
-GET /api/pastes/:id/thumbnail
+GET /api/relics/:id/thumbnail
 Returns: Generated thumbnail image (for images/PDFs)
 ```
 
-**Search Pastes**
+**Search Relics**
 ```
-GET /api/pastes/search?q=query&type=code&tag=python&user=me
-Returns: {pastes: [...], total, page}
+GET /api/relics/search?q=query&type=code&tag=python&user=me
+Returns: {relics: [...], total, page}
 ```
 
-**List Recent Pastes**
+**List Recent Relic**
 ```
-GET /api/pastes?limit=50&offset=0&sort=created_at
-Returns: {pastes: [...], total}
+GET /api/relics?limit=50&offset=0&sort=created_at
+Returns: {relics: [...], total}
 ```
 
 ## User Workflows
@@ -296,23 +296,23 @@ Returns: {pastes: [...], total}
 
 ```
 1. User uploads file
-   POST /api/pastes {content: "hello"}
-   → Paste a3Bk9Zx created
+   POST /api/relics {content: "hello"}
+   → Relic a3Bk9Zx created
 
-2. View paste
+2. View relic
    GET /a3Bk9Zx
    → Shows content with syntax highlighting
 
 3. User wants to fix typo
-   POST /api/pastes/a3Bk9Zx/edit {content: "hello world"}
-   → New paste b4Ck2Ty created (parent: a3Bk9Zx)
+   POST /api/relics/a3Bk9Zx/edit {content: "hello world"}
+   → New relic b4Ck2Ty created (parent: a3Bk9Zx)
 
 4. Both URLs still work
    GET /a3Bk9Zx → original version
    GET /b4Ck2Ty → edited version
 
 5. View history
-   GET /api/pastes/b4Ck2Ty/history
+   GET /api/relics/b4Ck2Ty/history
    → Shows: a3Bk9Zx (v1), b4Ck2Ty (v2)
 
 6. Compare versions
@@ -323,17 +323,17 @@ Returns: {pastes: [...], total}
 ### Workflow 2: Fork and Diverge
 
 ```
-1. User A creates paste
-   POST /api/pastes {content: "function foo() {}"}
-   → Paste a3Bk9Zx
+1. User A creates relic
+   POST /api/relics {content: "function foo() {}"}
+   → Relic a3Bk9Zx
 
 2. User B finds it and wants to modify
-   POST /api/pastes/a3Bk9Zx/fork {content: "function foo() { return 42; }"}
-   → Paste x7Yz8Wx (fork_of: a3Bk9Zx)
+   POST /api/relics/a3Bk9Zx/fork {content: "function foo() { return 42; }"}
+   → Relic x7Yz8Wx (fork_of: a3Bk9Zx)
 
 3. User B continues editing their fork
-   POST /api/pastes/x7Yz8Wx/edit {content: "function foo(x) { return x * 2; }"}
-   → Paste y8Za9Xy (parent: x7Yz8Wx)
+   POST /api/relics/x7Yz8Wx/edit {content: "function foo(x) { return x * 2; }"}
+   → Relic y8Za9Xy (parent: x7Yz8Wx)
 
 4. Two separate lineages exist:
    Original: a3Bk9Zx
@@ -344,25 +344,25 @@ Returns: {pastes: [...], total}
 
 ```
 1. User uploads screenshot
-   POST /api/pastes {content: screenshot.png, type: image/png}
-   → Paste c5Dm3Uz
+   POST /api/relics {content: screenshot.png, type: image/png}
+   → Relic c5Dm3Uz
 
 2. Backend processes image:
    - Extract EXIF data
    - Generate thumbnail
    - Get dimensions
 
-3. View paste
+3. View relic
    GET /c5Dm3Uz
    → Shows image viewer with metadata
 
 4. Get thumbnail for listing
-   GET /api/pastes/c5Dm3Uz/thumbnail
+   GET /api/relics/c5Dm3Uz/thumbnail
    → Returns 200x200 thumbnail
 
 5. User uploads updated screenshot
-   POST /api/pastes/c5Dm3Uz/edit {content: screenshot_v2.png}
-   → Paste d6En4Va (parent: c5Dm3Uz)
+   POST /api/relics/c5Dm3Uz/edit {content: screenshot_v2.png}
+   → Relic d6En4Va (parent: c5Dm3Uz)
 
 6. Compare images
    GET /api/diff?from=c5Dm3Uz&to=d6En4Va
@@ -373,8 +373,8 @@ Returns: {pastes: [...], total}
 
 ```
 1. User uploads CSV
-   POST /api/pastes {content: data.csv, type: text/csv}
-   → Paste e7Fp5Wb
+   POST /api/relics {content: data.csv, type: text/csv}
+   → Relic e7Fp5Wb
 
 2. Backend processes CSV:
    - Parse columns
@@ -383,7 +383,7 @@ Returns: {pastes: [...], total}
    - Generate preview
 
 3. View preview
-   GET /api/pastes/e7Fp5Wb/preview
+   GET /api/relics/e7Fp5Wb/preview
    → Returns: {
        rows: 1500,
        columns: ["id", "name", "value"],
@@ -396,19 +396,19 @@ Returns: {pastes: [...], total}
 
 ```
 1. Developer shares code
-   POST /api/pastes {content: "def hello():\n  print('hi')", language: python}
-   → Paste f8Gq6Xc
+   POST /api/relics {content: "def hello():\n  print('hi')", language: python}
+   → Relic f8Gq6Xc
 
 2. Colleague reviews and improves
-   POST /api/pastes/f8Gq6Xc/edit {content: "def hello(name):\n  print(f'Hello {name}')" }
-   → Paste g9Hr7Yd
+   POST /api/relics/f8Gq6Xc/edit {content: "def hello(name):\n  print(f'Hello {name}')" }
+   → Relic g9Hr7Yd
 
 3. View diff with syntax highlighting
    GET /api/diff?from=f8Gq6Xc&to=g9Hr7Yd
    → Shows colorized diff with Python syntax
 
 4. Original developer sees history
-   GET /api/pastes/g9Hr7Yd/history
+   GET /api/relics/g9Hr7Yd/history
    → f8Gq6Xc (v1) → g9Hr7Yd (v2)
 ```
 
@@ -418,7 +418,7 @@ Returns: {pastes: [...], total}
 - Max upload size: 100MB (configurable)
 - Supported: Any file type
 - Storage: S3-compatible (MinIO)
-- Each paste = one S3 object
+- Each relic = one S3 object
 - No S3 versioning needed (immutable model)
 
 ### Performance
@@ -437,13 +437,13 @@ Returns: {pastes: [...], total}
 ### Expiration
 - Options: 1h, 24h, 7d, 30d, never
 - Default: never
-- Auto-cleanup of expired pastes (hourly job)
-- Soft-deleted pastes: hard delete after 30 days
+- Auto-cleanup of expired relics (hourly job)
+- Soft-deleted relics: hard delete after 30 days
 
 ## Non-Functional Requirements
 
 ### Scalability
-- Support for millions of pastes
+- Support for millions of relics
 - Horizontal scaling (multiple API servers)
 - Distributed storage (MinIO multi-node)
 
@@ -453,13 +453,13 @@ Returns: {pastes: [...], total}
 - Complete audit trail via version lineage
 
 ### Usability
-- Clean URLs: /a3Bk9Zx not /paste?id=123
+- Clean URLs: /a3Bk9Zx not /relic?id=123
 - Fast previews via background processing
 - Smart content detection
 - Intuitive version history navigation
 
 ### Privacy
 - Anonymous uploads supported
-- User-owned pastes (with auth)
+- User-owned relics (with auth)
 - Soft delete preserves privacy
-- No content indexing for private pastes
+- No content indexing for private relics

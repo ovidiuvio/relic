@@ -14,7 +14,7 @@ export default defineConfig({
         async handle(req, res, next) {
           const url = req.url?.split('?')[0] || '/'
 
-          // Proxy /{paste_id}/raw requests to backend BEFORE other middleware
+          // Proxy /{relic_id}/raw requests to backend BEFORE other middleware
           if (url.match(/^\/[a-zA-Z0-9_-]+\/raw$/)) {
             const middleware = createProxyMiddleware({
               target: backendUrl,

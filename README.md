@@ -1,17 +1,17 @@
-# Relic - Professional Pastebin Service
+# Relic - Artifact Storage Service
 
-A modern, feature-rich pastebin service with immutable pastes, complete version history, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+A modern, feature-rich artifact service with immutable relics, complete version history, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
 
 ## Features
 
-- **Immutable Pastes**: Each paste is permanent. Edits create new versions with complete history preserved.
+- **Immutable Artifacts**: Each relic is permanent. Edits create new versions with complete history preserved.
 - **Version Lineage**: Track complete history through parent-child relationships and fork support.
 - **Universal Content Support**: Text, code, images, PDFs, CSV/Excel, archives, and more.
 - **Smart Processing**: Automatic syntax highlighting, thumbnail generation, metadata extraction.
-- **Diff Support**: Compare any two pastes with full diff output.
-- **Access Control**: Public, unlisted, and private pastes with optional password protection.
-- **Expiration**: Set pastes to expire after 1h, 24h, 7d, 30d, or never.
-- **Soft Delete**: Deleted pastes are recoverable and don't break version chains.
+- **Diff Support**: Compare any two relics with full diff output.
+- **Access Control**: Public, unlisted, and private relics with optional password protection.
+- **Expiration**: Set relics to expire after 1h, 24h, 7d, 30d, or never.
+- **Soft Delete**: Deleted relics are recoverable and don't break version chains.
 
 ## Architecture
 
@@ -61,20 +61,20 @@ The application will be available at:
 
 ## API Endpoints
 
-### Paste Operations
+### Relic Operations
 
-**Create Paste**
+**Create Relic**
 ```bash
-curl -X POST http://localhost:8000/api/v1/pastes \
+curl -X POST http://localhost:8000/api/v1/relics \
   -F "file=@myfile.txt" \
   -F "name=My File" \
   -F "access_level=public" \
   -F "expires_in=24h"
 ```
 
-**Get Paste Metadata**
+**Get Relic Metadata**
 ```bash
-curl http://localhost:8000/api/v1/pastes/{id}
+curl http://localhost:8000/api/v1/relics/{id}
 ```
 
 **Get Raw Content**
@@ -82,62 +82,62 @@ curl http://localhost:8000/api/v1/pastes/{id}
 curl http://localhost:8000/{id}/raw
 ```
 
-**Edit Paste (Create New Version)**
+**Edit Relic (Create New Version)**
 ```bash
-curl -X POST http://localhost:8000/api/v1/pastes/{id}/edit \
+curl -X POST http://localhost:8000/api/v1/relics/{id}/edit \
   -F "file=@updated.txt" \
   -F "name=Updated Name"
 ```
 
-**Fork Paste (New Lineage)**
+**Fork Relic (New Lineage)**
 ```bash
-curl -X POST http://localhost:8000/api/v1/pastes/{id}/fork \
+curl -X POST http://localhost:8000/api/v1/relics/{id}/fork \
   -F "file=@forked.txt"
 ```
 
-**Delete Paste**
+**Delete Relic**
 ```bash
-curl -X DELETE http://localhost:8000/api/v1/pastes/{id}
+curl -X DELETE http://localhost:8000/api/v1/relics/{id}
 ```
 
 ### Version & Lineage
 
 **Get Version History**
 ```bash
-curl http://localhost:8000/api/v1/pastes/{id}/history
+curl http://localhost:8000/api/v1/relics/{id}/history
 ```
 
-**Compare Two Pastes**
+**Compare Two Relics**
 ```bash
 curl "http://localhost:8000/api/v1/diff?from={id1}&to={id2}"
 ```
 
 **Compare with Parent**
 ```bash
-curl http://localhost:8000/api/v1/pastes/{id}/diff
+curl http://localhost:8000/api/v1/relics/{id}/diff
 ```
 
 ### Listing & Search
 
-**List Recent Pastes**
+**List Recent Relics**
 ```bash
-curl "http://localhost:8000/api/v1/pastes?limit=50&offset=0"
+curl "http://localhost:8000/api/v1/relics?limit=50&offset=0"
 ```
 
 ## Data Model
 
-### Paste Entity
+### Relic Entity
 - `id`: Unique identifier (base62, 7-8 chars)
-- `user_id`: Owner (nullable for anonymous pastes)
+- `user_id`: Owner (nullable for anonymous relics)
 - `name`: Display name
 - `description`: Optional description
 - `content_type`: MIME type
 - `language_hint`: Programming language for code
 - `size_bytes`: Content size
 - `parent_id`: Reference to previous version
-- `root_id`: Reference to first paste in chain
+- `root_id`: Reference to first relic in chain
 - `version_number`: Sequential version (1, 2, 3...)
-- `fork_of`: Reference to source paste if forked
+- `fork_of`: Reference to source relic if forked
 - `s3_key`: Storage location in S3
 - `access_level`: public/unlisted/private
 - `created_at`: Creation timestamp
@@ -147,10 +147,10 @@ curl "http://localhost:8000/api/v1/pastes?limit=50&offset=0"
 - `metadata`: JSON field for processing metadata
 
 ### Relationships
-- Each paste has 0 or 1 parent
-- Each paste has 0 to N children
-- Each paste belongs to 0 or 1 user
-- Each paste can have 0 to N tags
+- Each relic has 0 or 1 parent
+- Each relic has 0 to N children
+- Each relic belongs to 0 or 1 user
+- Each relic can have 0 to N tags
 
 ## Development Commands
 
@@ -244,7 +244,7 @@ All versions remain accessible at their unique URLs. Complete history is preserv
 - HTML sanitization for display
 - Authenticated deletion (owner only)
 - Soft delete preserves privacy
-- No content indexing for private pastes
+- No content indexing for private relics
 
 ## Testing
 
@@ -258,7 +258,7 @@ make test
 Replace SQLite with PostgreSQL:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost/paste_db
+DATABASE_URL=postgresql://user:password@localhost/relic_db
 ```
 
 ### Production Storage

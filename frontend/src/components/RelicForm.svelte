@@ -1,5 +1,5 @@
 <script>
-  import { createPaste } from '../services/api'
+  import { createRelic } from '../services/api'
   import { showToast } from '../stores/toastStore'
 
   let title = ''
@@ -63,7 +63,7 @@
 
       // Create a File object from the content with proper MIME type
       const blob = new Blob([content], { type: contentType })
-      const fileName = title || `paste.${fileExtension}`
+      const fileName = title || `relic.${fileExtension}`
       const file = new File([blob], fileName, { type: contentType })
 
       // Create FormData and append the file
@@ -80,22 +80,22 @@
       }
 
       // Use axios directly for FormData
-      const response = await fetch('/api/v1/pastes', {
+      const response = await fetch('/api/v1/relics', {
         method: 'POST',
         body: formData
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.detail || 'Failed to create paste')
+        throw new Error(error.detail || 'Failed to create relic')
       }
 
       const data = await response.json()
-      const pasteUrl = `/${data.id}`
-      showToast('Paste created successfully!', 'success')
+      const relicUrl = `/${data.id}`
+      showToast('Relic created successfully!', 'success')
 
-      // Navigate to the new paste
-      window.location.href = pasteUrl
+      // Navigate to the new relic
+      window.location.href = relicUrl
 
       // Reset form
       title = ''
@@ -105,8 +105,8 @@
       visibility = 'public'
       password = ''
     } catch (error) {
-      showToast(error.message || 'Failed to create paste', 'error')
-      console.error('Error creating paste:', error)
+      showToast(error.message || 'Failed to create relic', 'error')
+      console.error('Error creating relic:', error)
     } finally {
       isLoading = false
     }
@@ -213,7 +213,7 @@
     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
       <h2 class="text-lg font-semibold text-gray-900 flex items-center">
         <i class="fas fa-plus text-blue-600 mr-2"></i>
-        Create New Paste
+        Create New Relic
       </h2>
       <div class="flex items-center gap-4">
         <div class="text-xs text-gray-500">
@@ -234,7 +234,7 @@
               placeholder="e.g. Nginx Configuration"
               class="w-full px-3 py-2 text-sm maas-input"
             />
-            <p class="text-xs text-gray-500 mt-1">A descriptive name for this paste</p>
+            <p class="text-xs text-gray-500 mt-1">A descriptive name for this relic</p>
           </div>
 
           <div>
@@ -269,13 +269,11 @@
               class="w-full px-3 py-2 text-sm maas-input bg-white"
             >
               <option value="public">Public</option>
-              <option value="unlisted">Unlisted</option>
               <option value="private">Private</option>
             </select>
             <p class="text-xs text-gray-500 mt-1">
-              {#if visibility === 'public'}Anyone can view this paste
-              {:else if visibility === 'unlisted'}Only those with link can view
-              {:else}Only you can view this paste
+              {#if visibility === 'public'}Anyone can view this relic
+              {:else}Private relic - only accessible via direct URL
               {/if}
             </p>
           </div>
@@ -340,10 +338,10 @@
           >
             {#if isLoading}
               <i class="fas fa-spinner fa-spin mr-1"></i>
-              Creating...
+              Creating Relic...
             {:else}
               <i class="fas fa-plus mr-1"></i>
-              Create Paste
+              Create Relic
             {/if}
           </button>
         </div>
