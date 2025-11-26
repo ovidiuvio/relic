@@ -3,6 +3,7 @@
   import { showToast } from '../stores/toastStore'
   import { getClientRelics, deleteRelic } from '../services/api'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw } from '../services/relicActions'
+  import { getTypeLabel, formatBytes } from '../services/typeUtils'
 
   let relics = []
   let loading = true
@@ -63,23 +64,13 @@
 
 <div class="px-4 sm:px-0">
   <div class="bg-white shadow-sm rounded-lg border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900 flex items-center justify-between">
-        <span class="flex items-center">
-          <i class="fas fa-user text-blue-600 mr-2"></i>
-          My Relics
-        </span>
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-gray-500">Total: </span>
-          <span class="text-sm font-medium text-gray-900">{relics.length}</span>
-        </div>
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+        <i class="fas fa-user text-blue-600 mr-2"></i>
+        My Relics
       </h2>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="px-6 py-4 border-b border-gray-200">
-      <div class="relative">
-        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+      <div class="relative flex-1 max-w-md ml-4">
+        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
         <input
           type="text"
           bind:value={searchTerm}
@@ -133,13 +124,13 @@
                   </div>
                 </td>
                 <td>
-                  <span class="text-sm">{relic.content_type || 'Text'}</span>
+                  <span class="text-sm">{getTypeLabel(relic.content_type)}</span>
                 </td>
                 <td class="text-gray-500 text-xs">
                   {formatTimeAgo(relic.created_at)}
                 </td>
                 <td class="font-mono text-xs">
-                  {relic.size_bytes ? Math.round(relic.size_bytes / 1024) + ' KB' : '0 KB'}
+                  {formatBytes(relic.size_bytes || 0)}
                 </td>
                 <td>
                   <div class="flex items-center gap-1">
