@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table
+from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -101,3 +101,22 @@ class Tag(Base):
     name = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     relics = relationship("Relic", secondary=relic_tags, back_populates="tags")
+
+
+class ClientBookmark(Base):
+    """Client bookmark model - tracks which relics a client has bookmarked."""
+    __tablename__ = "client_bookmark"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
+    relic_id = Column(String(32), ForeignKey('relic.id'), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    client = relationship("ClientKey", backref="bookmarks")
+    relic = relationship("Relic", backref="bookmarked_by")
+
+    # Unique constraint to prevent duplicate bookmarks
+    __table_args__ = (
+        UniqueConstraint('client_id', 'relic_id', name='unique_client_relic_bookmark'),
+    )

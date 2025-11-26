@@ -9,7 +9,7 @@ import io
 
 from backend.config import settings
 from backend.database import init_db, get_db, SessionLocal
-from backend.models import Relic, User, ClientKey
+from backend.models import Relic, User, ClientKey, ClientBookmark
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse, RelicEdit,
     RelicFork, DiffResponse, UserCreate, UserResponse
@@ -688,6 +688,161 @@ async def list_relics(
     return {
         "relics": relics,
         "total": total
+    }
+
+
+# ==================== Bookmark Operations ====================
+
+@app.post("/api/v1/bookmarks", response_model=dict)
+async def add_bookmark(
+    request: Request,
+    relic_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Add a bookmark for the authenticated client.
+
+    Requires valid X-Client-Key header.
+    Returns bookmark details or error if already bookmarked.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Valid client key required")
+
+    # Verify relic exists and is not deleted
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    if relic.deleted_at:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    # Check if already bookmarked
+    existing = db.query(ClientBookmark).filter(
+        ClientBookmark.client_id == client.id,
+        ClientBookmark.relic_id == relic_id
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=409, detail="Relic already bookmarked")
+
+    # Create bookmark
+    bookmark = ClientBookmark(
+        client_id=client.id,
+        relic_id=relic_id,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(bookmark)
+    db.commit()
+    db.refresh(bookmark)
+
+    return {
+        "id": bookmark.id,
+        "relic_id": bookmark.relic_id,
+        "created_at": bookmark.created_at,
+        "message": "Bookmark added successfully"
+    }
+
+
+@app.delete("/api/v1/bookmarks/{relic_id}")
+async def remove_bookmark(
+    relic_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a bookmark for the authenticated client.
+
+    Requires valid X-Client-Key header.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Valid client key required")
+
+    # Find bookmark
+    bookmark = db.query(ClientBookmark).filter(
+        ClientBookmark.client_id == client.id,
+        ClientBookmark.relic_id == relic_id
+    ).first()
+
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    db.delete(bookmark)
+    db.commit()
+
+    return {"message": "Bookmark removed successfully"}
+
+
+@app.get("/api/v1/bookmarks/check/{relic_id}")
+async def check_bookmark(
+    relic_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Check if a relic is bookmarked by the authenticated client.
+
+    Requires valid X-Client-Key header.
+    Returns bookmarked status.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Valid client key required")
+
+    bookmark = db.query(ClientBookmark).filter(
+        ClientBookmark.client_id == client.id,
+        ClientBookmark.relic_id == relic_id
+    ).first()
+
+    return {
+        "relic_id": relic_id,
+        "is_bookmarked": bookmark is not None,
+        "bookmark_id": bookmark.id if bookmark else None
+    }
+
+
+@app.get("/api/v1/bookmarks", response_model=dict)
+async def get_client_bookmarks(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all bookmarks for the authenticated client.
+
+    Requires valid X-Client-Key header.
+    Returns list of bookmarked relics with bookmark metadata.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Valid client key required")
+
+    # Join bookmarks with relics, exclude deleted relics
+    bookmarks = db.query(ClientBookmark, Relic).join(
+        Relic, ClientBookmark.relic_id == Relic.id
+    ).filter(
+        ClientBookmark.client_id == client.id,
+        Relic.deleted_at.is_(None)
+    ).order_by(ClientBookmark.created_at.desc()).all()
+
+    return {
+        "client_id": client.id,
+        "bookmark_count": len(bookmarks),
+        "bookmarks": [
+            {
+                "id": relic.id,
+                "name": relic.name,
+                "content_type": relic.content_type,
+                "size_bytes": relic.size_bytes,
+                "created_at": relic.created_at,
+                "access_level": relic.access_level,
+                "version_number": relic.version_number,
+                "bookmark_id": bookmark.id,
+                "bookmarked_at": bookmark.created_at
+            }
+            for bookmark, relic in bookmarks
+        ]
     }
 
 

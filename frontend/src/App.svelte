@@ -4,6 +4,7 @@
   import RelicViewer from './components/RelicViewer.svelte'
   import RecentRelics from './components/RecentRelics.svelte'
   import MyRelics from './components/MyRelics.svelte'
+  import MyBookmarks from './components/MyBookmarks.svelte'
   import ApiDocs from './components/ApiDocs.svelte'
   import Toast from './components/Toast.svelte'
   import { toastStore } from './stores/toastStore'
@@ -20,7 +21,7 @@
 
     console.log('[App] Route update - path:', path, 'parts:', parts)
 
-    if (parts.length === 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-relics' && parts[0] !== 'new') {
+    if (parts.length === 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-relics' && parts[0] !== 'my-bookmarks' && parts[0] !== 'new') {
       // This looks like a relic ID
       console.log('[App] Detected relic ID:', parts[0])
       currentRelicId = parts[0]
@@ -168,6 +169,12 @@
             <i class="fas fa-user mr-2"></i>My Relics
           </button>
           <button
+            on:click={() => handleNavigation('my-bookmarks')}
+            class="maas-nav-top {currentSection === 'my-bookmarks' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-bookmark mr-2"></i>Bookmarks
+          </button>
+          <button
             on:click={() => handleNavigation('api')}
             class="maas-nav-top {currentSection === 'api' ? 'active' : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           >
@@ -247,6 +254,8 @@
         <RecentRelics />
       {:else if currentSection === 'my-relics'}
         <MyRelics />
+      {:else if currentSection === 'my-bookmarks'}
+        <MyBookmarks />
       {:else if currentSection === 'api'}
         <ApiDocs />
       {/if}

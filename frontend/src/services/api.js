@@ -60,7 +60,8 @@ api.interceptors.request.use((config) => {
     const protectedPatterns = [
       { endpoint: '/relics', methods: ['POST', 'DELETE'] },
       { endpoint: '/edit', methods: ['POST'] },
-      { endpoint: 'client/relics', methods: ['GET'] }
+      { endpoint: 'client/relics', methods: ['GET'] },
+      { endpoint: '/bookmarks', methods: ['GET', 'POST', 'DELETE'] }
     ]
 
     const needs = protectedPatterns.some(({endpoint, methods}) =>
@@ -166,6 +167,25 @@ export async function getRelicRaw(relicId) {
   return axios.get(`/${relicId}/raw`, {
     responseType: 'blob'
   })
+}
+
+// Bookmark endpoints
+export async function addBookmark(relicId) {
+  return api.post('/bookmarks', null, {
+    params: { relic_id: relicId }
+  })
+}
+
+export async function removeBookmark(relicId) {
+  return api.delete(`/bookmarks/${relicId}`)
+}
+
+export async function checkBookmark(relicId) {
+  return api.get(`/bookmarks/check/${relicId}`)
+}
+
+export async function getClientBookmarks() {
+  return api.get('/bookmarks')
 }
 
 // Client-specific endpoints

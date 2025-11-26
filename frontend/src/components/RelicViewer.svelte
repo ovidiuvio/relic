@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { getRelic, getRelicRaw, getRelicHistory } from '../services/api'
+  import { getRelic, getRelicRaw, getRelicHistory, addBookmark, removeBookmark, checkBookmark } from '../services/api'
   import { processContent } from '../services/processors'
   import { showToast } from '../stores/toastStore'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw } from '../services/relicActions'
@@ -19,6 +19,9 @@
   let markdownContainer
   let htmlEditor
   let markdownEditor
+  let isBookmarked = false
+  let checkingBookmark = false
+  let bookmarkLoading = false
 
   async function loadRelic(id) {
     if (!id) return
@@ -53,12 +56,58 @@
         const historyResponse = await getRelicHistory(id)
         history = historyResponse.data.versions
       }
+
+      // Check bookmark status
+      await checkBookmarkStatus(id)
+
       console.log('[RelicViewer] Relic loaded successfully')
     } catch (error) {
       console.error('[RelicViewer] Error loading relic:', error)
       showToast('Failed to load relic: ' + error.message, 'error')
     } finally {
       loading = false
+    }
+  }
+
+  async function checkBookmarkStatus(id) {
+    try {
+      checkingBookmark = true
+      const response = await checkBookmark(id)
+      isBookmarked = response.data.is_bookmarked
+    } catch (error) {
+      console.error('[RelicViewer] Error checking bookmark status:', error)
+      isBookmarked = false
+    } finally {
+      checkingBookmark = false
+    }
+  }
+
+  async function toggleBookmark() {
+    if (bookmarkLoading) return
+
+    try {
+      bookmarkLoading = true
+      if (isBookmarked) {
+        await removeBookmark(relicId)
+        showToast('Bookmark removed', 'success')
+        isBookmarked = false
+      } else {
+        await addBookmark(relicId)
+        showToast('Bookmarked!', 'success')
+        isBookmarked = true
+      }
+    } catch (error) {
+      console.error('[RelicViewer] Error toggling bookmark:', error)
+      if (error.response?.status === 409) {
+        showToast('Already bookmarked', 'info')
+        isBookmarked = true
+      } else if (error.response?.status === 401) {
+        showToast('Client key required to bookmark', 'error')
+      } else {
+        showToast('Failed to update bookmark', 'error')
+      }
+    } finally {
+      bookmarkLoading = false
     }
   }
 
@@ -237,6 +286,22 @@
           </div>
         </div>
         <div class="flex items-center gap-1">
+          <button
+            on:click={toggleBookmark}
+            disabled={checkingBookmark || bookmarkLoading}
+            class="p-1.5 rounded transition-colors {isBookmarked
+              ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+              : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark this relic'}
+          >
+            {#if bookmarkLoading}
+              <i class="fas fa-spinner fa-spin text-xs"></i>
+            {:else if isBookmarked}
+              <i class="fas fa-bookmark text-xs"></i>
+            {:else}
+              <i class="far fa-bookmark text-xs"></i>
+            {/if}
+          </button>
           <button
             on:click={() => shareRelic(relicId)}
             class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
