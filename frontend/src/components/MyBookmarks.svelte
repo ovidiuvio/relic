@@ -174,6 +174,13 @@
                 <td>
                   <div class="flex items-center gap-1">
                     <button
+                      on:click|stopPropagation={() => handleRemoveBookmark(bookmark.id, bookmark.name)}
+                      class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
+                      title="Remove bookmark"
+                    >
+                      <i class="fas fa-bookmark text-xs"></i>
+                    </button>
+                    <button
                       on:click|stopPropagation={() => shareRelic(bookmark.id)}
                       class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                       title="Share relic"
@@ -207,13 +214,6 @@
                       title="Download relic"
                     >
                       <i class="fas fa-download text-xs"></i>
-                    </button>
-                    <button
-                      on:click|stopPropagation={() => handleRemoveBookmark(bookmark.id, bookmark.name)}
-                      class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
-                      title="Remove bookmark"
-                    >
-                      <i class="fas fa-bookmark-slash text-xs"></i>
                     </button>
                   </div>
                 </td>
