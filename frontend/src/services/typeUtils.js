@@ -10,7 +10,36 @@ export function getTypeLabel(contentType) {
   if (contentType.includes('bash') || contentType.includes('shell')) return 'Bash'
   if (contentType.includes('sql')) return 'SQL'
   if (contentType.includes('java')) return 'Java'
-  return 'Text'
+  if (contentType.includes('pdf')) return 'PDF'
+  if (contentType.includes('image')) return 'Image'
+  if (contentType.includes('csv')) return 'CSV'
+  if (contentType.includes('zip') || contentType.includes('archive') || contentType.includes('tar') || contentType.includes('gzip')) return 'Archive'
+  if (contentType.includes('text')) return 'Text'
+  return 'Unknown'
+}
+
+export function getTypeIcon(contentType) {
+  if (!contentType) return 'fa-file'
+  if (contentType.includes('javascript')) return 'fa-brands fa-js'
+  if (contentType.includes('python')) return 'fa-brands fa-python'
+  if (contentType.includes('html')) return 'fa-brands fa-html5'
+  if (contentType.includes('css')) return 'fa-brands fa-css3-alt'
+  if (contentType.includes('json')) return 'fa-code'
+  if (contentType.includes('markdown')) return 'fa-file-lines'
+  if (contentType.includes('xml')) return 'fa-code'
+  if (contentType.includes('bash') || contentType.includes('shell')) return 'fa-terminal'
+  if (contentType.includes('sql')) return 'fa-database'
+  if (contentType.includes('java')) return 'fa-brands fa-java'
+  if (contentType.includes('pdf')) return 'fa-file-pdf'
+  if (contentType.includes('image')) return 'fa-image'
+  if (contentType.includes('csv')) return 'fa-file-csv'
+  if (contentType.includes('zip') || contentType.includes('archive') || contentType.includes('tar') || contentType.includes('gzip')) return 'fa-file-zipper'
+  if (contentType.includes('text')) return 'fa-file-lines'
+  return 'fa-file'
+}
+
+export function getTypeIconColor(contentType) {
+  return 'text-gray-500'
 }
 
 export function formatBytes(bytes, decimals = 2) {

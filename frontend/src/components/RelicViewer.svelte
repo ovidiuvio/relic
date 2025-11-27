@@ -366,15 +366,40 @@
 
       <!-- Extended Metadata -->
       <div class="p-6">
-        <!-- Fork Attribution -->
-        {#if relic.fork_of}
-          <div class="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <i class="fas fa-code-branch text-teal-600"></i>
-            <span>Forked from
-              <a href="/{relic.fork_of}" class="text-teal-600 hover:underline ml-1">relic/{relic.fork_of}</a>
-            </span>
-          </div>
-        {/if}
+        <!-- Status indicators -->
+        <div class="flex items-center gap-3 text-sm text-gray-600 mb-4">
+          {#if relic.access_level === 'private'}
+            <div class="flex items-center gap-1">
+              <i class="fas fa-lock text-gray-400" title="Private - accessible only via URL"></i>
+              <span>Private</span>
+            </div>
+          {:else if relic.access_level === 'public'}
+            <div class="flex items-center gap-1">
+              <i class="fas fa-globe text-gray-400" title="Public - discoverable"></i>
+              <span>Public</span>
+            </div>
+          {/if}
+          {#if relic.fork_of}
+            <div class="flex items-center gap-2">
+              <i class="fas fa-code-branch text-teal-500" title="Fork of original relic"></i>
+              <span>Forked from
+                <a href="/{relic.fork_of}" class="text-teal-600 hover:underline ml-1">relic/{relic.fork_of}</a>
+              </span>
+            </div>
+          {/if}
+          {#if relic.password_hash}
+            <div class="flex items-center gap-1">
+              <i class="fas fa-key text-amber-500" title="Password protected"></i>
+              <span>Password protected</span>
+            </div>
+          {/if}
+          {#if relic.expires_at}
+            <div class="flex items-center gap-1">
+              <i class="fas fa-clock text-orange-500" title="Expires {new Date(relic.expires_at).toLocaleDateString()}"></i>
+              <span>Expires {new Date(relic.expires_at).toLocaleDateString()}</span>
+            </div>
+          {/if}
+        </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
@@ -388,6 +413,10 @@
           <div>
             <span class="text-xs text-gray-500 block mb-1">Views</span>
             <span class="block font-mono text-gray-900 text-xs">{relic.access_count}</span>
+          </div>
+          <div>
+            <span class="text-xs text-gray-500 block mb-1">Created</span>
+            <span class="block font-mono text-gray-900 text-xs">{new Date(relic.created_at).toLocaleDateString()}</span>
           </div>
                   </div>
         {#if relic.description}

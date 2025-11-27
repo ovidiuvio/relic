@@ -1,6 +1,6 @@
 <script>
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw, fastForkRelic } from '../services/relicActions'
-  import { getTypeLabel, formatBytes, copyRelicId, formatTimeAgo } from '../services/typeUtils'
+  import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes, copyRelicId, formatTimeAgo } from '../services/typeUtils'
 
   // Props
   export let data = [] // Array of relics/bookmarks
@@ -101,22 +101,37 @@
           {#each paginatedData as relic (relic.id)}
             <tr class="hover:bg-gray-50 cursor-pointer">
               <td>
-                <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline block">
-                  {relic.name || 'Untitled'}
-                </a>
-                <div class="flex items-center group gap-1">
-                  <span class="text-xs text-gray-400 font-mono">{relic.id}</span>
-                  <button
-                    on:click|stopPropagation={() => copyRelicId(relic.id)}
-                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all duration-200 -mt-0.5"
-                    title="Copy ID"
-                  >
-                    <i class="fas fa-copy text-xs"></i>
-                  </button>
+                <div class="flex items-center gap-2">
+                  <!-- Status indicators -->
+                  {#if tableId !== 'recent-relics'}
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                      {#if relic.access_level === 'private'}
+                        <i class="fas fa-lock text-xs text-gray-400" title="Private - accessible only via URL"></i>
+                      {:else if relic.access_level === 'public'}
+                        <i class="fas fa-globe text-xs text-gray-400" title="Public - discoverable"></i>
+                      {/if}
+                    </div>
+                  {/if}
+                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline flex-1">
+                    {relic.name || 'Untitled'}
+                  </a>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <!-- Copy ID -->
+                  <div class="flex items-center group gap-1">
+                    <span class="text-xs text-gray-400 font-mono">{relic.id}</span>
+                    <button
+                      on:click|stopPropagation={() => copyRelicId(relic.id)}
+                      class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all duration-200 -mt-0.5"
+                      title="Copy ID"
+                    >
+                      <i class="fas fa-copy text-xs"></i>
+                    </button>
+                  </div>
                 </div>
               </td>
-              <td>
-                <span class="text-sm">{getTypeLabel(relic.content_type)}</span>
+              <td class="text-xs">
+                <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">{getTypeLabel(relic.content_type)}</span>
               </td>
               <td class="text-gray-500 text-xs">
                 {formatTimeAgo(getDateField(relic))}
@@ -130,9 +145,9 @@
                     <button
                       on:click|stopPropagation={() => onRemoveBookmark(relic)}
                       class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
-                      title="Remove bookmark"
+                      title="Remove from bookmarks"
                     >
-                      <i class="fas fa-bookmark text-xs"></i>
+                      <i class="fas fa-bookmark-slash text-xs"></i>
                     </button>
                   {/if}
 
@@ -173,7 +188,7 @@
                     <button
                       on:click|stopPropagation={() => fastForkRelic(relic)}
                       class="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-                      title="Create fork"
+                      title="Fast fork - create instant copy"
                     >
                       <i class="fas fa-code-branch text-xs"></i>
                     </button>
