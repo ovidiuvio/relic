@@ -142,6 +142,23 @@
     })
   }
 
+  function handleLineClicked(event) {
+    // No toast needed for line clicks - the URL update is sufficient
+  }
+
+  function handleLineCopied(event) {
+    const { lineNumber } = event.detail
+    showToast(`Line ${lineNumber} URL copied to clipboard!`, 'success')
+  }
+
+  function handleLineRangeSelected(event) {
+    // No toast needed for range selection - the URL update is sufficient
+  }
+
+  function handleMultiLineSelected(event) {
+    // No toast needed for multi-line selection - the URL update is sufficient
+  }
+
   // Initialize Monaco editor for HTML source view
   $: if (showHtmlSource && htmlContainer && processed?.html && !htmlEditor) {
     import('monaco-editor').then(monaco => {
@@ -471,6 +488,11 @@
           language={processed.metadata?.language || 'plaintext'}
           readOnly={true}
           height="calc(100vh - 300px)"
+          relicId={relicId}
+          on:line-clicked={handleLineClicked}
+          on:line-range-selected={handleLineRangeSelected}
+          on:multi-line-selected={handleMultiLineSelected}
+          on:line-copied={handleLineCopied}
         />
       {:else if processed.type === 'text'}
         <MonacoEditor
@@ -478,6 +500,11 @@
           language="plaintext"
           readOnly={true}
           height="calc(100vh - 300px)"
+          relicId={relicId}
+          on:line-clicked={handleLineClicked}
+          on:line-range-selected={handleLineRangeSelected}
+          on:multi-line-selected={handleMultiLineSelected}
+          on:line-copied={handleLineCopied}
         />
         {#if processed.truncated}
           <div class="bg-blue-50 border-t border-gray-200 px-6 py-4 text-center text-sm text-blue-700 mb-6 rounded-b-lg">

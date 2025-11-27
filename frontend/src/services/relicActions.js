@@ -92,7 +92,13 @@ export async function copyToClipboard(text, successMessage = 'Copied to clipboar
 }
 
 export function shareRelic(relicId) {
-  const shareUrl = `${window.location.origin}/${relicId}`
+  // Read current URL and include any line number parameters
+  const currentUrl = window.location.href
+  const urlParts = currentUrl.split('#')
+  const baseUrl = urlParts[0] || `${window.location.origin}/${relicId}`
+  const fragment = urlParts[1] || ''
+
+  const shareUrl = fragment ? `${baseUrl}#${fragment}` : baseUrl
   copyToClipboard(shareUrl, 'Link copied to clipboard!')
 }
 
