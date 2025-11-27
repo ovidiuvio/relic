@@ -5,6 +5,7 @@
   import { showToast } from '../stores/toastStore'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw } from '../services/relicActions'
   import MonacoEditor from './MonacoEditor.svelte'
+  import ForkModal from './ForkModal.svelte'
 
   export let relicId = ''
 
@@ -22,6 +23,8 @@
   let isBookmarked = false
   let checkingBookmark = false
   let bookmarkLoading = false
+  let showForkModal = false
+  let forkLoading = false
 
   async function loadRelic(id) {
     if (!id) return
@@ -349,6 +352,18 @@
             <i class="fas fa-code text-xs"></i>
           </button>
           <button
+            on:click={() => showForkModal = true}
+            disabled={forkLoading}
+            class="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
+            title="Create fork"
+          >
+            {#if forkLoading}
+              <i class="fas fa-spinner fa-spin text-xs"></i>
+            {:else}
+              <i class="fas fa-code-branch text-xs"></i>
+            {/if}
+          </button>
+          <button
             on:click={() => downloadRelic(relicId, relic.name, relic.content_type)}
             class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
             title="Download relic"
@@ -360,6 +375,16 @@
 
       <!-- Extended Metadata -->
       <div class="p-6">
+        <!-- Fork Attribution -->
+        {#if relic.fork_of}
+          <div class="flex items-center gap-2 text-sm text-gray-600 mb-4">
+            <i class="fas fa-code-branch text-teal-600"></i>
+            <span>Forked from
+              <a href="/{relic.fork_of}" class="text-teal-600 hover:underline ml-1">relic/{relic.fork_of}</a>
+            </span>
+          </div>
+        {/if}
+
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span class="text-xs text-gray-500 block mb-1">Type</span>
@@ -601,4 +626,13 @@
       <p class="text-gray-600">Relic not found</p>
     </div>
   </div>
+{/if}
+
+<!-- Fork Modal -->
+{#if relic}
+  <ForkModal
+    bind:open={showForkModal}
+    relicId={relicId}
+    {relic}
+  />
 {/if}

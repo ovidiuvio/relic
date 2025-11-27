@@ -21,3 +21,56 @@ export function formatBytes(bytes, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
 }
+
+// Map type selections to MIME types
+export function getContentType(syntax) {
+  const mimeTypes = {
+    'text': 'text/plain',
+    'markdown': 'text/markdown',
+    'html': 'text/html',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'javascript': 'application/javascript',
+    'python': 'text/x-python',
+    'bash': 'text/x-shellscript',
+    'sql': 'application/sql',
+    'css': 'text/css',
+    'java': 'text/x-java-source'
+  }
+  return mimeTypes[syntax] || 'text/plain'
+}
+
+// Map language selection to file extensions
+export function getFileExtension(syntax) {
+  const extensions = {
+    'text': 'txt',
+    'markdown': 'md',
+    'html': 'html',
+    'json': 'json',
+    'xml': 'xml',
+    'javascript': 'js',
+    'python': 'py',
+    'bash': 'sh',
+    'sql': 'sql',
+    'css': 'css',
+    'java': 'java'
+  }
+  return extensions[syntax] || 'txt'
+}
+
+// Auto-detect language hint from content type
+export function detectLanguageHint(contentType) {
+  const typeToLanguage = {
+    'text/markdown': 'markdown',
+    'text/html': 'html',
+    'application/json': 'json',
+    'application/xml': 'xml',
+    'application/javascript': 'javascript',
+    'text/x-python': 'python',
+    'text/x-shellscript': 'bash',
+    'application/sql': 'sql',
+    'text/css': 'css',
+    'text/x-java-source': 'java'
+  }
+  return typeToLanguage[contentType] || 'auto'
+}

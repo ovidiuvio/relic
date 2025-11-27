@@ -129,10 +129,13 @@ export async function editRelic(relicId, file, name) {
   })
 }
 
-export async function forkRelic(relicId, file, name) {
+export async function forkRelic(relicId, file, name, accessLevel, expiresIn) {
   const data = new FormData()
   if (file) data.append('file', file)
   if (name) data.append('name', name)
+  // Always send access_level and expires_in, even if they're defaults
+  data.append('access_level', accessLevel || 'public')
+  data.append('expires_in', expiresIn || 'never')
 
   return api.post(`/relics/${relicId}/fork`, data, {
     headers: { 'Content-Type': 'multipart/form-data' }

@@ -67,6 +67,11 @@
       // Set up line number click handlers
       setupLineClickHandlers()
 
+      // Listen for content changes
+      editor.onDidChangeModelContent(() => {
+        dispatch('change', editor.getValue())
+      })
+
       // Check for line number fragment on mount
       if (relicId) {
         checkLineNumberFragment()

@@ -50,7 +50,6 @@
     }
   }
 
-  
   function copyRelicId(relicId) {
     navigator.clipboard.writeText(relicId).then(() => {
       // You could add a toast notification here if desired

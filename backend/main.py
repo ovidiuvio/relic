@@ -343,7 +343,7 @@ async def edit_relic(
     relic_id: str,
     request: Request,
     file: UploadFile = File(...),
-    name: Optional[str] = None,
+    name: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -424,7 +424,9 @@ async def fork_relic(
     relic_id: str,
     request: Request,
     file: Optional[UploadFile] = File(None),
-    name: Optional[str] = None,
+    name: Optional[str] = Form(None),
+    access_level: Optional[str] = Form(None),
+    expires_in: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -433,6 +435,10 @@ async def fork_relic(
     Creates a new relic with fork_of pointing to the original.
     Public endpoint - anyone can fork. Fork belongs to forking client if key provided.
     """
+    # Validate access_level
+    if access_level and access_level not in ['public', 'private']:
+        raise HTTPException(status_code=400, detail="Invalid access_level. Must be 'public' or 'private'")
+
     # Get client (optional - fork is public)
     client = get_or_create_client_key(request, db)
 
@@ -463,6 +469,11 @@ async def fork_relic(
         s3_key = f"relics/{new_id}"
         await storage_service.upload(s3_key, content, content_type)
 
+        # Calculate expiry date if provided
+        expires_at = None
+        if expires_in and expires_in != 'never':
+            expires_at = get_expiry_datetime(expires_in)
+
         # Create fork with version 1
         fork = Relic(
             id=new_id,
@@ -476,7 +487,8 @@ async def fork_relic(
             fork_of=relic_id,
             root_id=new_id,  # Fork creates new root
             version_number=1,  # Reset to version 1
-            access_level=original.access_level,
+            access_level=access_level or original.access_level,
+            expires_at=expires_at,
             processing_metadata={"processed_metadata": metadata, "preview": preview}
         )
 
