@@ -7,11 +7,22 @@
   let relics = []
   let loading = true
   let searchTerm = ''
+  let currentPage = 1
+  let itemsPerPage = 25
+
+  function getDefaultItemsPerPage() {
+    if (typeof window === 'undefined') return 20
+    const width = window.innerWidth
+    if (width < 768) return 10      // Mobile
+    return 20                        // Tablet & Desktop
+  }
 
   onMount(async () => {
+    itemsPerPage = getDefaultItemsPerPage()
     try {
       const response = await listRelics()
       relics = response.data.relics || []
+      currentPage = 1
     } catch (error) {
       showToast('Failed to load recent relics', 'error')
       console.error('Error loading relics:', error)
@@ -40,6 +51,18 @@
       (relic.content_type && getTypeLabel(relic.content_type).toLowerCase().includes(term))
     )
   })
+
+  $: totalPages = Math.ceil(filteredRelics.length / itemsPerPage)
+
+  $: paginatedRelics = (() => {
+    const start = (currentPage - 1) * itemsPerPage
+    const end = start + itemsPerPage
+    return filteredRelics.slice(start, end)
+  })()
+
+  function goToPage(page) {
+    currentPage = Math.max(1, Math.min(page, totalPages))
+  }
 
   function copyRelicId(relicId) {
     navigator.clipboard.writeText(relicId).then(() => {
@@ -94,7 +117,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each filteredRelics as relic (relic.id)}
+            {#each paginatedRelics as relic (relic.id)}
               <tr class="hover:bg-gray-50 cursor-pointer">
                 <td>
                   <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline block">
@@ -158,8 +181,49 @@
         </table>
       </div>
 
-      <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
-        <span>{filteredRelics.length} relic{filteredRelics.length !== 1 ? 's' : ''}</span>
+      <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center gap-6">
+        <div class="flex items-center gap-4">
+          <span>{filteredRelics.length} relic{filteredRelics.length !== 1 ? 's' : ''}</span>
+          {#if filteredRelics.length > 0}
+            <div class="flex items-center gap-2">
+              <label for="items-per-page" class="text-gray-600">Per page:</label>
+              <select
+                id="items-per-page"
+                bind:value={itemsPerPage}
+                on:change={() => { currentPage = 1 }}
+                class="pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          {/if}
+        </div>
+
+        {#if totalPages > 1}
+          <div class="flex items-center gap-2 whitespace-nowrap">
+            <span class="text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              on:click={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
+              title="Previous page"
+            >
+              <i class="fas fa-chevron-left text-xs"></i>
+            </button>
+            <button
+              on:click={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
+              title="Next page"
+            >
+              <i class="fas fa-chevron-right text-xs"></i>
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

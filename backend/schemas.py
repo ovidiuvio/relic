@@ -91,7 +91,6 @@ class RelicResponse(BaseModel):
 class RelicListResponse(BaseModel):
     """Relic list response schema."""
     relics: List[RelicResponse]
-    total: int
 
 
 class RelicHistoryResponse(BaseModel):

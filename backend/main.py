@@ -684,22 +684,17 @@ async def diff_with_parent(relic_id: str, db: Session = Depends(get_db)):
 
 @app.get("/api/v1/relics", response_model=RelicListResponse)
 async def list_relics(
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = 1000,
     db: Session = Depends(get_db)
 ):
-    """List recent relics."""
-    query = db.query(Relic).filter(
+    """List the 1000 most recent public relics."""
+    relics = db.query(Relic).filter(
         Relic.deleted_at == None,
         Relic.access_level == "public"
-    ).order_by(Relic.created_at.desc())
-
-    total = query.count()
-    relics = query.offset(offset).limit(limit).all()
+    ).order_by(Relic.created_at.desc()).limit(limit).all()
 
     return {
-        "relics": relics,
-        "total": total
+        "relics": relics
     }
 
 

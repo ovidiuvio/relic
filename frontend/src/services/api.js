@@ -115,8 +115,8 @@ export async function getRelic(relicId) {
   return api.get(`/relics/${relicId}`)
 }
 
-export async function listRelics(limit = 50, offset = 0) {
-  return api.get('/relics', { params: { limit, offset } })
+export async function listRelics(limit = 1000) {
+  return api.get('/relics', { params: { limit } })
 }
 
 export async function editRelic(relicId, file, name) {
