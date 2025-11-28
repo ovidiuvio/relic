@@ -18,17 +18,6 @@ relic_tags = Table(
 )
 
 
-class User(Base):
-    """User model."""
-    __tablename__ = "user"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    relics = relationship("Relic", back_populates="user")
 
 
 class Relic(Base):
@@ -42,7 +31,6 @@ class Relic(Base):
     __tablename__ = "relic"
 
     id = Column(String(32), primary_key=True)  # 32-char hex IDs
-    user_id = Column(String, ForeignKey('user.id'), nullable=True)
     client_id = Column(String, ForeignKey('client_key.id'), nullable=True, index=True)
 
     # Content metadata
@@ -71,7 +59,6 @@ class Relic(Base):
     access_count = Column(Integer, default=0)
 
     # Relationships
-    user = relationship("User", back_populates="relics")
     tags = relationship("Tag", secondary=relic_tags, back_populates="relics")
 
 class ClientKey(Base):

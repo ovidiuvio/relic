@@ -26,7 +26,6 @@ Key principle: Relics cannot be edited after creation - they are permanent and i
 **Database fields:**
 - `id`: 32-character hexadecimal (GitHub Gist-style), primary key
 - `fork_of`: Source relic if forked (null for original relics)
-- `user_id`: Owner (nullable for anonymous)
 - `client_id`: Client identification key (nullable for anonymous)
 - `name`: Optional display name
 - `description`: Optional description
@@ -72,13 +71,13 @@ Key queries:
 - **Optional password protection**: Can be applied to any relic (public or private) for additional security
 - **Expiration options**: 1h, 24h, 7d, 30d, never (default: never)
 - **Soft delete**: Deleted relics marked with `deleted_at` timestamp (hard delete after 30 days)
-- **Anonymous relics**: `user_id` is null
+- **Anonymous relics**: No client association
 - **URL format**: 32-character hexadecimal (GitHub Gist-style), cryptographically secure, practically collision-proof
 
 ## Storage Architecture
 
 - **Primary storage**: S3-compatible (MinIO) - one object per relic
-- **Database**: Stores metadata (id, user_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, deleted_at, access_count, tags, etc.)
+- **Database**: Stores metadata (id, client_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, deleted_at, access_count, tags, etc.)
 - **Max upload**: 100MB (configurable)
 - **No S3 versioning needed**: Immutable model means each relic is independent
 
@@ -180,7 +179,7 @@ Not yet implemented. Plan:
 - **By content**: Full-text search (SQLite `MATCH`, PostgreSQL `tsvector`, or external index)
 - **By tags**: Many-to-many via `relic_tags` table
 - **By type**: Simple filter on `content_type` field
-- **By user**: Filter on `user_id` field
+- **By client**: Filter on `client_id` field
 - **Pagination**: Use `offset` and `limit` parameters
 
 ### Frontend Routing

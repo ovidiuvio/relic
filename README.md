@@ -128,7 +128,7 @@ curl "http://localhost:8000/api/v1/relics?limit=50&offset=0"
 
 ### Relic Entity
 - `id`: Unique identifier (base62, 7-8 chars)
-- `user_id`: Owner (nullable for anonymous relics)
+- `client_id`: Client identification key (nullable for anonymous relics)
 - `name`: Display name
 - `description`: Optional description
 - `content_type`: MIME type

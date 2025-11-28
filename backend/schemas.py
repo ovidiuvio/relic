@@ -1,27 +1,9 @@
 """Pydantic schemas for request/response validation."""
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
 from datetime import datetime
 
 
-class UserBase(BaseModel):
-    """Base user schema."""
-    username: str
-    email: EmailStr
-
-
-class UserCreate(UserBase):
-    """User creation schema."""
-    password: str
-
-
-class UserResponse(UserBase):
-    """User response schema."""
-    id: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class TagBase(BaseModel):
@@ -61,7 +43,6 @@ class RelicFork(BaseModel):
 class RelicResponse(BaseModel):
     """Relic response schema."""
     id: str
-    user_id: Optional[str]
     name: Optional[str]
     description: Optional[str]
     content_type: str

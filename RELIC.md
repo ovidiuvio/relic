@@ -148,8 +148,8 @@ Original:  a3Bk9Zx (v1)
 - Public: anyone can view
 - Unlisted: only via direct URL
 - Private: only owner can view (requires auth)
-- Anonymous relics (no user_id)
-- Authenticated relics (with user_id)
+- Anonymous relics (no client association)
+- Authenticated relics (with client association)
 
 ## Data Model
 
@@ -157,7 +157,7 @@ Original:  a3Bk9Zx (v1)
 
 ```
 id              Unique identifier (base62, 7-8 chars)
-user_id         Owner (null for anonymous)
+client_id       Client identification (null for anonymous)
 name            Optional display name
 description     Optional description
 

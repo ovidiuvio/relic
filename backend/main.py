@@ -9,10 +9,10 @@ import io
 
 from backend.config import settings
 from backend.database import init_db, get_db, SessionLocal
-from backend.models import Relic, User, ClientKey, ClientBookmark
+from backend.models import Relic, ClientKey, ClientBookmark
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse,
-    RelicFork, UserCreate, UserResponse
+    RelicFork
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
@@ -225,7 +225,6 @@ async def create_relic(
     access_level: str = Form("public"),
     expires_in: Optional[str] = Form(None),
     tags: Optional[List[str]] = Form(None),
-    user_id: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -271,7 +270,6 @@ async def create_relic(
         # Create relic record
         relic = Relic(
             id=relic_id,
-            user_id=user_id,
             client_id=client.id if client else None,
             name=name,
             content_type=content_type,
@@ -414,7 +412,6 @@ async def fork_relic(
         # Create fork
         fork = Relic(
             id=new_id,
-            user_id=original.user_id,  # Preserve original user
             client_id=client.id if client else None,  # Fork belongs to client if provided
             name=name or original.name,
             content_type=content_type,
