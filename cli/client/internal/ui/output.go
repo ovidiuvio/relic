@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/relic/cli/pkg/relic"
@@ -32,23 +33,43 @@ func PrintRelicCreated(resp *relic.RelicCreateResponse, metadata *relic.RelicMet
 }
 
 func printRelicCreatedHuman(resp *relic.RelicCreateResponse, metadata *relic.RelicMetadata, serverURL string) error {
-	fmt.Printf("%s Created relic: %s\n", Success(SymbolSuccess), Bold(resp.ID))
-	fmt.Printf("  URL: %s\n", makeFullURL(serverURL, resp.URL))
+	// Header
+	fmt.Println()
+	fmt.Printf("%s %s\n", SuccessBold(SymbolRocket), SuccessBold("Relic Created Successfully!"))
+	fmt.Println(Muted("─────────────────────────────────────────────────────────"))
 
+	// URL (most important, highlighted)
+	url := makeFullURL(serverURL, resp.URL)
+	fmt.Printf("%s %s\n", CyanBold(SymbolLink), CyanBold(url))
+	fmt.Println()
+
+	// Metadata
 	if metadata != nil {
 		if metadata.Name != "" {
-			fmt.Printf("  Name: %s\n", metadata.Name)
+			fmt.Printf("%s %s %s\n", Muted(SymbolFile), Bold("Name:"), metadata.Name)
 		}
-		fmt.Printf("  Size: %s\n", formatBytes(metadata.SizeBytes))
-		fmt.Printf("  Type: %s\n", metadata.ContentType)
+		fmt.Printf("%s %s %s\n", Muted(SymbolSize), Bold("Size:"), WhiteBold(formatBytes(metadata.SizeBytes)))
+		fmt.Printf("%s %s %s\n", Muted(SymbolDot), Bold("Type:"), Muted(metadata.ContentType))
 		if metadata.LanguageHint != "" {
-			fmt.Printf("  Language: %s\n", metadata.LanguageHint)
+			fmt.Printf("%s %s %s\n", Muted(SymbolDot), Bold("Language:"), metadata.LanguageHint)
 		}
-		fmt.Printf("  Access: %s\n", metadata.AccessLevel)
+
+		// Access level with icon
+		accessIcon := SymbolPrivate
+		accessColor := Warning
+		if metadata.AccessLevel == "public" {
+			accessIcon = SymbolPublic
+			accessColor = Info
+		}
+		fmt.Printf("%s %s %s\n", accessColor(accessIcon), Bold("Access:"), accessColor(metadata.AccessLevel))
+
 		if metadata.ExpiresAt != nil {
-			fmt.Printf("  Expires: %s\n", metadata.ExpiresAt.Time.Format(time.RFC3339))
+			fmt.Printf("%s %s %s\n", Muted(SymbolClock), Bold("Expires:"), formatTime(metadata.ExpiresAt.Time))
 		}
 	}
+
+	fmt.Println(Muted("─────────────────────────────────────────────────────────"))
+	fmt.Println()
 
 	return nil
 }
@@ -64,28 +85,51 @@ func PrintRelicInfo(metadata *relic.RelicMetadata, format OutputFormat) error {
 }
 
 func printRelicInfoHuman(metadata *relic.RelicMetadata) error {
-	fmt.Printf("Relic: %s\n", Bold(metadata.ID))
+	fmt.Println()
+	fmt.Printf("%s %s\n", InfoBold(SymbolFile), InfoBold("Relic Information"))
+	fmt.Println(Muted("─────────────────────────────────────────────────────────"))
+	fmt.Println()
+
+	// ID
+	fmt.Printf("%s %s\n", Muted("ID:"), CyanBold(metadata.ID))
+
 	if metadata.Name != "" {
-		fmt.Printf("Name: %s\n", metadata.Name)
+		fmt.Printf("%s %s %s\n", Muted(SymbolFile), Bold("Name:"), metadata.Name)
 	}
 	if metadata.Description != "" {
-		fmt.Printf("Description: %s\n", metadata.Description)
+		fmt.Printf("%s %s %s\n", Muted(SymbolDot), Bold("Description:"), metadata.Description)
 	}
-	fmt.Printf("Size: %s\n", formatBytes(metadata.SizeBytes))
-	fmt.Printf("Type: %s", metadata.ContentType)
+
+	fmt.Printf("%s %s %s\n", Muted(SymbolSize), Bold("Size:"), WhiteBold(formatBytes(metadata.SizeBytes)))
+	fmt.Printf("%s %s %s", Muted(SymbolDot), Bold("Type:"), Muted(metadata.ContentType))
 	if metadata.LanguageHint != "" {
-		fmt.Printf(" (%s)", metadata.LanguageHint)
+		fmt.Printf(" %s", Cyan("("+metadata.LanguageHint+")"))
 	}
 	fmt.Println()
-	fmt.Printf("Created: %s\n", formatTime(metadata.CreatedAt.Time))
+
+	fmt.Printf("%s %s %s\n", Muted(SymbolClock), Bold("Created:"), formatTime(metadata.CreatedAt.Time))
 	if metadata.ExpiresAt != nil {
-		fmt.Printf("Expires: %s\n", formatTime(metadata.ExpiresAt.Time))
+		fmt.Printf("%s %s %s\n", Muted(SymbolClock), Bold("Expires:"), Warning(formatTime(metadata.ExpiresAt.Time)))
 	}
-	fmt.Printf("Access: %s\n", metadata.AccessLevel)
-	fmt.Printf("Views: %d\n", metadata.AccessCount)
+
+	// Access level with icon
+	accessIcon := SymbolPrivate
+	accessColor := Warning
+	if metadata.AccessLevel == "public" {
+		accessIcon = SymbolPublic
+		accessColor = Info
+	}
+	fmt.Printf("%s %s %s\n", accessColor(accessIcon), Bold("Access:"), accessColor(metadata.AccessLevel))
+
+	fmt.Printf("%s %s %s\n", Muted("👁"), Bold("Views:"), fmt.Sprintf("%d", metadata.AccessCount))
+
 	if metadata.ForkOf != "" {
-		fmt.Printf("Fork of: %s\n", metadata.ForkOf)
+		fmt.Printf("%s %s %s\n", Muted("🍴"), Bold("Fork of:"), metadata.ForkOf)
 	}
+
+	fmt.Println()
+	fmt.Println(Muted("─────────────────────────────────────────────────────────"))
+	fmt.Println()
 
 	return nil
 }
@@ -102,44 +146,71 @@ func PrintRelicList(list *relic.RelicListResponse, format OutputFormat, serverUR
 
 func printRelicListHuman(list *relic.RelicListResponse, serverURL string) error {
 	if len(list.Relics) == 0 {
-		fmt.Println("No relics found")
+		fmt.Println()
+		fmt.Printf("%s %s\n", Muted(SymbolInfo), "No relics found")
+		fmt.Println()
 		return nil
 	}
 
-	// Print header
-	fmt.Printf("%-50s %-20s %-8s %-15s %-10s %s\n",
+	fmt.Println()
+	fmt.Printf("%s %s\n", InfoBold(SymbolFolder), InfoBold("Your Relics"))
+	fmt.Println(Muted("═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════"))
+
+	// Print header (without colors for proper alignment)
+	fmt.Printf("%-50s %-20s %-10s %-18s %-12s %-6s\n",
 		"URL", "Name", "Size", "Type", "Created", "Access")
-	fmt.Println("────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
+	fmt.Println(Muted("─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────"))
 
 	// Print each relic
 	for _, r := range list.Relics {
+		// Format name
 		name := r.Name
 		if name == "" {
-			name = Muted("(unnamed)")
+			name = "(unnamed)"
 		}
 		if len(name) > 20 {
 			name = name[:17] + "..."
 		}
 
-		contentType := r.ContentType
-		if len(contentType) > 15 {
-			contentType = contentType[:12] + "..."
+		// Format content type - use friendly names
+		contentType := friendlyContentType(r.ContentType)
+		if len(contentType) > 18 {
+			contentType = contentType[:15] + "..."
 		}
 
 		// Construct full URL
 		url := makeFullURL(serverURL, "/"+r.ID)
+		if len(url) > 50 {
+			url = url[:47] + "..."
+		}
 
-		fmt.Printf("%-50s %-20s %-8s %-15s %-10s %s\n",
-			url,
-			name,
-			formatBytes(r.SizeBytes),
-			contentType,
-			formatTimeAgo(r.CreatedAt.Time),
-			r.AccessLevel,
+		// Access icon
+		accessIcon := SymbolPrivate
+		if r.AccessLevel == "public" {
+			accessIcon = SymbolPublic
+		}
+
+		// Format and print the row with proper spacing
+		urlField := fmt.Sprintf("%-50s", url)
+		nameField := fmt.Sprintf("%-20s", name)
+		sizeField := fmt.Sprintf("%-10s", formatBytes(r.SizeBytes))
+		typeField := fmt.Sprintf("%-18s", contentType)
+		timeField := fmt.Sprintf("%-12s", formatTimeAgo(r.CreatedAt.Time))
+
+		// Print with colors applied to each field
+		fmt.Printf("%s %s %s %s %s %s\n",
+			Cyan(urlField),
+			nameField,
+			Muted(sizeField),
+			Muted(typeField),
+			Muted(timeField),
+			accessIcon,
 		)
 	}
 
-	fmt.Printf("\nTotal: %d relics\n", list.Total)
+	fmt.Println(Muted("─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────"))
+	fmt.Printf("%s %s %s\n", Muted(SymbolDot), Bold("Total:"), WhiteBold(fmt.Sprintf("%d relics", len(list.Relics))))
+	fmt.Println()
 
 	return nil
 }
@@ -220,4 +291,140 @@ func makeFullURL(serverURL, path string) string {
 	}
 
 	return serverURL + path
+}
+
+// friendlyContentType converts MIME types to friendly display names
+func friendlyContentType(contentType string) string {
+	// Trim whitespace
+	contentType = strings.TrimSpace(contentType)
+
+	// Common text types
+	if contentType == "text/plain" || contentType == "text/plain; charset=utf-8" {
+		return "Text"
+	}
+	if contentType == "text/markdown" || contentType == "markdown" ||
+	   contentType == "text/x-markdown" || strings.Contains(contentType, "markdown") {
+		return "Markdown"
+	}
+	if contentType == "text/html" {
+		return "HTML"
+	}
+	if contentType == "text/css" {
+		return "CSS"
+	}
+	if contentType == "text/csv" {
+		return "CSV"
+	}
+	if contentType == "text/xml" {
+		return "XML"
+	}
+
+	// Application types
+	if contentType == "application/json" {
+		return "JSON"
+	}
+	if contentType == "application/xml" {
+		return "XML"
+	}
+	if contentType == "application/pdf" {
+		return "PDF"
+	}
+	if contentType == "application/zip" {
+		return "ZIP Archive"
+	}
+	if contentType == "application/x-tar" {
+		return "TAR Archive"
+	}
+	if contentType == "application/gzip" {
+		return "GZIP Archive"
+	}
+
+	// Programming languages
+	if contentType == "text/x-python" {
+		return "Python"
+	}
+	if contentType == "text/x-go" {
+		return "Go"
+	}
+	if contentType == "text/x-java" {
+		return "Java"
+	}
+	if contentType == "text/x-c" {
+		return "C"
+	}
+	if contentType == "text/x-c++" {
+		return "C++"
+	}
+	if contentType == "text/x-rust" {
+		return "Rust"
+	}
+	if contentType == "text/x-javascript" || contentType == "application/javascript" {
+		return "JavaScript"
+	}
+	if contentType == "text/x-typescript" {
+		return "TypeScript"
+	}
+	if contentType == "text/x-ruby" {
+		return "Ruby"
+	}
+	if contentType == "text/x-php" {
+		return "PHP"
+	}
+	if contentType == "text/x-shell" || contentType == "text/x-sh" {
+		return "Shell Script"
+	}
+
+	// Image types
+	if contentType == "image/png" {
+		return "PNG Image"
+	}
+	if contentType == "image/jpeg" {
+		return "JPEG Image"
+	}
+	if contentType == "image/gif" {
+		return "GIF Image"
+	}
+	if contentType == "image/svg+xml" {
+		return "SVG Image"
+	}
+	if contentType == "image/webp" {
+		return "WebP Image"
+	}
+
+	// Video types
+	if contentType == "video/mp4" {
+		return "MP4 Video"
+	}
+	if contentType == "video/webm" {
+		return "WebM Video"
+	}
+
+	// Audio types
+	if contentType == "audio/mpeg" {
+		return "MP3 Audio"
+	}
+	if contentType == "audio/wav" {
+		return "WAV Audio"
+	}
+
+	// For unknown types, try to extract a readable part
+	// e.g., "application/octet-stream" -> "octet-stream"
+	if len(contentType) > 18 {
+		// Try to extract the subtype after "/"
+		parts := strings.Split(contentType, "/")
+		if len(parts) >= 2 {
+			subtype := parts[1]
+			// Remove charset and other parameters
+			if idx := strings.Index(subtype, ";"); idx != -1 {
+				subtype = subtype[:idx]
+			}
+			if len(subtype) <= 18 {
+				return subtype
+			}
+		}
+		// If still too long, truncate
+		return contentType[:15] + "..."
+	}
+
+	return contentType
 }
