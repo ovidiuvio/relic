@@ -16,7 +16,6 @@ from backend.schemas import (
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
-from backend.processors import process_content
 from backend.backup import start_backup_scheduler, shutdown_backup_scheduler, perform_backup
 
 
@@ -262,9 +261,6 @@ async def create_relic(
         # Generate unique relic ID with collision handling
         relic_id = generate_unique_relic_id(db)
 
-        # Process content
-        metadata, preview = await process_content(content, content_type, language_hint)
-
         # Upload to storage
         s3_key = f"relics/{relic_id}"
         await storage_service.upload(s3_key, content, content_type)
@@ -284,8 +280,7 @@ async def create_relic(
             s3_key=s3_key,
             access_level=access_level,
             created_at=datetime.utcnow(),
-            expires_at=expires_at,
-            processing_metadata={"processed_metadata": metadata, "preview": preview}
+            expires_at=expires_at
         )
 
         # Update client relic count
@@ -407,9 +402,6 @@ async def fork_relic(
         # Generate unique new ID with collision handling
         new_id = generate_unique_relic_id(db)
 
-        # Process content
-        metadata, preview = await process_content(content, content_type, original.language_hint)
-
         # Upload to storage
         s3_key = f"relics/{new_id}"
         await storage_service.upload(s3_key, content, content_type)
@@ -431,8 +423,7 @@ async def fork_relic(
             s3_key=s3_key,
             fork_of=relic_id,
             access_level=access_level or original.access_level,
-            expires_at=expires_at,
-            processing_metadata={"processed_metadata": metadata, "preview": preview}
+            expires_at=expires_at
         )
 
         # Update client relic count if client exists

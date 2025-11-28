@@ -70,9 +70,6 @@ class Relic(Base):
     deleted_at = Column(DateTime, nullable=True)
     access_count = Column(Integer, default=0)
 
-    # Processing metadata (stored as JSON for flexibility)
-    processing_metadata = Column(JSON, default={})
-
     # Relationships
     user = relationship("User", back_populates="relics")
     tags = relationship("Tag", secondary=relic_tags, back_populates="relics")

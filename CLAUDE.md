@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Relic** is a professional artifact storage service with immutable artifacts and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+**Relic** is a professional artifact storage service with immutable artifacts. Built with FastAPI (Python), Svelte, and Tailwind CSS.
 
 Key principle: Relics cannot be edited after creation - they are permanent and immutable. To modify content, create a fork which creates an independent copy.
 
@@ -38,19 +38,17 @@ Key principle: Relics cannot be edited after creation - they are permanent and i
 - `password_hash`: Optional password protection
 - `created_at`, `expires_at`, `deleted_at`: Timestamps
 - `access_count`: Number of times the relic has been accessed
-- `processing_metadata`: JSON field for extracted metadata and previews
 
 ### 2. Universal Content Support
 
-The system handles **any file type** (text, code, images, PDFs, CSVs, archives, etc.) with smart processing:
+The system handles **any file type** (text, code, images, PDFs, CSVs, archives, etc.):
 
-- **Text/Code**: Syntax highlighting, line numbers
-- **Images**: EXIF extraction, thumbnail generation (200x200)
-- **PDFs**: Page count, first page preview, text extraction, metadata
-- **CSV/Excel**: Column detection, row count, statistics, data preview
-- **Videos/Archives**: Metadata extraction, preview without extraction
+- **Text/Code**: Displayed with syntax highlighting support via language hints
+- **Images**: Displayed as-is with size information
+- **PDFs**: Downloaded and can be viewed in browser
+- **CSV/Excel**: Downloaded and can be opened in external tools
+- **Videos/Archives**: Downloaded and can be processed locally
 
-All content types are processable with automatic metadata extraction and preview generation.
 
 ### 3. Fork Relationships
 
@@ -118,7 +116,6 @@ relic/
 │   ├── database.py          # Database initialization and session management
 │   ├── config.py            # Configuration (settings, env vars)
 │   ├── storage.py           # S3/MinIO client wrapper
-│   ├── processors.py        # File processors (text, code, images, PDFs, CSV, etc)
 │   ├── utils.py             # Utilities (ID generation, hashing, expiry parsing)
 │   └── __init__.py
 ├── frontend/
@@ -155,29 +152,6 @@ relic/
 ```
 
 ## Common Development Tasks
-
-### Adding File Type Processing
-
-File processors are in `backend/processors.py`. Each processor extends `ProcessorBase`:
-
-1. Create a new processor class (e.g., `VideoProcessor`)
-2. Implement `extract_metadata()` to parse file and return dict
-3. Implement `generate_preview()` to return preview-specific data
-4. Update `get_processor()` to route content types to your processor
-5. Update `process_content()` if special handling needed
-
-Example:
-```python
-class MyTypeProcessor(ProcessorBase):
-    @staticmethod
-    async def extract_metadata(content, content_type):
-        return {"key": "value"}
-
-    @staticmethod
-    async def generate_preview(content, content_type):
-        return {"type": "mytype", "preview": {...}}
-```
-
 ### Handling Fork Relationships
 
 For queries across fork relationships:
@@ -239,4 +213,4 @@ Frontend uses simple section-based routing (not a full router). To add new pages
 3. **Soft delete**: Allows recovery and maintains referential integrity
 4. **S3 storage**: Scales to millions of relics, supports any file type
 5. **Cryptographic IDs**: 32-character hexadecimal IDs (GitHub Gist-style) for security and collision resistance
-6. **Smart processing**: Different previews for different types (syntax highlighting vs. image thumbnails vs. stats)
+6. **Simple and focused**: Clean, straightforward implementation without unnecessary complexity
