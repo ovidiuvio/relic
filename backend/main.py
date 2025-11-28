@@ -409,7 +409,7 @@ async def fork_relic(
         # Calculate expiry date if provided
         expires_at = None
         if expires_in and expires_in != 'never':
-            expires_at = get_expiry_datetime(expires_in)
+            expires_at = parse_expiry_string(expires_in)
 
         # Create fork
         fork = Relic(
