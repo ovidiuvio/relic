@@ -3,6 +3,14 @@
   import { showToast } from '../stores/toastStore'
   import { getContentType, getFileExtension, detectLanguageHint } from '../services/typeUtils'
   import MonacoEditor from './MonacoEditor.svelte'
+  import MarkdownIt from 'markdown-it'
+
+  const md = new MarkdownIt({
+    html: true,
+    linkify: true,
+    breaks: true,
+    typographer: true
+  })
 
   export let open = false
   export let relicId = ''
@@ -15,6 +23,8 @@
   let forkExpiration = 'never'
   let isLoading = false
   let editorContent = ''
+  let isExpanded = false
+  let showPreview = false
 
   async function loadOriginalContent() {
     if (!relicId) return
@@ -90,6 +100,8 @@
     forkAccessLevel = 'public'
     forkExpiration = 'never'
     editorContent = ''
+    isExpanded = false
+    showPreview = false
   }
 
   function handleContentChange(newContent) {
@@ -116,11 +128,29 @@
       closeModal()
     }
   }
+
+  // Helper function to render markdown to HTML using markdown-it
+  function renderMarkdown(text) {
+    try {
+      return md.render(text || '')
+    } catch (error) {
+      console.error('Markdown rendering error:', error)
+      return '<p class="text-red-600">Error rendering markdown</p>'
+    }
+  }
+
+  // Check if current language supports preview
+  $: supportsPreview = forkLanguage === 'markdown' || forkLanguage === 'html'
+
+  // Reset preview when language changes to non-previewable type
+  $: if (!supportsPreview) {
+    showPreview = false
+  }
 </script>
 
 {#if open}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" on:click={handleBackdropClick}>
-    <div class="bg-white rounded-lg shadow-xl w-full h-[90vh] overflow-hidden flex flex-col" style="max-width: min(1200px, 95vw);" on:click|stopPropagation>
+    <div class="bg-white rounded-lg shadow-xl w-full h-[90vh] overflow-hidden flex flex-col transition-all duration-300" style="max-width: {isExpanded ? '98vw' : 'min(1200px, 95vw)'};" on:click|stopPropagation>
       <!-- Header -->
       <div class="px-6 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
         <div class="flex items-center gap-4">
@@ -227,24 +257,78 @@
         </div>
 
         <!-- Content Editor - Takes up most of the space -->
-        <div class="flex-1 p-6 overflow-hidden flex flex-col">
-          <div class="flex items-center justify-between mb-2 flex-shrink-0">
+        <div class="flex-1 overflow-hidden flex flex-col">
+          <div class="px-6 pt-6 pb-2 flex items-center justify-between flex-shrink-0">
             <label for="forkContent" class="text-sm font-medium text-gray-700">Content Editor</label>
-            <div class="text-sm text-gray-500">
-              {editorContent.length} characters
+            <div class="flex items-center gap-2">
+              <!-- Character count -->
+              <div class="text-sm text-gray-500">
+                {editorContent.length} characters
+              </div>
+
+              <!-- Expand Toggle -->
+              <button
+                type="button"
+                on:click={() => isExpanded = !isExpanded}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {isExpanded ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title={isExpanded ? 'Normal width' : 'Expand modal'}
+              >
+                <i class="fas {isExpanded ? 'fa-compress' : 'fa-expand'}"></i>
+              </button>
+
+              <!-- Preview/Source Toggle (for Markdown and HTML) -->
+              {#if supportsPreview}
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    on:click={() => showPreview = false}
+                    class="px-2 py-1 rounded text-xs font-medium transition-colors {!showPreview ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                    title="Edit mode"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    type="button"
+                    on:click={() => showPreview = true}
+                    class="px-2 py-1 rounded text-xs font-medium transition-colors {showPreview ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                    title="Preview mode"
+                  >
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              {/if}
             </div>
           </div>
-          <div class="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-            <MonacoEditor
-              value={editorContent}
-              language={forkLanguage === 'auto' ? 'plaintext' : forkLanguage}
-              readOnly={false}
-              height="calc(90vh - 280px)"
-              noWrapper={true}
-              on:change={(event) => handleContentChange(event.detail)}
-            />
+
+          <div class="flex-1 border-t border-gray-200 overflow-hidden">
+            {#if showPreview && forkLanguage === 'markdown'}
+              <!-- Markdown Preview -->
+              <div class="h-full overflow-y-auto p-6 prose prose-sm max-w-none" on:wheel|stopPropagation>
+                {@html renderMarkdown(editorContent)}
+              </div>
+            {:else if showPreview && forkLanguage === 'html'}
+              <!-- HTML Preview -->
+              <div class="h-full overflow-hidden" on:wheel|stopPropagation>
+                <iframe
+                  srcdoc={editorContent}
+                  class="w-full h-full border-0"
+                  sandbox="allow-same-origin allow-scripts allow-forms"
+                  title="HTML Preview"
+                ></iframe>
+              </div>
+            {:else}
+              <!-- Editor Mode -->
+              <MonacoEditor
+                value={editorContent}
+                language={forkLanguage === 'auto' ? 'plaintext' : forkLanguage}
+                readOnly={false}
+                height="calc(90vh - 280px)"
+                noWrapper={true}
+                on:change={(event) => handleContentChange(event.detail)}
+              />
+            {/if}
           </div>
-          <div class="mt-2 text-xs text-gray-500 text-center flex-shrink-0">
+          <div class="px-6 pb-6 pt-2 text-xs text-gray-500 text-center flex-shrink-0">
             <i class="fas fa-info-circle text-teal-600 mr-1"></i>
             Edit the content above to customize your fork
           </div>
