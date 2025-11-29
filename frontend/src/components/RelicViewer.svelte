@@ -234,97 +234,122 @@
   <div class="{isFullWidth ? 'w-full px-0' : 'max-w-7xl mx-auto px-4'} py-6 transition-all duration-300">
     <!-- Unified Container -->
     <div class="bg-white shadow-sm border border-gray-200 overflow-hidden {isFullWidth ? 'rounded-none' : 'rounded-lg'}">
-      <!-- Compact Header -->
-      <div class="px-6 py-4 border-b border-gray-200">
-        <!-- Title Row with Actions -->
-        <div class="flex items-center justify-between gap-4 mb-2">
-          <div class="flex items-center gap-3 flex-1 min-w-0">
-            <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-base flex-shrink-0"></i>
-            <h2 class="text-base font-semibold text-gray-900 truncate leading-none">{relic.name || 'Untitled'}</h2>
 
-            <!-- Type Badge -->
-            <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs flex-shrink-0">{getTypeLabel(relic.content_type)}</span>
+      <!-- Title Header (Gray Background) -->
+      <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-start">
+        <div class="flex-1 min-w-0">
+          <!-- Title Row -->
+          <div class="flex items-center gap-3 mb-1.5">
+            <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-lg flex-shrink-0"></i>
+            <h2 class="text-lg font-bold text-gray-800 truncate">{relic.name || 'Untitled'}</h2>
+            <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-bold uppercase flex-shrink-0">{getTypeLabel(relic.content_type)}</span>
           </div>
 
-          <!-- Action Toolbar -->
-          <div class="flex items-center gap-1 flex-shrink-0">
+          <!-- ID and Date Row -->
+          <div class="text-xs text-gray-500 flex items-center gap-3 font-mono">
             <button
-              on:click={toggleBookmark}
-              disabled={checkingBookmark || bookmarkLoading}
-              class="p-2 rounded transition-colors {isBookmarked
-                ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
-              title={isBookmarked ? 'Remove bookmark' : 'Bookmark this relic'}
+              on:click={() => copyRelicId(relicId)}
+              class="hover:text-gray-700 transition-colors flex items-center gap-1.5"
+              title="Copy ID"
             >
-              {#if bookmarkLoading}
-                <i class="fas fa-spinner fa-spin text-sm"></i>
-              {:else if isBookmarked}
-                <i class="fas fa-bookmark text-sm"></i>
-              {:else}
-                <i class="far fa-bookmark text-sm"></i>
-              {/if}
+              <span>{relicId}</span>
+              <i class="fas fa-copy text-[10px]"></i>
             </button>
-            <button
-              on:click={() => shareRelic(relicId)}
-              class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              title="Share relic"
-            >
-              <i class="fas fa-share text-sm"></i>
-            </button>
-            <button
-              on:click={() => copyRelicContent(relicId)}
-              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-              title="Copy content to clipboard"
-            >
-              <i class="fas fa-copy text-sm"></i>
-            </button>
-            <button
-              on:click={() => viewRaw(relicId)}
-              class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
-              title="View raw content"
-            >
-              <i class="fas fa-code text-sm"></i>
-            </button>
-            <button
-              on:click={() => showForkModal = true}
-              disabled={forkLoading}
-              class="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-              title="Create fork"
-            >
-              {#if forkLoading}
-                <i class="fas fa-spinner fa-spin text-sm"></i>
-              {:else}
-                <i class="fas fa-code-branch text-sm"></i>
-              {/if}
-            </button>
-            <button
-              on:click={() => downloadRelic(relicId, relic.name, relic.content_type)}
-              class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-              title="Download relic"
-            >
-              <i class="fas fa-download text-sm"></i>
-            </button>
+            <span>&bull;</span>
+            <span>{new Date(relic.created_at).toLocaleDateString()}</span>
+            <span>&bull;</span>
+            <span class="flex items-center gap-1">
+              <i class="fas fa-weight text-gray-400"></i>
+              {formatFileSize(relic.size_bytes)}
+            </span>
+            <span>&bull;</span>
+            <span class="flex items-center gap-1">
+              <i class="fas fa-eye text-gray-400"></i>
+              {relic.access_count}
+            </span>
           </div>
         </div>
 
-        <!-- Status Badges Row -->
-        <div class="flex items-center flex-wrap gap-2 mb-3">
-          <!-- Status Badges -->
+        <!-- Action Toolbar -->
+        <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+          <button
+            on:click={toggleBookmark}
+            disabled={checkingBookmark || bookmarkLoading}
+            class="p-2 rounded transition-colors {isBookmarked
+              ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+              : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark this relic'}
+          >
+            {#if bookmarkLoading}
+              <i class="fas fa-spinner fa-spin text-sm"></i>
+            {:else if isBookmarked}
+              <i class="fas fa-bookmark text-sm"></i>
+            {:else}
+              <i class="far fa-bookmark text-sm"></i>
+            {/if}
+          </button>
+          <button
+            on:click={() => shareRelic(relicId)}
+            class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            title="Share relic"
+          >
+            <i class="fas fa-share text-sm"></i>
+          </button>
+          <button
+            on:click={() => copyRelicContent(relicId)}
+            class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+            title="Copy content to clipboard"
+          >
+            <i class="fas fa-copy text-sm"></i>
+          </button>
+          <button
+            on:click={() => viewRaw(relicId)}
+            class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
+            title="View raw content"
+          >
+            <i class="fas fa-code text-sm"></i>
+          </button>
+          <button
+            on:click={() => showForkModal = true}
+            disabled={forkLoading}
+            class="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
+            title="Create fork"
+          >
+            {#if forkLoading}
+              <i class="fas fa-spinner fa-spin text-sm"></i>
+            {:else}
+              <i class="fas fa-code-branch text-sm"></i>
+            {/if}
+          </button>
+          <button
+            on:click={() => downloadRelic(relicId, relic.name, relic.content_type)}
+            class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+            title="Download relic"
+          >
+            <i class="fas fa-download text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Status & Controls Row -->
+      <div class="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+        <!-- Status Badges -->
+        <div class="flex flex-wrap gap-1.5">
           {#if relic.access_level === 'private'}
             <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none" style="background-color: #fce3eb; color: #76306c;" title="Private - accessible only via URL">
               <i class="fas fa-lock text-[10px]"></i>
-              <span class="hidden sm:inline">Private</span>
+              <span>Private</span>
             </span>
           {:else if relic.access_level === 'public'}
             <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none" style="background-color: #e2f2fd; color: #217db1;" title="Public - discoverable">
               <i class="fas fa-globe text-[10px]"></i>
-              <span class="hidden sm:inline">Public</span>
+              <span>Public</span>
             </span>
           {/if}
           {#if relic.fork_of}
             <a href="/{relic.fork_of}" class="inline-flex items-center gap-1.5 px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-medium leading-none hover:bg-teal-200 transition-colors" title="Fork of {relic.fork_of}">
               <i class="fas fa-code-branch text-[10px]"></i>
-              <span>Fork of <span class="font-mono">{relic.fork_of.substring(0, 8)}</span></span>
+              <span class="font-mono">{relic.fork_of.substring(0, 8)}</span>
             </a>
           {/if}
           {#if relic.password_hash}
@@ -335,123 +360,88 @@
           {#if relic.expires_at}
             <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium leading-none" title="Expires {new Date(relic.expires_at).toLocaleDateString()}">
               <i class="fas fa-clock text-[10px]"></i>
-              <span class="hidden sm:inline text-[11px]">{new Date(relic.expires_at).toLocaleDateString()}</span>
+              <span class="text-[11px]">{new Date(relic.expires_at).toLocaleDateString()}</span>
             </span>
           {/if}
         </div>
 
-        <!-- Compact Metadata Row -->
-        <div class="flex items-center justify-between flex-wrap gap-3">
-          <div class="flex items-center flex-wrap gap-3 text-sm text-gray-700 font-mono">
-            <!-- ID with copy -->
-            <div class="flex items-center gap-1.5 group">
-              <i class="fas fa-fingerprint text-gray-400"></i>
-              <span>{relicId}</span>
+        <!-- View Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Full-Width Toggle -->
+          <button
+            on:click={() => isFullWidth = !isFullWidth}
+            class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+            title={isFullWidth ? 'Normal width' : 'Full width'}
+          >
+            <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
+          </button>
+
+          <!-- Editor Controls (for code, text, markdown/html source) -->
+          {#if processed && (processed.type === 'code' || processed.type === 'text' || (processed.type === 'markdown' && showMarkdownSource) || (processed.type === 'html' && showHtmlSource))}
+            <div class="flex items-center gap-1 border-l border-gray-300 pl-2 ml-2">
               <button
-                on:click={() => copyRelicId(relicId)}
-                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
-                title="Copy ID"
+                on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Toggle syntax highlighting"
               >
-                <i class="fas fa-copy text-xs"></i>
+                <i class="fas fa-palette text-xs"></i>
+              </button>
+              <button
+                on:click={() => showLineNumbers = !showLineNumbers}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Toggle line numbers"
+              >
+                <i class="fas fa-list-ol text-xs"></i>
               </button>
             </div>
+          {/if}
 
-            <!-- Size -->
-            <span class="flex items-center gap-1.5">
-              <i class="fas fa-weight text-gray-400"></i>
-              <span>{formatFileSize(relic.size_bytes)}</span>
-            </span>
-
-            <!-- Views -->
-            <span class="flex items-center gap-1.5">
-              <i class="fas fa-eye text-gray-400"></i>
-              <span>{relic.access_count}</span>
-            </span>
-
-            <!-- Created -->
-            <span class="flex items-center gap-1.5">
-              <i class="fas fa-clock text-gray-400"></i>
-              <span>{new Date(relic.created_at).toLocaleDateString()}</span>
-            </span>
-          </div>
-
-          <!-- View Controls (Full-Width Toggle and Preview/Source Tabs) -->
-          <div class="flex items-center gap-2">
-            <!-- Full-Width Toggle -->
-            <button
-              on:click={() => isFullWidth = !isFullWidth}
-              class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-              title={isFullWidth ? 'Normal width' : 'Full width'}
-            >
-              <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
-            </button>
-
-            <!-- Editor Controls (for code, text, markdown/html source) -->
-            {#if processed && (processed.type === 'code' || processed.type === 'text' || (processed.type === 'markdown' && showMarkdownSource) || (processed.type === 'html' && showHtmlSource))}
-              <div class="flex items-center gap-1 border-l border-gray-300 pl-2 ml-2">
-                <button
-                  on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Toggle syntax highlighting"
-                >
-                  <i class="fas fa-palette text-xs"></i>
-                </button>
-                <button
-                  on:click={() => showLineNumbers = !showLineNumbers}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Toggle line numbers"
-                >
-                  <i class="fas fa-list-ol text-xs"></i>
-                </button>
-              </div>
-            {/if}
-
-            <!-- Preview/Source Tabs (for Markdown and HTML) -->
-            {#if processed?.type === 'markdown'}
-              <div class="flex items-center gap-1">
-                <button
-                  on:click={() => showMarkdownSource = false}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {!showMarkdownSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Show preview"
-                >
-                  <i class="fas fa-eye"></i>
-                </button>
-                <button
-                  on:click={() => showMarkdownSource = true}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showMarkdownSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Show source"
-                >
-                  <i class="fas fa-file-code"></i>
-                </button>
-              </div>
-            {:else if processed?.type === 'html'}
-              <div class="flex items-center gap-1">
-                <button
-                  on:click={() => showHtmlSource = false}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {!showHtmlSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Show preview"
-                >
-                  <i class="fas fa-eye"></i>
-                </button>
-                <button
-                  on:click={() => showHtmlSource = true}
-                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showHtmlSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                  title="Show source"
-                >
-                  <i class="fas fa-file-code"></i>
-                </button>
-              </div>
-            {/if}
-          </div>
+          <!-- Preview/Source Tabs (for Markdown and HTML) -->
+          {#if processed?.type === 'markdown'}
+            <div class="flex items-center gap-1">
+              <button
+                on:click={() => showMarkdownSource = false}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {!showMarkdownSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Show preview"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+              <button
+                on:click={() => showMarkdownSource = true}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {showMarkdownSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Show source"
+              >
+                <i class="fas fa-file-code"></i>
+              </button>
+            </div>
+          {:else if processed?.type === 'html'}
+            <div class="flex items-center gap-1">
+              <button
+                on:click={() => showHtmlSource = false}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {!showHtmlSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Show preview"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+              <button
+                on:click={() => showHtmlSource = true}
+                class="px-2 py-1 rounded text-xs font-medium transition-colors {showHtmlSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                title="Show source"
+              >
+                <i class="fas fa-file-code"></i>
+              </button>
+            </div>
+          {/if}
         </div>
-
-        <!-- Optional Description -->
-        {#if relic.description}
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-sm text-gray-700 leading-relaxed">{relic.description}</p>
-          </div>
-        {/if}
       </div>
+
+      <!-- Optional Description -->
+      {#if relic.description}
+        <div class="px-6 py-3 bg-blue-50 border-b border-gray-200">
+          <p class="text-sm text-gray-700 leading-relaxed">{relic.description}</p>
+        </div>
+      {/if}
+
 
       <!-- Content -->
       {#if processed}
