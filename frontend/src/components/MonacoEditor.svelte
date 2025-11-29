@@ -16,6 +16,8 @@
   export let height = '600px'
   export let relicId = ''
   export let noWrapper = false
+  export let showSyntaxHighlighting = true
+  export let showLineNumbers = true
 
   let container
   let editor
@@ -305,6 +307,27 @@
         : `L${lines}`
 
     applyLineHighlighting(fragment)
+  }
+
+  // Handle syntax highlighting toggle
+  $: if (editor) {
+    const model = editor.getModel()
+    if (model) {
+      if (!showSyntaxHighlighting) {
+        // Disable by changing language to plaintext (no syntax highlighting)
+        monaco.editor.setModelLanguage(model, 'plaintext')
+      } else {
+        // Re-enable with original language
+        monaco.editor.setModelLanguage(model, language)
+      }
+    }
+  }
+
+  // Handle line numbers toggle
+  $: if (editor) {
+    editor.updateOptions({
+      lineNumbers: showLineNumbers ? 'on' : 'off'
+    })
   }
 </script>
 

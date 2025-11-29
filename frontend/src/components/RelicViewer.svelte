@@ -8,6 +8,7 @@
   import MonacoEditor from './MonacoEditor.svelte'
   import ForkModal from './ForkModal.svelte'
   import { createEventDispatcher } from 'svelte'
+  import { getCurrentLineNumberFragment } from '../utils/lineNumbers'
 
   const dispatch = createEventDispatcher()
 
@@ -16,7 +17,7 @@
   let relic = null
   let processed = null
   let loading = true
-    let showHtmlSource = false
+  let showHtmlSource = false
   let showMarkdownSource = false
   let isBookmarked = false
   let checkingBookmark = false
@@ -33,6 +34,22 @@
     return false
   })()
 
+  let showSyntaxHighlighting = (() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('relic_editor_syntax_highlighting')
+      return saved === 'false' ? false : true
+    }
+    return true
+  })()
+
+  let showLineNumbers = (() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('relic_editor_line_numbers')
+      return saved === 'false' ? false : true
+    }
+    return true
+  })()
+
   // Dispatch initial state to parent on mount
   onMount(() => {
     dispatch('fullwidth-toggle', { isFullWidth })
@@ -44,6 +61,15 @@
       localStorage.setItem('relic_viewer_fullwidth', isFullWidth.toString())
     }
     dispatch('fullwidth-toggle', { isFullWidth })
+  }
+
+  // Save editor preferences
+  $: if (typeof window !== 'undefined') {
+    localStorage.setItem('relic_editor_syntax_highlighting', showSyntaxHighlighting.toString())
+  }
+
+  $: if (typeof window !== 'undefined') {
+    localStorage.setItem('relic_editor_line_numbers', showLineNumbers.toString())
   }
 
   async function loadRelic(id) {
@@ -72,7 +98,16 @@
       )
       console.log('[RelicViewer] Content processed:', processed)
 
-      
+      // Check if URL has line number fragment - if so, show source view
+      const lineFragment = getCurrentLineNumberFragment()
+      if (lineFragment) {
+        if (processed.type === 'markdown') {
+          showMarkdownSource = true
+        } else if (processed.type === 'html') {
+          showHtmlSource = true
+        }
+      }
+
       // Check bookmark status
       await checkBookmarkStatus(id)
 
@@ -351,6 +386,26 @@
               <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
             </button>
 
+            <!-- Editor Controls (for code, text, markdown/html source) -->
+            {#if processed && (processed.type === 'code' || processed.type === 'text' || (processed.type === 'markdown' && showMarkdownSource) || (processed.type === 'html' && showHtmlSource))}
+              <div class="flex items-center gap-1 border-l border-gray-300 pl-2 ml-2">
+                <button
+                  on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
+                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                  title="Toggle syntax highlighting"
+                >
+                  <i class="fas fa-palette text-xs"></i>
+                </button>
+                <button
+                  on:click={() => showLineNumbers = !showLineNumbers}
+                  class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                  title="Toggle line numbers"
+                >
+                  <i class="fas fa-list-ol text-xs"></i>
+                </button>
+              </div>
+            {/if}
+
             <!-- Preview/Source Tabs (for Markdown and HTML) -->
             {#if processed?.type === 'markdown'}
               <div class="flex items-center gap-1">
@@ -416,6 +471,8 @@
                 height="calc(100vh - 300px)"
                 relicId={relicId}
                 noWrapper={true}
+                {showSyntaxHighlighting}
+                {showLineNumbers}
                 on:line-clicked={handleLineClicked}
                 on:line-range-selected={handleLineRangeSelected}
                 on:multi-line-selected={handleMultiLineSelected}
@@ -444,6 +501,8 @@
                 height="calc(100vh - 300px)"
                 relicId={relicId}
                 noWrapper={true}
+                {showSyntaxHighlighting}
+                {showLineNumbers}
                 on:line-clicked={handleLineClicked}
                 on:line-range-selected={handleLineRangeSelected}
                 on:multi-line-selected={handleMultiLineSelected}
@@ -460,6 +519,8 @@
               height="calc(100vh - 300px)"
               relicId={relicId}
               noWrapper={true}
+              {showSyntaxHighlighting}
+              {showLineNumbers}
               on:line-clicked={handleLineClicked}
               on:line-range-selected={handleLineRangeSelected}
               on:multi-line-selected={handleMultiLineSelected}
@@ -475,6 +536,8 @@
               height="calc(100vh - 300px)"
               relicId={relicId}
               noWrapper={true}
+              {showSyntaxHighlighting}
+              {showLineNumbers}
               on:line-clicked={handleLineClicked}
               on:line-range-selected={handleLineRangeSelected}
               on:multi-line-selected={handleMultiLineSelected}
