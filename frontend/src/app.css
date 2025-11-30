@@ -77,9 +77,11 @@ code {
   @apply mb-0;
 }
 
-/* Code blocks - improved styling */
+/* Code blocks - GitHub-style minimal rounding */
 .prose pre {
-  @apply bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 overflow-x-auto text-sm;
+  @apply bg-gray-50 border border-gray-200 mb-4 overflow-x-auto text-sm;
+  border-radius: 6px;
+  padding: 16px;
 }
 
 .prose pre code {
@@ -87,10 +89,13 @@ code {
   display: block;
 }
 
-/* Inline code */
+/* Inline code - GitHub-style minimal rounding and padding */
 .prose :not(pre) > code {
-  @apply bg-gray-100 text-pink-600 px-2 py-1 rounded text-sm font-mono font-medium;
+  @apply bg-gray-100 text-pink-600 font-mono font-medium;
   border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+  font-size: 85%;
 }
 
 /* Tables */
