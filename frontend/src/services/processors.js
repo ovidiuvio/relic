@@ -49,13 +49,10 @@ export function highlightCode(content, language) {
  */
 export function processText(content) {
   const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
-  const truncated = text.length > 500
-  const preview = truncated ? text.slice(0, 500) : text
 
   return {
     type: 'text',
-    preview,
-    truncated,
+    preview: text,
     metadata: {
       lineCount: text.split('\n').length,
       charCount: text.length,
