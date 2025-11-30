@@ -22,7 +22,10 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
+    "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
+    "js-untar": "^2.0.0",
+    "jszip": "^3.10.1",
     "markdown-it": "^14.0.0",
     "monaco-editor": "^0.50.0",
     "pdfjs-dist": "^5.4.449",

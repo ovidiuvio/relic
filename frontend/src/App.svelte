@@ -13,6 +13,7 @@
 
   let currentSection = 'new'
   let currentRelicId = null
+  let currentFilePath = null // For archive file paths
   let showKeyDropdown = false
   let relicViewerFullWidth = false
 
@@ -22,22 +23,33 @@
 
     console.log('[App] Route update - path:', path, 'parts:', parts)
 
-    if (parts.length === 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-relics' && parts[0] !== 'my-bookmarks' && parts[0] !== 'new') {
-      // This looks like a relic ID
-      console.log('[App] Detected relic ID:', parts[0])
+    if (parts.length >= 1 && parts[0] && parts[0] !== 'api' && parts[0] !== 'recent' && parts[0] !== 'my-relics' && parts[0] !== 'my-bookmarks' && parts[0] !== 'new') {
+      // This looks like a relic ID (possibly with file path)
       currentRelicId = parts[0]
       currentSection = 'relic'
+
+      // Check if there's a file path (parts after the relic ID)
+      if (parts.length > 1) {
+        currentFilePath = parts.slice(1).join('/')
+        console.log('[App] Detected archive file path:', currentFilePath)
+      } else {
+        currentFilePath = null
+      }
+
+      console.log('[App] Detected relic ID:', parts[0])
     } else if (parts.length === 0) {
       console.log('[App] Navigating to home')
       currentSection = 'new'
       currentRelicId = null
+      currentFilePath = null
     } else {
       console.log('[App] Navigating to section:', parts[0])
       currentSection = parts[0]
       currentRelicId = null
+      currentFilePath = null
     }
 
-    console.log('[App] Routing result - section:', currentSection, 'relicId:', currentRelicId)
+    console.log('[App] Routing result - section:', currentSection, 'relicId:', currentRelicId, 'filePath:', currentFilePath)
   }
 
   onMount(() => {
@@ -258,7 +270,7 @@
   <main class="flex-1 overflow-auto">
     <div class="{relicViewerFullWidth && currentSection === 'relic' ? 'w-full' : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300">
       {#if currentSection === 'relic' && currentRelicId}
-        <RelicViewer relicId={currentRelicId} on:fullwidth-toggle={handleFullWidthToggle} />
+        <RelicViewer relicId={currentRelicId} filePath={currentFilePath} on:fullwidth-toggle={handleFullWidthToggle} />
       {:else if currentSection === 'new' || currentSection === 'default' || currentSection === ''}
         <RelicForm />
       {:else if currentSection === 'recent'}

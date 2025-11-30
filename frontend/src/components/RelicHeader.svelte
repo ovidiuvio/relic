@@ -1,6 +1,9 @@
 <script>
   import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes } from '../services/typeUtils'
-  import { shareRelic, copyRelicContent, downloadRelic, viewRaw } from '../services/relicActions'
+  import {
+    shareRelic, copyRelicContent, downloadRelic, viewRaw,
+    downloadArchiveFile, copyArchiveFileContent, viewArchiveFileRaw
+  } from '../services/relicActions'
   import { createEventDispatcher } from 'svelte'
 
   export let relic
@@ -9,11 +12,41 @@
   export let bookmarkLoading
   export let checkingBookmark
   export let forkLoading
+  // Archive file props
+  export let isArchiveFile = false
 
   const dispatch = createEventDispatcher()
 
   function copyRelicId() {
     navigator.clipboard.writeText(relicId)
+  }
+
+  function handleShare() {
+    shareRelic(relicId)
+  }
+
+  function handleCopyContent() {
+    if (isArchiveFile && relic._extractedContent) {
+      copyArchiveFileContent(relic._extractedContent)
+    } else {
+      copyRelicContent(relicId)
+    }
+  }
+
+  function handleDownload() {
+    if (isArchiveFile && relic._extractedContent) {
+      downloadArchiveFile(relic._extractedContent, relic.name, relic.content_type)
+    } else {
+      downloadRelic(relicId, relic.name, relic.content_type)
+    }
+  }
+
+  function handleViewRaw() {
+    if (isArchiveFile && relic._extractedContent) {
+      viewArchiveFileRaw(relic._extractedContent, relic.name, relic.content_type)
+    } else {
+      viewRaw(relicId)
+    }
   }
 </script>
 
@@ -53,38 +86,40 @@
 
   <!-- Action Toolbar -->
   <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+    {#if !isArchiveFile}
+      <button
+        on:click={() => dispatch('toggle-bookmark')}
+        disabled={checkingBookmark || bookmarkLoading}
+        class="p-2 rounded transition-colors {isBookmarked
+          ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+          : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
+        title={isBookmarked ? 'Remove bookmark' : 'Bookmark this relic'}
+      >
+        {#if bookmarkLoading}
+          <i class="fas fa-spinner fa-spin text-sm"></i>
+        {:else if isBookmarked}
+          <i class="fas fa-bookmark text-sm"></i>
+        {:else}
+          <i class="far fa-bookmark text-sm"></i>
+        {/if}
+      </button>
+    {/if}
     <button
-      on:click={() => dispatch('toggle-bookmark')}
-      disabled={checkingBookmark || bookmarkLoading}
-      class="p-2 rounded transition-colors {isBookmarked
-        ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-        : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
-      title={isBookmarked ? 'Remove bookmark' : 'Bookmark this relic'}
-    >
-      {#if bookmarkLoading}
-        <i class="fas fa-spinner fa-spin text-sm"></i>
-      {:else if isBookmarked}
-        <i class="fas fa-bookmark text-sm"></i>
-      {:else}
-        <i class="far fa-bookmark text-sm"></i>
-      {/if}
-    </button>
-    <button
-      on:click={() => shareRelic(relicId)}
+      on:click={handleShare}
       class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
       title="Share relic"
     >
       <i class="fas fa-share text-sm"></i>
     </button>
     <button
-      on:click={() => copyRelicContent(relicId)}
+      on:click={handleCopyContent}
       class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
       title="Copy content to clipboard"
     >
       <i class="fas fa-copy text-sm"></i>
     </button>
     <button
-      on:click={() => viewRaw(relicId)}
+      on:click={handleViewRaw}
       class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
       title="View raw content"
     >
@@ -103,7 +138,7 @@
       {/if}
     </button>
     <button
-      on:click={() => downloadRelic(relicId, relic.name, relic.content_type)}
+      on:click={handleDownload}
       class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
       title="Download relic"
     >

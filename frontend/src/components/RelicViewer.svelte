@@ -2,12 +2,14 @@
   import { onMount, onDestroy } from 'svelte'
   import { getRelic, getRelicRaw, addBookmark, removeBookmark, checkBookmark } from '../services/api'
   import { processContent } from '../services/processors'
+  import { processArchive } from '../services/archiveProcessor'
   import { showToast } from '../stores/toastStore'
-  import { downloadRelic } from '../services/relicActions'
+  import { downloadRelic, fastForkArchiveFile } from '../services/relicActions'
   import ForkModal from './ForkModal.svelte'
   import PDFViewer from './PDFViewer.svelte'
   import { createEventDispatcher } from 'svelte'
   import { getCurrentLineNumberFragment } from '../utils/lineNumbers'
+  import { getFileTypeDefinition } from '../services/typeUtils'
 
   // Sub-components
   import RelicHeader from './RelicHeader.svelte'
@@ -17,14 +19,18 @@
   import CodeRenderer from './renderers/CodeRenderer.svelte'
   import ImageRenderer from './renderers/ImageRenderer.svelte'
   import CsvRenderer from './renderers/CsvRenderer.svelte'
+  import ArchiveRenderer from './renderers/ArchiveRenderer.svelte'
 
   const dispatch = createEventDispatcher()
 
   export let relicId = ''
+  export let filePath = null // Optional: path to file within archive
 
   let relic = null
   let processed = null
   let loading = true
+  let isArchiveFile = false // True if viewing a file from within an archive
+  let archiveContext = null // Metadata about the archive (for breadcrumbs)
   let showSource = false // Unified source view toggle
   let isBookmarked = false
   let checkingBookmark = false
@@ -136,14 +142,6 @@
       )
       console.log('[RelicViewer] Content processed:', processed)
 
-      // Check if URL has line number fragment - if so, show source view
-      const lineFragment = getCurrentLineNumberFragment()
-      if (lineFragment) {
-        if (processed.type === 'markdown' || processed.type === 'html') {
-          showSource = true
-        }
-      }
-
       // Check bookmark status
       await checkBookmarkStatus(id)
 
@@ -151,6 +149,85 @@
     } catch (error) {
       console.error('[RelicViewer] Error loading relic:', error)
       showToast('Failed to load relic: ' + error.message, 'error')
+    } finally {
+      loading = false
+    }
+  }
+
+  async function loadArchiveFile(archiveId, filepath) {
+    if (!archiveId || !filepath) return
+    loading = true
+    relic = null
+    processed = null
+    isArchiveFile = false
+    archiveContext = null
+
+    console.log('[RelicViewer] Loading file from archive:', archiveId, filepath)
+    try {
+      // Load the archive relic metadata
+      console.log('[RelicViewer] Fetching archive metadata...')
+      const archiveResponse = await getRelic(archiveId)
+      const archiveRelic = archiveResponse.data
+
+      // Fetch and process the archive
+      console.log('[RelicViewer] Fetching archive content...')
+      const rawResponse = await getRelicRaw(archiveId)
+      const content = await rawResponse.data.arrayBuffer()
+
+      console.log('[RelicViewer] Processing archive...')
+      const archive = await processArchive(
+        new Uint8Array(content),
+        archiveRelic.content_type
+      )
+
+      console.log('[RelicViewer] Archive processed, extracting file:', filepath)
+
+      // Extract the specific file
+      const fileContent = await archive.extractFile(filepath)
+
+      // Find the file metadata
+      const fileMetadata = archive.files.find(f => f.path === filepath)
+      if (!fileMetadata) {
+        throw new Error('File not found in archive')
+      }
+
+      console.log('[RelicViewer] File extracted, processing content...')
+
+      // Process the extracted file content
+      processed = await processContent(
+        fileContent,
+        fileMetadata.contentType,
+        fileMetadata.languageHint
+      )
+
+      // Create a virtual relic object for the extracted file
+      relic = {
+        id: archiveId,
+        name: fileMetadata.name,
+        content_type: fileMetadata.contentType,
+        language_hint: fileMetadata.languageHint,
+        size_bytes: fileMetadata.size,
+        created_at: archiveRelic.created_at,
+        access_count: archiveRelic.access_count,
+        access_level: archiveRelic.access_level,
+        // Mark as archive file
+        _isFromArchive: true,
+        _extractedContent: fileContent
+      }
+
+      // Store archive context for breadcrumbs
+      isArchiveFile = true
+      archiveContext = {
+        archiveId: archiveId,
+        archiveName: archiveRelic.name,
+        filePath: filepath,
+        fileName: fileMetadata.name
+      }
+
+      console.log('[RelicViewer] Archive file loaded successfully')
+    } catch (error) {
+      console.error('[RelicViewer] Error loading archive file:', error)
+      showToast('Failed to load file from archive: ' + error.message, 'error')
     } finally {
       loading = false
     }
@@ -198,8 +275,40 @@
     }
   }
 
+  async function handleFork() {
+    if (isArchiveFile && relic._extractedContent) {
+      // For archive files, create a new relic directly
+      forkLoading = true
+      try {
+        await fastForkArchiveFile(relic._extractedContent, relic.name, relic.content_type)
+      } catch (error) {
+        console.error('[RelicViewer] Error forking archive file:', error)
+      } finally {
+        forkLoading = false
+      }
+    } else {
+      // For normal relics, show the fork modal
+      showForkModal = true
+    }
+  }
+
   $: if (relicId) {
-    loadRelic(relicId)
+    if (filePath) {
+      loadArchiveFile(relicId, filePath)
+    } else {
+      loadRelic(relicId)
+    }
+  }
+
+  // Auto-show source view if URL has line numbers and content is text/code
+  $: if (relic && processed) {
+    const lineFragment = getCurrentLineNumberFragment()
+    if (lineFragment) {
+      const typeDef = getFileTypeDefinition(relic.content_type)
+      if (typeDef.category === 'text' || typeDef.category === 'code' || typeDef.category === 'markdown' || typeDef.category === 'html') {
+        showSource = true
+      }
+    }
   }
 
   function handleLineClicked(event) {
@@ -247,8 +356,9 @@
         {bookmarkLoading}
         {checkingBookmark}
         {forkLoading}
+        {isArchiveFile}
         on:toggle-bookmark={toggleBookmark}
-        on:fork={() => showForkModal = true}
+        on:fork={handleFork}
       />
 
       <RelicStatusBar
@@ -274,6 +384,28 @@
       {#if relic.description}
         <div class="px-6 py-3 bg-blue-50 border-b border-gray-200">
           <p class="text-sm text-gray-700 leading-relaxed">{relic.description}</p>
+        </div>
+      {/if}
+
+      <!-- Archive Context Breadcrumb -->
+      {#if isArchiveFile && archiveContext}
+        <div class="px-6 py-3 bg-purple-50 border-b border-purple-200">
+          <div class="flex items-center gap-2 text-sm">
+            <i class="fas fa-file-archive text-purple-600"></i>
+            <span class="text-gray-600">From archive:</span>
+            <a
+              href="/{archiveContext.archiveId}"
+              class="text-purple-700 hover:text-purple-900 font-medium hover:underline"
+            >
+              {archiveContext.archiveName || archiveContext.archiveId}
+            </a>
+            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            <span class="text-gray-700 font-mono text-xs">{archiveContext.filePath}</span>
+          </div>
+          <p class="text-xs text-gray-600 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>
+            This file was extracted from an archive. Actions (fork, download) will work on just this file.
+          </p>
         </div>
       {/if}
 
@@ -334,6 +466,14 @@
           </div>
         {:else if processed.type === 'csv'}
           <CsvRenderer {processed} />
+        {:else if processed.type === 'archive'}
+          <ArchiveRenderer
+            {processed}
+            {relicId}
+            {showSyntaxHighlighting}
+            {showLineNumbers}
+            {fontSize}
+          />
         {:else}
           <div class="border-t border-gray-200 p-6 text-center">
             <i class="fas fa-file text-gray-400 text-6xl mb-4"></i>

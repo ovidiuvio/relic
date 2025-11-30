@@ -126,7 +126,9 @@ export function updateUrlWithLineNumbers(relicId, lines) {
     fragment = createLineNumberFragment(lines)
   }
 
-  const newUrl = `/${relicId}${fragment ? `#${fragment}` : ''}`
+  // Use current pathname to preserve archive file paths
+  const pathname = window.location.pathname
+  const newUrl = `${pathname}${fragment ? `#${fragment}` : ''}`
   window.history.pushState({}, '', newUrl)
 }
 
@@ -195,7 +197,9 @@ export function getLineNumberFromClick(editor, event) {
  * @returns {string} - HTML content for tooltip
  */
 export function createLineTooltip(lineNumber, relicId) {
-  const url = `${window.location.origin}/${relicId}#L${lineNumber}`
+  // Use current pathname to preserve archive file paths
+  const pathname = window.location.pathname
+  const url = `${window.location.origin}${pathname}#L${lineNumber}`
   return `
     <div class="line-number-tooltip">
       <div>Line ${lineNumber}</div>

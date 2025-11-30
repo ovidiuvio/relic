@@ -92,9 +92,10 @@ export async function copyToClipboard(text, successMessage = 'Copied to clipboar
 }
 
 export function shareRelic(relicId) {
-  // Get current URL fragment (may contain line numbers like #L10-L20)
+  // Get current URL (preserves full path including archive file paths)
   const hash = window.location.hash
-  const shareUrl = `${window.location.origin}/${relicId}${hash}`
+  const pathname = window.location.pathname
+  const shareUrl = `${window.location.origin}${pathname}${hash}`
   copyToClipboard(shareUrl, 'Link copied to clipboard!')
 }
 
@@ -170,4 +171,92 @@ export async function fastForkRelic(relic) {
 
 export function viewRaw(relicId) {
   window.open(`/${relicId}/raw`, '_blank')
+}
+
+// ===== Archive File Actions =====
+
+export function downloadArchiveFile(fileContent, fileName, contentType) {
+  try {
+    const blob = new Blob([fileContent], { type: contentType || 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+
+    // Use the actual file name
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    window.URL.revokeObjectURL(url)
+
+    showToast(`Downloading ${fileName}...`, 'success')
+  } catch (error) {
+    console.error('Failed to download archive file:', error)
+    showToast('Failed to download file', 'error')
+  }
+}
+
+export async function copyArchiveFileContent(fileContent) {
+  try {
+    let text
+    if (typeof fileContent === 'string') {
+      text = fileContent
+    } else {
+      // Convert Uint8Array to string
+      text = new TextDecoder().decode(fileContent)
+    }
+    copyToClipboard(text, 'Content copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy archive file content:', error)
+    showToast('Failed to copy content', 'error')
+  }
+}
+
+export async function fastForkArchiveFile(fileContent, fileName, contentType) {
+  try {
+    // Create a File object from the extracted content
+    const file = new File([fileContent], fileName, { type: contentType || 'text/plain' })
+
+    // Create a new relic (not a fork, since the archive file is not a relic itself)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('name', fileName)
+    formData.append('access_level', 'public')
+    formData.append('expires_in', 'never')
+
+    // Use the createRelic API (we'll need to import this or use fetch directly)
+    const response = await fetch('/api/v1/relics', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create relic from archive file')
+    }
+
+    const newRelic = await response.json()
+    showToast('File saved as new relic!', 'success')
+
+    // Navigate to the new relic
+    window.location.href = `/${newRelic.id}`
+
+  } catch (error) {
+    console.error('Failed to create relic from archive file:', error)
+    showToast(error.message || 'Failed to create relic from file', 'error')
+  }
+}
+
+export function viewArchiveFileRaw(fileContent, fileName, contentType) {
+  try {
+    const blob = new Blob([fileContent], { type: contentType || 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
+
+    // Clean up after a delay
+    setTimeout(() => window.URL.revokeObjectURL(url), 10000)
+  } catch (error) {
+    console.error('Failed to view raw content:', error)
+    showToast('Failed to view raw content', 'error')
+  }
 }
