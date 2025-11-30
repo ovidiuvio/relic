@@ -75,6 +75,14 @@
     return true
   })()
 
+  let fontSize = (() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('relic_editor_font_size')
+      return saved ? parseInt(saved, 10) : 13
+    }
+    return 13
+  })()
+
   // Dispatch initial state to parent on mount
   onMount(() => {
     dispatch('fullwidth-toggle', { isFullWidth })
@@ -95,6 +103,10 @@
 
   $: if (typeof window !== 'undefined') {
     localStorage.setItem('relic_editor_line_numbers', showLineNumbers.toString())
+  }
+
+  $: if (typeof window !== 'undefined') {
+    localStorage.setItem('relic_editor_font_size', fontSize.toString())
   }
 
   async function loadRelic(id) {
@@ -247,10 +259,12 @@
         {showLineNumbers}
         {showSource}
         {pdfState}
+        {fontSize}
         on:toggle-fullwidth={() => isFullWidth = !isFullWidth}
         on:toggle-syntax={() => showSyntaxHighlighting = !showSyntaxHighlighting}
         on:toggle-linenumbers={() => showLineNumbers = !showLineNumbers}
         on:toggle-source={(e) => showSource = e.detail}
+        on:update-font-size={(e) => fontSize = e.detail}
         on:pdf-zoom-in={() => pdfViewerRef?.zoomInMethod()}
         on:pdf-zoom-out={() => pdfViewerRef?.zoomOutMethod()}
         on:pdf-reset-zoom={() => pdfViewerRef?.resetZoomMethod()}
@@ -272,6 +286,7 @@
             {showSource}
             {showSyntaxHighlighting}
             {showLineNumbers}
+            {fontSize}
             on:line-clicked={handleLineClicked}
             on:line-range-selected={handleLineRangeSelected}
             on:multi-line-selected={handleMultiLineSelected}
@@ -284,6 +299,7 @@
             {showSource}
             {showSyntaxHighlighting}
             {showLineNumbers}
+            {fontSize}
             on:line-clicked={handleLineClicked}
             on:line-range-selected={handleLineRangeSelected}
             on:multi-line-selected={handleMultiLineSelected}
@@ -295,6 +311,7 @@
             {relicId}
             {showSyntaxHighlighting}
             {showLineNumbers}
+            {fontSize}
             on:line-clicked={handleLineClicked}
             on:line-range-selected={handleLineRangeSelected}
             on:multi-line-selected={handleMultiLineSelected}

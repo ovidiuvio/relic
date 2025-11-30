@@ -38,6 +38,14 @@
     return true
   })()
 
+  let fontSize = (() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('relic_editor_font_size')
+      return saved ? parseInt(saved, 10) : 13
+    }
+    return 13
+  })()
+
   // Save editor preferences
   $: if (typeof window !== 'undefined') {
     localStorage.setItem('relic_editor_syntax_highlighting', showSyntaxHighlighting.toString())
@@ -45,6 +53,10 @@
 
   $: if (typeof window !== 'undefined') {
     localStorage.setItem('relic_editor_line_numbers', showLineNumbers.toString())
+  }
+
+  $: if (typeof window !== 'undefined') {
+    localStorage.setItem('relic_editor_font_size', fontSize.toString())
   }
 
   $: supportsPreview = forkLanguage === "markdown" || forkLanguage === "html";
@@ -138,6 +150,40 @@
           >
             <i class="fas fa-list-ol text-xs"></i>
           </button>
+
+          <!-- Font Size Combo Box -->
+          <div class="flex items-center gap-2 border-l border-gray-300 pl-2 ml-2">
+            <i class="fas fa-text-height text-xs text-gray-600"></i>
+            <select
+              value={fontSize.toString()}
+              on:change={(e) => {
+                const val = e.target.value
+                if (val === 'custom') {
+                  const custom = prompt('Enter font size (8-72):', fontSize.toString())
+                  if (custom && !isNaN(parseInt(custom, 10))) {
+                    const num = parseInt(custom, 10)
+                    if (num >= 8 && num <= 72) {
+                      fontSize = num
+                    }
+                  }
+                } else {
+                  fontSize = parseInt(val, 10)
+                }
+              }}
+              class="pl-1.5 pr-0.5 py-1 rounded text-xs bg-white border border-gray-300 text-gray-700 cursor-pointer hover:border-gray-400"
+              style="min-width: fit-content; width: auto;"
+              title="Font size"
+            >
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="18">18</option>
+              <option value="20">20</option>
+              <option value="custom">Custom...</option>
+            </select>
+          </div>
         </div>
 
         <!-- Preview/Edit Mode Tabs -->
@@ -187,6 +233,7 @@
           noWrapper={true}
           showSyntaxHighlighting={showSyntaxHighlighting}
           showLineNumbers={showLineNumbers}
+          fontSize={fontSize}
           on:change={handleContentChange}
         />
       {/if}

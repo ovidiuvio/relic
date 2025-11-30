@@ -18,6 +18,7 @@
   export let noWrapper = false
   export let showSyntaxHighlighting = true
   export let showLineNumbers = true
+  export let fontSize = 13
 
   let container
   let editor
@@ -72,7 +73,7 @@
         scrollBeyondLastLine: false,
         wordWrap: 'on',
         lineNumbers: 'on',
-        fontSize: 13,
+        fontSize,
         lineHeight: 24,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         padding: { top: 16, bottom: 16 },
@@ -358,6 +359,13 @@
   $: if (editor) {
     editor.updateOptions({
       lineNumbers: showLineNumbers ? 'on' : 'off'
+    })
+  }
+
+  // Handle font size changes
+  $: if (editor) {
+    editor.updateOptions({
+      fontSize
     })
   }
 </script>

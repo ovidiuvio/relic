@@ -7,6 +7,7 @@
   export let showSyntaxHighlighting
   export let showLineNumbers
   export let showSource = false
+  export let fontSize = 13
 
   const dispatch = createEventDispatcher()
 
@@ -37,6 +38,7 @@
       noWrapper={true}
       {showSyntaxHighlighting}
       {showLineNumbers}
+      {fontSize}
       on:line-clicked={forwardEvent}
       on:line-range-selected={forwardEvent}
       on:multi-line-selected={forwardEvent}

@@ -8,6 +8,7 @@
   export let showLineNumbers
   export let showSource = false
   export let pdfState = null
+  export let fontSize = 13
 
   const dispatch = createEventDispatcher()
 </script>
@@ -73,6 +74,40 @@
         >
           <i class="fas fa-list-ol text-xs"></i>
         </button>
+
+        <!-- Font Size Combo Box -->
+        <div class="flex items-center gap-2 border-l border-gray-300 pl-2 ml-2">
+          <i class="fas fa-text-height text-xs text-gray-600"></i>
+          <select
+            value={fontSize.toString()}
+            on:change={(e) => {
+              const val = e.target.value
+              if (val === 'custom') {
+                const custom = prompt('Enter font size (8-72):', fontSize.toString())
+                if (custom && !isNaN(parseInt(custom, 10))) {
+                  const num = parseInt(custom, 10)
+                  if (num >= 8 && num <= 72) {
+                    dispatch('update-font-size', num)
+                  }
+                }
+              } else {
+                dispatch('update-font-size', parseInt(val, 10))
+              }
+            }}
+            class="pl-1.5 pr-0.5 py-1 rounded text-xs bg-white border border-gray-300 text-gray-700 cursor-pointer hover:border-gray-400"
+            style="min-width: fit-content; width: auto;"
+            title="Font size"
+          >
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="18">18</option>
+            <option value="20">20</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </div>
       </div>
     {/if}
 
@@ -110,18 +145,18 @@
     {#if processed?.type === 'markdown' || processed?.type === 'html'}
       <div class="flex items-center gap-1">
         <button
-          on:click={() => dispatch('toggle-source', false)}
-          class="px-2 py-1 rounded text-xs font-medium transition-colors {!showSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Show preview"
-        >
-          <i class="fas fa-eye"></i>
-        </button>
-        <button
           on:click={() => dispatch('toggle-source', true)}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
           title="Show source"
         >
           <i class="fas fa-file-code"></i>
+        </button>
+        <button
+          on:click={() => dispatch('toggle-source', false)}
+          class="px-2 py-1 rounded text-xs font-medium transition-colors {!showSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+          title="Show preview"
+        >
+          <i class="fas fa-eye"></i>
         </button>
       </div>
     {/if}
