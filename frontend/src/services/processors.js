@@ -6,7 +6,24 @@
 import hljs from 'highlight.js'
 import { processMarkdown } from './markdownProcessor.js'
 import { processPDF } from './pdfProcessor.js'
-import { detectLanguageHint, isCodeType } from './typeUtils.js'
+import { detectLanguageHint, isCodeType, getFileTypeDefinition } from './typeUtils.js'
+
+/**
+ * Helper to decode content to string
+ */
+function decodeContent(content) {
+  return typeof content === 'string' ? content : new TextDecoder().decode(content)
+}
+
+/**
+ * Helper to get common text metadata
+ */
+function getTextMetadata(text) {
+  return {
+    lineCount: text.split(/\r?\n/).length,
+    charCount: text.length
+  }
+}
 
 /**
  * Detect programming language from content
@@ -48,14 +65,14 @@ export function highlightCode(content, language) {
  * Process text content
  */
 export function processText(content) {
-  const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+  const text = decodeContent(content)
+  const metadata = getTextMetadata(text)
 
   return {
     type: 'text',
     preview: text,
     metadata: {
-      lineCount: text.split('\n').length,
-      charCount: text.length,
+      ...metadata,
       wordCount: text.split(/\s+/).length
     }
   }
@@ -65,17 +82,17 @@ export function processText(content) {
  * Process code content with syntax highlighting
  */
 export function processCode(content, contentType, languageHint) {
-  const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+  const text = decodeContent(content)
   const language = detectLanguage(text, contentType, languageHint)
+  const metadata = getTextMetadata(text)
 
   return {
     type: 'code',
     preview: text,
     highlighted: highlightCode(text, language),
     metadata: {
-      language,
-      lineCount: text.split('\n').length,
-      charCount: text.length
+      ...metadata,
+      language
     }
   }
 }
@@ -105,7 +122,7 @@ export { processMarkdown }
  * Process HTML content
  */
 export function processHTML(content) {
-  const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+  const text = decodeContent(content)
 
   return {
     type: 'html',
@@ -124,8 +141,8 @@ export function processHTML(content) {
  * Process CSV content
  */
 export function processCSV(content) {
-  const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
-  const lines = text.split('\n')
+  const text = decodeContent(content)
+  const lines = text.split(/\r?\n/)
   const headers = lines[0]?.split(',').map(h => h.trim()) || []
   const rows = lines.slice(1, 11).map(line => {
     const cells = line.split(',')
@@ -151,52 +168,33 @@ export function processCSV(content) {
  * Main processor function that delegates to type-specific processors
  */
 export async function processContent(content, contentType, languageHint) {
-  const contentTypeLower = contentType.toLowerCase()
-
-  // HTML
-  if (
-    contentTypeLower.includes('text/html') ||
-    contentTypeLower.includes('application/xhtml+xml') ||
-    contentTypeLower.includes('html')
-  ) {
-    return processHTML(content)
-  }
-
-  // Markdown
-  if (
-    contentTypeLower.includes('markdown') ||
-    contentTypeLower.includes('text/markdown') ||
-    languageHint === 'markdown' ||
-    languageHint === 'md'
-  ) {
+  // Check language hint first for specific overrides
+  if (languageHint === 'markdown' || languageHint === 'md') {
     return processMarkdown(content)
   }
 
-  // PDFs (check BEFORE code files to prevent Monaco display)
-  if (contentTypeLower.includes('pdf') || contentTypeLower.includes('application/pdf')) {
-    return processPDF(content)
-  }
+  const typeDef = getFileTypeDefinition(contentType)
 
-  // CSV
-  if (contentTypeLower.includes('csv')) {
-    return processCSV(content)
+  switch (typeDef.category) {
+    case 'html':
+      return processHTML(content)
+    case 'markdown':
+      return processMarkdown(content)
+    case 'pdf':
+      return processPDF(content)
+    case 'csv':
+      return processCSV(content)
+    case 'image':
+      return processImage(content)
+    case 'code':
+      return processCode(content, contentType, languageHint)
+    case 'text':
+      return processText(content)
+    default:
+      // Fallback for unknown types that might still be code
+      if (isCodeType(contentType)) {
+        return processCode(content, contentType, languageHint)
+      }
+      return processText(content)
   }
-
-  // Images
-  if (contentTypeLower.includes('image')) {
-    return processImage(content)
-  }
-
-  // Code files
-  if (isCodeType(contentTypeLower)) {
-    return processCode(content, contentType, languageHint)
-  }
-
-  // Text (fallback)
-  if (contentTypeLower.includes('text')) {
-    return processText(content)
-  }
-
-  // Unknown - return as text
-  return processText(content)
 }
