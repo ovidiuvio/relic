@@ -100,15 +100,18 @@ export function processCode(content, contentType, languageHint) {
 /**
  * Process image content
  */
-export function processImage(content) {
-  const blob = new Blob([content], { type: 'image/*' })
+export function processImage(content, contentType) {
+  // Use the specific content type for proper MIME type handling
+  const mimeType = contentType || 'image/*'
+  const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
 
   return {
     type: 'image',
     url,
     metadata: {
-      // Additional metadata would need canvas inspection
+      mimeType,
+      // Additional metadata would need canvas inspection for raster images
     }
   }
 }
@@ -185,7 +188,7 @@ export async function processContent(content, contentType, languageHint) {
     case 'csv':
       return processCSV(content)
     case 'image':
-      return processImage(content)
+      return processImage(content, contentType)
     case 'code':
       return processCode(content, contentType, languageHint)
     case 'text':

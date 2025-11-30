@@ -177,11 +177,19 @@ const FILE_TYPES = [
     category: 'csv'
   },
   {
+    syntax: 'svg',
+    label: 'SVG',
+    icon: 'fa-image',
+    mime: 'image/svg+xml',
+    extensions: ['svg'],
+    category: 'image'
+  },
+  {
     syntax: 'image',
     label: 'Image',
     icon: 'fa-image',
     mime: 'image/',
-    extensions: ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'],
+    extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     category: 'image'
   },
   {
