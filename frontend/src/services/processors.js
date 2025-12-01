@@ -148,7 +148,7 @@ export function processCSV(content) {
   const text = decodeContent(content)
   const lines = text.split(/\r?\n/)
   const headers = lines[0]?.split(',').map(h => h.trim()) || []
-  const rows = lines.slice(1, 11).map(line => {
+  const rows = lines.slice(1).map(line => {
     const cells = line.split(',')
     const row = {}
     headers.forEach((header, idx) => {
@@ -163,7 +163,8 @@ export function processCSV(content) {
     metadata: {
       columnCount: headers.length,
       rowCount: lines.length - 1,
-      columns: headers
+      columns: headers,
+      fileSize: content.byteLength || text.length
     }
   }
 }
