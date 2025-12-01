@@ -250,3 +250,94 @@ code {
 ::-webkit-scrollbar-thumb:hover {
     background: #b3b3b3; 
 }
+
+/* Svelte-select styling to match maas-input */
+.svelte-select {
+  transition: all 0.2s;
+  align-items: center !important;
+}
+
+.svelte-select .svelte-select-container {
+  padding: 0 !important;
+}
+
+.svelte-select.focused {
+  box-shadow: 0 0 0 1px #E95420 !important;
+}
+
+.svelte-select input {
+  line-height: 1.25rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.svelte-select .svelte-select-list {
+  border: 1px solid #AEA79F !important;
+  border-radius: 6px !important;
+  background: #f3f4f5 !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.svelte-select .svelte-select-list > div {
+  padding: 4px !important;
+}
+
+.svelte-select .item {
+  background: #f3f4f5 !important;
+  color: rgb(17 24 39);
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem !important;
+  line-height: 1.25 !important;
+  min-height: unset !important;
+  height: auto !important;
+  border-radius: 4px !important;
+  margin: 1px 0 !important;
+}
+
+.svelte-select .item.hover:not(.active) {
+  background: #bcdff1 !important;
+  color: rgb(17 24 39) !important;
+  border-radius: 4px !important;
+}
+
+.svelte-select .item.active {
+  background: #f3f4f5 !important;
+  color: rgb(17 24 39) !important;
+  border-radius: 4px !important;
+}
+
+.svelte-select .item.active.hover {
+  background: #bcdff1 !important;
+  color: rgb(17 24 39) !important;
+  border-radius: 4px !important;
+}
+
+.svelte-select .item:active {
+  background: #bcdff1 !important;
+  border-radius: 4px !important;
+}
+
+.svelte-select .indicators {
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.svelte-select .indicator {
+  display: flex !important;
+  align-items: center !important;
+  color: rgb(107, 114, 128);
+}
+
+.svelte-select .chevron {
+  display: inline-block;
+  padding-right: 4px;
+  color: rgb(107, 114, 128);
+}
+
+.svelte-select .indicator svg {
+  width: 18px !important;
+  height: 18px !important;
+}

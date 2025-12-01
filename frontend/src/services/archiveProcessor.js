@@ -6,7 +6,7 @@
 import JSZip from 'jszip'
 import untar from 'js-untar'
 import { gunzipSync } from 'fflate'
-import { detectLanguageHint } from './typeUtils.js'
+import { detectLanguageHint, getSyntaxFromExtension, getContentType } from './typeUtils.js'
 
 /**
  * Detect archive type from content type
@@ -93,42 +93,19 @@ function buildFileTree(files) {
 
 /**
  * Get content type from file extension
+ * Uses centralized type detection from typeUtils.js for comprehensive language support
  */
 function getContentTypeFromPath(path) {
   const ext = path.split('.').pop()?.toLowerCase()
+  if (!ext) return 'application/octet-stream'
 
-  const mimeTypes = {
-    'txt': 'text/plain',
-    'md': 'text/markdown',
-    'json': 'application/json',
-    'js': 'application/javascript',
-    'ts': 'application/typescript',
-    'html': 'text/html',
-    'css': 'text/css',
-    'py': 'text/x-python',
-    'java': 'text/x-java',
-    'cpp': 'text/x-c++',
-    'c': 'text/x-c',
-    'go': 'text/x-go',
-    'rs': 'text/x-rust',
-    'sh': 'application/x-sh',
-    'yaml': 'text/yaml',
-    'yml': 'text/yaml',
-    'xml': 'application/xml',
-    'svg': 'image/svg+xml',
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'pdf': 'application/pdf',
-    'csv': 'text/csv',
-    'zip': 'application/zip',
-    'tar': 'application/x-tar',
-    'gz': 'application/gzip'
+  // Use centralized type detection for comprehensive language support (100+ languages)
+  const syntax = getSyntaxFromExtension(ext)
+  if (syntax) {
+    return getContentType(syntax)
   }
 
-  return mimeTypes[ext] || 'application/octet-stream'
+  return 'application/octet-stream'
 }
 
 /**

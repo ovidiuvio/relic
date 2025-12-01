@@ -1,4 +1,5 @@
 <script>
+  import Select from "svelte-select";
   import { getAvailableSyntaxOptions } from "../services/typeUtils";
 
   export let forkName = "";
@@ -9,6 +10,13 @@
   export let relic = null;
 
   const syntaxOptions = getAvailableSyntaxOptions();
+
+  // Find the currently selected option for svelte-select
+  $: selectedType = syntaxOptions.find((opt) => opt.value === forkLanguage) || syntaxOptions[0];
+
+  function handleTypeChange(event) {
+    forkLanguage = event.detail?.value || "auto";
+  }
 </script>
 
 <div class="px-6 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
@@ -25,17 +33,40 @@
     </div>
 
     {#if !isBinary}
-      <div>
+      <div class="fork-type-select">
         <label for="forkLanguage" class="block text-xs font-medium text-gray-600 mb-1">Type</label>
-        <select
-          id="forkLanguage"
-          bind:value={forkLanguage}
-          class="w-full px-2 py-1.5 text-sm maas-input bg-white"
-        >
-          {#each syntaxOptions as option}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
+        <Select
+          items={syntaxOptions}
+          value={selectedType}
+          on:change={handleTypeChange}
+          itemId="value"
+          label="label"
+          placeholder="Search or select language..."
+          searchable={true}
+          clearable={false}
+          showChevron={true}
+          --border="1px solid #AEA79F"
+          --border-radius="2px"
+          --border-focused="1px solid #E95420"
+          --font-size="0.875rem"
+          --padding="0.15rem 0.5rem"
+          --height="24px"
+          --placeholder-color="rgb(156 163 175)"
+          --item-padding="0.5rem 0.75rem"
+          --background="white"
+          --list-background="white"
+          --list-border="1px solid #AEA79F"
+          --list-border-radius="2px"
+          --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
+          --input-color="rgb(17 24 39)"
+          --item-color="rgb(17 24 39)"
+          --item-hover-bg="rgb(243 244 246)"
+          --item-is-active-bg="rgb(229 231 235)"
+          --item-is-active-color="rgb(17 24 39)"
+          --chevron-height="20px"
+          --chevron-width="20px"
+          --chevron-color="rgb(107, 114, 128)"
+        />
       </div>
     {/if}
 

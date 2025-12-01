@@ -1,6 +1,7 @@
 <script>
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
+  import Select from "svelte-select";
   import {
     getContentType,
     getFileExtension,
@@ -12,18 +13,99 @@
 
   let title = "";
   let syntax = "auto";
+  let syntaxValue = { value: "auto", label: "Auto-detect" };
   let content = "";
   let expiry = "never";
   let visibility = "public";
-  let password = "";
   let isLoading = false;
   let fileInput;
-  let uploadedFile = null; // Store binary files directly
+  let uploadedFile = null;
+
+  // Update syntax when syntaxValue changes
+  $: syntax = syntaxValue?.value || "auto";
+
+  // Helper function to find option by value
+  function findOptionByValue(options, value) {
+    return options.find((option) => option.value === value) || null;
+  }
+
+  // Check if a file is binary based on MIME type
+  function isBinaryFile(file) {
+    return (
+      file.type.startsWith("image/") ||
+      file.type === "application/pdf" ||
+      file.type.startsWith("video/") ||
+      file.type.startsWith("audio/") ||
+      file.type.includes("zip") ||
+      file.type.includes("archive") ||
+      file.type === "application/octet-stream"
+    );
+  }
+
+  // Format bytes to human readable string
+  function formatBytes(bytes) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+  }
+
+  // Reset form to initial state
+  function resetForm() {
+    title = "";
+    syntax = "auto";
+    syntaxValue = { value: "auto", label: "Auto-detect" };
+    content = "";
+    expiry = "never";
+    visibility = "public";
+    uploadedFile = null;
+  }
+
+  // Process uploaded/dropped file
+  function processFile(file, source = "uploaded") {
+    // Set title based on filename (without extension)
+    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    if (!title) title = nameWithoutExt;
+
+    // Try to detect type based on file extension
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext && syntax === "auto") {
+      const detectedSyntax = getSyntaxFromExtension(ext);
+      if (detectedSyntax) {
+        syntax = detectedSyntax;
+        const matchingOption = findOptionByValue(syntaxOptions, detectedSyntax);
+        if (matchingOption) {
+          syntaxValue = matchingOption;
+        }
+      }
+    }
+
+    if (isBinaryFile(file)) {
+      uploadedFile = file;
+      content = `[Binary file: ${file.name} (${formatBytes(file.size)})]`;
+      showToast(`Binary file "${file.name}" ready for upload`, "success");
+    } else {
+      uploadedFile = null;
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        content = event.target.result;
+        const action = source === "dropped" ? "dropped and loaded" : "loaded successfully";
+        showToast(`File "${file.name}" ${action}`, "success");
+      };
+
+      reader.onerror = () => {
+        showToast("Failed to read file", "error");
+      };
+
+      reader.readAsText(file);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // Check if we have either content or uploaded file
     if (!content.trim() && !uploadedFile) {
       showToast("Please enter some content or upload a file", "warning");
       return;
@@ -35,24 +117,17 @@
       let file;
       let contentType;
 
-      // If we have an uploaded binary file, use it directly
       if (uploadedFile) {
         file = uploadedFile;
         contentType = uploadedFile.type || getContentType(syntax);
       } else {
-        // Determine content type based on type selection
-        contentType =
-          syntax !== "auto" ? getContentType(syntax) : "text/plain";
-        const fileExtension =
-          syntax !== "auto" ? getFileExtension(syntax) : "txt";
-
-        // Create a File object from the text content with proper MIME type
+        contentType = syntax !== "auto" ? getContentType(syntax) : "text/plain";
+        const fileExtension = syntax !== "auto" ? getFileExtension(syntax) : "txt";
         const blob = new Blob([content], { type: contentType });
         const fileName = title || `relic.${fileExtension}`;
         file = new File([blob], fileName, { type: contentType });
       }
 
-      // Use our API function which includes client key authentication
       const response = await createRelic({
         file: file,
         name: title || undefined,
@@ -63,20 +138,9 @@
       });
 
       const data = response.data;
-      const relicUrl = `/${data.id}`;
       showToast("Relic created successfully!", "success");
-
-      // Navigate to the new relic
-      window.location.href = relicUrl;
-
-      // Reset form
-      title = "";
-      syntax = "auto";
-      content = "";
-      expiry = "never";
-      visibility = "public";
-      password = "";
-      uploadedFile = null;
+      window.location.href = `/${data.id}`;
+      resetForm();
     } catch (error) {
       showToast(error.message || "Failed to create relic", "error");
       console.error("Error creating relic:", error);
@@ -87,66 +151,9 @@
 
   function handleFileUpload(e) {
     const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    const file = files[0];
-
-    // Set title based on filename (without extension)
-    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-    if (!title) title = nameWithoutExt;
-
-    // Try to detect type based on file extension
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext && syntax === "auto") {
-      const detectedSyntax = getSyntaxFromExtension(ext);
-      if (detectedSyntax) {
-        syntax = detectedSyntax;
-      }
+    if (files.length > 0) {
+      processFile(files[0], "uploaded");
     }
-
-    // Check if file is binary (PDF, images, etc.)
-    const isBinary =
-      file.type.startsWith("image/") ||
-      file.type === "application/pdf" ||
-      file.type.startsWith("video/") ||
-      file.type.startsWith("audio/") ||
-      file.type.includes("zip") ||
-      file.type.includes("archive") ||
-      file.type === "application/octet-stream";
-
-    if (isBinary) {
-      // For binary files, store the file directly without reading
-      uploadedFile = file;
-      content = `[Binary file: ${file.name} (${formatBytes(file.size)})]`;
-      showToast(
-        `Binary file "${file.name}" ready for upload`,
-        "success"
-      );
-    } else {
-      // For text files, read and display content
-      uploadedFile = null;
-      const reader = new FileReader();
-
-      reader.onload = (event) => {
-        content = event.target.result;
-        showToast(`File "${file.name}" loaded successfully`, "success");
-      };
-
-      reader.onerror = () => {
-        showToast("Failed to read file", "error");
-      };
-
-      // Read as text to preserve content
-      reader.readAsText(file);
-    }
-  }
-
-  function formatBytes(bytes) {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
   }
 
   function handleDragOver(e) {
@@ -164,57 +171,8 @@
     e.currentTarget.classList.remove("border-blue-500", "bg-blue-50");
 
     const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
-
-    const file = files[0];
-
-    // Set title based on filename (without extension)
-    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-    if (!title) title = nameWithoutExt;
-
-    // Try to detect type based on file extension
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext && syntax === "auto") {
-      const detectedSyntax = getSyntaxFromExtension(ext);
-      if (detectedSyntax) {
-        syntax = detectedSyntax;
-      }
-    }
-
-    // Check if file is binary (PDF, images, etc.)
-    const isBinary =
-      file.type.startsWith("image/") ||
-      file.type === "application/pdf" ||
-      file.type.startsWith("video/") ||
-      file.type.startsWith("audio/") ||
-      file.type.includes("zip") ||
-      file.type.includes("archive") ||
-      file.type === "application/octet-stream";
-
-    if (isBinary) {
-      // For binary files, store the file directly without reading
-      uploadedFile = file;
-      content = `[Binary file: ${file.name} (${formatBytes(file.size)})]`;
-      showToast(
-        `Binary file "${file.name}" ready for upload`,
-        "success"
-      );
-    } else {
-      // For text files, read and display content
-      uploadedFile = null;
-      const reader = new FileReader();
-
-      reader.onload = (event) => {
-        content = event.target.result;
-        showToast(`File "${file.name}" dropped and loaded`, "success");
-      };
-
-      reader.onerror = () => {
-        showToast("Failed to read file", "error");
-      };
-
-      // Read as text to preserve content
-      reader.readAsText(file);
+    if (files.length > 0) {
+      processFile(files[0], "dropped");
     }
   }
 </script>
@@ -260,15 +218,41 @@
               for="syntax"
               class="block text-sm font-medium text-gray-700 mb-1">Type</label
             >
-            <select
-              id="syntax"
-              bind:value={syntax}
-              class="w-full px-3 py-2 text-sm maas-input bg-white"
-            >
-              {#each syntaxOptions as option}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
+            <div class="w-full">
+              <Select
+                items={syntaxOptions}
+                bind:value={syntaxValue}
+                placeholder="Search or select language..."
+                searchable={true}
+                clearable={false}
+                showChevron={true}
+                --border="1px solid #AEA79F"
+                --border-radius="2px"
+                --border-focused="1px solid #E95420"
+                --border-hover="1px solid #AEA79F"
+                --padding="0.15rem 0.5rem"
+                --font-size="0.875rem"
+                --height="24px"
+                --item-padding="0.25rem 0.5rem"
+                --item-height="auto"
+                --item-line-height="1.25"
+                --background="white"
+                --list-background="#f3f4f5"
+                --list-border="1px solid #AEA79F"
+                --list-border-radius="6px"
+                --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                --input-color="rgb(17 24 39)"
+                --item-color="rgb(17 24 39)"
+                --item-hover-bg="#bcdff1"
+                --item-hover-color="rgb(17 24 39)"
+                --item-is-active-bg="#f3f4f5"
+                --item-is-active-color="rgb(17 24 39)"
+                --internal-padding="0"
+                --chevron-height="20px"
+                --chevron-width="20px"
+                --chevron-color="rgb(107, 114, 128)"
+              />
+            </div>
           </div>
         </div>
 
@@ -372,3 +356,7 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* Component-specific styles only - global svelte-select styles are in app.css */
+</style>
