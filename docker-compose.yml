@@ -109,6 +109,37 @@ services:
     networks:
       - Relic
 
+  # S3 Bucket Sync Service
+  s3-sync:
+    build:
+      context: ./sync
+      dockerfile: Dockerfile
+    container_name: Relic-s3-sync
+    environment:
+      # Source (MinIO)
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: relics
+      # Destination (S3)
+      S3_ENDPOINT: ${S3_SYNC_ENDPOINT:-s3.amazonaws.com}
+      S3_ACCESS_KEY: ${S3_SYNC_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SYNC_SECRET_KEY}
+      S3_BUCKET: ${S3_SYNC_BUCKET:-relics-backup}
+      S3_REGION: ${S3_SYNC_REGION:-us-east-1}
+      # Sync settings
+      SYNC_ENABLED: ${S3_SYNC_ENABLED:-false}
+      SYNC_INTERVAL: ${S3_SYNC_INTERVAL:-1800}  # 30 minutes
+      MAX_RETRIES: ${S3_SYNC_MAX_RETRIES:-3}
+      RETRY_DELAY: ${S3_SYNC_RETRY_DELAY:-60}
+      TZ: ${S3_SYNC_TIMEZONE:-UTC}
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - Relic
+    restart: unless-stopped
+
 volumes:
   minio_data:
   postgres_data:
