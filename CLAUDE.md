@@ -112,13 +112,22 @@ GET    /api/v1/relics                  List recent public relics
 ```
 relic/
 ├── backend/
-│   ├── main.py              # FastAPI application and routes
-│   ├── models.py            # SQLAlchemy ORM models (Relic, User, Tag)
+│   ├── api/                 # API endpoint definitions
+│   │   ├── relics.py
+│   │   ├── clients.py
+│   │   └── bookmarks.py
+│   ├── core/                # Core application logic
+│   │   ├── app.py           # FastAPI app creation
+│   │   └── config.py        # Application settings
+│   ├── services/            # Business logic
+│   │   ├── relics.py
+│   │   └── clients.py
+│   ├── main.py              # Main FastAPI application entrypoint
+│   ├── models.py            # SQLAlchemy ORM models
 │   ├── schemas.py           # Pydantic validation schemas
 │   ├── database.py          # Database initialization and session management
-│   ├── config.py            # Configuration (settings, env vars)
 │   ├── storage.py           # S3/MinIO client wrapper
-│   ├── utils.py             # Utilities (ID generation, hashing, expiry parsing)
+│   ├── utils.py             # Utilities
 │   ├── backup.py            # Database backup logic
 │   └── __init__.py
 ├── frontend/
