@@ -9,9 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Key principle: Relics cannot be edited after creation - they are permanent and immutable. To modify content, create a fork which creates an independent copy.
 
 ### Tech Stack
+- **Infrastructure**: Docker + Nginx (Reverse Proxy)
 - **Backend**: FastAPI + SQLAlchemy + MinIO/S3
 - **Frontend**: Svelte + Tailwind CSS + Axios
-- **Database**: SQLite (dev), PostgreSQL (prod)
+- **Database**: PostgreSQL (prod/dev)
 - **Storage**: MinIO (dev), S3 (prod)
 
 ## Core Architecture Concepts
@@ -52,9 +53,9 @@ The system handles **any file type** (text, code, images, PDFs, CSVs, archives, 
 ### 3. Fork Relationships
 
 ```
-Original:  a3Bk9Zx
-  └─ Fork: x7Yz8Wx (fork_of: a3Bk9Zx)
-      └─ Fork: y8Za9Xy (fork_of: x7Yz8Wx)
+Original:  f47ac10b58cc4372a5670e02b2c3d479
+  └─ Fork: a1b2c3d4e5f678901234567890abcdef (fork_of: f47ac...)
+      └─ Fork: 1234567890abcdef1234567890abcdef (fork_of: a1b2c...)
 ```
 
 Key queries:
@@ -85,10 +86,12 @@ Key queries:
 
 ### Key Endpoint Patterns
 
+All API endpoints are prefixed with `/api/v1` and served via Nginx at `http://localhost`.
+
 ```
 POST   /api/v1/relics                  Create relic
 GET    /api/v1/relics/:id              Get relic metadata
-GET    /:id/raw                         Get raw content
+GET    /:id/raw                        Get raw content (served from root)
 POST   /api/v1/relics/:id/fork         Create fork (independent copy)
 DELETE /api/v1/relics/:id              Delete relic (soft delete)
 
@@ -116,6 +119,7 @@ relic/
 │   ├── config.py            # Configuration (settings, env vars)
 │   ├── storage.py           # S3/MinIO client wrapper
 │   ├── utils.py             # Utilities (ID generation, hashing, expiry parsing)
+│   ├── backup.py            # Database backup logic
 │   └── __init__.py
 ├── frontend/
 │   ├── src/
@@ -143,9 +147,12 @@ relic/
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   └── package.json
+├── sync/                    # S3 Sync service
+│   └── Dockerfile
 ├── requirements.txt         # Python dependencies
 ├── Makefile                 # Development commands
-├── docker-compose.yml       # MinIO and PostgreSQL services
+├── docker-compose.yml       # Docker services (Nginx, Backend, Frontend, DB, MinIO)
+├── nginx.conf               # Nginx configuration
 ├── .env                     # Environment variables
 ├── .gitignore
 ├── RELIC.md                 # Feature specification

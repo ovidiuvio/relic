@@ -27,11 +27,10 @@ Make sure the Relic backend server is running:
 
 ```bash
 # In the project root directory
-cd backend
-uvicorn backend.main:app --reload
+make up
 ```
 
-The server should be running at `http://localhost:8000`.
+The server should be running at `http://localhost`.
 
 ## 4. Initialize Configuration (Optional)
 
@@ -54,8 +53,8 @@ You'll see:
 ℹ Generated new client key: f47ac10b...
 ✓ Client key saved to config
 Uploading: 100% |████████████████████| 2.1 KB/2.1 KB
-✓ Created relic: a3Bk9Zx
-  URL: http://localhost:8000/a3Bk9Zx
+✓ Created relic: f47ac10b58cc4372a5670e02b2c3d479
+  URL: http://localhost/f47ac10b58cc4372a5670e02b2c3d479
   Name: README.md
   Size: 2.1 KB
   Type: text/markdown
@@ -83,9 +82,9 @@ ps aux | ./bin/relic --name "processes.txt"
 
 Output:
 ```
-ID          Name            Size    Type        Created    Access
-a3Bk9Zx     README.md       2.1KB   Markdown    2m ago     private
-x7Yz8Wx     greeting.txt    15B     Plain       1m ago     private
+ID                                  Name            Size    Type        Created    Access
+f47ac10b58cc4372a5670e02b2c3d479    README.md       2.1KB   Markdown    2m ago     private
+a1b2c3d4e5f678901234567890abcdef    greeting.txt    15B     Plain       1m ago     private
 
 Total: 2 relics
 ```
@@ -93,12 +92,12 @@ Total: 2 relics
 ## 7. Get Relic Info
 
 ```bash
-./bin/relic info a3Bk9Zx
+./bin/relic info f47ac10b58cc4372a5670e02b2c3d479
 ```
 
 Output:
 ```
-Relic: a3Bk9Zx
+Relic: f47ac10b58cc4372a5670e02b2c3d479
 Name: README.md
 Size: 2.1 KB
 Type: text/markdown (markdown)
@@ -111,27 +110,27 @@ Views: 1
 
 ```bash
 # To stdout
-./bin/relic get a3Bk9Zx
+./bin/relic get f47ac10b58cc4372a5670e02b2c3d479
 
 # To file
-./bin/relic get a3Bk9Zx -o downloaded.md
+./bin/relic get f47ac10b58cc4372a5670e02b2c3d479 -o downloaded.md
 ```
 
 ## 9. Fork a Relic
 
 ```bash
-./bin/relic fork a3Bk9Zx --name "Modified README"
+./bin/relic fork f47ac10b58cc4372a5670e02b2c3d479 --name "Modified README"
 ```
 
 ## 10. Delete a Relic
 
 ```bash
-./bin/relic delete x7Yz8Wx
-# Confirm: Delete relic x7Yz8Wx? [y/N]: y
-# ✓ Deleted relic: x7Yz8Wx
+./bin/relic delete a1b2c3d4e5f678901234567890abcdef
+# Confirm: Delete relic a1b2c3...? [y/N]: y
+# ✓ Deleted relic: a1b2c3d4e5f678901234567890abcdef
 
 # Or skip confirmation
-./bin/relic delete x7Yz8Wx --yes
+./bin/relic delete a1b2c3d4e5f678901234567890abcdef --yes
 ```
 
 ## Common Use Cases
@@ -141,7 +140,7 @@ Views: 1
 ```bash
 # Capture and share system info
 uname -a | ./bin/relic --name "system-info.txt" -q
-# http://localhost:8000/a3Bk9Zx
+# http://localhost/f47ac10b58cc4372a5670e02b2c3d479
 
 # Share that URL with others!
 ```
@@ -292,7 +291,7 @@ Shows HTTP requests/responses.
 Output:
 ```
 Client ID: f47ac10b58cc4372a5670e02b2c3d479
-Server: http://localhost:8000
+Server: http://localhost
 Registered: 2024-01-15 14:20:00 UTC
 Relics: 5
 ```
@@ -309,8 +308,7 @@ Relics: 5
 
 Make sure the backend server is running:
 ```bash
-cd backend
-uvicorn backend.main:app --reload
+make up
 ```
 
 ### "File too large"

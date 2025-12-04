@@ -16,12 +16,12 @@ Modern artifacts service with immutable artifacts, version lineage tracking, and
 
 **Example:**
 ```
-Original relic:  a3Bk9Zx  → /a3Bk9Zx
-User edits:      b4Ck2Ty  → /b4Ck2Ty  (parent: a3Bk9Zx)
-User edits:      c5Dm3Uz  → /c5Dm3Uz  (parent: b4Ck2Ty)
+Original relic:  f47ac10b58cc4372a5670e02b2c3d479  → /f47ac10b58cc4372a5670e02b2c3d479
+User edits:      a1b2c3d4e5f678901234567890abcdef  → /a1b2c3d4e5f678901234567890abcdef  (parent: f47ac...)
+User edits:      1234567890abcdef1234567890abcdef  → /1234567890abcdef1234567890abcdef  (parent: a1b2c...)
 
 All three URLs remain accessible
-Lineage tracked: a3Bk9Zx → b4Ck2Ty → c5Dm3Uz
+Lineage tracked: f47ac... → a1b2c... → 12345...
 ```
 
 ### 2. Version Lineage Tracking
@@ -38,14 +38,6 @@ Lineage tracked: a3Bk9Zx → b4Ck2Ty → c5Dm3Uz
 - Original lineage preserved
 - Attribution tracked via `fork_of` field
 
-**Relationships:**
-```
-Original:  a3Bk9Zx (v1)
-  ├─ Edit: b4Ck2Ty (v2)
-  │   └─ Edit: c5Dm3Uz (v3)
-  └─ Fork: x7Yz8Wx (v1, new lineage)
-      └─ Edit: y8Za9Xy (v2)
-```
 
 ### 3. Universal Content Support
 
@@ -156,7 +148,7 @@ Original:  a3Bk9Zx (v1)
 ### Relic Entity
 
 ```
-id              Unique identifier (base62, 7-8 chars)
+id              Unique identifier (32-char hex string)
 client_id       Client identification (null for anonymous)
 name            Optional display name
 description     Optional description
@@ -190,14 +182,14 @@ access_count    View counter
 
 **Create Relic**
 ```
-POST /api/relics
+POST /api/v1/relics
 Body: {content, name?, type?, language?, expires?, tags?}
 Returns: {id, url, parent_id, version}
 ```
 
 **Get Relic**
 ```
-GET /api/relics/:id
+GET /api/v1/relics/:id
 Returns: {id, name, content_type, size, parent_id, root_id, version, ...}
 ```
 
@@ -209,21 +201,21 @@ Returns: raw file content with appropriate Content-Type
 
 **Edit Relic (Create New Version)**
 ```
-POST /api/relics/:id/edit
+POST /api/v1/relics/:id/edit
 Body: {content, name?}
 Returns: {id: new_id, url, parent_id: old_id, version}
 ```
 
 **Fork Relic (New Lineage)**
 ```
-POST /api/relics/:id/fork
+POST /api/v1/relics/:id/fork
 Body: {content?, name?}
 Returns: {id: new_id, url, fork_of: old_id, version: 1}
 ```
 
 **Delete Relic**
 ```
-DELETE /api/relics/:id
+DELETE /api/v1/relics/:id
 Requires: Authentication (must own relic)
 Returns: 204 No Content
 ```

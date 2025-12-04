@@ -64,19 +64,19 @@ relic list
 ### Get Relic Info
 
 ```bash
-relic info a3Bk9Zx
+relic info f47ac10b58cc4372a5670e02b2c3d479
 ```
 
 ### Download a Relic
 
 ```bash
-relic get a3Bk9Zx -o output.txt
+relic get f47ac10b58cc4372a5670e02b2c3d479 -o output.txt
 ```
 
 ### Fork a Relic
 
 ```bash
-relic fork a3Bk9Zx --name "My Modified Version"
+relic fork f47ac10b58cc4372a5670e02b2c3d479 --name "My Modified Version"
 ```
 
 ## Usage
@@ -129,10 +129,10 @@ Get detailed information about a relic.
 
 ```bash
 # Human-readable output
-relic info a3Bk9Zx
+relic info f47ac10b58cc4372a5670e02b2c3d479
 
 # JSON output
-relic info a3Bk9Zx --output json
+relic info f47ac10b58cc4372a5670e02b2c3d479 --output json
 ```
 
 ### List Command
@@ -188,13 +188,13 @@ Download relic content to stdout or a file.
 
 ```bash
 # Download to stdout
-relic get a3Bk9Zx
+relic get f47ac10b58cc4372a5670e02b2c3d479
 
 # Save to file
-relic get a3Bk9Zx -o script.py
+relic get f47ac10b58cc4372a5670e02b2c3d479 -o script.py
 
 # Pipe to another command
-relic get a3Bk9Zx | jq '.results'
+relic get f47ac10b58cc4372a5670e02b2c3d479 | jq '.results'
 ```
 
 ### Fork Command
@@ -214,10 +214,10 @@ Create an independent copy of a relic.
 
 ```bash
 # Simple fork
-relic fork a3Bk9Zx
+relic fork f47ac10b58cc4372a5670e02b2c3d479
 
 # Fork with new metadata
-relic fork a3Bk9Zx \
+relic fork f47ac10b58cc4372a5670e02b2c3d479 \
   --name "Modified Script" \
   --description "Customized version" \
   --access-level private
@@ -238,10 +238,10 @@ Delete a relic (soft delete). Only the owner can delete their relics.
 
 ```bash
 # Delete with confirmation
-relic delete a3Bk9Zx
+relic delete f47ac10b58cc4372a5670e02b2c3d479
 
 # Delete without confirmation
-relic delete a3Bk9Zx --yes
+relic delete f47ac10b58cc4372a5670e02b2c3d479 --yes
 ```
 
 ### Whoami Command
@@ -344,8 +344,8 @@ Colored, formatted output optimized for terminal viewing.
 
 ```bash
 relic script.py
-# ✓ Created relic: a3Bk9Zx
-#   URL: http://localhost:8000/a3Bk9Zx
+# ✓ Created relic: f47ac10b58cc4372a5670e02b2c3d479
+#   URL: http://localhost/f47ac10b58cc4372a5670e02b2c3d479
 #   Name: script.py
 #   Size: 2.1 KB
 #   Type: text/x-python
@@ -359,8 +359,8 @@ Machine-readable JSON output for scripting.
 ```bash
 relic script.py --output json
 # {
-#   "id": "a3Bk9Zx",
-#   "url": "http://localhost:8000/a3Bk9Zx",
+#   "id": "f47ac10b58cc4372a5670e02b2c3d479",
+#   "url": "http://localhost/f47ac10b58cc4372a5670e02b2c3d479",
 #   "name": "script.py",
 #   ...
 # }
@@ -372,14 +372,14 @@ URL-only output for easy piping and scripting.
 
 ```bash
 relic script.py --output url
-# http://localhost:8000/a3Bk9Zx
+# http://localhost/f47ac10b58cc4372a5670e02b2c3d479
 ```
 
 Or use `--quiet` / `-q`:
 
 ```bash
 relic script.py -q
-# http://localhost:8000/a3Bk9Zx
+# http://localhost/f47ac10b58cc4372a5670e02b2c3d479
 ```
 
 ## Examples
@@ -401,10 +401,10 @@ git log | relic --name "commit-history.txt"
 
 ```bash
 # Download and parse JSON
-relic get a3Bk9Zx | jq '.results[] | .name'
+relic get f47ac10b58cc4372a5670e02b2c3d479 | jq '.results[] | .name'
 
 # Download and edit
-relic get x7Yz8Wx -o temp.txt
+relic get a1b2c3d4e5f678901234567890abcdef -o temp.txt
 vim temp.txt
 cat temp.txt | relic --name "edited-version.txt"
 ```
@@ -550,13 +550,13 @@ relic config core.server
 Set correct server:
 
 ```bash
-relic config core.server http://localhost:8000
+relic config core.server http://localhost
 ```
 
 Or use environment variable:
 
 ```bash
-export RELIC_SERVER=http://localhost:8000
+export RELIC_SERVER=http://localhost
 ```
 
 ### "File too large"

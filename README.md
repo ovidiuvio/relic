@@ -12,16 +12,21 @@ A modern, feature-rich artifact service with immutable relics, complete version 
 - **Access Control**: Public, unlisted, and private relics with optional password protection.
 - **Expiration**: Set relics to expire after 1h, 24h, 7d, 30d, or never.
 - **Soft Delete**: Deleted relics are recoverable and don't break version chains.
+- **Database Backups**: Automated and manual database backups with retention policies.
 
 ## Architecture
+
+### Infrastructure
+- **Docker**: All services run in containers
+- **Nginx**: Reverse proxy handling routing and SSL (optional)
+- **PostgreSQL**: Production-grade database
+- **MinIO**: S3-compatible object storage
 
 ### Backend
 - **FastAPI** for REST API
 - **SQLAlchemy** for database ORM
-- **MinIO/S3** for blob storage
 - **Pygments** for syntax highlighting
 - **Pillow** for image processing
-- **SQLite** for development, PostgreSQL for production
 
 ### Frontend
 - **Svelte** for reactive UI
@@ -32,40 +37,35 @@ A modern, feature-rich artifact service with immutable relics, complete version 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Docker (optional, for MinIO and PostgreSQL)
+- Docker and Docker Compose
+- Make (optional, for convenience commands)
 
 ### Setup
 
-1. **Clone and install dependencies**
+1. **Start all services**
 ```bash
-make install
+make up
 ```
 
-2. **Start Docker services (MinIO, PostgreSQL)**
-```bash
-make docker-up
-```
-
-3. **Run development server**
-```bash
-make dev
-```
-
-The application will be available at:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+2. **Access the application**
+- Frontend: http://localhost
+- API Docs: http://localhost/api/docs
 - MinIO Console: http://localhost:9001 (admin/admin)
 
+3. **Stop services**
+```bash
+make down
+```
+
 ## API Endpoints
+
+All API endpoints are prefixed with `/api/v1` and served via Nginx at `http://localhost`.
 
 ### Relic Operations
 
 **Create Relic**
 ```bash
-curl -X POST http://localhost:8000/api/v1/relics \
+curl -X POST http://localhost/api/v1/relics \
   -F "file=@myfile.txt" \
   -F "name=My File" \
   -F "access_level=public" \
@@ -74,42 +74,37 @@ curl -X POST http://localhost:8000/api/v1/relics \
 
 **Get Relic Metadata**
 ```bash
-curl http://localhost:8000/api/v1/relics/{id}
+curl http://localhost/api/v1/relics/{id}
 ```
 
 **Get Raw Content**
 ```bash
-curl http://localhost:8000/{id}/raw
+curl http://localhost/{id}/raw
 ```
 
 **Fork Relic (Create Independent Copy)**
 ```bash
-curl -X POST http://localhost:8000/api/v1/relics/{id}/fork \
+curl -X POST http://localhost/api/v1/relics/{id}/fork \
   -F "file=@new.txt" \
   -F "name=Forked Relic"
 ```
 
-**Note**: Relics are immutable - to modify content, create a fork which creates an independent copy.
-
 **Delete Relic**
 ```bash
-curl -X DELETE http://localhost:8000/api/v1/relics/{id}
+curl -X DELETE http://localhost/api/v1/relics/{id}
 ```
-
-### Forks & Lineage
-
 
 ### Listing & Search
 
 **List Recent Relics**
 ```bash
-curl "http://localhost:8000/api/v1/relics?limit=50&offset=0"
+curl "http://localhost/api/v1/relics?limit=50"
 ```
 
 ## Data Model
 
 ### Relic Entity
-- `id`: Unique identifier (base62, 7-8 chars)
+- `id`: Unique identifier (32-char hex string, e.g., `f47ac10b58cc4372a5670e02b2c3d479`)
 - `client_id`: Client identification key (nullable for anonymous relics)
 - `name`: Display name
 - `description`: Optional description
@@ -118,128 +113,43 @@ curl "http://localhost:8000/api/v1/relics?limit=50&offset=0"
 - `size_bytes`: Content size
 - `fork_of`: Source relic if forked (null for original relics)
 - `s3_key`: Storage location in S3
-- `access_level`: public/unlisted/private
+- `access_level`: public/private
 - `created_at`: Creation timestamp
 - `expires_at`: Expiration timestamp (null = never)
 - `deleted_at`: Soft delete timestamp (null = active)
 - `access_count`: View counter
-- `metadata`: JSON field for processing metadata
-
-### Relationships
-- Each relic has 0 or 1 parent
-- Each relic has 0 to N children
-- Each relic belongs to 0 or 1 user
-- Each relic can have 0 to N tags
 
 ## Development Commands
 
 ```bash
 make help          # Show all available commands
-make install       # Install dependencies
-make dev           # Run backend and frontend
-make backend       # Run backend only
-make frontend      # Run frontend only
+make up            # Start all containers
+make down          # Stop all containers
+make logs          # View logs from all containers
+make restart       # Restart all containers
+make rebuild       # Rebuild images and start fresh
+make shell-backend # Open shell in backend container
+make shell-frontend # Open shell in frontend container
 make test          # Run tests
-make clean         # Clean up generated files
-make docker-up     # Start Docker services
-make docker-down   # Stop Docker services
-make db-init       # Initialize database
+```
+
+## Database Backups
+
+The system includes a built-in backup service for PostgreSQL.
+
+```bash
+make backup-now     # Trigger manual backup
+make backup-list    # List available backups
+make backup-status  # Show backup system status
 ```
 
 ## Environment Variables
 
-See `.env` file for configuration:
-- `DEBUG`: Enable debug mode
+See `.env` file (or `docker-compose.yml`) for configuration:
 - `DATABASE_URL`: Database connection string
-- `S3_ENDPOINT_URL`: MinIO/S3 endpoint
-- `S3_ACCESS_KEY`: S3 access key
-- `S3_SECRET_KEY`: S3 secret key
-- `S3_BUCKET_NAME`: S3 bucket name
-- `MAX_UPLOAD_SIZE`: Maximum upload size (bytes)
-
-## File Processing
-
-Different content types receive smart processing:
-
-### Text Files
-- Line count, character count, word count
-- Encoding detection
-
-### Code Files
-- Syntax highlighting with Pygments
-- Language auto-detection
-- Line numbers
-
-### Images
-- EXIF metadata extraction
-- Thumbnail generation (200x200)
-- Dimensions and color space
-
-### PDF Documents
-- Page count
-- First page preview
-- Text extraction
-- Metadata (author, title, creation date)
-
-### CSV/Excel
-- Column detection and types
-- Row count
-- Data preview (first 10 rows)
-- Basic statistics (mean, min, max)
-
-### Videos/Archives
-- Metadata extraction (duration, resolution, codecs)
-- File preview without extraction
-
-
-## Performance Targets
-
-- Upload: <500ms for <1MB files
-- Retrieval: <100ms
-- Diff: <200ms for 10KB text
-- History query: <50ms
-
-## Rate Limiting
-
-- Upload: 10 per minute per IP
-- Read: 100 per minute per IP
-
-## Security
-
-- File type validation via MIME detection
-- Size limits enforced (100MB default)
-- HTML sanitization for display
-- Authenticated deletion (owner only)
-- Soft delete preserves privacy
-- No content indexing for private relics
-
-## Testing
-
-```bash
-make test
-```
-
-## Deployment
-
-### Production Database
-Replace SQLite with PostgreSQL:
-
-```env
-DATABASE_URL=postgresql://user:password@localhost/relic_db
-```
-
-### Production Storage
-Configure S3-compatible storage or AWS S3:
-
-```env
-S3_ENDPOINT_URL=https://s3.amazonaws.com
-S3_ACCESS_KEY=your-key
-S3_SECRET_KEY=your-secret
-S3_BUCKET_NAME=Relic
-```
-
-### Docker Deployment
-See `docker-compose.yml` for local development. For production, use managed services (RDS for database, S3 for storage, etc.)
+- `MINIO_ENDPOINT`: MinIO/S3 endpoint
+- `BACKUP_ENABLED`: Enable/disable automated backups
+- `BACKUP_TIMES`: Schedule for daily backups (UTC)
 
 ## Contributing
 

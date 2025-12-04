@@ -5,7 +5,7 @@ Relic now runs entirely in Docker containers for development, making it easy to 
 ## Quick Start
 
 ```bash
-# Start all services (backend, frontend, database, storage)
+# Start all services (nginx, backend, frontend, database, storage)
 make up
 
 # View logs
@@ -21,8 +21,9 @@ All services run in Docker containers and communicate via a shared network:
 
 | Service | Port | Container Name | Purpose |
 |---------|------|-----------------|---------|
-| **Frontend** | 5173 | Relic-frontend | Svelte dev server with HMR |
-| **Backend** | 8000 | Relic-backend | FastAPI with auto-reload |
+| **Nginx** | 80 | Relic-nginx | Reverse proxy & API gateway |
+| **Frontend** | 5173 | Relic-frontend | Svelte dev server (internal) |
+| **Backend** | 8000 | Relic-backend | FastAPI server (internal) |
 | **PostgreSQL** | 5432 | Relic-postgres | Main database |
 | **MinIO** | 9000/9001 | Relic-minio | S3-compatible file storage |
 
@@ -40,6 +41,7 @@ make restart         # Restart all containers
 make logs            # View logs from all containers
 make logs-backend    # View backend logs only
 make logs-frontend   # View frontend logs only
+make logs-nginx      # View nginx logs only
 make rebuild         # Rebuild images and start fresh
 ```
 
@@ -55,15 +57,16 @@ make test            # Run tests in backend container
 ```bash
 make build           # Build images without starting
 make clean           # Stop and remove all containers/volumes
+make backup-now      # Trigger manual database backup
 ```
 
 ## Service URLs
 
 Once running, access services at:
 
-- **Frontend**: http://localhost:5173
-- **Backend**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api
+- **API Docs**: http://localhost/api/docs
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
 - **Database**: localhost:5432
 
@@ -106,6 +109,7 @@ make logs
 # Specific service
 make logs-backend
 make logs-frontend
+make logs-nginx
 
 # With docker command
 docker compose logs -f backend
@@ -137,15 +141,7 @@ docker compose exec backend psql -h postgres -U relic_user -d relic_db
 ## Troubleshooting
 
 ### Port Already in Use
-If a port is already in use (e.g., port 5173), you can:
-
-1. Stop the conflicting service:
-   ```bash
-   lsof -i :5173  # Find what's using port 5173
-   kill -9 <PID>
-   ```
-
-2. Or change the port in `docker-compose.yml`
+If port 80 is in use, you might need to stop other web servers or change the port mapping in `docker-compose.yml` for the nginx service.
 
 ### Database Connection Issues
 Wait for PostgreSQL to be healthy before running operations:
@@ -187,6 +183,7 @@ Key variables:
 - `MINIO_ENDPOINT`: MinIO endpoint
 - `DEBUG`: Enable debug mode
 - `ALLOWED_ORIGINS`: CORS allowed origins
+- `BACKUP_ENABLED`: Enable automated backups
 
 ## Performance Notes
 
@@ -199,10 +196,10 @@ Key variables:
 
 All services communicate via the `Relic` Docker network:
 
+- Nginx routes traffic to `backend:8000` and `frontend:5173`
 - Backend connects to: `postgres:5432`, `minio:9000`
-- Frontend connects to: Backend at `http://localhost:8000` (from browser)
-- From host: Use `localhost:<port>`
-- Container-to-container: Use service names (e.g., `postgres`)
+- Frontend connects to: Backend via Nginx at `http://localhost/api`
+- From host: Use `localhost` (port 80)
 
 ## Building for Production
 
