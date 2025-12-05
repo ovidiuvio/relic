@@ -1,0 +1,123 @@
+services:
+  # Frontend (Nginx + Static Files)
+  frontend:
+    image: ghcr.io/jules-dot-dev/relic/frontend:latest
+    container_name: Relic-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - Relic
+    restart: always
+
+  # Backend API Service
+  backend:
+    image: ghcr.io/jules-dot-dev/relic/backend:latest
+    container_name: Relic-backend
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-relic_user}:${POSTGRES_PASSWORD:-relic_password}@postgres:5432/${POSTGRES_DB:-relic_db}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-relics}
+      MINIO_USE_SSL: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost}"
+      # Database Backup Configuration
+      BACKUP_ENABLED: "true"
+      BACKUP_TIMES: "02:00,14:00"
+      BACKUP_TIMEZONE: "UTC"
+      BACKUP_CLEANUP_ENABLED: "true"
+      BACKUP_ON_STARTUP: "true"
+      BACKUP_ON_SHUTDOWN: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - Relic
+    restart: always
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: Relic-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - Relic
+    restart: always
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: Relic-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-relic_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-relic_password}
+      POSTGRES_DB: ${POSTGRES_DB:-relic_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-relic_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - Relic
+    restart: always
+
+  # S3 Bucket Sync Service
+  s3-sync:
+    image: ghcr.io/jules-dot-dev/relic/s3-sync:latest
+    container_name: Relic-s3-sync
+    environment:
+      # Source (MinIO)
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-relics}
+      # Destination (S3)
+      S3_ENDPOINT: ${S3_SYNC_ENDPOINT:-s3.amazonaws.com}
+      S3_ACCESS_KEY: ${S3_SYNC_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SYNC_SECRET_KEY}
+      S3_BUCKET: ${S3_SYNC_BUCKET:-relics-backup}
+      S3_REGION: ${S3_SYNC_REGION:-us-east-1}
+      # Sync settings
+      SYNC_ENABLED: ${S3_SYNC_ENABLED:-false}
+      SYNC_INTERVAL: ${S3_SYNC_INTERVAL:-1800}  # 30 minutes
+      MAX_RETRIES: ${S3_SYNC_MAX_RETRIES:-3}
+      RETRY_DELAY: ${S3_SYNC_RETRY_DELAY:-60}
+      TZ: ${S3_SYNC_TIMEZONE:-UTC}
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - Relic
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+  postgres_data:
+
+networks:
+  Relic:
+    driver: bridge
