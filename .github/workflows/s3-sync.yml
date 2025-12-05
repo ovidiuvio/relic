@@ -1,4 +1,4 @@
-name: Backend CI/CD
+name: S3 Sync CI/CD
 
 on:
   push:
@@ -25,9 +25,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: .
-          file: ./backend/Dockerfile.prod
+          context: ./sync
+          file: ./sync/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/backend:latest
+            ghcr.io/${{ github.repository }}/s3-sync:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/s3-sync:latest
