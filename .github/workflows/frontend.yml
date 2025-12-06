@@ -2,7 +2,8 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build-and-push:
@@ -13,21 +14,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./frontend
           file: ./frontend/Dockerfile.prod
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }}
             ghcr.io/${{ github.repository }}/frontend:latest
