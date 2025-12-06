@@ -121,7 +121,7 @@ Lineage tracked: f47ac... → a1b2c... → 12345...
 - View relic (with processing/preview)
 - Edit relic (creates new version)
 - Fork relic (creates new lineage)
-- Delete relic (soft delete, user must own it)
+- Delete relic (hard delete, user must own it)
 - Tag relics for organization
 
 **Discovery:**
@@ -165,7 +165,6 @@ size_bytes      Content size
 s3_key          Storage location
 created_at      Creation timestamp
 expires_at      Expiration timestamp (null = never)
-deleted_at      Soft delete timestamp (null = active)
 access_count    View counter
 ```
 
@@ -430,7 +429,6 @@ Returns: {relics: [...], total}
 - Options: 1h, 24h, 7d, 30d, never
 - Default: never
 - Auto-cleanup of expired relics (hourly job)
-- Soft-deleted relics: hard delete after 30 days
 
 ## Non-Functional Requirements
 
@@ -441,7 +439,6 @@ Returns: {relics: [...], total}
 
 ### Reliability
 - Immutable storage (no data loss from edits)
-- Soft delete (accidental deletion recovery)
 - Complete audit trail via version lineage
 
 ### Usability
@@ -453,5 +450,4 @@ Returns: {relics: [...], total}
 ### Privacy
 - Anonymous uploads supported
 - User-owned relics (with auth)
-- Soft delete preserves privacy
 - No content indexing for private relics

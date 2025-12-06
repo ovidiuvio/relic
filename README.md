@@ -11,7 +11,6 @@ A modern, feature-rich artifact service with immutable relics, complete version 
 
 - **Access Control**: Public, unlisted, and private relics with optional password protection.
 - **Expiration**: Set relics to expire after 1h, 24h, 7d, 30d, or never.
-- **Soft Delete**: Deleted relics are recoverable and don't break version chains.
 - **Database Backups**: Automated and manual database backups with retention policies.
 
 ## Architecture
@@ -116,7 +115,6 @@ curl "http://localhost/api/v1/relics?limit=50"
 - `access_level`: public/private
 - `created_at`: Creation timestamp
 - `expires_at`: Expiration timestamp (null = never)
-- `deleted_at`: Soft delete timestamp (null = active)
 - `access_count`: View counter
 
 ## Development Commands

@@ -125,8 +125,7 @@ async def get_client_relics(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Valid client key required")
 
     relics = db.query(Relic).filter(
-        Relic.client_id == client.id,
-        Relic.deleted_at.is_(None)
+        Relic.client_id == client.id
     ).order_by(Relic.created_at.desc()).all()
 
     return {
@@ -311,7 +310,7 @@ async def get_relic(relic_id: str, password: Optional[str] = None, db: Session =
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if relic.deleted_at:
+    if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
@@ -340,7 +339,7 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if relic.deleted_at:
+    if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     if is_expired(relic.expires_at):
@@ -385,7 +384,7 @@ async def fork_relic(
     if not original:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if original.deleted_at:
+    if not original:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     try:
@@ -446,7 +445,7 @@ async def fork_relic(
 @app.delete("/api/v1/relics/{relic_id}")
 async def delete_relic(relic_id: str, request: Request, db: Session = Depends(get_db)):
     """
-    Delete a relic (soft delete).
+    Delete a relic (hard delete).
 
     Only client owner can delete.
     """
@@ -469,8 +468,8 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
         # Log error but don't fail the delete operation
         print(f"Failed to delete file from S3: {e}")
 
-    # Soft delete in database
-    relic.deleted_at = datetime.utcnow()
+    # Hard delete in database
+    db.delete(relic)
 
     # Update client relic count
     if client.relic_count > 0:
@@ -490,7 +489,6 @@ async def list_relics(
 ):
     """List the 1000 most recent public relics."""
     relics = db.query(Relic).filter(
-        Relic.deleted_at == None,
         Relic.access_level == "public"
     ).order_by(Relic.created_at.desc()).limit(limit).all()
 
@@ -522,7 +520,7 @@ async def add_bookmark(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if relic.deleted_at:
+    if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Check if already bookmarked
@@ -630,8 +628,7 @@ async def get_client_bookmarks(
     bookmarks = db.query(ClientBookmark, Relic).join(
         Relic, ClientBookmark.relic_id == Relic.id
     ).filter(
-        ClientBookmark.client_id == client.id,
-        Relic.deleted_at.is_(None)
+        ClientBookmark.client_id == client.id
     ).order_by(ClientBookmark.created_at.desc()).all()
 
     return {

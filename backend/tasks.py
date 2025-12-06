@@ -20,39 +20,19 @@ async def cleanup_expired_relics():
 
         # Find expired relics
         expired_relics = db.query(Relic).filter(
-            Relic.expires_at <= now,
-            Relic.deleted_at == None
+            Relic.expires_at <= now
         ).all()
 
         for relic in expired_relics:
             try:
                 # Delete from storage
                 await storage_service.delete(relic.s3_key)
-                # Mark as deleted
-                relic.deleted_at = now
+                # Hard delete from database
+                db.delete(relic)
                 db.commit()
-                print(f"Expired relic {relic.id} marked for deletion")
+                print(f"Expired relic {relic.id} permanently deleted")
             except Exception as e:
                 print(f"Error cleaning up relic {relic.id}: {e}")
-                db.rollback()
-
-        # Find soft-deleted relics older than 30 days
-        soft_deleted_cutoff = now - timedelta(days=30)
-        old_deleted = db.query(Relic).filter(
-            Relic.deleted_at <= soft_deleted_cutoff
-        ).all()
-
-        for relic in old_deleted:
-            try:
-                # Delete from storage if exists
-                if await storage_service.exists(relic.s3_key):
-                    await storage_service.delete(relic.s3_key)
-                # Hard delete from database
-                db.query(Relic).filter(Relic.id == relic.id).delete()
-                db.commit()
-                print(f"Permanently deleted relic {relic.id}")
-            except Exception as e:
-                print(f"Error permanently deleting relic {relic.id}: {e}")
                 db.rollback()
 
     finally:

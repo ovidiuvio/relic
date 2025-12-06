@@ -343,7 +343,7 @@ relic --fork ID                    # Fork a relic
   --password PASSWORD              # Password if source is protected
 
 # Delete
-relic --delete ID                  # Delete relic (soft delete)
+relic --delete ID                  # Delete relic (hard delete)
   -y, --yes                        # Skip confirmation prompt
 
 # Client Management

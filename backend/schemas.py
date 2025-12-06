@@ -52,7 +52,7 @@ class RelicResponse(BaseModel):
     access_level: Literal["public", "private"]
     created_at: datetime
     expires_at: Optional[datetime]
-    deleted_at: Optional[datetime]
+    expires_at: Optional[datetime]
     access_count: int
     tags: List[TagResponse] = []
 

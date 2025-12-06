@@ -36,7 +36,7 @@ Key principle: Relics cannot be edited after creation - they are permanent and i
 - `s3_key`: Storage location (format: `relics/{id}`)
 - `access_level`: public (listed in recents) or private (URL is the access token)
 - `password_hash`: Optional password protection
-- `created_at`, `expires_at`, `deleted_at`: Timestamps
+- `created_at`, `expires_at`: Timestamps
 - `access_count`: Number of times the relic has been accessed
 
 ### 2. Universal Content Support
@@ -71,14 +71,13 @@ Key queries:
   - **Private**: Not listed in recents, only accessible via direct URL (which serves as the access token with 128 bits of entropy)
 - **Optional password protection**: Can be applied to any relic (public or private) for additional security
 - **Expiration options**: 1h, 24h, 7d, 30d, never (default: never)
-- **Soft delete**: Deleted relics marked with `deleted_at` timestamp (hard delete after 30 days)
 - **Anonymous relics**: No client association
 - **URL format**: 32-character hexadecimal (GitHub Gist-style), cryptographically secure, practically collision-proof
 
 ## Storage Architecture
 
 - **Primary storage**: S3-compatible (MinIO) - one object per relic
-- **Database**: Stores metadata (id, client_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, deleted_at, access_count, tags, etc.)
+- **Database**: Stores metadata (id, client_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, access_count, tags, etc.)
 - **Max upload**: 100MB (configurable)
 - **No S3 versioning needed**: Immutable model means each relic is independent
 
@@ -93,7 +92,7 @@ POST   /api/v1/relics                  Create relic
 GET    /api/v1/relics/:id              Get relic metadata
 GET    /:id/raw                        Get raw content (served from root)
 POST   /api/v1/relics/:id/fork         Create fork (independent copy)
-DELETE /api/v1/relics/:id              Delete relic (soft delete)
+DELETE /api/v1/relics/:id              Delete relic (hard delete)
 
 GET    /api/v1/relics/:id/preview      Get type-specific preview
 GET    /api/v1/relics/:id/thumbnail    Get thumbnail image
@@ -219,7 +218,6 @@ Frontend uses simple section-based routing (not a full router). To add new pages
 
 1. **True immutability**: Each relic is permanent and cannot be modified after creation
 2. **Fork-based modification**: To modify content, create an independent fork
-3. **Soft delete**: Allows recovery and maintains referential integrity
-4. **S3 storage**: Scales to millions of relics, supports any file type
+3. **S3 storage**: Scales to millions of relics, supports any file type
 5. **Cryptographic IDs**: 32-character hexadecimal IDs (GitHub Gist-style) for security and collision resistance
 6. **Simple and focused**: Clean, straightforward implementation without unnecessary complexity

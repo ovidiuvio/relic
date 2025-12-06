@@ -229,7 +229,7 @@ relic fork f47ac10b58cc4372a5670e02b2c3d479 \
 relic delete ID
 ```
 
-Delete a relic (soft delete). Only the owner can delete their relics.
+Delete a relic (hard delete). Only the owner can delete their relics.
 
 **Flags:**
 - `-y, --yes` - Skip confirmation prompt
@@ -485,7 +485,7 @@ Set an expiration time for automatic cleanup:
 - `30d` - 30 days
 - `never` - No expiration (default)
 
-Expired relics are soft-deleted after the expiration time.
+Expired relics are permanently deleted after the expiration time.
 
 ## Password Protection
 
