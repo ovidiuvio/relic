@@ -315,7 +315,7 @@ async def shutdown_backup_scheduler() -> None:
 
     if scheduler:
         logger.info("Shutting down backup scheduler...")
-        scheduler.shutdown(wait=True, timeout=30)
+        scheduler.shutdown(wait=True)
         logger.info("Backup scheduler stopped")
 
 
