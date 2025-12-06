@@ -5,6 +5,7 @@
   import MarkdownRenderer from './MarkdownRenderer.svelte'
   import HtmlRenderer from './HtmlRenderer.svelte'
   import CsvRenderer from './CsvRenderer.svelte'
+  import ExcalidrawRenderer from './ExcalidrawRenderer.svelte'
 
   export let processed
   export let relicId
@@ -303,6 +304,8 @@
               <CsvRenderer processed={previewedFile.processed} />
             {:else if previewedFile.processed.type === 'image'}
               <ImageRenderer processed={previewedFile.processed} relicName={selectedFile.name} />
+            {:else if previewedFile.processed.type === 'excalidraw'}
+              <ExcalidrawRenderer processed={previewedFile.processed} />
             {:else}
               <div class="p-6 text-center text-gray-500">
                 <i class="fas fa-eye-slash text-gray-300 text-4xl mb-4"></i>
