@@ -2,6 +2,7 @@
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
   import Select from "svelte-select";
+  import JSZip from "jszip";
   import {
     getContentType,
     getFileExtension,
@@ -22,6 +23,23 @@
   let fileInput;
   let uploadedFiles = []; // Array of { file, id }
   let creationResult = null; // { success: [], errors: [] }
+  let zipMultiple = true; // Default to true for auto-zipping
+
+  // Configuration
+  const MAX_BATCH_SIZE = 10;
+  const IGNORED_NAMES = [
+    ".git",
+    "node_modules",
+    ".DS_Store",
+    "__pycache__",
+    ".idea",
+    ".vscode",
+    "dist",
+    "build",
+    "coverage",
+    "venv",
+    ".env",
+  ];
 
   // Update syntax when syntaxValue changes
   $: syntax = syntaxValue?.value || "auto";
@@ -50,14 +68,28 @@
     visibility = "public";
     uploadedFiles = [];
     creationResult = null;
+    zipMultiple = true;
   }
 
   // Process uploaded/dropped files
   function processFiles(files, source = "uploaded") {
-    const newFiles = Array.from(files).map((file) => ({
-      file,
-      id: Math.random().toString(36).substr(2, 9),
-    }));
+    // files can be a FileList (from input) or an array of objects { file, path } (from recursive drop)
+
+    let newFiles = [];
+
+    if (source === "dropped_recursive") {
+      newFiles = files.map(({ file, path }) => ({
+        file,
+        id: Math.random().toString(36).substr(2, 9),
+        path: path || "",
+      }));
+    } else {
+      newFiles = Array.from(files).map((file) => ({
+        file,
+        id: Math.random().toString(36).substr(2, 9),
+        path: "",
+      }));
+    }
 
     uploadedFiles = [...uploadedFiles, ...newFiles];
 
@@ -66,7 +98,7 @@
       title = uploadedFiles[0].file.name.replace(/\.[^/.]+$/, "");
     }
 
-    const action = source === "dropped" ? "dropped" : "selected";
+    const action = source.includes("dropped") ? "dropped" : "selected";
     showToast(`${newFiles.length} file(s) ${action}`, "success");
   }
 
@@ -77,11 +109,53 @@
     }
   }
 
+  // Recursive function to traverse file system entries
+  async function traverseFileTree(item, path = "") {
+    if (IGNORED_NAMES.includes(item.name)) {
+      return [];
+    }
+
+    if (item.isFile) {
+      return new Promise((resolve) => {
+        item.file((file) => {
+          // Double check file name for ignore list (though item.name caught dirs)
+          if (IGNORED_NAMES.includes(file.name)) {
+            resolve([]);
+          } else {
+            resolve([{ file, path: path + file.name }]);
+          }
+        });
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      const entries = await new Promise((resolve) => {
+        dirReader.readEntries((entries) => resolve(entries));
+      });
+
+      let files = [];
+      for (const entry of entries) {
+        const children = await traverseFileTree(entry, path + item.name + "/");
+        files = [...files, ...children];
+      }
+      return files;
+    }
+    return [];
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!content.trim() && uploadedFiles.length === 0) {
       showToast("Please enter some content or upload a file", "warning");
+      return;
+    }
+
+    // Check batch limit if not zipping
+    if (uploadedFiles.length > MAX_BATCH_SIZE && !zipMultiple) {
+      showToast(
+        `Batch creation is limited to ${MAX_BATCH_SIZE} files. Please use the Zip option or reduce the number of files.`,
+        "error",
+      );
       return;
     }
 
@@ -116,58 +190,94 @@
         }
       }
 
-      // 2. Create relics from uploaded files
-      for (let i = 0; i < uploadedFiles.length; i++) {
-        const { file } = uploadedFiles[i];
-        try {
-          // Determine content type and syntax hint for this specific file
-          const ext = file.name.split(".").pop()?.toLowerCase();
-          let fileSyntax = "auto";
-          let fileContentType = file.type;
+      // 2. Handle uploaded files
+      if (uploadedFiles.length > 0) {
+        if (uploadedFiles.length > 1 && zipMultiple) {
+          // Auto-zip logic
+          try {
+            const zip = new JSZip();
+            uploadedFiles.forEach(({ file, path }) => {
+              // Use the preserved path if available, otherwise just filename
+              const zipPath = path || file.name;
+              zip.file(zipPath, file);
+            });
 
-          if (ext) {
-            const detected = getSyntaxFromExtension(ext);
-            if (detected) {
-              fileSyntax = detected;
-              const canonicalMime = getContentType(detected);
-              const typeDef = getFileTypeDefinition(canonicalMime);
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const zipName = title
+              ? `${title}.zip`
+              : uploadedFiles.length > 0
+                ? `${uploadedFiles[0].file.name.split(".")[0]}_archive.zip`
+                : "archive.zip";
+            const zipFile = new File([zipBlob], zipName, {
+              type: "application/zip",
+            });
 
-              // Always prefer our detected MIME type for code/text files
-              // This fixes issues where browser detects .ts as video/mp2t or .js as text/plain
-              if (
-                [
-                  "code",
-                  "text",
-                  "markdown",
-                  "html",
-                  "csv",
-                  "json",
-                  "xml",
-                ].includes(typeDef.category)
-              ) {
-                fileContentType = canonicalMime;
-              } else if (!fileContentType) {
-                fileContentType = canonicalMime;
+            const response = await createRelic({
+              file: zipFile,
+              name: title || zipName,
+              content_type: "application/zip",
+              language_hint: "archive",
+              access_level: visibility,
+              expires_in: expiry !== "never" ? expiry : undefined,
+            });
+            createdRelics.push(response.data);
+          } catch (err) {
+            console.error("Error creating zip relic:", err);
+            errors.push("Zip Archive");
+          }
+        } else {
+          // Batch creation logic (existing)
+          for (let i = 0; i < uploadedFiles.length; i++) {
+            const { file } = uploadedFiles[i];
+            try {
+              // Determine content type and syntax hint for this specific file
+              const ext = file.name.split(".").pop()?.toLowerCase();
+              let fileSyntax = "auto";
+              let fileContentType = file.type;
+
+              if (ext) {
+                const detected = getSyntaxFromExtension(ext);
+                if (detected) {
+                  fileSyntax = detected;
+                  const canonicalMime = getContentType(detected);
+                  const typeDef = getFileTypeDefinition(canonicalMime);
+
+                  // Always prefer our detected MIME type for code/text files
+                  if (
+                    [
+                      "code",
+                      "text",
+                      "markdown",
+                      "html",
+                      "csv",
+                      "json",
+                      "xml",
+                    ].includes(typeDef.category)
+                  ) {
+                    fileContentType = canonicalMime;
+                  } else if (!fileContentType) {
+                    fileContentType = canonicalMime;
+                  }
+                }
               }
+              // If user manually selected a syntax and it's a single file, maybe apply it?
+              // But for batch uploads, auto-detect per file is safer.
+              // Let's stick to auto-detect for files, or the file's own type.
+
+              const response = await createRelic({
+                file: file,
+                name: file.name, // Use filename as title for batch uploads
+                content_type: fileContentType || undefined,
+                language_hint: fileSyntax !== "auto" ? fileSyntax : undefined,
+                access_level: visibility,
+                expires_in: expiry !== "never" ? expiry : undefined,
+              });
+              createdRelics.push(response.data);
+            } catch (err) {
+              console.error(`Error creating relic for ${file.name}:`, err);
+              errors.push(file.name);
             }
           }
-          // If user manually selected a syntax and it's a single file, maybe apply it?
-          // But for batch uploads, auto-detect per file is safer.
-          // Let's stick to auto-detect for batch files unless it's a single file and user overrode it?
-          // Simpler: Just use auto-detect for files, or the file's own type.
-
-          const response = await createRelic({
-            file: file,
-            name: file.name, // Use filename as title for batch uploads
-            content_type: fileContentType || undefined,
-            language_hint: fileSyntax !== "auto" ? fileSyntax : undefined,
-            access_level: visibility,
-            expires_in: expiry !== "never" ? expiry : undefined,
-          });
-          createdRelics.push(response.data);
-        } catch (err) {
-          console.error(`Error creating relic for ${file.name}:`, err);
-          errors.push(file.name);
         }
       }
 
@@ -225,13 +335,37 @@
     e.currentTarget.classList.remove("border-blue-500", "bg-blue-50");
   }
 
-  function handleDrop(e) {
+  async function handleDrop(e) {
     e.preventDefault();
     e.currentTarget.classList.remove("border-blue-500", "bg-blue-50");
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      processFiles(files, "dropped");
+    const items = e.dataTransfer.items;
+    if (items && items.length > 0) {
+      // Use DataTransferItemList interface to access file system entries
+      let allFiles = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i].webkitGetAsEntry
+          ? items[i].webkitGetAsEntry()
+          : null;
+        if (item) {
+          const files = await traverseFileTree(item);
+          allFiles = [...allFiles, ...files];
+        } else if (items[i].kind === "file") {
+          // Fallback for browsers that don't support webkitGetAsEntry or for simple files
+          const file = items[i].getAsFile();
+          if (file) allFiles.push({ file, path: file.name });
+        }
+      }
+
+      if (allFiles.length > 0) {
+        processFiles(allFiles, "dropped_recursive");
+      }
+    } else {
+      // Fallback for older browsers
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        processFiles(files, "dropped");
+      }
     }
   }
 
@@ -473,9 +607,23 @@
             <!-- Uploaded Files List -->
             {#if uploadedFiles.length > 0}
               <div class="mt-4 space-y-2">
-                <h3 class="text-sm font-medium text-gray-700">
-                  Attached Files ({uploadedFiles.length})
-                </h3>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-medium text-gray-700">
+                    Attached Files ({uploadedFiles.length})
+                  </h3>
+                  {#if uploadedFiles.length > 1}
+                    <label
+                      class="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        bind:checked={zipMultiple}
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                      />
+                      <span>Zip multiple files</span>
+                    </label>
+                  {/if}
+                </div>
                 <div
                   class="bg-gray-50 rounded border border-gray-200 divide-y divide-gray-200 max-h-48 overflow-y-auto"
                 >
@@ -535,10 +683,18 @@
             >
               {#if isLoading}
                 <i class="fas fa-spinner fa-spin mr-1"></i>
-                Creating {uploadedFiles.length + (content.trim() ? 1 : 0)} Relic(s)...
+                {#if uploadedFiles.length > 1 && zipMultiple}
+                  Creating Zip Archive...
+                {:else}
+                  Creating {uploadedFiles.length + (content.trim() ? 1 : 0)} Relic(s)...
+                {/if}
               {:else}
                 <i class="fas fa-plus mr-1"></i>
-                Create Relic(s)
+                {#if uploadedFiles.length > 1 && zipMultiple}
+                  Create Zip Archive
+                {:else}
+                  Create Relic(s)
+                {/if}
               {/if}
             </button>
           </div>
