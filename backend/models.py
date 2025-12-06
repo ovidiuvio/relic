@@ -100,3 +100,19 @@ class ClientBookmark(Base):
     __table_args__ = (
         UniqueConstraint('client_id', 'relic_id', name='unique_client_relic_bookmark'),
     )
+
+
+class RelicReport(Base):
+    """Report model for flagging inappropriate relics."""
+    __tablename__ = "relic_report"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    relic_id = Column(String(32), ForeignKey('relic.id'), nullable=False, index=True)
+    reason = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Optional: track reporter if authenticated (not strictly required by spec but good practice)
+    # reporter_id = Column(String, ForeignKey('client_key.id'), nullable=True)
+
+    # Relationships
+    relic = relationship("Relic", backref="reports")

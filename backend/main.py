@@ -2,17 +2,20 @@
 from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, relationship
 from datetime import datetime
+import uuid
 from typing import Optional, List
 import io
 
 from backend.config import settings
 from backend.database import init_db, get_db, SessionLocal
-from backend.models import Relic, ClientKey, ClientBookmark
+from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookmark, RelicReport
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse,
-    RelicFork
+    RelicFork, ReportCreate, ReportResponse
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
@@ -1081,3 +1084,92 @@ if __name__ == "__main__":
 
 
 
+
+# ==================== Report Operations ====================
+
+@app.post("/api/v1/reports", response_model=dict)
+async def create_report(
+    report: ReportCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Report a relic for inappropriate content.
+    """
+    # Verify relic exists
+    relic = db.query(Relic).filter(Relic.id == report.relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    # Create report
+    new_report = RelicReport(
+        relic_id=report.relic_id,
+        reason=report.reason,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(new_report)
+    db.commit()
+    
+    return {"message": "Report submitted successfully"}
+
+
+@app.get("/api/v1/admin/reports", response_model=dict)
+async def admin_list_reports(
+    request: Request,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    [ADMIN] List all reports.
+    
+    Requires admin privileges.
+    """
+    get_admin_client(request, db)
+
+    total = db.query(RelicReport).count()
+    reports = db.query(RelicReport).order_by(
+        RelicReport.created_at.desc()
+    ).offset(offset).limit(limit).all()
+
+    # Enrich with relic names
+    report_responses = []
+    for r in reports:
+        relic = db.query(Relic).filter(Relic.id == r.relic_id).first()
+        report_responses.append({
+            "id": r.id,
+            "relic_id": r.relic_id,
+            "reason": r.reason,
+            "created_at": r.created_at,
+            "relic_name": relic.name if relic else "Unknown (Deleted)"
+        })
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "reports": report_responses
+    }
+
+
+@app.delete("/api/v1/admin/reports/{report_id}")
+async def admin_delete_report(
+    report_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    [ADMIN] Dismiss (delete) a report.
+    
+    Requires admin privileges.
+    """
+    get_admin_client(request, db)
+
+    report = db.query(RelicReport).filter(RelicReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    db.delete(report)
+    db.commit()
+
+    return {"message": "Report dismissed successfully"}

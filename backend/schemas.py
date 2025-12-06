@@ -79,3 +79,21 @@ class ErrorResponse(BaseModel):
     """Error response schema."""
     detail: str
     error_code: Optional[str] = None
+
+
+class ReportCreate(BaseModel):
+    """Report creation schema."""
+    relic_id: str
+    reason: str
+
+
+class ReportResponse(BaseModel):
+    """Report response schema."""
+    id: str
+    relic_id: str
+    reason: str
+    created_at: datetime
+    relic_name: Optional[str] = None  # Enriched field for admin view
+
+    class Config:
+        from_attributes = True

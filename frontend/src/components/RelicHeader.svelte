@@ -14,6 +14,7 @@
     copyArchiveFileContent,
     viewArchiveFileRaw,
   } from "../services/relicActions";
+  import ReportModal from "./ReportModal.svelte";
   import { createEventDispatcher } from "svelte";
 
   export let relic;
@@ -28,6 +29,8 @@
   export let isArchiveFile = false;
 
   const dispatch = createEventDispatcher();
+
+  let showReportModal = false;
 
   function copyRelicId() {
     navigator.clipboard.writeText(relicId);
@@ -136,6 +139,13 @@
       </button>
     {/if}
     <button
+      on:click={() => (showReportModal = true)}
+      class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+      title="Report relic"
+    >
+      <i class="fas fa-flag text-sm"></i>
+    </button>
+    <button
       on:click={handleShare}
       class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
       title="Share relic"
@@ -192,3 +202,5 @@
     {/if}
   </div>
 </div>
+
+<ReportModal bind:open={showReportModal} {relicId} relicName={relic.name} />

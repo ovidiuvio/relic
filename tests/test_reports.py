@@ -1,0 +1,135 @@
+"""Tests for the relic reporting functionality."""
+import pytest
+from io import BytesIO
+from backend.models import RelicReport
+
+@pytest.mark.unit
+def test_create_report(client):
+    """Test reporting a relic."""
+    # Create a relic first
+    create_response = client.post(
+        "/api/v1/relics",
+        data={"name": "To Report"},
+        files={"file": ("test.txt", BytesIO(b"Bad content"), "text/plain")}
+    )
+    relic_id = create_response.json()["id"]
+
+    # Report the relic
+    report_response = client.post(
+        "/api/v1/reports",
+        json={"relic_id": relic_id, "reason": "Inappropriate content"}
+    )
+
+    assert report_response.status_code == 200
+    assert report_response.json()["message"] == "Report submitted successfully"
+
+@pytest.mark.unit
+def test_create_report_nonexistent_relic(client):
+    """Test reporting a relic that doesn't exist."""
+    report_response = client.post(
+        "/api/v1/reports",
+        json={"relic_id": "nonexistent", "reason": "Bad"}
+    )
+    assert report_response.status_code == 404
+
+@pytest.mark.unit
+def test_admin_list_reports(client, db):
+    """Test listing reports as admin."""
+    # Create a relic
+    create_response = client.post(
+        "/api/v1/relics",
+        data={"name": "Reported Relic"},
+        files={"file": ("test.txt", BytesIO(b"Content"), "text/plain")}
+    )
+    relic_id = create_response.json()["id"]
+
+    # Create a report
+    client.post(
+        "/api/v1/reports",
+        json={"relic_id": relic_id, "reason": "Test reason"}
+    )
+
+    # Mock admin client
+    # We need to register a client and set it as admin in the DB or mock the check
+    # Since we can't easily mock the env var in the running app fixture without restart,
+    # we'll rely on the fact that the test DB is fresh.
+    # But wait, `get_admin_client` checks `ADMIN_CLIENT_IDS` env var.
+    # We might need to mock `backend.main.get_admin_client` or `backend.config.settings.ADMIN_CLIENT_IDS`.
+    
+    # Let's try to register a client and see if we can make it admin.
+    # The current implementation of `get_admin_client` checks if client_id is in settings.ADMIN_CLIENT_IDS.
+    # We can patch settings.
+    
+    from backend.config import settings
+    
+    # Register a client
+    client_key_response = client.post("/api/v1/client/register")
+    client_key = client_key_response.headers["X-Client-Key"]
+    
+    # Patch settings
+    original_admins = settings.ADMIN_CLIENT_IDS
+    settings.ADMIN_CLIENT_IDS = [client_key]
+    
+    try:
+        # List reports
+        response = client.get(
+            "/api/v1/admin/reports",
+            headers={"X-Client-Key": client_key}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        assert len(data["reports"]) >= 1
+        assert data["reports"][0]["relic_id"] == relic_id
+        assert data["reports"][0]["reason"] == "Test reason"
+        
+    finally:
+        settings.ADMIN_CLIENT_IDS = original_admins
+
+@pytest.mark.unit
+def test_admin_delete_report(client):
+    """Test dismissing a report."""
+    # Create relic and report
+    create_response = client.post(
+        "/api/v1/relics",
+        data={"name": "Reported Relic"},
+        files={"file": ("test.txt", BytesIO(b"Content"), "text/plain")}
+    )
+    relic_id = create_response.json()["id"]
+    client.post(
+        "/api/v1/reports",
+        json={"relic_id": relic_id, "reason": "Test reason"}
+    )
+    
+    # Setup admin
+    from backend.config import settings
+    client_key_response = client.post("/api/v1/client/register")
+    client_key = client_key_response.headers["X-Client-Key"]
+    original_admins = settings.ADMIN_CLIENT_IDS
+    settings.ADMIN_CLIENT_IDS = [client_key]
+    
+    try:
+        # Get report ID
+        list_response = client.get(
+            "/api/v1/admin/reports",
+            headers={"X-Client-Key": client_key}
+        )
+        report_id = list_response.json()["reports"][0]["id"]
+        
+        # Delete report
+        delete_response = client.delete(
+            f"/api/v1/admin/reports/{report_id}",
+            headers={"X-Client-Key": client_key}
+        )
+        assert delete_response.status_code == 200
+        
+        # Verify gone
+        list_response_after = client.get(
+            "/api/v1/admin/reports",
+            headers={"X-Client-Key": client_key}
+        )
+        assert list_response_after.json()["total"] == 0
+        
+    finally:
+        settings.ADMIN_CLIENT_IDS = original_admins

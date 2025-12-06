@@ -12,6 +12,8 @@
         downloadAdminBackup,
         deleteRelic,
         deleteClient,
+        getAdminReports,
+        deleteReport,
     } from "../services/api";
     import {
         getTypeLabel,
@@ -70,6 +72,13 @@
     let backupsPage = 1;
     let backupsLimit = 25;
     let backupInProgress = false;
+
+    // Reports state
+    let reports = [];
+    let reportsLoading = false;
+    let reportsTotal = 0;
+    let reportsPage = 1;
+    let reportsLimit = 25;
 
     // Selected client for viewing their relics
     let selectedClient = null;
@@ -182,6 +191,22 @@
         }
     }
 
+    async function loadReports() {
+        reportsLoading = true;
+        try {
+            const offset = (reportsPage - 1) * reportsLimit;
+            const response = await getAdminReports(reportsLimit, offset);
+            reports = response.data.reports || [];
+            reportsTotal = response.data.total || 0;
+        } catch (error) {
+            console.error("Failed to load reports:", error);
+            showToast("Failed to load reports", "error");
+            reports = [];
+        } finally {
+            reportsLoading = false;
+        }
+    }
+
     async function handleBackupNow() {
         backupInProgress = true;
         try {
@@ -249,6 +274,18 @@
         }
     }
 
+    async function handleDismissReport(report) {
+        if (!confirm("Dismiss this report?")) return;
+        try {
+            await deleteReport(report.id);
+            showToast("Report dismissed", "success");
+            await loadReports();
+        } catch (error) {
+            console.error("Failed to dismiss report:", error);
+            showToast("Failed to dismiss report", "error");
+        }
+    }
+
     function navigateToRelic(relicId) {
         window.history.pushState({}, "", `/${relicId}`);
         window.dispatchEvent(new PopStateEvent("popstate"));
@@ -273,6 +310,7 @@
         loadClients();
         loadConfig();
         loadBackups();
+        loadReports();
     }
 
     // Watch for filter changes
@@ -284,6 +322,7 @@
     $: relicsTotalPages = Math.ceil(relicsTotal / relicsLimit);
     $: clientsTotalPages = Math.ceil(clientsTotal / clientsLimit);
     $: backupsTotalPages = Math.ceil(backupsTotal / backupsLimit);
+    $: reportsTotalPages = Math.ceil(reportsTotal / reportsLimit);
 
     onMount(async () => {
         await checkAdmin();
@@ -294,6 +333,7 @@
                 loadClients(),
                 loadConfig(),
                 loadBackups(),
+                loadReports(),
             ]);
         }
     });
@@ -400,6 +440,15 @@
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-users mr-2"></i>Clients
+                    </button>
+                    <button
+                        on:click={() => (activeTab = "reports")}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'reports'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-flag mr-2"></i>Reports
                     </button>
                     <button
                         on:click={() => (activeTab = "backups")}
@@ -680,6 +729,154 @@
                                     ><i class="fas fa-chevron-right text-xs"
                                     ></i></button
                                 >
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+            {/if}
+
+            <!-- Reports Tab -->
+            {#if activeTab === "reports"}
+                {#if reportsLoading}
+                    <div class="p-8 text-center">
+                        <i
+                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                        ></i>
+                    </div>
+                {:else if reports.length === 0}
+                    <div class="p-8 text-center text-gray-500">
+                        <i
+                            class="fas fa-check-circle text-4xl mb-2 text-green-500"
+                        ></i>
+                        <p>No active reports</p>
+                    </div>
+                {:else}
+                    <div class="overflow-x-auto">
+                        <table class="w-full maas-table text-sm">
+                            <thead>
+                                <tr
+                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
+                                >
+                                    <th>Relic</th>
+                                    <th>Reason</th>
+                                    <th>Reported</th>
+                                    <th class="w-32">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each reports as report (report.id)}
+                                    <tr class="hover:bg-gray-50">
+                                        <td>
+                                            <div class="flex flex-col">
+                                                <a
+                                                    href="/{report.relic_id}"
+                                                    class="font-medium text-[#0066cc] hover:underline"
+                                                >
+                                                    {report.relic_name ||
+                                                        "Unknown Relic"}
+                                                </a>
+                                                <span
+                                                    class="text-xs text-gray-400 font-mono"
+                                                    >{report.relic_id}</span
+                                                >
+                                            </div>
+                                        </td>
+                                        <td
+                                            class="text-gray-700 max-w-md truncate"
+                                            title={report.reason}
+                                        >
+                                            {report.reason}
+                                        </td>
+                                        <td class="text-xs text-gray-500">
+                                            {formatTimeAgo(report.created_at)}
+                                        </td>
+                                        <td>
+                                            <div
+                                                class="flex items-center gap-1"
+                                            >
+                                                <button
+                                                    on:click={() =>
+                                                        navigateToRelic(
+                                                            report.relic_id,
+                                                        )}
+                                                    class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    title="View Relic"
+                                                >
+                                                    <i
+                                                        class="fas fa-external-link-alt text-xs"
+                                                    ></i>
+                                                </button>
+                                                <button
+                                                    on:click={() =>
+                                                        handleDismissReport(
+                                                            report,
+                                                        )}
+                                                    class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                                                    title="Dismiss Report"
+                                                >
+                                                    <i
+                                                        class="fas fa-check text-xs"
+                                                    ></i>
+                                                </button>
+                                                <button
+                                                    on:click={() =>
+                                                        handleDeleteRelic({
+                                                            id: report.relic_id,
+                                                            name: report.relic_name,
+                                                        })}
+                                                    class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                    title="Delete Relic"
+                                                >
+                                                    <i
+                                                        class="fas fa-trash text-xs"
+                                                    ></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
+                    >
+                        <span
+                            >{reportsTotal} report{reportsTotal !== 1
+                                ? "s"
+                                : ""}</span
+                        >
+                        {#if reportsTotalPages > 1}
+                            <div class="flex items-center gap-2">
+                                <span
+                                    >Page {reportsPage} of {reportsTotalPages}</span
+                                >
+                                <button
+                                    on:click={() => {
+                                        reportsPage = Math.max(
+                                            1,
+                                            reportsPage - 1,
+                                        );
+                                        loadReports();
+                                    }}
+                                    disabled={reportsPage === 1}
+                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                                >
+                                    <i class="fas fa-chevron-left text-xs"></i>
+                                </button>
+                                <button
+                                    on:click={() => {
+                                        reportsPage = Math.min(
+                                            reportsTotalPages,
+                                            reportsPage + 1,
+                                        );
+                                        loadReports();
+                                    }}
+                                    disabled={reportsPage === reportsTotalPages}
+                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                                >
+                                    <i class="fas fa-chevron-right text-xs"></i>
+                                </button>
                             </div>
                         {/if}
                     </div>

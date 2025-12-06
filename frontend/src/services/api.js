@@ -223,6 +223,19 @@ export async function downloadAdminBackup(filename) {
   window.URL.revokeObjectURL(url)
 }
 
+// Report endpoints
+export async function submitReport(relicId, reason) {
+  return api.post('/reports', { relic_id: relicId, reason })
+}
+
+export async function getAdminReports(limit = 100, offset = 0) {
+  return api.get('/admin/reports', { params: { limit, offset } })
+}
+
+export async function deleteReport(reportId) {
+  return api.delete(`/admin/reports/${reportId}`)
+}
+
 // Export client key functions for components that need them
 export { getClientKey, getOrCreateClientKey }
 
