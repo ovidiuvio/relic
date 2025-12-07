@@ -101,33 +101,30 @@
 
 <style>
   .comment-editor {
-    background: white;
+    background: transparent;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+    display: block;
+    box-shadow: none;
     width: 100%;
     transition: all 0.2s ease;
-    resize: vertical;
-    overflow: hidden;
-    min-height: 200px;
+    min-height: 150px;
   }
 
   .comment-editor:focus-within {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #9ca3af;
+    box-shadow: none;
   }
   
   .editor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f9fafb;
+    background: transparent;
     border-bottom: 1px solid #e5e7eb;
     padding: 0 12px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
   }
   
   .tabs {
@@ -186,26 +183,25 @@
   
   .editor-content {
     position: relative;
-    min-height: 120px;
-    background: white;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    min-height: 200px;
+    background: transparent;
+    display: block;
   }
   
   textarea {
     width: 100%;
-    min-height: 120px;
-    padding: 16px;
+    min-height: 200px;
+    padding: 12px;
     border: none;
-    resize: none;
-    font-family: inherit;
-    font-size: 14px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
     line-height: 1.6;
     outline: none;
     display: block;
-    color: #1f2937;
-    flex: 1;
+    color: #374151;
+    background: transparent;
+    overflow: auto;
   }
   
   .preview {
@@ -223,11 +219,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    background: #f9fafb;
+    padding: 8px 12px;
+    background: transparent;
     border-top: 1px solid #e5e7eb;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
   }
   
   .hint {
@@ -241,43 +237,43 @@
   }
   
   .cancel-btn {
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: 500;
-    color: #4b5563;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
   }
   
   .cancel-btn:hover {
+    color: #374151;
     background: #f3f4f6;
-    border-color: #9ca3af;
   }
   
   .submit-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: white;
-    background: #2563eb;
-    border: 1px solid #2563eb;
-    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: none;
   }
   
   .submit-btn:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: #eff6ff;
+    color: #1d4ed8;
   }
   
   .submit-btn:disabled {
-    background: #93c5fd;
-    border-color: #93c5fd;
+    color: #9ca3af;
+    background: transparent;
     cursor: not-allowed;
     box-shadow: none;
   }
@@ -285,7 +281,9 @@
   /* Markdown Styles for Preview */
   :global(.markdown-body p) { margin-bottom: 0.75em; }
   :global(.markdown-body pre) { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; margin-bottom: 0.75em; }
-  :global(.markdown-body code) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f3f4f6; padding: 2px 4px; border-radius: 4px; font-size: 0.9em; color: #ef4444; }
+  :global(.markdown-body code) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; }
+  :global(.markdown-body :not(pre) > code) { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; color: #ef4444; }
+  :global(.markdown-body pre code) { background: transparent; padding: 0; border-radius: 0; color: inherit; }
   :global(.markdown-body blockquote) { border-left: 4px solid #e5e7eb; padding-left: 12px; color: #6b7280; margin-left: 0; margin-bottom: 0.75em; font-style: italic; }
   :global(.markdown-body ul, .markdown-body ol) { padding-left: 24px; margin-bottom: 0.75em; }
   :global(.markdown-body a) { color: #2563eb; text-decoration: none; }

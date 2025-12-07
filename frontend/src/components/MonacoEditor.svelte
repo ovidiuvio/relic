@@ -11,6 +11,7 @@
   } from '../utils/lineNumbers'
   import CommentEditor from './CommentEditor.svelte'
   import { processMarkdown } from '../services/markdownProcessor'
+  import { getClientKey } from '../services/api'
 
   export let value = ''
   export let language = 'plaintext'
@@ -37,15 +38,21 @@
   let commentResizeObservers = new Map() // zoneId -> ResizeObserver
   let activeCommentInputs = new Set() // lineNumbers with active input
   let collapsedThreads = new Set() // lineNumbers with collapsed threads
+  let collapsedComments = new Set() // commentIds with collapsed state
   let activeReplyInput = null // { commentId: string, type: 'reply' | 'quote', content?: string }
   let activeEditInput = null // { commentId: string }
   let commentWidgets = new Map() // zoneId -> widget DOM element
   let commentEditorComponents = [] // Track Svelte components for cleanup
   let hoveredGlyphLine = null
+  let currentClientId = null
 
   const dispatch = createEventDispatcher()
 
   onMount(async () => {
+    if (typeof window !== 'undefined') {
+        currentClientId = getClientKey()
+    }
+
     if (!container) return
 
     // Use Monaco's built-in tokenization which doesn't require workers
@@ -237,6 +244,7 @@
         // Wrapper for content to measure height
         const wrapper = document.createElement('div')
         wrapper.className = 'comment-widget-wrapper'
+        wrapper.style.fontSize = `${fontSize}px`
         domNode.appendChild(wrapper)
         
         // Prevent editor from stealing focus
@@ -267,7 +275,7 @@
             
             // Prevent editor from stealing focus
             const stopPropagation = (e) => e.stopPropagation();
-            ['mousedown', 'keydown', 'keyup', 'input', 'paste', 'cut', 'copy'].forEach(evt => 
+            ['mousedown', 'mouseup', 'click', 'mousemove', 'keydown', 'keyup', 'input', 'paste', 'cut', 'copy'].forEach(evt => 
                 container.addEventListener(evt, stopPropagation)
             );
 
@@ -307,6 +315,8 @@
             
             const authorName = comment.author_name ? escapeHtml(comment.author_name) : 'Anonymous';
             const content = escapeHtml(comment.content);
+            const hasChildren = comment.children && comment.children.length > 0;
+            const isCollapsed = collapsedComments.has(comment.id);
             
             if (activeEditInput && activeEditInput.commentId === comment.id) {
                 commentEl.innerHTML = `
@@ -332,30 +342,63 @@
                     if (textarea) textarea.focus()
                 }, 0)
             } else {
+                const collapseIcon = hasChildren 
+                    ? `<span class="comment-collapse-toggle" style="cursor: pointer; margin-right: 4px; color: #9ca3af; width: 12px; display: inline-block; text-align: center;">
+                         <i class="fas fa-chevron-${isCollapsed ? 'right' : 'down'}"></i>
+                       </span>` 
+                    : `<span style="width: 16px; display: inline-block;"></span>`;
+
+                const isAuthor = currentClientId && comment.client_id === currentClientId;
+
                 commentEl.innerHTML = `
                     <div class="comment-main">
                         <div class="comment-header">
-                            <div>
+                            <div class="comment-info" style="display: flex; align-items: center;">
+                                ${collapseIcon}
                                 <span class="comment-author">${authorName}</span>
                                 <span class="comment-time">${new Date(comment.created_at).toLocaleString()}</span>
                             </div>
                             <div class="comment-tools">
-                                <button class="comment-tool-btn reply-btn" title="Reply">Reply</button>
-                                <button class="comment-tool-btn quote-btn" title="Quote">Quote</button>
-                                <button class="comment-tool-btn edit-btn" title="Edit">Edit</button>
-                                <button class="comment-delete" data-id="${comment.id}" title="Delete">×</button>
+                                <button class="comment-tool-btn reply-btn" title="Reply"><i class="fas fa-reply"></i></button>
+                                <button class="comment-tool-btn quote-btn" title="Quote"><i class="fas fa-quote-right"></i></button>
+                                ${isAuthor ? `
+                                <button class="comment-tool-btn edit-btn" title="Edit"><i class="fas fa-pen"></i></button>
+                                <button class="comment-delete" data-id="${comment.id}" title="Delete"><i class="fas fa-times"></i></button>
+                                ` : ''}
                             </div>
                         </div>
-                        <div class="comment-content markdown-body"></div>
+                        ${!isCollapsed ? `<div class="comment-content markdown-body" style="padding-left: 16px;"></div>` : ''}
                     </div>
                 `
                 
-                processMarkdown(comment.content).then(result => {
-                    const contentDiv = commentEl.querySelector('.comment-content');
-                    if (contentDiv) contentDiv.innerHTML = result.html;
-                });
+                if (!isCollapsed) {
+                    processMarkdown(comment.content).then(result => {
+                        const contentDiv = commentEl.querySelector('.comment-content');
+                        if (contentDiv) contentDiv.innerHTML = result.html;
+                    });
+                }
                 
-                commentEl.querySelector('.comment-delete').onclick = () => dispatch('deleteComment', comment.id)
+                const toggleBtn = commentEl.querySelector('.comment-collapse-toggle');
+                if (toggleBtn) {
+                    toggleBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (collapsedComments.has(comment.id)) {
+                            collapsedComments.delete(comment.id);
+                        } else {
+                            collapsedComments.add(comment.id);
+                        }
+                        collapsedComments = collapsedComments;
+                        updateCommentZones();
+                    };
+                }
+                
+                if (isAuthor) {
+                    commentEl.querySelector('.comment-delete').onclick = () => dispatch('deleteComment', comment.id)
+                    commentEl.querySelector('.edit-btn').onclick = () => {
+                        activeEditInput = { commentId: comment.id }
+                        updateCommentZones()
+                    }
+                }
                 
                 commentEl.querySelector('.reply-btn').onclick = () => {
                     activeReplyInput = { commentId: comment.id, type: 'reply' }
@@ -366,38 +409,35 @@
                     activeReplyInput = { commentId: comment.id, type: 'quote', content: `> ${comment.content}\n\n` }
                     updateCommentZones()
                 }
-
-                commentEl.querySelector('.edit-btn').onclick = () => {
-                    activeEditInput = { commentId: comment.id }
-                    updateCommentZones()
-                }
             }
 
             container.appendChild(commentEl)
 
-            if (activeReplyInput && activeReplyInput.commentId === comment.id) {
-                const replyContainer = document.createElement('div')
-                replyContainer.className = 'comment-children' // Indent the reply input
-                
-                const inputEl = createInputBox((text) => {
-                    dispatch('createComment', { lineNumber, content: text, parentId: comment.id })
-                    activeReplyInput = null
-                    updateCommentZones()
-                }, () => {
-                    activeReplyInput = null
-                    updateCommentZones()
-                }, activeReplyInput.content || '')
-                
-                replyContainer.appendChild(inputEl)
-                container.appendChild(replyContainer)
-                setTimeout(() => inputEl.querySelector('textarea').focus(), 0)
-            }
+            if (!isCollapsed) {
+                if (activeReplyInput && activeReplyInput.commentId === comment.id) {
+                    const replyContainer = document.createElement('div')
+                    replyContainer.className = 'comment-children' // Indent the reply input
+                    
+                    const inputEl = createInputBox((text) => {
+                        dispatch('createComment', { lineNumber, content: text, parentId: comment.id })
+                        activeReplyInput = null
+                        updateCommentZones()
+                    }, () => {
+                        activeReplyInput = null
+                        updateCommentZones()
+                    }, activeReplyInput.content || '')
+                    
+                    replyContainer.appendChild(inputEl)
+                    container.appendChild(replyContainer)
+                    setTimeout(() => inputEl.querySelector('textarea').focus(), 0)
+                }
 
-            if (comment.children.length > 0) {
-                const childrenContainer = document.createElement('div')
-                childrenContainer.className = 'comment-children'
-                comment.children.forEach(child => renderComment(child, childrenContainer, depth + 1))
-                container.appendChild(childrenContainer)
+                if (hasChildren) {
+                    const childrenContainer = document.createElement('div')
+                    childrenContainer.className = 'comment-children'
+                    comment.children.forEach(child => renderComment(child, childrenContainer, depth + 1))
+                    container.appendChild(childrenContainer)
+                }
             }
         }
 
@@ -417,7 +457,6 @@
                 <span>${commentCount} Comment${commentCount !== 1 ? 's' : ''}</span>
             </div>
             <div class="thread-actions">
-                ${!showInput && !isCollapsed ? '<button class="add-comment-btn" title="Add Comment"><i class="fas fa-plus"></i></button>' : ''}
             </div>
         `
         
@@ -432,15 +471,6 @@
             }
             collapsedThreads = collapsedThreads // Trigger reactivity if needed, though we manually update
             updateCommentZones()
-        }
-        
-        const addBtn = threadHeader.querySelector('.add-comment-btn')
-        if (addBtn) {
-            addBtn.onclick = (e) => {
-                e.stopPropagation()
-                activeCommentInputs.add(lineNumber)
-                updateCommentZones()
-            }
         }
         
         threadContainer.appendChild(threadHeader)
@@ -466,6 +496,20 @@
                 })
                 threadBody.appendChild(inputEl)
                 setTimeout(() => inputEl.querySelector('textarea').focus(), 0)
+            } else {
+                const replyBtnContainer = document.createElement('div')
+                replyBtnContainer.className = 'thread-reply-container'
+                replyBtnContainer.innerHTML = `
+                    <button class="thread-reply-btn" title="Add Comment">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="overflow: visible;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>
+                    </button>
+                `
+                replyBtnContainer.onclick = (e) => {
+                    e.stopPropagation()
+                    activeCommentInputs.add(lineNumber)
+                    updateCommentZones()
+                }
+                threadBody.appendChild(replyBtnContainer)
             }
             
             threadContainer.appendChild(threadBody)
@@ -519,11 +563,28 @@
             return
         }
 
-        if (activeCommentInputs.has(lineNumber)) {
-            activeCommentInputs.delete(lineNumber)
+        if (hasComments) {
+            // If comments exist, toggle collapse state
+            if (collapsedThreads.has(lineNumber)) {
+                collapsedThreads.delete(lineNumber)
+            } else {
+                // If already expanded, toggle input
+                if (activeCommentInputs.has(lineNumber)) {
+                    activeCommentInputs.delete(lineNumber)
+                } else {
+                    activeCommentInputs.add(lineNumber)
+                }
+            }
         } else {
-            activeCommentInputs.add(lineNumber)
+            // No comments, toggle input
+            if (activeCommentInputs.has(lineNumber)) {
+                activeCommentInputs.delete(lineNumber)
+            } else {
+                activeCommentInputs.add(lineNumber)
+            }
         }
+        
+        collapsedThreads = collapsedThreads
         activeCommentInputs = activeCommentInputs
         updateCommentDecorations()
         updateCommentZones()
@@ -795,6 +856,14 @@
     editor.updateOptions({
       fontSize
     })
+    
+    // Update existing comment widgets font size
+    if (commentWidgets) {
+        commentWidgets.forEach(widget => {
+            const wrapper = widget.querySelector('.comment-widget-wrapper')
+            if (wrapper) wrapper.style.fontSize = `${fontSize}px`
+        })
+    }
   }
 </script>
 
@@ -836,13 +905,13 @@
 
   /* Glyph margin for line highlights */
   :global(.comment-glyph) {
-    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%234B5563"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>') no-repeat center center;
-    background-size: contain;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%236B7280"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
+    background-size: 14px 14px;
     cursor: pointer;
   }
   
   :global(.comment-glyph-add) {
-    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%239CA3AF"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>') no-repeat center center;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>') no-repeat center center;
     background-size: 14px 14px;
     cursor: pointer;
     opacity: 0.5;
@@ -851,22 +920,21 @@
   
   :global(.comment-glyph-add:hover) {
     opacity: 1 !important;
-    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%234B5563"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>') no-repeat center center;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%234B5563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>') no-repeat center center;
     background-size: 14px 14px;
   }
 
   :global(.comment-widget-zone) {
-    padding: 4px 0 4px 60px; /* Indent to align with code */
+    padding: 4px 0 4px 0; /* Removed indentation to align with margin */
     width: 100% !important;
     pointer-events: auto !important;
     z-index: 10;
   }
 
   :global(.thread-container) {
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background: transparent;
+    border: none;
+    padding-left: 0;
     width: calc(100% - 40px);
     overflow: hidden;
     margin-bottom: 8px;
@@ -876,18 +944,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 12px;
-    background: #f3f4f6;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 4px 0;
+    background: transparent;
+    border-bottom: none;
     cursor: pointer;
     user-select: none;
     font-size: 12px;
-    color: #6b7280;
+    color: #9ca3af;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
   
   :global(.thread-header:hover) {
-    background: #e5e7eb;
-    color: #374151;
+    background: transparent;
+    color: #6b7280;
   }
 
   :global(.thread-title) {
@@ -902,22 +971,6 @@
     gap: 8px;
   }
   
-  :global(.add-comment-btn) {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #6b7280;
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: all 0.2s;
-  }
-  
-  :global(.add-comment-btn:hover) {
-    background: #e5e7eb;
-    color: #374151;
-  }
-
   :global(.thread-body) {
     padding: 0;
   }
@@ -925,14 +978,15 @@
   :global(.comment-item) {
     display: flex;
     gap: 12px;
-    padding: 8px 12px;
-    border-bottom: 1px solid #f3f4f6;
-    background: white;
+    padding: 4px 0;
+    border-bottom: none;
+    background: transparent;
     transition: background-color 0.2s;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
   :global(.comment-item:hover) {
-    background-color: #fcfcfc;
+    background-color: transparent;
   }
   
   :global(.comment-item:last-child) {
@@ -940,7 +994,7 @@
   }
   
   :global(.comment-children) {
-    border-left: 2px solid #e5e7eb;
+    border-left: none;
     margin-left: 12px;
     padding-left: 0;
   }
@@ -952,21 +1006,22 @@
 
   :global(.comment-header) {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 2px;
     padding-bottom: 0;
+    gap: 8px;
   }
 
   :global(.comment-author) {
     font-weight: 600;
-    color: #111827;
-    font-size: 13px;
+    color: #6b7280;
+    font-size: inherit;
   }
 
   :global(.comment-time) {
     font-size: 11px;
-    color: #6b7280;
+    color: #9ca3af;
     margin-left: 8px;
   }
 
@@ -985,7 +1040,7 @@
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
-    color: #6b7280;
+    color: #9ca3af;
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 4px;
@@ -996,7 +1051,7 @@
   
   :global(.comment-tool-btn:hover) {
     background: #f3f4f6;
-    color: #374151;
+    color: #4b5563;
     border-color: #e5e7eb;
   }
 
@@ -1005,9 +1060,9 @@
     cursor: pointer;
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 11px;
     line-height: 1;
-    padding: 0 4px;
+    padding: 2px 6px;
     margin-left: 4px;
     opacity: 0.6;
   }
@@ -1019,15 +1074,15 @@
   }
 
   :global(.comment-content) {
-    font-size: 13px;
-    color: #1f2937;
+    font-size: inherit;
+    color: #6b7280;
     line-height: 1.5;
   }
 
   :global(.comment-editor-wrapper) {
-    padding: 8px;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
+    padding: 8px 0;
+    background: transparent;
+    border-top: none;
   }
 
   :global(.comment-actions) {
@@ -1078,6 +1133,32 @@
   :global(.comment-editor-wrapper) {
     margin-bottom: 8px;
     width: calc(100% - 40px);
+  }
+
+  :global(.thread-reply-container) {
+    padding: 4px 0;
+    margin-top: 4px;
+  }
+
+  :global(.thread-reply-btn) {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 12px;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  :global(.thread-reply-btn:hover) {
+    background: transparent;
+    color: #6b7280;
   }
 
   </style>
