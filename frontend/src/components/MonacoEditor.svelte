@@ -162,17 +162,39 @@
     const newDecorations = []
     // linesWithComments is reactive now
 
+    // Count comments per line
+    const commentsByLine = {}
+    comments.forEach(c => {
+      if (!commentsByLine[c.line_number]) commentsByLine[c.line_number] = 0
+      commentsByLine[c.line_number]++
+    })
+
     // Always add decoration for lines with comments
     linesWithComments.forEach(lineNumber => {
       const isHighlighted = highlightedLineNumbers.has(lineNumber)
-      const glyphClass = isHighlighted ? 'comment-glyph highlighted-glyph' : 'comment-glyph'
+      const commentCount = commentsByLine[lineNumber] || 0
+
+      // Use different colored icons based on comment count
+      let glyphClass = 'comment-glyph'
+      if (isHighlighted) glyphClass += ' highlighted-glyph'
+
+      // Color code based on intensity
+      if (commentCount >= 10) {
+        glyphClass += ' comment-glyph-high'
+      } else if (commentCount >= 5) {
+        glyphClass += ' comment-glyph-medium'
+      } else if (commentCount >= 2) {
+        glyphClass += ' comment-glyph-low'
+      }
 
       newDecorations.push({
         range: new monaco.Range(lineNumber, 1, lineNumber, 1),
         options: {
           isWholeLine: false,
           glyphMarginClassName: glyphClass,
-          glyphMarginHoverMessage: { value: 'View comments' }
+          glyphMarginHoverMessage: {
+            value: `${commentCount} comment${commentCount !== 1 ? 's' : ''} - Click to view`
+          }
         }
       })
     })
@@ -466,7 +488,7 @@
         threadHeader.innerHTML = `
             <div class="thread-title">
                 <i class="fas fa-chevron-${isCollapsed ? 'right' : 'down'}"></i>
-                <span>${commentCount} Comment${commentCount !== 1 ? 's' : ''}</span>
+                <span class="comment-count">${commentCount} Comment${commentCount !== 1 ? 's' : ''}</span>
             </div>
             <div class="thread-actions">
             </div>
@@ -950,6 +972,28 @@
     cursor: pointer;
     z-index: 50;
   }
+
+  /* Color-coded comment icons based on activity level */
+  :global(.comment-glyph-low) {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23217db1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
+    background-size: 14px 14px;
+    cursor: pointer;
+    z-index: 50;
+  }
+
+  :global(.comment-glyph-medium) {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23e95420"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
+    background-size: 14px 14px;
+    cursor: pointer;
+    z-index: 50;
+  }
+
+  :global(.comment-glyph-high) {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23dc2626"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
+    background-size: 14px 14px;
+    cursor: pointer;
+    z-index: 50;
+  }
   
   :global(.comment-glyph-add) {
     background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>') no-repeat center center;
@@ -1005,6 +1049,17 @@
     align-items: center;
     gap: 6px;
     font-weight: 600;
+  }
+
+  :global(.comment-count) {
+    background-color: #e2f2fd;
+    color: #217db1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    display: inline-block;
   }
   
   :global(.thread-actions) {
