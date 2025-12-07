@@ -28,9 +28,12 @@
   let container
   let editor
   let highlightedLines = []
+  let highlightedLineNumbers = new Set()
   let currentFragment = null
   let lastClickedLine = null
   let selectedLines = new Set()
+  
+  $: linesWithComments = new Set(comments.map(c => c.line_number))
   
   // Comment system state
   let commentDecorations = []
@@ -157,15 +160,18 @@
     if (!editor) return
 
     const newDecorations = []
-    const linesWithComments = new Set(comments.map(c => c.line_number))
+    // linesWithComments is reactive now
 
     // Always add decoration for lines with comments
     linesWithComments.forEach(lineNumber => {
+      const isHighlighted = highlightedLineNumbers.has(lineNumber)
+      const glyphClass = isHighlighted ? 'comment-glyph highlighted-glyph' : 'comment-glyph'
+
       newDecorations.push({
         range: new monaco.Range(lineNumber, 1, lineNumber, 1),
         options: {
           isWholeLine: false,
-          glyphMarginClassName: 'comment-glyph',
+          glyphMarginClassName: glyphClass,
           glyphMarginHoverMessage: { value: 'View comments' }
         }
       })
@@ -175,11 +181,14 @@
         // Also add decoration for lines with active input
         activeCommentInputs.forEach(lineNumber => {
         if (!linesWithComments.has(lineNumber)) {
+            const isHighlighted = highlightedLineNumbers.has(lineNumber)
+            const glyphClass = isHighlighted ? 'comment-glyph-add highlighted-glyph' : 'comment-glyph-add'
+
             newDecorations.push({
             range: new monaco.Range(lineNumber, 1, lineNumber, 1),
             options: {
                 isWholeLine: false,
-                glyphMarginClassName: 'comment-glyph-add',
+                glyphMarginClassName: glyphClass,
                 glyphMarginHoverMessage: { value: 'Add comment' }
             }
             })
@@ -188,11 +197,14 @@
 
         // Add decoration for hovered line
         if (hoveredGlyphLine && !linesWithComments.has(hoveredGlyphLine) && !activeCommentInputs.has(hoveredGlyphLine)) {
+            const isHighlighted = highlightedLineNumbers.has(hoveredGlyphLine)
+            const glyphClass = isHighlighted ? 'comment-glyph-add highlighted-glyph' : 'comment-glyph-add'
+
             newDecorations.push({
             range: new monaco.Range(hoveredGlyphLine, 1, hoveredGlyphLine, 1),
             options: {
                 isWholeLine: false,
-                glyphMarginClassName: 'comment-glyph-add',
+                glyphMarginClassName: glyphClass,
                 glyphMarginHoverMessage: { value: 'Add comment' }
             }
             })
@@ -720,6 +732,41 @@
     }
   }
 
+  function updateHighlightDecorations() {
+      if (!editor) return
+      
+      if (highlightedLineNumbers.size === 0) {
+          if (highlightedLines.length > 0) {
+             editor.deltaDecorations(highlightedLines, [])
+             highlightedLines = []
+          }
+          return
+      }
+      
+      const lines = Array.from(highlightedLineNumbers)
+      const decorations = lines.map(lineNumber => {
+        const hasComment = linesWithComments.has(lineNumber)
+        const hasInput = activeCommentInputs.has(lineNumber)
+        const hideGlyph = hasComment || (showComments && hasInput)
+
+        return {
+            range: {
+                startLineNumber: lineNumber,
+                startColumn: 1,
+                endLineNumber: lineNumber,
+                endColumn: 1
+            },
+            options: {
+                isWholeLine: true,
+                className: 'line-number-highlight',
+                glyphMarginClassName: hideGlyph ? undefined : 'line-number-glyph'
+            }
+        }
+      })
+      
+      highlightedLines = editor.deltaDecorations(highlightedLines, decorations)
+  }
+
   function applyLineHighlighting(fragment) {
     if (!editor || !fragment) return
 
@@ -730,20 +777,18 @@
       return
     }
 
-    const totalLines = editor.getModel().getLineCount()
-    const decorations = getHighlightDecorations(parsedLines, totalLines)
+    // Update state
+    highlightedLineNumbers = new Set(parsedLines.lines)
+    updateCommentDecorations()
+    updateHighlightDecorations()
 
-    if (decorations.length > 0) {
-      highlightedLines = editor.deltaDecorations(highlightedLines, decorations)
+    // Always auto-scroll for URL fragment based highlighting
+    const firstLine = Math.min(...parsedLines.lines)
 
-      // Always auto-scroll for URL fragment based highlighting
-      const firstLine = Math.min(...parsedLines.lines)
-
-      // Use a small delay to ensure highlighting is applied before scrolling
-      setTimeout(() => {
-        editor.revealLineInCenter(firstLine)
-      }, 100)
-    }
+    // Use a small delay to ensure highlighting is applied before scrolling
+    setTimeout(() => {
+      editor.revealLineInCenter(firstLine)
+    }, 100)
   }
 
   function applyManualLineHighlighting() {
@@ -753,23 +798,11 @@
     }
 
     const lines = Array.from(selectedLines).sort((a, b) => a - b)
-    const decorations = lines.map(lineNumber => ({
-      range: {
-        startLineNumber: lineNumber,
-        startColumn: 1,
-        endLineNumber: lineNumber,
-        endColumn: 1
-      },
-      options: {
-        isWholeLine: true,
-        className: 'line-number-highlight',
-        glyphMarginClassName: 'line-number-glyph'
-      }
-    }))
-
-    highlightedLines = editor.deltaDecorations(highlightedLines, decorations)
-
-    // Don't auto-scroll - let user control viewport
+    
+    // Update state
+    highlightedLineNumbers = new Set(lines)
+    updateCommentDecorations()
+    updateHighlightDecorations()
   }
 
   function clearHighlighting() {
@@ -777,6 +810,13 @@
       editor.deltaDecorations(highlightedLines, [])
       highlightedLines = []
     }
+    highlightedLineNumbers = new Set()
+    updateCommentDecorations()
+  }
+
+  // React to changes that affect highlight decorations
+  $: if (editor && (linesWithComments || activeCommentInputs)) {
+      updateHighlightDecorations()
   }
 
   // Handle URL fragment changes
@@ -908,6 +948,7 @@
     background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%236B7280"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
     background-size: 14px 14px;
     cursor: pointer;
+    z-index: 50;
   }
   
   :global(.comment-glyph-add) {
@@ -1126,8 +1167,39 @@
   
   :global(.line-number-glyph) {
     box-shadow: inset 3px 0 0 0 #e95420 !important;
-    background-color: transparent !important;
+    background: transparent;
     width: 100% !important;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Handle case where both comment and highlight are on the same line (Monaco merges classes) */
+  :global(.comment-glyph.line-number-glyph) {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%236B7280"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center !important;
+    background-size: 14px 14px !important;
+    box-shadow: inset 3px 0 0 0 #e95420 !important;
+    opacity: 1 !important;
+    z-index: 50;
+    pointer-events: auto;
+  }
+
+  :global(.comment-glyph-add.line-number-glyph) {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>') no-repeat center center !important;
+    background-size: 14px 14px !important;
+    box-shadow: inset 3px 0 0 0 #e95420 !important;
+    opacity: 0.5;
+    z-index: 10;
+    pointer-events: auto;
+  }
+
+  :global(.comment-glyph-add.line-number-glyph:hover) {
+    opacity: 1 !important;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%234B5563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>') no-repeat center center !important;
+    background-size: 14px 14px !important;
+  }
+
+  :global(.highlighted-glyph) {
+    box-shadow: inset 3px 0 0 0 #e95420 !important;
   }
 
   :global(.comment-editor-wrapper) {
