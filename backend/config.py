@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 
     # Upload limits
-    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100 MB
+    MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024 * 1024  # 50 GB
 
     # Database Backup Configuration
     BACKUP_ENABLED: bool = os.getenv("BACKUP_ENABLED", "true").lower() == "true"
