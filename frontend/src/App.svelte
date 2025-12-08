@@ -5,7 +5,6 @@
   import RecentRelics from "./components/RecentRelics.svelte";
   import MyRelics from "./components/MyRelics.svelte";
   import MyBookmarks from "./components/MyBookmarks.svelte";
-  import ApiDocs from "./components/ApiDocs.svelte";
   import AdminPanel from "./components/AdminPanel.svelte";
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
@@ -290,14 +289,6 @@
           >
             <i class="fas fa-bookmark mr-2"></i>Bookmarks
           </button>
-          <button
-            on:click={() => handleNavigation("api")}
-            class="maas-nav-top {currentSection === 'api'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-          >
-            <i class="fas fa-code mr-2"></i>API
-          </button>
           {#if isAdmin}
             <button
               on:click={() => handleNavigation("admin")}
@@ -425,8 +416,6 @@
         <MyRelics />
       {:else if currentSection === "my-bookmarks"}
         <MyBookmarks />
-      {:else if currentSection === "api"}
-        <ApiDocs />
       {:else if currentSection === "admin"}
         <AdminPanel />
       {/if}

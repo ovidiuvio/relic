@@ -26,6 +26,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy custom Nginx configuration
 COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
 
+# Copy CLI installation script (downloads binaries from GitHub releases)
+RUN mkdir -p /app/cli
+COPY ../cli/install.sh /app/cli/install.sh
+
 # Expose port 80
 EXPOSE 80
 

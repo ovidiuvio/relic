@@ -13,6 +13,7 @@
 
   const syntaxOptions = getAvailableSyntaxOptions();
 
+  let activeTab = "upload"; // upload, cli, curl, api
   let title = "";
   let syntax = "auto";
   let syntaxValue = { value: "auto", label: "Auto-detect" };
@@ -24,6 +25,9 @@
   let uploadedFiles = []; // Array of { file, id }
   let creationResult = null; // { success: [], errors: [] }
   let zipMultiple = true; // Default to true for auto-zipping
+
+  // Get current server URL
+  const serverUrl = window.location.origin;
 
   // Configuration
   const MAX_BATCH_SIZE = 10;
@@ -390,7 +394,7 @@
           Create New Relic
         {/if}
       </h2>
-      {#if !creationResult}
+      {#if !creationResult && activeTab === "upload"}
         <div class="flex items-center gap-4">
           <div class="text-xs text-gray-500">
             {#if uploadedFiles.length > 0}
@@ -402,6 +406,44 @@
         </div>
       {/if}
     </div>
+
+    {#if !creationResult}
+      <!-- Tab Navigation -->
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px px-6">
+          <button
+            on:click={() => (activeTab = "upload")}
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            'upload'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+          >
+            <i class="fas fa-upload mr-2"></i>
+            Upload
+          </button>
+          <button
+            on:click={() => (activeTab = "cli")}
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            'cli'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+          >
+            <i class="fas fa-terminal mr-2"></i>
+            CLI
+          </button>
+          <button
+            on:click={() => (activeTab = "curl")}
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            'curl'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+          >
+            <i class="fas fa-code mr-2"></i>
+            Curl
+          </button>
+        </nav>
+      </div>
+    {/if}
 
     <div class="p-6">
       {#if creationResult}
@@ -476,7 +518,7 @@
             </button>
           </div>
         </div>
-      {:else}
+      {:else if activeTab === "upload"}
         <form on:submit={handleSubmit} class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -699,6 +741,127 @@
             </button>
           </div>
         </form>
+      {:else if activeTab === "cli"}
+        <!-- CLI Tab -->
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              CLI Installation
+            </h3>
+            <p class="text-sm text-gray-600 mb-3">
+              Install the Relic CLI with a single command:
+            </p>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre>curl -sSL {serverUrl}/install.sh | bash</pre>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              Quick Start
+            </h3>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre># Upload a file
+relic script.py
+
+# Upload from stdin
+echo "Hello World" | relic
+
+# Upload with options
+relic file.txt --name "My File" --access-level public --expires-in 24h
+
+# List your relics
+relic list
+
+# Download a relic
+relic get &lt;relic-id&gt;</pre>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              Configuration
+            </h3>
+            <p class="text-sm text-gray-600 mb-2">
+              The CLI automatically configures itself to use <code
+                class="bg-gray-200 px-2 py-0.5 rounded text-xs font-mono"
+                >{serverUrl}</code
+              > as the server.
+            </p>
+            <p class="text-sm text-gray-600 mb-3">
+              Configuration file: <code
+                class="bg-gray-200 px-2 py-0.5 rounded text-xs font-mono"
+                >~/.relic/config</code
+              >
+            </p>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre># View configuration
+relic config --list
+
+# Change server
+relic config core.server {serverUrl}</pre>
+            </div>
+          </div>
+        </div>
+      {:else if activeTab === "curl"}
+        <!-- Curl Tab -->
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              Upload from stdin
+            </h3>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre>echo "Hello World" | curl -X POST {serverUrl}/api/v1/relics \
+  -F "file=@-" \
+  -F "name=greeting"</pre>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              Upload a file
+            </h3>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre>curl -X POST {serverUrl}/api/v1/relics \
+  -F "file=@script.py" \
+  -F "name=My Script" \
+  -F "access_level=public" \
+  -F "expires_in=24h"</pre>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-2">
+              Pipe command output
+            </h3>
+            <div
+              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+            >
+              <pre>ps aux | curl -X POST {serverUrl}/api/v1/relics \
+  -F "file=@-" \
+  -F "name=processes.txt"</pre>
+            </div>
+          </div>
+
+          <div class="p-3 bg-gray-50 border border-gray-300 rounded">
+            <p class="text-sm text-gray-700">
+              <strong>Tip:</strong> Use the <code
+                class="bg-white px-2 py-0.5 rounded text-xs font-mono border border-gray-300"
+                >X-Client-Key</code
+              > header to authenticate and associate relics with your account.
+            </p>
+          </div>
+        </div>
       {/if}
     </div>
   </div>
