@@ -8,7 +8,11 @@ VERSION?=0.1.0
 BUILD_DIR=bin
 
 # Go build flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
+# CGO_ENABLED=0 creates fully static binaries compatible with older glibc (RHEL 8, etc.)
+# -trimpath removes absolute paths for reproducible builds
+# -s -w strips debug info to reduce binary size
+LDFLAGS=-ldflags "-s -w -X main.Version=$(VERSION)"
+BUILDFLAGS=CGO_ENABLED=0
 
 # Default target
 all: build
@@ -17,18 +21,18 @@ all: build
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/relic/main.go
+	$(BUILDFLAGS) go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/relic/main.go
 	@echo "✓ Built $(BUILD_DIR)/$(BINARY_NAME)"
 
 ## build-all: Build binaries for all platforms
 build-all:
 	@echo "Building for all platforms..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 cmd/relic/main.go
-	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 cmd/relic/main.go
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 cmd/relic/main.go
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 cmd/relic/main.go
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=linux GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=linux GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=darwin GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=darwin GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=windows GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe cmd/relic/main.go
 	@echo "✓ Built all platform binaries in $(BUILD_DIR)/"
 
 ## install: Install binary to /usr/local/bin

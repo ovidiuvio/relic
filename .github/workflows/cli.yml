@@ -23,6 +23,18 @@ jobs:
       - name: Build all binaries
         run: make -C cli/client build-all
 
+      - name: Verify static linking
+        run: |
+          echo "Checking if Linux binary is statically linked..."
+          file ./cli/client/bin/relic-linux-amd64
+          if ldd ./cli/client/bin/relic-linux-amd64 2>&1 | grep -q "not a dynamic executable"; then
+            echo "✓ Binary is statically linked"
+          else
+            echo "✗ Binary is dynamically linked - this may cause glibc compatibility issues"
+            ldd ./cli/client/bin/relic-linux-amd64
+            exit 1
+          fi
+
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
