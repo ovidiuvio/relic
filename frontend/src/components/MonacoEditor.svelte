@@ -117,6 +117,7 @@
           verticalScrollbarSize: 8,
           horizontalScrollbarSize: 8
         },
+        overviewRulerLanes: 1,
         // Enable semantic highlighting with built-in tokenization
         'editor.semanticHighlighting.enabled': 'configuredByTheme',
         // Keep syntax highlighting without language services
@@ -180,12 +181,16 @@
       if (isHighlighted) glyphClass += ' highlighted-glyph'
 
       // Color code based on intensity
+      let overviewRulerColor = '#6B7280' // gray (default/low)
       if (commentCount >= 10) {
         glyphClass += ' comment-glyph-high'
+        overviewRulerColor = '#dc2626' // red for high activity
       } else if (commentCount >= 5) {
         glyphClass += ' comment-glyph-medium'
+        overviewRulerColor = '#e95420' // orange for medium activity
       } else if (commentCount >= 2) {
         glyphClass += ' comment-glyph-low'
+        overviewRulerColor = '#217db1' // blue for low activity
       }
 
       newDecorations.push({
@@ -195,6 +200,10 @@
           glyphMarginClassName: glyphClass,
           glyphMarginHoverMessage: {
             value: `${commentCount} comment${commentCount !== 1 ? 's' : ''} - Click to view`
+          },
+          overviewRuler: {
+            color: overviewRulerColor,
+            position: 2 // Right side of overview ruler (Monaco.OverviewRulerLane.Right = 2)
           }
         }
       })
