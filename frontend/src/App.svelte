@@ -246,14 +246,18 @@
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center justify-between h-16">
         <!-- Logo and Brand -->
-        <div class="flex items-center gap-3">
+        <button
+          on:click={() => handleNavigation("recent")}
+          class="logo-button flex items-center gap-3 hover:opacity-80 transition-opacity"
+          title="Go to Recent Relics"
+        >
           <div class="font-bold text-xl tracking-tight">
             RELIC <span class="font-light opacity-80">Bin</span>
           </div>
           <span class="text-xs bg-black/20 px-2 py-0.5 rounded text-white/70"
             >{appVersion}</span
           >
-        </div>
+        </button>
 
         <!-- Top Navigation -->
         <nav class="hidden md:flex items-center space-x-1 ml-auto">
@@ -554,5 +558,14 @@
   :global(.maas-nav-top:focus) {
     outline: none;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Logo button styling */
+  :global(.logo-button) {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
   }
 </style>
