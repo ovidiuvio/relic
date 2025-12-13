@@ -30,6 +30,7 @@ services:
       MINIO_USE_SSL: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://localhost"
+      ADMIN_CLIENT_IDS:
       # Database Backup Configuration
       BACKUP_ENABLED: "true"
       BACKUP_TIMES: "02:00,14:00"
@@ -50,9 +51,9 @@ services:
   minio:
     image: minio/minio:latest
     container_name: Relic-minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    expose:
+      - "9000"
+      - "9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -72,8 +73,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: Relic-postgres
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: relic_user
       POSTGRES_PASSWORD: relic_password
