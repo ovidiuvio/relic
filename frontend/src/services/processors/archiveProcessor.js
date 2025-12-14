@@ -7,6 +7,7 @@ import JSZip from 'jszip'
 import untar from 'js-untar'
 import { gunzipSync } from 'fflate'
 import { detectLanguageHint, getSyntaxFromExtension, getContentType } from '../typeUtils.js'
+import { formatBytes } from '../utils/formatting'
 
 /**
  * Detect archive type from content type
@@ -22,16 +23,6 @@ function detectArchiveType(contentType) {
   return 'unknown'
 }
 
-/**
- * Format file size for display
- */
-function formatSize(bytes) {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-}
 
 /**
  * Build file tree structure from flat file list
@@ -301,7 +292,7 @@ export async function processArchive(content, contentType) {
       extractFile: result.extractFile,
       metadata: {
         ...stats,
-        totalSizeFormatted: formatSize(stats.totalSize)
+        totalSizeFormatted: formatBytes(stats.totalSize)
       }
     }
   } catch (error) {

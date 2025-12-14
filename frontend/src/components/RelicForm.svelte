@@ -10,6 +10,7 @@
     getAvailableSyntaxOptions,
     getFileTypeDefinition,
   } from "../services/typeUtils";
+  import { formatBytes } from "../services/utils/formatting";
 
   const syntaxOptions = getAvailableSyntaxOptions();
 
@@ -47,20 +48,6 @@
 
   // Update syntax when syntaxValue changes
   $: syntax = syntaxValue?.value || "auto";
-
-  // Helper function to find option by value
-  function findOptionByValue(options, value) {
-    return options.find((option) => option.value === value) || null;
-  }
-
-  // Format bytes to human readable string
-  function formatBytes(bytes) {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  }
 
   // Reset form to initial state
   function resetForm() {
