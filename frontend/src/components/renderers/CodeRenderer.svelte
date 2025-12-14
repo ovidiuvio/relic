@@ -1,6 +1,7 @@
 <script>
   import MonacoEditor from '../MonacoEditor.svelte'
   import { createEventDispatcher } from 'svelte'
+  import { createEventForwarder } from '../../services/utils/eventUtils'
 
   export let processed
   export let relicId
@@ -12,10 +13,7 @@
   export let isAdmin = false
 
   const dispatch = createEventDispatcher()
-
-  function forwardEvent(event) {
-    dispatch(event.type, event.detail)
-  }
+  const forwardEvent = createEventForwarder(dispatch)
 
   $: language = processed.type === 'code' ? (processed.metadata?.language || 'plaintext') : 'plaintext'
 </script>

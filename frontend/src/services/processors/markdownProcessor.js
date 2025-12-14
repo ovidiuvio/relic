@@ -12,6 +12,7 @@ import rehypeHighlight from 'rehype-highlight'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
 import hljs from 'highlight.js'
+import { decodeContent } from './utils/contentUtils'
 
 // Import a light theme CSS for highlight.js
 import 'highlight.js/styles/github.css'
@@ -103,7 +104,7 @@ const processor = unified()
  */
 export async function processMarkdown(content) {
   try {
-    const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+    const text = decodeContent(content)
 
     // Process the markdown
     const file = await processor.process(text)
@@ -126,7 +127,7 @@ export async function processMarkdown(content) {
   } catch (error) {
     console.error('Markdown processing error:', error)
     // Fallback to simple HTML escaping
-    const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+    const text = decodeContent(content)
     const escapedHtml = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

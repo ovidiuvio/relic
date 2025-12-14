@@ -3,12 +3,7 @@
  * Processes .excalidraw and .excalidraw.json files
  */
 
-/**
- * Helper to decode content to string
- */
-function decodeContent(content) {
-  return typeof content === 'string' ? content : new TextDecoder().decode(content)
-}
+import { decodeContent } from './utils/contentUtils'
 
 /**
  * Process Excalidraw drawing content

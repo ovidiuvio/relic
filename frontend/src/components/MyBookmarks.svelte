@@ -3,7 +3,7 @@
   import { showToast } from '../stores/toastStore'
   import { getClientBookmarks, removeBookmark } from '../services/api'
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils'
-  import { filterRelics } from '../services/paginationUtils'
+  import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
 
   let bookmarks = []
@@ -15,13 +15,9 @@
   // Use shared filter utility
   $: filteredBookmarks = filterRelics(bookmarks, searchTerm, getTypeLabel)
 
-  // Calculate pagination
-  $: totalPages = Math.ceil(filteredBookmarks.length / itemsPerPage)
-  $: paginatedBookmarks = (() => {
-    const start = (currentPage - 1) * itemsPerPage
-    const end = start + itemsPerPage
-    return filteredBookmarks.slice(start, end)
-  })()
+  // Calculate pagination using shared utilities
+  $: totalPages = calculateTotalPages(filteredBookmarks, itemsPerPage)
+  $: paginatedBookmarks = paginateData(filteredBookmarks, currentPage, itemsPerPage)
 
   async function loadBookmarks() {
     try {
@@ -54,7 +50,7 @@
   }
 
   function goToPage(page) {
-    currentPage = Math.max(1, Math.min(page, totalPages))
+    currentPage = clampPage(page, totalPages)
   }
 
   onMount(() => {

@@ -1,17 +1,17 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { processMarkdown } from '../services/markdownProcessor';
-  
+  import { processMarkdown } from '../services/processors/markdownProcessor';
+
   export let initialValue = '';
   export let submitLabel = 'Comment';
-  
+
   const dispatch = createEventDispatcher();
-  
+
   let value = initialValue;
   let activeTab = 'write'; // 'write' | 'preview'
   let previewHtml = '';
   let textarea;
-  
+
   async function togglePreview() {
     if (activeTab === 'write') {
       const result = await processMarkdown(value);
@@ -23,35 +23,35 @@
       setTimeout(() => textarea?.focus(), 0);
     }
   }
-  
+
   function insertText(before, after = '') {
     if (!textarea) return;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
     const selection = text.substring(start, end);
-    
+
     const newText = text.substring(0, start) + before + selection + after + text.substring(end);
     value = newText;
-    
+
     // Restore selection / cursor position
     setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + before.length, end + before.length);
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
     }, 0);
   }
-  
+
   function handleKeydown(e) {
     if (e.ctrlKey && e.key === 'Enter') {
-        handleSubmit();
+      handleSubmit();
     }
   }
-  
+
   function handleSubmit() {
     if (!value.trim()) return;
     dispatch('submit', value);
   }
-  
+
   function handleCancel() {
     dispatch('cancel');
   }
@@ -64,14 +64,14 @@
       <button class:active={activeTab === 'preview'} on:click={togglePreview}>Preview</button>
     </div>
     {#if activeTab === 'write'}
-    <div class="toolbar">
+      <div class="toolbar">
       <button title="Bold" on:click={() => insertText('**', '**')}><i class="fas fa-bold"></i></button>
       <button title="Italic" on:click={() => insertText('*', '*')}><i class="fas fa-italic"></i></button>
       <button title="Link" on:click={() => insertText('[', '](url)')}><i class="fas fa-link"></i></button>
       <button title="Code" on:click={() => insertText('`', '`')}><i class="fas fa-code"></i></button>
       <button title="Quote" on:click={() => insertText('> ')}><i class="fas fa-quote-right"></i></button>
       <button title="List" on:click={() => insertText('- ')}><i class="fas fa-list-ul"></i></button>
-    </div>
+      </div>
     {/if}
   </div>
 
@@ -115,7 +115,7 @@
     border-color: #9ca3af;
     box-shadow: none;
   }
-  
+
   .editor-header {
     display: flex;
     justify-content: space-between;
@@ -126,12 +126,12 @@
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
   }
-  
+
   .tabs {
     display: flex;
     gap: 2px;
   }
-  
+
   .tabs button {
     padding: 10px 16px;
     font-size: 13px;
@@ -144,7 +144,7 @@
     transition: all 0.2s;
     margin-bottom: -1px;
   }
-  
+
   .tabs button:hover {
     color: #374151;
   }
@@ -153,13 +153,13 @@
     color: #2563eb;
     border-bottom-color: #2563eb;
   }
-  
+
   .toolbar {
     display: flex;
     gap: 4px;
     padding: 4px 0;
   }
-  
+
   .toolbar button {
     padding: 6px;
     color: #6b7280;
@@ -175,19 +175,19 @@
     width: 28px;
     height: 28px;
   }
-  
+
   .toolbar button:hover {
     background: #e5e7eb;
     color: #111827;
   }
-  
+
   .editor-content {
     position: relative;
     min-height: 200px;
     background: transparent;
     display: block;
   }
-  
+
   textarea {
     width: 100%;
     min-height: 200px;
@@ -203,7 +203,7 @@
     background: transparent;
     overflow: auto;
   }
-  
+
   .preview {
     padding: 16px;
     min-height: 120px;
@@ -214,7 +214,7 @@
     resize: none;
     flex: 1;
   }
-  
+
   .editor-actions {
     display: flex;
     justify-content: space-between;
@@ -225,17 +225,17 @@
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
   }
-  
+
   .hint {
     font-size: 12px;
     color: #9ca3af;
   }
-  
+
   .buttons {
     display: flex;
     gap: 10px;
   }
-  
+
   .cancel-btn {
     padding: 6px 12px;
     font-size: 12px;
@@ -247,12 +247,12 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  
+
   .cancel-btn:hover {
     color: #374151;
     background: #f3f4f6;
   }
-  
+
   .submit-btn {
     padding: 6px 12px;
     font-size: 12px;
@@ -265,19 +265,19 @@
     transition: all 0.2s;
     box-shadow: none;
   }
-  
+
   .submit-btn:hover {
     background: #eff6ff;
     color: #1d4ed8;
   }
-  
+
   .submit-btn:disabled {
     color: #9ca3af;
     background: transparent;
     cursor: not-allowed;
     box-shadow: none;
   }
-  
+
   /* Markdown Styles for Preview */
   :global(.markdown-body p) { margin-bottom: 0.75em; }
   :global(.markdown-body pre) { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; margin-bottom: 0.75em; }
