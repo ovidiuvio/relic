@@ -4,9 +4,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.main import app
-from backend.database import Base, get_db
-from backend.config import settings
+from backend.app.main import app
+from backend.app.core.database import get_db
+from backend.app.models import Base
+from backend.app.core.config import settings
 
 
 # Use in-memory SQLite for tests

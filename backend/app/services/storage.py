@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional, Tuple
 from minio import Minio
 from minio.error import S3Error
-from backend.config import settings
+from backend.app.core.config import settings
 
 
 class StorageService:

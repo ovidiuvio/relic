@@ -55,7 +55,6 @@ class Relic(Base):
     # Lifecycle
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     expires_at = Column(DateTime, nullable=True)
-    expires_at = Column(DateTime, nullable=True)
     access_count = Column(Integer, default=0)
 
     # Relationships

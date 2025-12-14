@@ -20,8 +20,8 @@ from urllib.parse import urlparse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from backend.config import settings
-from backend.storage import storage_service
+from backend.app.core.config import settings
+from backend.app.services.storage import storage_service
 
 logger = logging.getLogger('relic.backup')
 

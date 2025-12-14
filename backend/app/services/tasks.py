@@ -2,9 +2,9 @@
 import asyncio
 from datetime import datetime, timedelta
 from sqlalchemy import delete
-from backend.database import SessionLocal
-from backend.models import Relic
-from backend.storage import storage_service
+from backend.app.core.database import SessionLocal
+from backend.app.models import Relic
+from backend.app.services.storage import storage_service
 
 
 async def cleanup_expired_relics():

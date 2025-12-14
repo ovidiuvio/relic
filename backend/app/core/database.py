@@ -1,8 +1,8 @@
 """Database session and initialization."""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from backend.config import settings
-from backend.models import Base
+from backend.app.core.config import settings
+from backend.app.models import Base
 
 
 # Create engine
