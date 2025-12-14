@@ -2,6 +2,7 @@ import { getRelicRaw, forkRelic, createRelic } from './api' // Auto-resolves to 
 import { showToast } from '../stores/toastStore'
 import { copyToClipboard } from './utils/clipboard'
 import { triggerDownload, getFileExtension } from './utils/download'
+import { decodeContent } from './processors/utils/contentUtils'
 
 export { copyToClipboard, getFileExtension }
 
@@ -82,13 +83,7 @@ export function downloadArchiveFile(fileContent, fileName, contentType) {
 
 export async function copyArchiveFileContent(fileContent) {
   try {
-    let text
-    if (typeof fileContent === 'string') {
-      text = fileContent
-    } else {
-      // Convert Uint8Array to string
-      text = new TextDecoder().decode(fileContent)
-    }
+    const text = decodeContent(fileContent)
     copyToClipboard(text, 'Content copied to clipboard!')
   } catch (error) {
     console.error('Failed to copy archive file content:', error)
