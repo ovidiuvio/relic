@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  import { renderPDFPage, processPDF } from '../services/pdfProcessor.js'
+  import { renderPDFPage,processPDF } from '../services/processors/pdfProcessor.js'
   import { getRelicRaw } from '../services/api'
   import { showToast } from '../stores/toastStore'
 

@@ -6,7 +6,7 @@
 import JSZip from 'jszip'
 import untar from 'js-untar'
 import { gunzipSync } from 'fflate'
-import { detectLanguageHint, getSyntaxFromExtension, getContentType } from './typeUtils.js'
+import { detectLanguageHint, getSyntaxFromExtension, getContentType } from '../typeUtils.js'
 
 /**
  * Detect archive type from content type

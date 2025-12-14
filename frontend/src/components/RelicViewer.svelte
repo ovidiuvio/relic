@@ -13,27 +13,27 @@
     updateComment,
     deleteComment
   } from "../services/api";
-  import { processContent } from "../services/processors";
-  import { processArchive } from "../services/archiveProcessor";
-  import { showToast } from "../stores/toastStore";
-  import { downloadRelic, fastForkArchiveFile } from "../services/relicActions";
-  import ForkModal from "./ForkModal.svelte";
-  import PDFViewer from "./PDFViewer.svelte";
-  import { createEventDispatcher } from "svelte";
-  import { getCurrentLineNumberFragment } from "../utils/lineNumbers";
-  import { getFileTypeDefinition } from "../services/typeUtils";
+  import { processContent } from '../services/processors';
+  import { processArchive } from '../services/processors/archiveProcessor';
+  import { showToast } from '../stores/toastStore';
+  import { downloadRelic, fastForkArchiveFile } from '../services/relicActions';
+  import ForkModal from './ForkModal.svelte';
+  import PDFViewer from './PDFViewer.svelte';
+  import { createEventDispatcher } from 'svelte';
+  import { getCurrentLineNumberFragment } from '../utils/lineNumbers';
+  import { getFileTypeDefinition } from '../services/typeUtils';
 
   // Sub-components
-  import RelicHeader from "./RelicHeader.svelte";
-  import RelicStatusBar from "./RelicStatusBar.svelte";
-  import MarkdownRenderer from "./renderers/MarkdownRenderer.svelte";
-  import HtmlRenderer from "./renderers/HtmlRenderer.svelte";
-  import CodeRenderer from "./renderers/CodeRenderer.svelte";
-  import ImageRenderer from "./renderers/ImageRenderer.svelte";
-  import CsvRenderer from "./renderers/CsvRenderer.svelte";
-  import ArchiveRenderer from "./renderers/ArchiveRenderer.svelte";
-  import ExcalidrawRenderer from "./renderers/ExcalidrawRenderer.svelte";
-  import RelicIndexRenderer from "./renderers/RelicIndexRenderer.svelte";
+  import RelicHeader from './RelicHeader.svelte';
+  import RelicStatusBar from './RelicStatusBar.svelte';
+  import MarkdownRenderer from './renderers/MarkdownRenderer.svelte';
+  import HtmlRenderer from './renderers/HtmlRenderer.svelte';
+  import CodeRenderer from './renderers/CodeRenderer.svelte';
+  import ImageRenderer from './renderers/ImageRenderer.svelte';
+  import CsvRenderer from './renderers/CsvRenderer.svelte';
+  import ArchiveRenderer from './renderers/ArchiveRenderer.svelte';
+  import ExcalidrawRenderer from './renderers/ExcalidrawRenderer.svelte';
+  import RelicIndexRenderer from './renderers/RelicIndexRenderer.svelte';
 
   const dispatch = createEventDispatcher();
 

@@ -1,17 +1,17 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte'
-  import * as monaco from 'monaco-editor'
+  import { onMount, createEventDispatcher } from 'svelte';
+  import * as monaco from 'monaco-editor';
   import {
     parseLineNumberFragment,
     getCurrentLineNumberFragment,
     getHighlightDecorations,
     getLineNumberFromClick,
     updateUrlWithLineNumbers,
-    createLineTooltip
-  } from '../utils/lineNumbers'
-  import CommentEditor from './CommentEditor.svelte'
-  import { processMarkdown } from '../services/markdownProcessor'
-  import { getClientKey } from '../services/api'
+    createLineTooltip,
+  } from '../utils/lineNumbers';
+  import CommentEditor from './CommentEditor.svelte';
+  import { processMarkdown } from '../services/processors/markdownProcessor';
+  import { getClientKey } from '../services/api';
 
   export let value = ''
   export let language = 'plaintext'

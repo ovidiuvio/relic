@@ -1,40 +1,9 @@
-import { getRelicRaw, forkRelic } from './api'
+import { getRelicRaw, forkRelic, createRelic } from './api' // Auto-resolves to api/index.js if api.js is gone, or we might need to be specific if keeping api.js
 import { showToast } from '../stores/toastStore'
-import { getFileTypeDefinition } from './typeUtils'
+import { copyToClipboard } from './utils/clipboard'
+import { triggerDownload, getFileExtension } from './utils/download'
 
-export function getFileExtension(contentType) {
-  if (!contentType) return 'txt'
-
-  // Use centralized type definitions
-  const typeDef = getFileTypeDefinition(contentType)
-  if (typeDef && typeDef.extensions && typeDef.extensions.length > 0) {
-    return typeDef.extensions[0]
-  }
-
-  // Default fallback patterns
-  if (contentType.includes('text/')) {
-    if (contentType.includes('plain')) return 'txt'
-    return 'txt'
-  }
-  if (contentType.includes('application/')) {
-    return 'txt'
-  }
-  if (contentType.includes('image/')) {
-    return 'img'
-  }
-
-  return 'txt'
-}
-
-export async function copyToClipboard(text, successMessage = 'Copied to clipboard!') {
-  try {
-    await navigator.clipboard.writeText(text)
-    showToast(successMessage, 'success')
-  } catch (error) {
-    console.error('Failed to copy to clipboard:', error)
-    showToast('Failed to copy to clipboard', 'error')
-  }
-}
+export { copyToClipboard, getFileExtension }
 
 export function shareRelic(relicId) {
   // Get current URL (preserves full path including archive file paths)
@@ -58,28 +27,15 @@ export async function copyRelicContent(relicId) {
 export async function downloadRelic(relicId, relicName, contentType) {
   try {
     const response = await getRelicRaw(relicId)
-    const blob = new Blob([response.data], { type: contentType || 'text/plain' })
-    const url = window.URL.createObjectURL(blob)
 
-    // Generate appropriate file extension based on content type
+    // Generate appropriate file extension
     const extension = getFileExtension(contentType)
 
     // Generate filename from relic name with correct extension, or use default
     const cleanName = relicName ? relicName.replace(/[^a-zA-Z0-9-_]/g, '_') : relicId
     const filename = `${cleanName}.${extension}`
 
-    // Create temporary link and trigger download
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    // Clean up object URL
-    window.URL.revokeObjectURL(url)
-
-    showToast(`Downloading ${filename}...`, 'success')
+    triggerDownload(response.data, filename, contentType || 'text/plain')
   } catch (error) {
     console.error('Failed to download relic:', error)
     showToast('Failed to download relic', 'error')
@@ -121,25 +77,7 @@ export function viewRaw(relicId) {
 // ===== Archive File Actions =====
 
 export function downloadArchiveFile(fileContent, fileName, contentType) {
-  try {
-    const blob = new Blob([fileContent], { type: contentType || 'text/plain' })
-    const url = window.URL.createObjectURL(blob)
-
-    // Use the actual file name
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    window.URL.revokeObjectURL(url)
-
-    showToast(`Downloading ${fileName}...`, 'success')
-  } catch (error) {
-    console.error('Failed to download archive file:', error)
-    showToast('Failed to download file', 'error')
-  }
+  triggerDownload(fileContent, fileName, contentType)
 }
 
 export async function copyArchiveFileContent(fileContent) {
@@ -164,23 +102,18 @@ export async function fastForkArchiveFile(fileContent, fileName, contentType) {
     const file = new File([fileContent], fileName, { type: contentType || 'text/plain' })
 
     // Create a new relic (not a fork, since the archive file is not a relic itself)
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('name', fileName)
-    formData.append('access_level', 'public')
-    formData.append('expires_in', 'never')
-
-    // Use the createRelic API (we'll need to import this or use fetch directly)
-    const response = await fetch('/api/v1/relics', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to create relic from archive file')
+    // We use createRelic from api service properly now
+    // Note: formData construction is handled in createRelic service
+    const relicData = {
+      file,
+      name: fileName,
+      access_level: 'public',
+      expires_in: 'never'
     }
 
-    const newRelic = await response.json()
+    const response = await createRelic(relicData)
+    const newRelic = response.data
+
     showToast('File saved as new relic!', 'success')
 
     // Navigate to the new relic

@@ -1,13 +1,13 @@
 <script>
-  import { onDestroy } from 'svelte'
-  import { processContent } from '../../services/processors.js'
-  import CodeRenderer from './CodeRenderer.svelte'
-  import ImageRenderer from './ImageRenderer.svelte'
-  import MarkdownRenderer from './MarkdownRenderer.svelte'
-  import HtmlRenderer from './HtmlRenderer.svelte'
-  import CsvRenderer from './CsvRenderer.svelte'
-  import ExcalidrawRenderer from './ExcalidrawRenderer.svelte'
-  import PDFViewer from '../PDFViewer.svelte'
+  import { onDestroy } from 'svelte';
+  import { processContent } from '../../services/processors/index.js';
+  import CodeRenderer from './CodeRenderer.svelte';
+  import ImageRenderer from './ImageRenderer.svelte';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import HtmlRenderer from './HtmlRenderer.svelte';
+  import CsvRenderer from './CsvRenderer.svelte';
+  import ExcalidrawRenderer from './ExcalidrawRenderer.svelte';
+  import PDFViewer from '../PDFViewer.svelte';
 
   export let processed
   export let relicId

@@ -1,10 +1,10 @@
 <script>
-  import { onMount } from 'svelte'
-  import { showToast } from '../stores/toastStore'
-  import { getClientRelics, deleteRelic } from '../services/api'
-  import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils'
-  import { filterRelics } from '../services/paginationUtils'
-  import RelicTable from './RelicTable.svelte'
+  import { onMount } from 'svelte';
+  import { showToast } from '../stores/toastStore';
+  import { getClientRelics, deleteRelic } from '../services/api';
+  import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
+  import { filterRelics } from '../services/utils/paginationUtils';
+  import RelicTable from './RelicTable.svelte';
 
   let relics = []
   let loading = true
