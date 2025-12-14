@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { listRelics } from '../services/api';
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
-  import { filterRelics } from '../services/utils/paginationUtils';
+  import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import { showToast } from '../stores/toastStore';
   import RelicTable from './RelicTable.svelte';
 
@@ -15,16 +15,12 @@
   // Use shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel)
 
-  // Calculate pagination
-  $: totalPages = Math.ceil(filteredRelics.length / itemsPerPage)
-  $: paginatedRelics = (() => {
-    const start = (currentPage - 1) * itemsPerPage
-    const end = start + itemsPerPage
-    return filteredRelics.slice(start, end)
-  })()
+  // Calculate pagination using shared utilities
+  $: totalPages = calculateTotalPages(filteredRelics, itemsPerPage)
+  $: paginatedRelics = paginateData(filteredRelics, currentPage, itemsPerPage)
 
   function goToPage(page) {
-    currentPage = Math.max(1, Math.min(page, totalPages))
+    currentPage = clampPage(page, totalPages)
   }
 
   onMount(async () => {

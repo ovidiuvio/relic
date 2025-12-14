@@ -49,3 +49,18 @@ export function createPaginationStore(initialPage = 1) {
     goTo: (page, maxPage) => set(Math.max(1, Math.min(page, maxPage)))
   }
 }
+
+// Simple pagination utilities for plain values (non-store)
+export function calculateTotalPages(filteredData, itemsPerPage) {
+  return Math.ceil(filteredData.length / itemsPerPage)
+}
+
+export function paginateData(filteredData, currentPage, itemsPerPage) {
+  const start = (currentPage - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredData.slice(start, end)
+}
+
+export function clampPage(page, totalPages) {
+  return Math.max(1, Math.min(page, totalPages))
+}
