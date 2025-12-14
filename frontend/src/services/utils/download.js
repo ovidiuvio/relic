@@ -1,10 +1,12 @@
 import { showToast } from '../../stores/toastStore'
-import { getFileExtension as getSyntaxExtension, getFileTypeDefinition } from '../typeUtils'
+import { getFileTypeDefinition } from '../typeUtils'
 
 /**
- * Determine best file extension for content type
+ * Determine best file extension for a MIME type (content type)
+ * @param {string} contentType - MIME type (e.g., 'application/javascript', 'text/plain')
+ * @returns {string} File extension without dot (e.g., 'js', 'txt')
  */
-export function getFileExtension(contentType) {
+export function getExtensionFromMimeType(contentType) {
     if (!contentType) return 'txt'
 
     // Use centralized type definitions

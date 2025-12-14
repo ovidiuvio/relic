@@ -1,10 +1,10 @@
 import { getRelicRaw, forkRelic, createRelic } from './api' // Auto-resolves to api/index.js if api.js is gone, or we might need to be specific if keeping api.js
 import { showToast } from '../stores/toastStore'
 import { copyToClipboard } from './utils/clipboard'
-import { triggerDownload, getFileExtension } from './utils/download'
+import { triggerDownload, getExtensionFromMimeType } from './utils/download'
 import { decodeContent } from './processors/utils/contentUtils'
 
-export { copyToClipboard, getFileExtension }
+export { copyToClipboard, getExtensionFromMimeType }
 
 export function shareRelic(relicId) {
   // Get current URL (preserves full path including archive file paths)
@@ -29,8 +29,8 @@ export async function downloadRelic(relicId, relicName, contentType) {
   try {
     const response = await getRelicRaw(relicId)
 
-    // Generate appropriate file extension
-    const extension = getFileExtension(contentType)
+    // Generate appropriate file extension from MIME type
+    const extension = getExtensionFromMimeType(contentType)
 
     // Generate filename from relic name with correct extension, or use default
     const cleanName = relicName ? relicName.replace(/[^a-zA-Z0-9-_]/g, '_') : relicId
