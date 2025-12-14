@@ -34,6 +34,7 @@
   import ArchiveRenderer from './renderers/ArchiveRenderer.svelte';
   import ExcalidrawRenderer from './renderers/ExcalidrawRenderer.svelte';
   import RelicIndexRenderer from './renderers/RelicIndexRenderer.svelte';
+  import NotebookRenderer from './renderers/NotebookRenderer.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -646,6 +647,8 @@
           <RelicIndexRenderer {processed} {relicId} />
         {:else if processed.type === "excalidraw"}
           <ExcalidrawRenderer {processed} {relicId} {relic} />
+        {:else if processed.type === "notebook"}
+          <NotebookRenderer {processed} />
         {:else}
           <div class="border-t border-gray-200 p-6 text-center">
             <i class="fas fa-file text-gray-400 text-6xl mb-4"></i>

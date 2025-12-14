@@ -325,10 +325,15 @@ async def create_relic(
         # Read file content
         if file:
             content = await file.read()
-            if not content_type:
-                content_type = file.content_type or "application/octet-stream"
             if not name:
                 name = file.filename
+
+            if not content_type:
+                # Auto-detect content type for notebooks
+                if name and name.lower().endswith('.ipynb'):
+                    content_type = "application/x-ipynb+json"
+                else:
+                    content_type = file.content_type or "application/octet-stream"
         else:
             raise HTTPException(status_code=400, detail="No content provided")
 
@@ -471,7 +476,11 @@ async def fork_relic(
         # If no new content provided, fork with same content
         if file:
             content = await file.read()
-            content_type = file.content_type or original.content_type
+            # Auto-detect content type for notebooks
+            if file.filename and file.filename.lower().endswith('.ipynb'):
+                content_type = "application/x-ipynb+json"
+            else:
+                content_type = file.content_type or original.content_type
         else:
             content = await storage_service.download(original.s3_key)
             content_type = original.content_type

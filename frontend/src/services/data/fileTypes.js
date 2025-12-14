@@ -385,6 +385,14 @@ export const FILE_TYPES = [
         category: 'code'
     },
     {
+        syntax: 'notebook',
+        label: 'Jupyter Notebook',
+        icon: 'fa-book-open',
+        mime: 'application/x-ipynb+json',
+        extensions: ['ipynb'],
+        category: 'notebook'
+    },
+    {
         syntax: 'relic-index',
         label: 'Relic Index',
         icon: 'fa-solid fa-list-ul',

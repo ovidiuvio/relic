@@ -31,6 +31,7 @@ export function getFileTypeDefinition(contentType) {
   if (lowerType.includes('pdf')) return FILE_TYPES.find(t => t.syntax === 'pdf')
   if (lowerType.includes('image')) return FILE_TYPES.find(t => t.syntax === 'image')
   if (lowerType.includes('csv')) return FILE_TYPES.find(t => t.syntax === 'csv')
+  if (lowerType.includes('notebook') || lowerType.includes('ipynb')) return FILE_TYPES.find(t => t.syntax === 'notebook')
   if (lowerType.includes('zip') || lowerType.includes('archive') || lowerType.includes('tar') || lowerType.includes('gzip')) return FILE_TYPES.find(t => t.syntax === 'archive')
 
   // Extension-based detection for files with custom formats (e.g., .excalidraw, .excalidraw.json)
