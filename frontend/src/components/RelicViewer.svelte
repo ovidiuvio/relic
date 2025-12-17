@@ -502,6 +502,18 @@
         on:toggle-bookmark={toggleBookmark}
         on:fork={handleFork}
         on:delete={handleDelete}
+        on:updated={(e) => {
+            relic = e.detail;
+            // Also update processed if content type changed?
+            // Content type change might require reprocessing, but for now we just update metadata.
+            // If content type changed drastically (e.g. text to image), we might need to reload.
+            // But content usually stays same, just metadata changes.
+            // If the user changed content_type manually, we should probably re-process.
+            if (e.detail.content_type !== processed.contentType) {
+                // simple reload
+                loadRelic(relicId);
+            }
+        }}
       />
 
       <RelicStatusBar

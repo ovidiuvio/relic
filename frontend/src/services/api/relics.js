@@ -51,6 +51,10 @@ export async function deleteRelic(relicId) {
     return api.delete(`/relics/${relicId}`)
 }
 
+export async function updateRelic(relicId, data) {
+    return api.put(`/relics/${relicId}`, data)
+}
+
 // Note: getRelicRaw often needs specific responseType, so it's a bit special.
 // We import axios directly usually to avoid default interceptors modifying it? 
 // No, raw content should be fine with interceptors, but we need responseType: 'blob'.

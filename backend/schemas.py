@@ -40,6 +40,14 @@ class RelicFork(BaseModel):
     name: Optional[str] = None
 
 
+class RelicUpdate(BaseModel):
+    """Schema for updating a relic."""
+    name: Optional[str] = None
+    content_type: Optional[str] = None
+    access_level: Optional[Literal["public", "private"]] = None
+    expires_in: Optional[str] = None
+
+
 class RelicResponse(BaseModel):
     """Relic response schema."""
     id: str

@@ -16,7 +16,8 @@ from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookma
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse,
     RelicFork, ReportCreate, ReportResponse,
-    CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate
+    CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate,
+    RelicUpdate
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
@@ -560,6 +561,52 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
     db.commit()
 
     return {"message": "Relic deleted successfully"}
+
+
+@app.put("/api/v1/relics/{relic_id}", response_model=RelicResponse)
+async def update_relic(
+    relic_id: str,
+    relic_update: RelicUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Update relic metadata.
+
+    Owner or admin only.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Client key required")
+
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    # Check ownership OR admin privileges
+    if not check_ownership_or_admin(relic, client, require_auth=False):
+        raise HTTPException(status_code=403, detail="Not authorized to update this relic")
+
+    # Update fields if provided
+    if relic_update.name is not None:
+        relic.name = relic_update.name
+
+    if relic_update.content_type is not None:
+        relic.content_type = relic_update.content_type
+
+    if relic_update.access_level is not None:
+        relic.access_level = relic_update.access_level
+
+    if relic_update.expires_in is not None:
+        if relic_update.expires_in == 'never':
+            relic.expires_at = None
+        else:
+            relic.expires_at = parse_expiry_string(relic_update.expires_in)
+
+    db.commit()
+    db.refresh(relic)
+
+    return relic
 
 
 # ==================== Listing & Search ====================
