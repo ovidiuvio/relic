@@ -5,12 +5,15 @@
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
   import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
+  import EditRelicModal from './EditRelicModal.svelte';
 
   let relics = []
   let loading = true
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 20
+  let showEditModal = false
+  let selectedRelic = null
 
   // Use the shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel)
@@ -31,6 +34,25 @@
     } finally {
       loading = false
     }
+  }
+
+  function handleEditRelic(relic) {
+    selectedRelic = relic
+    showEditModal = true
+  }
+
+  function handleEditModalClose() {
+    showEditModal = false
+    selectedRelic = null
+  }
+
+  function handleEditModalUpdate(event) {
+    const updatedRelic = event.detail
+    if (updatedRelic) {
+      // Update the relic in the list
+      relics = relics.map(r => r.id === updatedRelic.id ? { ...r, ...updatedRelic } : r)
+    }
+    handleEditModalClose()
   }
 
   async function handleDeleteRelic(relic) {
@@ -76,7 +98,17 @@
     emptyIcon="fa-inbox"
     emptyAction="Create your first relic to get started!"
     tableId="my-relics"
+    onEdit={handleEditRelic}
     onDelete={handleDeleteRelic}
     {goToPage}
   />
 </div>
+
+{#if selectedRelic}
+  <EditRelicModal
+    bind:show={showEditModal}
+    relic={selectedRelic}
+    on:close={handleEditModalClose}
+    on:update={handleEditModalUpdate}
+  />
+{/if}

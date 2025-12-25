@@ -559,6 +559,9 @@ async def update_relic(
     if update.content_type is not None:
         relic.content_type = update.content_type
 
+    if update.language_hint is not None:
+        relic.language_hint = update.language_hint
+
     if update.access_level is not None:
         relic.access_level = update.access_level
 

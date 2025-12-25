@@ -17,7 +17,7 @@ api.interceptors.request.use((config) => {
     // Only add client key to protected endpoints
     const needsAuth = (url, method) => {
         const protectedPatterns = [
-            { endpoint: '/relics', methods: ['POST', 'DELETE', 'PUT'] },
+            { endpoint: '/relics', methods: ['GET', 'POST', 'DELETE', 'PUT'] },
             { endpoint: '/edit', methods: ['POST'] },
             { endpoint: 'client/relics', methods: ['GET'] },
             { endpoint: '/client/name', methods: ['PUT'] },

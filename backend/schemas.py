@@ -44,6 +44,7 @@ class RelicUpdate(BaseModel):
     """Relic update schema."""
     name: Optional[str] = None
     content_type: Optional[str] = None
+    language_hint: Optional[str] = None
     access_level: Optional[Literal["public", "private"]] = None
     expires_in: Optional[str] = None  # "1h", "24h", "7d", "30d", or "never"
 

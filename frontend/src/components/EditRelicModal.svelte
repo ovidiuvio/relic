@@ -2,21 +2,51 @@
     import { createEventDispatcher } from 'svelte'
     import { updateRelic } from '../services/api/relics'
     import Toast from './Toast.svelte'
-    import { toastStore } from '../stores/toastStore'
+    import { showToast } from '../stores/toastStore'
+    import Select from 'svelte-select'
+    import { getAvailableSyntaxOptions, getFileTypeDefinition, getContentType } from '../services/typeUtils'
 
     export let relic
     export let show = false
 
     const dispatch = createEventDispatcher()
+    const syntaxOptions = getAvailableSyntaxOptions()
 
-    let name = relic.name || ''
-    let contentType = relic.content_type || 'text/plain'
-    let accessLevel = relic.access_level || 'public'
-    let expiresIn = 'never'
+    let name = ''
+    let syntax = 'auto'
+    let syntaxValue = { value: 'auto', label: 'Auto-detect' }
+    let accessLevel = 'public'
+    let expiresIn = 'no-change'
     let loading = false
+    let initialized = false
+
+    // Update syntax when syntaxValue changes
+    $: syntax = syntaxValue?.value || 'auto'
+
+    // Initialize form when modal is shown
+    $: if (show && relic && !initialized) {
+        name = relic.name || ''
+        accessLevel = relic.access_level || 'public'
+        expiresIn = 'no-change'
+
+        // Determine initial syntax value from language_hint or content_type
+        syntaxValue = syntaxOptions.find(opt => opt.value === relic.language_hint) ||
+                      syntaxOptions.find(opt => {
+                          const typeDef = getFileTypeDefinition(relic.content_type)
+                          return typeDef && opt.value === typeDef.syntax
+                      }) ||
+                      { value: 'auto', label: 'Auto-detect' }
+        initialized = true
+    }
+
+    // Reset initialized flag when modal closes
+    $: if (!show) {
+        initialized = false
+    }
 
     const expiryOptions = [
-        { value: 'never', label: 'Never (keep current expiry)' },
+        { value: 'no-change', label: 'No change (keep current)' },
+        { value: 'never', label: 'Remove expiry (never expire)' },
         { value: '1h', label: '1 hour from now' },
         { value: '24h', label: '24 hours from now' },
         { value: '7d', label: '7 days from now' },
@@ -26,30 +56,29 @@
     async function handleSubmit() {
         loading = true
         try {
+            // Compute content_type and language_hint from syntax (like RelicForm does)
+            const contentType = syntax !== 'auto' ? getContentType(syntax) : relic.content_type
+            const languageHint = syntax !== 'auto' ? syntax : null
+
             const updates = {
                 name,
                 content_type: contentType,
+                language_hint: languageHint,
                 access_level: accessLevel,
             }
 
-            // Only send expires_in if it's not 'never' (or handle 'never' backend side?
-            // My backend impl for update checks if expires_in is not None.
-            // If user selects 'never', I probably shouldn't send it if I want to keep current?
-            // Wait, the UI option says "Never (keep current expiry)".
-            // If they want to remove expiry, that's different.
-            // Let's assume 'never' means "don't update expiry".
-
-            if (expiresIn !== 'never') {
+            // Only include expires_in if user wants to change it
+            if (expiresIn !== 'no-change') {
                 updates.expires_in = expiresIn
             }
 
-            const updatedRelic = await updateRelic(relic.id, updates)
-            toastStore.add('Relic updated successfully', 'success')
-            dispatch('update', updatedRelic)
+            const response = await updateRelic(relic.id, updates)
+            showToast('Relic updated successfully', 'success')
+            dispatch('update', response.data)
             close()
         } catch (error) {
             console.error('Update failed:', error)
-            toastStore.add(error.message || 'Failed to update relic', 'error')
+            showToast(error.message || 'Failed to update relic', 'error')
         } finally {
             loading = false
         }
@@ -79,17 +108,28 @@
                     />
                 </div>
 
-                <!-- Content Type -->
+                <!-- Language / Syntax -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Content Type (MIME)
+                        Language / Syntax
                     </label>
-                    <input
-                        type="text"
-                        bind:value={contentType}
-                        class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g. text/plain"
+                    <Select
+                        items={syntaxOptions}
+                        bind:value={syntaxValue}
+                        placeholder="Select language..."
+                        searchable={true}
+                        clearable={false}
+                        --border-radius="0.375rem"
+                        --background="white"
+                        --list-background="white"
+                        --item-hover-bg="#EFF6FF"
+                        --border="1px solid #D1D5DB"
+                        --border-focused="1px solid #3B82F6"
+                        --border-hover="1px solid #9CA3AF"
                     />
+                    <p class="text-xs text-gray-500 mt-1">
+                        Current: {relic.content_type || 'text/plain'} {relic.language_hint ? `(${relic.language_hint})` : ''}
+                    </p>
                 </div>
 
                 <!-- Access Level -->
@@ -122,7 +162,7 @@
                 <!-- Expiry -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Reset Expiry
+                        Expiry
                     </label>
                     <select
                         bind:value={expiresIn}

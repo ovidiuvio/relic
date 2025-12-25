@@ -27,6 +27,7 @@
   }
 
   // Custom action handlers
+  export let onEdit = null // function(relic) for edit action
   export let onDelete = null // function(relic) for delete action
   export let onRemoveBookmark = null // function(relic) for remove bookmark action
   export let customActions = [] // Array of { icon, color, title, handler, position }
@@ -197,6 +198,17 @@
                   >
                     <i class="fas fa-download text-xs"></i>
                   </button>
+
+                  <!-- Edit button -->
+                  {#if onEdit}
+                    <button
+                      on:click|stopPropagation={() => onEdit(relic)}
+                      class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit relic"
+                    >
+                      <i class="fas fa-edit text-xs"></i>
+                    </button>
+                  {/if}
 
                   <!-- Delete button - always last as it's destructive -->
                   {#if onDelete}
