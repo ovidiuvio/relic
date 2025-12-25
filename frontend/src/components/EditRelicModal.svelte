@@ -17,6 +17,7 @@
     let syntaxValue = { value: 'auto', label: 'Auto-detect' }
     let accessLevel = 'public'
     let expiresIn = 'no-change'
+    let tags = ''
     let loading = false
     let initialized = false
 
@@ -28,6 +29,13 @@
         name = relic.name || ''
         accessLevel = relic.access_level || 'public'
         expiresIn = 'no-change'
+
+        // Initialize tags
+        if (relic.tags && Array.isArray(relic.tags)) {
+            tags = relic.tags.map(t => t.name).join(', ')
+        } else {
+            tags = ''
+        }
 
         // Determine initial syntax value from language_hint or content_type
         syntaxValue = syntaxOptions.find(opt => opt.value === relic.language_hint) ||
@@ -65,6 +73,7 @@
                 content_type: contentType,
                 language_hint: languageHint,
                 access_level: accessLevel,
+                tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : []
             }
 
             // Only include expires_in if user wants to change it
@@ -157,6 +166,19 @@
                             <span class="ml-2 text-gray-700 dark:text-gray-300">Private</span>
                         </label>
                     </div>
+                </div>
+
+                <!-- Tags -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Tags
+                    </label>
+                    <input
+                        type="text"
+                        bind:value={tags}
+                        class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. config, nginx, production (comma separated)"
+                    />
                 </div>
 
                 <!-- Expiry -->

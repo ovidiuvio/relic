@@ -261,6 +261,33 @@ def check_ownership_or_admin(
 
 # ==================== Helper Functions ====================
 
+def process_tags(db: Session, tag_names: List[str]) -> List[Tag]:
+    """Process a list of tag names and return Tag objects (creating new ones if needed)."""
+    if not tag_names:
+        return []
+
+    # Normalize tags
+    normalized_names = sorted(list(set(name.strip().lower() for name in tag_names if name.strip())))
+
+    if not normalized_names:
+        return []
+
+    # Find existing tags
+    existing_tags = db.query(Tag).filter(Tag.name.in_(normalized_names)).all()
+    existing_names = {tag.name for tag in existing_tags}
+
+    result_tags = list(existing_tags)
+
+    # Create new tags
+    for name in normalized_names:
+        if name not in existing_names:
+            new_tag = Tag(name=name)
+            db.add(new_tag)
+            result_tags.append(new_tag)
+
+    return result_tags
+
+
 def generate_unique_relic_id(db: Session, max_retries: int = 5) -> str:
     """
     Generate a unique relic ID with collision handling.
@@ -312,6 +339,10 @@ async def create_relic(
 
     Accepts either file upload or raw content in body.
     """
+    # Normalize tags input - handle if it comes as comma-separated string in a single list element
+    if tags and len(tags) == 1 and ',' in tags[0]:
+        tags = [t.strip() for t in tags[0].split(',')]
+
     # Validate access_level
     if access_level not in ("public", "private"):
         raise HTTPException(
@@ -347,6 +378,9 @@ async def create_relic(
         # Parse expiry
         expires_at = parse_expiry_string(expires_in)
 
+        # Process tags
+        tag_objects = process_tags(db, tags) if tags else []
+
         # Create relic record
         relic = Relic(
             id=relic_id,
@@ -360,6 +394,10 @@ async def create_relic(
             created_at=datetime.utcnow(),
             expires_at=expires_at
         )
+
+        # Associate tags
+        if tag_objects:
+            relic.tags = tag_objects
 
         # Update client relic count
         if client:
@@ -568,6 +606,9 @@ async def update_relic(
     if update.expires_in is not None:
         relic.expires_at = parse_expiry_string(update.expires_in)
 
+    if update.tags is not None:
+        relic.tags = process_tags(db, update.tags)
+
     db.commit()
     db.refresh(relic)
 
@@ -637,12 +678,21 @@ async def update_client_name(
 @app.get("/api/v1/relics", response_model=RelicListResponse)
 async def list_relics(
     limit: int = 1000,
+    tag: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """List the 1000 most recent public relics."""
-    relics = db.query(Relic).filter(
-        Relic.access_level == "public"
-    ).order_by(Relic.created_at.desc()).limit(limit).all()
+    query = db.query(Relic).filter(Relic.access_level == "public")
+
+    if tag:
+        tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
+        if tag_obj:
+            query = query.filter(Relic.tags.contains(tag_obj))
+        else:
+            # If tag doesn't exist, return empty list
+            return {"relics": []}
+
+    relics = query.order_by(Relic.created_at.desc()).limit(limit).all()
 
     return {
         "relics": relics

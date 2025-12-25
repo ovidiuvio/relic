@@ -21,6 +21,7 @@
   let content = "";
   let expiry = "never";
   let visibility = "public";
+  let tags = "";
   let isLoading = false;
   let fileInput;
   let uploadedFiles = []; // Array of { file, id }
@@ -57,6 +58,7 @@
     content = "";
     expiry = "never";
     visibility = "public";
+    tags = "";
     uploadedFiles = [];
     creationResult = null;
     zipMultiple = true;
@@ -173,6 +175,7 @@
             language_hint: syntax !== "auto" ? syntax : undefined,
             access_level: visibility,
             expires_in: expiry !== "never" ? expiry : undefined,
+            tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
           });
           createdRelics.push(response.data);
         } catch (err) {
@@ -210,6 +213,7 @@
               language_hint: "archive",
               access_level: visibility,
               expires_in: expiry !== "never" ? expiry : undefined,
+              tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
             });
             createdRelics.push(response.data);
           } catch (err) {
@@ -265,6 +269,7 @@
                 language_hint: fileSyntax !== "auto" ? fileSyntax : undefined,
                 access_level: visibility,
                 expires_in: expiry !== "never" ? expiry : undefined,
+                tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
               });
               createdRelics.push(response.data);
             } catch (err) {
@@ -297,6 +302,7 @@
           // Clear form data but keep creationResult
           title = "";
           content = "";
+          tags = "";
           uploadedFiles = [];
         }
       } else if (errors.length > 0) {
@@ -583,6 +589,24 @@
                 Applies to text content only. Files are auto-detected.
               </p>
             </div>
+          </div>
+
+          <div>
+            <label
+              for="tags"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Tags</label
+            >
+            <input
+              type="text"
+              id="tags"
+              bind:value={tags}
+              placeholder="e.g. config, nginx, production (comma separated)"
+              class="w-full px-3 py-2 text-sm maas-input"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Optional tags to categorize this relic
+            </p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

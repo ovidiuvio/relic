@@ -555,6 +555,18 @@
         </div>
       {/if}
 
+      <!-- Tags -->
+      {#if relic.tags && relic.tags.length > 0}
+        <div class="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2 items-center">
+          <i class="fas fa-tags text-gray-400 text-xs"></i>
+          {#each relic.tags as tag}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-800">
+              {tag.name}
+            </span>
+          {/each}
+        </div>
+      {/if}
+
       <!-- Archive Context Breadcrumb -->
       {#if isArchiveFile && archiveContext}
         <div class="px-6 py-3 bg-purple-50 border-b border-purple-200">

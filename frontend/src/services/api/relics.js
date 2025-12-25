@@ -10,7 +10,16 @@ export async function createRelic(formData) {
     if (formData.language_hint) data.append('language_hint', formData.language_hint)
     data.append('access_level', formData.access_level || 'public')
     if (formData.expires_in) data.append('expires_in', formData.expires_in)
-    if (formData.tags) data.append('tags', JSON.stringify(formData.tags))
+
+    // Handle tags: FastAPI expects List[str], which usually means repeating keys or comma separated
+    // Sending as comma separated string works best with the backend implementation we added
+    if (formData.tags) {
+        if (Array.isArray(formData.tags)) {
+            data.append('tags', formData.tags.join(','))
+        } else {
+            data.append('tags', formData.tags)
+        }
+    }
 
     // Use axios with FormData - let browser set Content-Type automatically
     return api.post('/relics', data, {
