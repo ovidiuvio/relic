@@ -40,6 +40,14 @@ class RelicFork(BaseModel):
     name: Optional[str] = None
 
 
+class RelicUpdate(BaseModel):
+    """Relic update schema."""
+    name: Optional[str] = None
+    content_type: Optional[str] = None
+    access_level: Optional[Literal["public", "private"]] = None
+    expires_in: Optional[str] = None  # "1h", "24h", "7d", "30d", or "never"
+
+
 class RelicResponse(BaseModel):
     """Relic response schema."""
     id: str
@@ -54,6 +62,7 @@ class RelicResponse(BaseModel):
     expires_at: Optional[datetime]
     expires_at: Optional[datetime]
     access_count: int
+    can_edit: bool = False
     tags: List[TagResponse] = []
 
     class Config:

@@ -425,6 +425,18 @@
     }
   }
 
+  function handleRelicUpdate(event) {
+    const updatedRelic = event.detail;
+    if (updatedRelic) {
+      relic = { ...relic, ...updatedRelic };
+      // If content_type changed, we might need to re-process.
+      if (processed && updatedRelic.content_type && updatedRelic.content_type !== processed.contentType) {
+          // Trigger reload to re-process content with new type hint
+          loadRelic(relicId);
+      }
+    }
+  }
+
   $: if (relicId) {
     if (filePath) {
       loadArchiveFile(relicId, filePath);
@@ -502,6 +514,7 @@
         on:toggle-bookmark={toggleBookmark}
         on:fork={handleFork}
         on:delete={handleDelete}
+        on:update={handleRelicUpdate}
       />
 
       <RelicStatusBar

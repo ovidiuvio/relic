@@ -16,6 +16,7 @@
     copyToClipboard,
   } from "../services/relicActions";
   import ReportModal from "./ReportModal.svelte";
+  import EditRelicModal from "./EditRelicModal.svelte";
   import { createEventDispatcher } from "svelte";
 
   export let relic;
@@ -32,6 +33,13 @@
   const dispatch = createEventDispatcher();
 
   let showReportModal = false;
+  let showEditModal = false;
+
+  function handleUpdate(event) {
+    const updatedRelic = event.detail;
+    // Notify parent to update relic data
+    dispatch('update', updatedRelic);
+  }
 
   function copyRelicId() {
     copyToClipboard(relicId, 'Relic ID copied to clipboard!');
@@ -186,6 +194,15 @@
     >
       <i class="fas fa-download text-sm"></i>
     </button>
+    {#if relic.can_edit && !isArchiveFile}
+      <button
+        on:click={() => (showEditModal = true)}
+        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+        title="Edit relic"
+      >
+        <i class="fas fa-edit text-sm"></i>
+      </button>
+    {/if}
     {#if isAdmin && !isArchiveFile}
       <div class="w-px h-6 bg-gray-300 mx-1"></div>
       <button
@@ -205,3 +222,9 @@
 </div>
 
 <ReportModal bind:open={showReportModal} {relicId} relicName={relic.name} />
+<EditRelicModal
+  bind:show={showEditModal}
+  {relic}
+  on:close={() => (showEditModal = false)}
+  on:update={handleUpdate}
+/>

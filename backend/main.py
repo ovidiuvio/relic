@@ -16,7 +16,8 @@ from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookma
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse,
     RelicFork, ReportCreate, ReportResponse,
-    CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate
+    CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate,
+    RelicUpdate
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
@@ -383,15 +384,18 @@ async def create_relic(
 
 
 @app.get("/api/v1/relics/{relic_id}", response_model=RelicResponse)
-async def get_relic(relic_id: str, password: Optional[str] = None, db: Session = Depends(get_db)):
+async def get_relic(
+    relic_id: str,
+    request: Request,
+    password: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     """Get relic metadata."""
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
 
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not relic:
-        raise HTTPException(status_code=404, detail="Relic not found")
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
 
@@ -404,6 +408,10 @@ async def get_relic(relic_id: str, password: Optional[str] = None, db: Session =
             raise HTTPException(status_code=403, detail="This relic requires a password")
         if hash_password(password) != relic.password_hash:
             raise HTTPException(status_code=403, detail="Invalid password")
+
+    # Check if client can edit
+    client = get_client_key(request, db)
+    relic.can_edit = check_ownership_or_admin(relic, client, require_auth=False)
 
     # Increment access count
     relic.access_count += 1
@@ -520,6 +528,48 @@ async def fork_relic(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/v1/relics/{relic_id}", response_model=RelicResponse)
+async def update_relic(
+    relic_id: str,
+    update: RelicUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Update relic metadata.
+
+    Only owner or admin can update.
+    """
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    if not check_ownership_or_admin(relic, client):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this relic")
+
+    if update.name is not None:
+        relic.name = update.name
+
+    if update.content_type is not None:
+        relic.content_type = update.content_type
+
+    if update.access_level is not None:
+        relic.access_level = update.access_level
+
+    if update.expires_in is not None:
+        relic.expires_at = parse_expiry_string(update.expires_in)
+
+    db.commit()
+    db.refresh(relic)
+
+    relic.can_edit = True
+    return relic
 
 
 @app.delete("/api/v1/relics/{relic_id}")
