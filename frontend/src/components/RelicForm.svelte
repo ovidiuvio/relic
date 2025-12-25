@@ -333,21 +333,31 @@
     e.preventDefault();
     e.currentTarget.classList.remove("border-blue-500", "bg-blue-50");
 
-    const items = e.dataTransfer.items;
-    if (items && items.length > 0) {
-      // Use DataTransferItemList interface to access file system entries
+    const dt = e.dataTransfer;
+    if (!dt) return;
+
+    if (dt.items && dt.items.length > 0) {
+      // Important: Collect all items/entries synchronously because dt.items
+      // can be cleared once we start awaiting in the loop.
+      const entriesToProcess = [];
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.webkitGetAsEntry) {
+          const entry = item.webkitGetAsEntry();
+          if (entry) entriesToProcess.push({ entry });
+        } else if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) entriesToProcess.push({ file });
+        }
+      }
+
       let allFiles = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i].webkitGetAsEntry
-          ? items[i].webkitGetAsEntry()
-          : null;
-        if (item) {
-          const files = await traverseFileTree(item);
+      for (const { entry, file } of entriesToProcess) {
+        if (entry) {
+          const files = await traverseFileTree(entry);
           allFiles = [...allFiles, ...files];
-        } else if (items[i].kind === "file") {
-          // Fallback for browsers that don't support webkitGetAsEntry or for simple files
-          const file = items[i].getAsFile();
-          if (file) allFiles.push({ file, path: file.name });
+        } else if (file) {
+          allFiles.push({ file, path: file.name });
         }
       }
 
@@ -356,8 +366,8 @@
       }
     } else {
       // Fallback for older browsers
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
+      const files = dt.files;
+      if (files && files.length > 0) {
         processFiles(files, "dropped");
       }
     }
