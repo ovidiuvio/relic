@@ -6,6 +6,8 @@
   import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
 
+  export let tagFilter = null
+
   let bookmarks = []
   let loading = true
   let searchTerm = ''
@@ -14,10 +16,14 @@
 
   // Use shared filter utility
   $: filteredBookmarks = filterRelics(bookmarks, searchTerm, getTypeLabel)
+  // Apply tag filter if present
+  $: tableBookmarks = tagFilter 
+    ? filteredBookmarks.filter(b => b.tags && b.tags.some(t => (typeof t === 'string' ? t : t.name).toLowerCase() === tagFilter.toLowerCase()))
+    : filteredBookmarks
 
   // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(filteredBookmarks, itemsPerPage)
-  $: paginatedBookmarks = paginateData(filteredBookmarks, currentPage, itemsPerPage)
+  $: totalPages = calculateTotalPages(tableBookmarks, itemsPerPage)
+  $: paginatedBookmarks = paginateData(tableBookmarks, currentPage, itemsPerPage)
 
   async function loadBookmarks() {
     try {
@@ -61,7 +67,7 @@
 
 <div class="px-4 sm:px-0">
   <RelicTable
-    data={filteredBookmarks}
+    data={tableBookmarks}
     {loading}
     bind:searchTerm
     bind:currentPage
@@ -71,6 +77,7 @@
     title="My Bookmarks"
     titleIcon="fa-bookmark"
     titleIconColor="text-amber-600"
+    {tagFilter}
     columnHeaders={{
       title: 'Title / ID',
       type: 'Type',
@@ -84,6 +91,11 @@
     emptyAction="Bookmark relics you want to save for later!"
     tableId="my-bookmarks"
     onRemoveBookmark={handleRemoveBookmark}
+    on:tag-click
+    on:clear-tag-filter={() => {
+      window.history.pushState({}, "", "/my-bookmarks");
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }}
     {goToPage}
   />
 </div>

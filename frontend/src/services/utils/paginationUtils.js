@@ -8,7 +8,8 @@ export function filterRelics(relics, searchTerm, getTypeLabel) {
     return (
       (relic.name && relic.name.toLowerCase().includes(term)) ||
       relic.id.toLowerCase().includes(term) ||
-      (relic.content_type && getTypeLabel(relic.content_type).toLowerCase().includes(term))
+      (relic.content_type && getTypeLabel(relic.content_type).toLowerCase().includes(term)) ||
+      (relic.tags && relic.tags.some(tag => (typeof tag === 'string' ? tag : tag.name).toLowerCase().includes(term)))
     )
   })
 }

@@ -56,7 +56,8 @@ export async function fastForkRelic(relic) {
       file,
       relic.name || null, // Keep the same name, let API handle null case
       'public',
-      'never'
+      'never',
+      relic.tags ? relic.tags.map(t => typeof t === 'string' ? t : t.name) : []
     )
 
     const forkedRelic = forkResponse.data

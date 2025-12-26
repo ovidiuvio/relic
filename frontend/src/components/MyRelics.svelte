@@ -7,6 +7,8 @@
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
 
+  export let tagFilter = null
+
   let relics = []
   let loading = true
   let searchTerm = ''
@@ -25,7 +27,7 @@
   async function loadMyRelics() {
     try {
       loading = true
-      const response = await getClientRelics()
+      const response = await getClientRelics(tagFilter)
       relics = response.data.relics || []
     } catch (error) {
       console.error('Failed to load client relics:', error)
@@ -34,6 +36,10 @@
     } finally {
       loading = false
     }
+  }
+
+  $: if (tagFilter !== undefined) {
+    loadMyRelics()
   }
 
   function handleEditRelic(relic) {
@@ -93,6 +99,7 @@
     title="My Relics"
     titleIcon="fa-user"
     titleIconColor="text-blue-600"
+    {tagFilter}
     emptyMessage="No relics yet"
     emptyMessageWithSearch="No relics found"
     emptyIcon="fa-inbox"
@@ -100,6 +107,11 @@
     tableId="my-relics"
     onEdit={handleEditRelic}
     onDelete={handleDeleteRelic}
+    on:tag-click
+    on:clear-tag-filter={() => {
+      window.history.pushState({}, "", "/my-relics");
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }}
     {goToPage}
   />
 </div>

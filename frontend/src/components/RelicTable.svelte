@@ -1,4 +1,5 @@
 <script>
+  import { createEventDispatcher } from 'svelte'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw, fastForkRelic, copyToClipboard } from '../services/relicActions'
   import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes, formatTimeAgo } from '../services/typeUtils'
 
@@ -26,6 +27,8 @@
     actions: 'Actions'
   }
 
+  const dispatch = createEventDispatcher()
+
   // Custom action handlers
   export let onEdit = null // function(relic) for edit action
   export let onDelete = null // function(relic) for delete action
@@ -38,8 +41,15 @@
   // Display options
   export let showForkButton = true
 
+  // Tag filtering
+  export let tagFilter = null
+
   // Event handlers for pagination
   export let goToPage = () => {}
+
+  function clearTagFilter() {
+    dispatch('clear-tag-filter')
+  }
 
   // Helper function to determine date field
   function getDateField(relic) {
@@ -54,10 +64,29 @@
 
 <div class="bg-white shadow-sm rounded-lg border border-gray-200">
   <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-      <i class="fas {titleIcon} {titleIconColor} mr-2"></i>
-      {title}
-    </h2>
+    <div class="flex items-center gap-3">
+      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+        <i class="fas {titleIcon} {titleIconColor} mr-2"></i>
+        {title}
+      </h2>
+
+      {#if tagFilter}
+        <div class="flex items-center animate-fade-in">
+          <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
+            <i class="fas fa-tag text-[9px] opacity-70"></i>
+            <span>{tagFilter}</span>
+            <button
+              on:click|stopPropagation={clearTagFilter}
+              class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
+              title="Clear tag filter"
+            >
+              <i class="fas fa-times-circle text-[10px]"></i>
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
     <div class="relative flex-1 max-w-md ml-4">
       <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
       <input
@@ -117,7 +146,7 @@
                     {relic.name || 'Untitled'}
                   </a>
                 </div>
-                <div class="flex items-center gap-2 mt-1">
+                <div class="flex items-center flex-wrap gap-2 mt-1">
                   <!-- Copy ID -->
                   <div class="flex items-center group gap-1">
                     <span class="text-xs text-gray-400 font-mono">{relic.id}</span>
@@ -129,6 +158,21 @@
                       <i class="fas fa-copy text-xs"></i>
                     </button>
                   </div>
+
+                  <!-- Tags -->
+                  {#if relic.tags && relic.tags.length > 0}
+                    <div class="flex flex-wrap gap-1 ml-auto">
+                      {#each relic.tags as tag}
+                        <button
+                          on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
+                          class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                        >
+                          <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
+                          {typeof tag === 'string' ? tag : tag.name}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
                 </div>
               </td>
               <td class="text-gray-500 text-xs">
@@ -276,3 +320,20 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+</style>

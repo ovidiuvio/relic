@@ -1,7 +1,11 @@
 import api from './core'
 
-export async function getClientRelics() {
-    return api.get('/client/relics')
+export async function getClientRelics(tag = null) {
+    const params = {}
+    if (tag) {
+        params.tag = tag
+    }
+    return api.get('/client/relics', { params })
 }
 
 export async function updateClientName(name) {

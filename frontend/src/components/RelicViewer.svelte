@@ -7,6 +7,7 @@
     removeBookmark,
     checkBookmark,
     deleteRelic,
+    updateRelic,
     checkAdminStatus,
     getComments,
     createComment,
@@ -444,6 +445,25 @@
     }
   }
 
+  async function handleRemoveTag(event) {
+    const tagToRemove = event.detail;
+    if (!relic || !relic.tags) return;
+    
+    // Filter out the tag to remove
+    const newTags = relic.tags
+      .filter(t => (typeof t === 'string' ? t : t.name) !== tagToRemove)
+      .map(t => (typeof t === 'string' ? t : t.name));
+      
+    try {
+      const response = await updateRelic(relicId, { tags: newTags });
+      relic = { ...relic, tags: response.data.tags };
+      showToast(`Tag "${tagToRemove}" removed`, "success");
+    } catch (error) {
+      console.error("Error removing tag:", error);
+      showToast("Failed to remove tag", "error");
+    }
+  }
+
   $: if (relicId) {
     if (filePath) {
       loadArchiveFile(relicId, filePath);
@@ -544,6 +564,8 @@
         on:pdf-zoom-in={() => pdfViewerRef?.zoomInMethod()}
         on:pdf-zoom-out={() => pdfViewerRef?.zoomOutMethod()}
         on:pdf-reset-zoom={() => pdfViewerRef?.resetZoomMethod()}
+        on:tag-click
+        on:remove-tag={handleRemoveTag}
       />
 
       <!-- Optional Description -->
@@ -552,18 +574,6 @@
           <p class="text-sm text-gray-700 leading-relaxed">
             {relic.description}
           </p>
-        </div>
-      {/if}
-
-      <!-- Tags -->
-      {#if relic.tags && relic.tags.length > 0}
-        <div class="px-6 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2 items-center">
-          <i class="fas fa-tags text-gray-400 text-xs"></i>
-          {#each relic.tags as tag}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-800">
-              {tag.name}
-            </span>
-          {/each}
         </div>
       {/if}
 

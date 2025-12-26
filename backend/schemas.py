@@ -47,6 +47,7 @@ class RelicUpdate(BaseModel):
     language_hint: Optional[str] = None
     access_level: Optional[Literal["public", "private"]] = None
     expires_in: Optional[str] = None  # "1h", "24h", "7d", "30d", or "never"
+    tags: Optional[List[str]] = None
 
 
 class RelicResponse(BaseModel):

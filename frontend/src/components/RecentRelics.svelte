@@ -6,6 +6,8 @@
   import { showToast } from '../stores/toastStore';
   import RelicTable from './RelicTable.svelte';
 
+  export let tagFilter = null
+
   let relics = []
   let loading = true
   let searchTerm = ''
@@ -23,10 +25,10 @@
     currentPage = clampPage(page, totalPages)
   }
 
-  onMount(async () => {
-    itemsPerPage = getDefaultItemsPerPage()
+  async function loadRelics() {
     try {
-      const response = await listRelics()
+      loading = true
+      const response = await listRelics(1000, tagFilter)
       relics = response.data.relics || []
       currentPage = 1
     } catch (error) {
@@ -35,6 +37,15 @@
     } finally {
       loading = false
     }
+  }
+
+  $: if (tagFilter !== undefined) {
+    loadRelics()
+  }
+
+  onMount(async () => {
+    itemsPerPage = getDefaultItemsPerPage()
+    await loadRelics()
   })
 </script>
 
@@ -50,11 +61,17 @@
     title="Recent Relics"
     titleIcon="fa-clock"
     titleIconColor="text-blue-600"
+    {tagFilter}
     emptyMessage="No relics yet"
     emptyMessageWithSearch="No relics found"
     emptyIcon="fa-inbox"
     tableId="recent-relics"
     showForkButton={false}
+    on:tag-click
+    on:clear-tag-filter={() => {
+      window.history.pushState({}, "", "/recent");
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }}
     {goToPage}
   />
 </div>

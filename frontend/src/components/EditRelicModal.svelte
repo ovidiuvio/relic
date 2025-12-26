@@ -181,6 +181,7 @@
                     />
                 </div>
 
+
                 <!-- Expiry -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -198,6 +199,7 @@
                         Current expiry: {relic.expires_at ? new Date(relic.expires_at).toLocaleString() : 'Never'}
                     </p>
                 </div>
+
             </div>
 
             <div class="flex justify-end space-x-3 mt-6">

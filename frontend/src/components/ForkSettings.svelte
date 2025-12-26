@@ -6,6 +6,7 @@
   export let forkLanguage = "auto";
   export let forkAccessLevel = "public";
   export let forkExpiration = "never";
+  export let forkTags = "";
   export let isBinary = false;
   export let relic = null;
 
@@ -95,6 +96,17 @@
         <option value="7d">7 Days</option>
         <option value="30d">30 Days</option>
       </select>
+    </div>
+
+    <div class="sm:col-span-2 lg:col-span-1">
+      <label for="forkTags" class="block text-xs font-medium text-gray-600 mb-1">Tags (comma separated)</label>
+      <input
+        type="text"
+        id="forkTags"
+        bind:value={forkTags}
+        placeholder="tag1, tag2..."
+        class="w-full px-2 py-1.5 text-sm maas-input border border-gray-300 rounded"
+      />
     </div>
   </div>
 

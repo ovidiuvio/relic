@@ -39,17 +39,30 @@ export async function getRelic(relicId) {
     return api.get(`/relics/${relicId}`)
 }
 
-export async function listRelics(limit = 1000) {
-    return api.get('/relics', { params: { limit } })
+export async function listRelics(limit = 1000, tag = null) {
+    const params = { limit }
+    if (tag) {
+        params.tag = tag
+    }
+    return api.get('/relics', { params })
 }
 
-export async function forkRelic(relicId, file, name, accessLevel, expiresIn) {
+export async function forkRelic(relicId, file, name, accessLevel, expiresIn, tags) {
     const data = new FormData()
     if (file) data.append('file', file)
     if (name) data.append('name', name)
     // Always send access_level and expires_in, even if they're defaults
     data.append('access_level', accessLevel || 'public')
     data.append('expires_in', expiresIn || 'never')
+
+    // Handle tags: sending as comma separated string
+    if (tags) {
+        if (Array.isArray(tags)) {
+            data.append('tags', tags.join(','))
+        } else {
+            data.append('tags', tags)
+        }
+    }
 
     return api.post(`/relics/${relicId}/fork`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }

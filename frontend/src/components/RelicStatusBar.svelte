@@ -45,6 +45,30 @@
         <span class="text-[11px]">{new Date(relic.expires_at).toLocaleDateString()}</span>
       </span>
     {/if}
+    {#if relic.tags && relic.tags.length > 0}
+      {#each relic.tags as tag}
+        <div class="inline-flex items-center bg-gray-200 text-gray-700 rounded text-xs font-medium leading-none overflow-hidden hover:bg-gray-300 transition-colors">
+          <button
+            on:click={() => dispatch('tag-click', tag.name)}
+            class="flex items-center gap-1.5 px-2 py-1 h-full cursor-pointer focus:outline-none"
+            title="Filter by tag: {tag.name}"
+          >
+            <i class="fas fa-tag text-[10px]"></i>
+            <span>{tag.name}</span>
+          </button>
+          
+          {#if relic.can_edit}
+            <button
+              on:click|stopPropagation={() => dispatch('remove-tag', tag.name)}
+              class="px-1.5 h-full border-l border-gray-400/30 hover:bg-red-100 hover:text-red-600 transition-colors focus:outline-none"
+              title="Remove tag"
+            >
+              <i class="fas fa-times text-[10px]"></i>
+            </button>
+          {/if}
+        </div>
+      {/each}
+    {/if}
   </div>
 
   <!-- View Controls -->

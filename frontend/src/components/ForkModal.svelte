@@ -20,6 +20,7 @@
   let forkLanguage = "auto";
   let forkAccessLevel = "public";
   let forkExpiration = "never";
+  let forkTags = "";
   let isLoading = false;
   let editorContent = "";
   let isExpanded = false;
@@ -57,6 +58,13 @@
         } else {
           forkLanguage = detectLanguageHint(relic.content_type);
         }
+      }
+
+      // Initialize tags from original relic
+      if (relic.tags && Array.isArray(relic.tags)) {
+        forkTags = relic.tags.map(t => typeof t === 'string' ? t : t.name).join(', ');
+      } else {
+        forkTags = "";
       }
     } catch (error) {
       showToast("Failed to load original relic content", "error");
@@ -111,6 +119,7 @@
         forkName,
         forkAccessLevel,
         forkExpiration,
+        forkTags
       );
 
       const data = response.data;
@@ -136,6 +145,7 @@
     forkLanguage = "auto";
     forkAccessLevel = "public";
     forkExpiration = "never";
+    forkTags = "";
     editorContent = "";
     isExpanded = false;
     isBinary = false;
@@ -222,6 +232,7 @@
           bind:forkLanguage
           bind:forkAccessLevel
           bind:forkExpiration
+          bind:forkTags
           {isBinary}
           {relic}
         />

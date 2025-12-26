@@ -20,12 +20,18 @@
   let clientName = "";
   let isNameSaving = false;
   let appVersion = "loading...";
+  let activeTagFilter = null;
 
   function updateRouting() {
     const path = window.location.pathname;
     const parts = path.split("/").filter((p) => p);
+    const urlParams = new URLSearchParams(window.location.search);
+    const tagParam = urlParams.get('tag');
 
-    console.log("[App] Route update - path:", path, "parts:", parts);
+    console.log("[App] Route update - path:", path, "parts:", parts, "tag:", tagParam);
+
+    // Update tag filter from URL
+    activeTagFilter = tagParam;
 
     if (
       parts.length >= 1 &&
@@ -69,6 +75,8 @@
       currentRelicId,
       "filePath:",
       currentFilePath,
+      "tagFilter:",
+      activeTagFilter,
     );
   }
 
@@ -147,12 +155,26 @@
   function handleNavigation(section) {
     currentSection = section;
     currentRelicId = null;
+    activeTagFilter = null;
 
     if (section === "new") {
       window.history.pushState({}, "", "/");
     } else {
       window.history.pushState({}, "", `/${section}`);
     }
+  }
+
+  function handleTagClick(event) {
+    const tagName = event.detail;
+    activeTagFilter = tagName;
+    
+    // If we're already in a list section that supports tag filtering, stay there
+    if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks") {
+      currentSection = "recent"; // Default to recent (public) view for discovering tags
+    }
+    
+    currentRelicId = null;
+    window.history.pushState({}, "", `/${currentSection}?tag=${encodeURIComponent(tagName)}`);
   }
 
   function downloadClientKey() {
@@ -424,15 +446,16 @@
           relicId={currentRelicId}
           filePath={currentFilePath}
           on:fullwidth-toggle={handleFullWidthToggle}
+          on:tag-click={handleTagClick}
         />
       {:else if currentSection === "new" || currentSection === "default" || currentSection === ""}
         <RelicForm />
       {:else if currentSection === "recent"}
-        <RecentRelics />
+        <RecentRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "my-relics"}
-        <MyRelics />
+        <MyRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "my-bookmarks"}
-        <MyBookmarks />
+        <MyBookmarks tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "admin"}
         <AdminPanel />
       {/if}

@@ -526,88 +526,89 @@
         </div>
       {:else if activeTab === "upload"}
         <form on:submit={handleSubmit} class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label
-                for="title"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Title</label
-              >
-              <input
-                type="text"
-                id="title"
-                bind:value={title}
-                placeholder="e.g. Nginx Configuration"
-                class="w-full px-3 py-2 text-sm maas-input"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                A descriptive name for this relic (used for text content)
-              </p>
-            </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label
+            for="title"
+            class="block text-sm font-medium text-gray-700 mb-1"
+            >Title</label
+          >
+          <input
+            type="text"
+            id="title"
+            bind:value={title}
+            placeholder="e.g. Nginx Configuration"
+            class="w-full px-3 py-2 text-sm maas-input"
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            A descriptive name for this relic (used for text content)
+          </p>
+        </div>
 
-            <div>
-              <label
-                for="syntax"
-                class="block text-sm font-medium text-gray-700 mb-1">Type</label
-              >
-              <div class="w-full">
-                <Select
-                  items={syntaxOptions}
-                  bind:value={syntaxValue}
-                  placeholder="Search or select language..."
-                  searchable={true}
-                  clearable={false}
-                  showChevron={true}
-                  --border="1px solid #AEA79F"
-                  --border-radius="2px"
-                  --border-focused="1px solid #E95420"
-                  --border-hover="1px solid #AEA79F"
-                  --padding="0.15rem 0.5rem"
-                  --font-size="0.875rem"
-                  --height="24px"
-                  --item-padding="0.25rem 0.5rem"
-                  --item-height="auto"
-                  --item-line-height="1.25"
-                  --background="white"
-                  --list-background="#f3f4f5"
-                  --list-border="1px solid #AEA79F"
-                  --list-border-radius="6px"
-                  --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
-                  --input-color="rgb(17 24 39)"
-                  --item-color="rgb(17 24 39)"
-                  --item-hover-bg="#bcdff1"
-                  --item-hover-color="rgb(17 24 39)"
-                  --item-is-active-bg="#f3f4f5"
-                  --item-is-active-color="rgb(17 24 39)"
-                  --internal-padding="0"
-                  --chevron-height="20px"
-                  --chevron-width="20px"
-                  --chevron-color="rgb(107, 114, 128)"
-                />
-              </div>
-              <p class="text-xs text-gray-500 mt-1">
-                Applies to text content only. Files are auto-detected.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label
-              for="tags"
-              class="block text-sm font-medium text-gray-700 mb-1"
-              >Tags</label
-            >
-            <input
-              type="text"
-              id="tags"
-              bind:value={tags}
-              placeholder="e.g. config, nginx, production (comma separated)"
-              class="w-full px-3 py-2 text-sm maas-input"
+        <div>
+          <label
+            for="syntax"
+            class="block text-sm font-medium text-gray-700 mb-1">Type</label
+          >
+          <div class="w-full">
+            <Select
+              items={syntaxOptions}
+              bind:value={syntaxValue}
+              placeholder="Search or select language..."
+              searchable={true}
+              clearable={false}
+              showChevron={true}
+              --border="1px solid #AEA79F"
+              --border-radius="2px"
+              --border-focused="1px solid #E95420"
+              --border-hover="1px solid #AEA79F"
+              --padding="0.15rem 0.5rem"
+              --font-size="0.875rem"
+              --height="24px"
+              --item-padding="0.25rem 0.5rem"
+              --item-height="auto"
+              --item-line-height="1.25"
+              --background="white"
+              --list-background="#f3f4f5"
+              --list-border="1px solid #AEA79F"
+              --list-border-radius="6px"
+              --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
+              --input-color="rgb(17 24 39)"
+              --item-color="rgb(17 24 39)"
+              --item-hover-bg="#bcdff1"
+              --item-hover-color="rgb(17 24 39)"
+              --item-is-active-bg="#f3f4f5"
+              --item-is-active-color="rgb(17 24 39)"
+              --internal-padding="0"
+              --chevron-height="20px"
+              --chevron-width="20px"
+              --chevron-color="rgb(107, 114, 128)"
             />
-            <p class="text-xs text-gray-500 mt-1">
-              Optional tags to categorize this relic
-            </p>
           </div>
+          <p class="text-xs text-gray-500 mt-1">
+            Applies to text content only. Files are auto-detected.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label
+          for="tags"
+          class="block text-sm font-medium text-gray-700 mb-1"
+          >Tags</label
+        >
+        <input
+          type="text"
+          id="tags"
+          bind:value={tags}
+          placeholder="e.g. config, nginx, production (comma separated)"
+          class="w-full px-3 py-2 text-sm maas-input"
+        />
+        <p class="text-xs text-gray-500 mt-1">
+          Optional tags to categorize this relic
+        </p>
+      </div>
+
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -650,6 +651,7 @@
               </select>
             </div>
           </div>
+
 
           <div>
             <label
@@ -740,6 +742,7 @@
               <span class="text-xs">or drag & drop files</span>
             </div>
           </div>
+
 
           <div class="flex justify-end pt-4 border-t border-gray-200">
             <button
