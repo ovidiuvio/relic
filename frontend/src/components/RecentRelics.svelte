@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { listRelics } from '../services/api';
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
-  import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
+  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import { showToast } from '../stores/toastStore';
   import RelicTable from './RelicTable.svelte';
 
@@ -13,13 +13,18 @@
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 25
+  let sortBy = 'date'
+  let sortOrder = 'desc'
 
   // Use shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel)
+  
+  // Apply sorting
+  $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder)
 
   // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(filteredRelics, itemsPerPage)
-  $: paginatedRelics = paginateData(filteredRelics, currentPage, itemsPerPage)
+  $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage)
+  $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage)
 
   function goToPage(page) {
     currentPage = clampPage(page, totalPages)
@@ -51,11 +56,13 @@
 
 <div class="mb-8">
   <RelicTable
-    data={filteredRelics}
+    data={sortedRelics}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
+    bind:sortBy
+    bind:sortOrder
     {totalPages}
     paginatedData={paginatedRelics}
     title="Recent Relics"

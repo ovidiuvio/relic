@@ -3,7 +3,7 @@
   import { showToast } from '../stores/toastStore';
   import { getClientRelics, deleteRelic } from '../services/api';
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
-  import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
+  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
 
@@ -16,13 +16,18 @@
   let itemsPerPage = 20
   let showEditModal = false
   let selectedRelic = null
+  let sortBy = 'date'
+  let sortOrder = 'desc'
 
   // Use the shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel)
 
+  // Apply sorting
+  $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder)
+
   // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(filteredRelics, itemsPerPage)
-  $: paginatedRelics = paginateData(filteredRelics, currentPage, itemsPerPage)
+  $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage)
+  $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage)
 
   async function loadMyRelics() {
     try {
@@ -89,11 +94,13 @@
 
 <div class="px-4 sm:px-0">
   <RelicTable
-    data={filteredRelics}
+    data={sortedRelics}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
+    bind:sortBy
+    bind:sortOrder
     {totalPages}
     paginatedData={paginatedRelics}
     title="My Relics"

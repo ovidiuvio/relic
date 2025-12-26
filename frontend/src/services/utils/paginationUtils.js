@@ -65,3 +65,36 @@ export function paginateData(filteredData, currentPage, itemsPerPage) {
 export function clampPage(page, totalPages) {
   return Math.max(1, Math.min(page, totalPages))
 }
+
+export function sortData(data, sortBy, sortOrder) {
+  if (!sortBy) return data
+
+  return [...data].sort((a, b) => {
+    let aVal, bVal
+
+    if (sortBy === 'date') {
+      aVal = a.bookmarked_at || a.created_at
+      bVal = b.bookmarked_at || b.created_at
+    } else if (sortBy === 'title') {
+      aVal = (a.name || a.id || '').toLowerCase()
+      bVal = (b.name || b.id || '').toLowerCase()
+    } else if (sortBy === 'size') {
+      aVal = a.size_bytes || 0
+      bVal = b.size_bytes || 0
+    } else if (sortBy === 'type') {
+      aVal = a.content_type || ''
+      bVal = b.content_type || ''
+    } else {
+      aVal = a[sortBy]
+      bVal = b[sortBy]
+    }
+
+    if (aVal === bVal) return 0
+    if (aVal === null || aVal === undefined) return 1
+    if (bVal === null || bVal === undefined) return -1
+
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
+    return 0
+  })
+}

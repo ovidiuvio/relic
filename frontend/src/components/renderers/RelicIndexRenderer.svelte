@@ -3,7 +3,7 @@
     import { getRelic } from "../../services/api";
     import RelicTable from "../RelicTable.svelte";
     import { getDefaultItemsPerPage, getTypeLabel } from "../../services/typeUtils";
-    import { filterRelics } from "../../services/paginationUtils";
+    import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from "../../services/paginationUtils";
 
     export let processed;
     export let relicId;
@@ -16,21 +16,23 @@
     let searchTerm = '';
     let currentPage = 1;
     let itemsPerPage = 25;
+    let sortBy = 'date';
+    let sortOrder = 'desc';
 
     $: title = processed.meta?.title || "Relic Index";
     $: description = processed.meta?.description || "";
 
     // Pagination logic
     $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel);
-    $: totalPages = Math.ceil(filteredRelics.length / itemsPerPage);
-    $: paginatedRelics = (() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        return filteredRelics.slice(start, end);
-    })();
+    
+    // Apply sorting
+    $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
+
+    $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
+    $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
 
     function goToPage(page) {
-        currentPage = Math.max(1, Math.min(page, totalPages));
+        currentPage = clampPage(page, totalPages);
     }
 
     async function loadRelics() {
@@ -107,11 +109,13 @@
     {/if}
 
     <RelicTable
-        data={filteredRelics}
+        data={sortedRelics}
         {loading}
         bind:searchTerm
         bind:currentPage
         bind:itemsPerPage
+        bind:sortBy
+        bind:sortOrder
         {totalPages}
         paginatedData={paginatedRelics}
         title={loading ? `${title} (${progress}/${total})` : title}

@@ -3,7 +3,7 @@
   import { showToast } from '../stores/toastStore'
   import { getClientBookmarks, removeBookmark } from '../services/api'
   import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils'
-  import { filterRelics, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils'
+  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
 
   export let tagFilter = null
@@ -13,17 +13,22 @@
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 20
+  let sortBy = 'date'
+  let sortOrder = 'desc'
 
   // Use shared filter utility
   $: filteredBookmarks = filterRelics(bookmarks, searchTerm, getTypeLabel)
   // Apply tag filter if present
-  $: tableBookmarks = tagFilter 
+  $: filteredByTag = tagFilter 
     ? filteredBookmarks.filter(b => b.tags && b.tags.some(t => (typeof t === 'string' ? t : t.name).toLowerCase() === tagFilter.toLowerCase()))
     : filteredBookmarks
 
+  // Apply sorting
+  $: sortedBookmarks = sortData(filteredByTag, sortBy, sortOrder)
+
   // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(tableBookmarks, itemsPerPage)
-  $: paginatedBookmarks = paginateData(tableBookmarks, currentPage, itemsPerPage)
+  $: totalPages = calculateTotalPages(sortedBookmarks, itemsPerPage)
+  $: paginatedBookmarks = paginateData(sortedBookmarks, currentPage, itemsPerPage)
 
   async function loadBookmarks() {
     try {
@@ -67,11 +72,13 @@
 
 <div class="px-4 sm:px-0">
   <RelicTable
-    data={tableBookmarks}
+    data={sortedBookmarks}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
+    bind:sortBy
+    bind:sortOrder
     {totalPages}
     paginatedData={paginatedBookmarks}
     title="My Bookmarks"

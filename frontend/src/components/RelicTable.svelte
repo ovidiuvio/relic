@@ -27,6 +27,10 @@
     actions: 'Actions'
   }
 
+  // Sorting
+  export let sortBy = 'date'
+  export let sortOrder = 'desc'
+
   const dispatch = createEventDispatcher()
 
   // Custom action handlers
@@ -59,6 +63,17 @@
   // Helper function to get date column header
   function getDateColumnHeader() {
     return columnHeaders.date
+  }
+
+  function handleSort(column) {
+    if (sortBy === column) {
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'
+    } else {
+      sortBy = column
+      // Default to descending for date and size, ascending for title
+      sortOrder = (column === 'date' || column === 'size') ? 'desc' : 'asc'
+    }
+    dispatch('sort', { sortBy, sortOrder })
   }
 </script>
 
@@ -119,11 +134,26 @@
     <div class="overflow-x-auto">
       <table class="w-full maas-table text-sm">
         <thead>
-          <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50">
-            <th>{columnHeaders.title}</th>
-            <th>{getDateColumnHeader()}</th>
-            <th>{columnHeaders.size}</th>
-            <th class="w-40">{columnHeaders.actions}</th>
+          <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
+            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('title')}>
+              <div class="flex items-center gap-1.5">
+                <span>{columnHeaders.title}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'active' : ''} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+              </div>
+            </th>
+            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('date')}>
+              <div class="flex items-center gap-1.5">
+                <span>{getDateColumnHeader()}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'active' : ''} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+              </div>
+            </th>
+            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('size')}>
+              <div class="flex items-center gap-1.5">
+                <span>{columnHeaders.size}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'active' : ''} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+              </div>
+            </th>
+            <th class="px-4 py-3 text-left w-40">{columnHeaders.actions}</th>
           </tr>
         </thead>
         <tbody>
@@ -335,5 +365,26 @@
       opacity: 1;
       transform: translateX(0);
     }
+  }
+
+  .sort-arrow {
+    font-size: 9px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    color: #9ca3af;
+    display: inline-block;
+  }
+
+  .group:hover .sort-arrow {
+    opacity: 0.5;
+  }
+
+  .sort-arrow.active {
+    opacity: 1 !important;
+    color: #2563eb !important;
+  }
+
+  .sort-arrow.desc {
+    transform: rotate(180deg);
   }
 </style>
