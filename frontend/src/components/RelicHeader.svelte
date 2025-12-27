@@ -120,9 +120,14 @@
         {formatBytes(relic.size_bytes)}
       </span>
       <span>&bull;</span>
-      <span class="flex items-center gap-1">
+      <span class="flex items-center gap-1" title="Views">
         <i class="fas fa-eye text-gray-400"></i>
-        {relic.access_count}
+        {relic.access_count || 0}
+      </span>
+      <span>&bull;</span>
+      <span class="flex items-center gap-1" title="Bookmarks">
+        <i class="fas fa-bookmark text-gray-400"></i>
+        {relic.bookmark_count || 0}
       </span>
     </div>
   </div>

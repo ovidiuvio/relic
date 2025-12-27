@@ -165,6 +165,25 @@ db-init:
 	fi
 	@echo "✓ Database initialized"
 
+# Generate a new database migration revision
+db-revision:
+	@read -p "Enter migration message: " message; \
+	COMPOSE_FILE=$$(if docker compose -f $(COMPOSE_PROD) ps 2>/dev/null | grep -q Relic-backend; then echo "$(COMPOSE_PROD)"; elif docker compose -f $(COMPOSE_DEV) ps 2>/dev/null | grep -q Relic-backend; then echo "$(COMPOSE_DEV)"; else echo ""; fi); \
+	if [ -z "$$COMPOSE_FILE" ]; then \
+		echo "Error: No backend container running. Start services with 'make up' or 'make dev-up'"; \
+		exit 1; \
+	fi; \
+	docker compose -f $$COMPOSE_FILE exec backend bash -c "export PYTHONPATH=/app && alembic -c backend/alembic.ini revision --autogenerate -m \"$$message\""
+
+# Apply database migrations to current head
+db-migrate:
+	@COMPOSE_FILE=$$(if docker compose -f $(COMPOSE_PROD) ps 2>/dev/null | grep -q Relic-backend; then echo "$(COMPOSE_PROD)"; elif docker compose -f $(COMPOSE_DEV) ps 2>/dev/null | grep -q Relic-backend; then echo "$(COMPOSE_DEV)"; else echo ""; fi); \
+	if [ -z "$$COMPOSE_FILE" ]; then \
+		echo "Error: No backend container running. Start services with 'make up' or 'make dev-up'"; \
+		exit 1; \
+	fi; \
+	docker compose -f $$COMPOSE_FILE exec backend bash -c "export PYTHONPATH=/app && alembic -c backend/alembic.ini upgrade head"
+
 # ===== Database Backup Commands =====
 
 # Helper to get compose file for running backend

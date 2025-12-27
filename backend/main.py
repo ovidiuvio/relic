@@ -168,6 +168,8 @@ async def get_client_relics(
                 "size_bytes": relic.size_bytes,
                 "created_at": relic.created_at,
                 "access_level": relic.access_level,
+                "access_count": relic.access_count,
+                "bookmark_count": relic.bookmark_count,
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
             }
             for relic in relics
@@ -771,6 +773,9 @@ async def add_bookmark(
         created_at=datetime.utcnow()
     )
 
+    # Increment bookmark count
+    relic.bookmark_count += 1
+
     db.add(bookmark)
     db.commit()
     db.refresh(bookmark)
@@ -806,6 +811,10 @@ async def remove_bookmark(
 
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if relic and relic.bookmark_count > 0:
+        relic.bookmark_count -= 1
 
     db.delete(bookmark)
     db.commit()
@@ -874,6 +883,8 @@ async def get_client_bookmarks(
                 "size_bytes": relic.size_bytes,
                 "created_at": relic.created_at,
                 "access_level": relic.access_level,
+                "access_count": relic.access_count,
+                "bookmark_count": relic.bookmark_count,
                 "bookmark_id": bookmark.id,
                 "bookmarked_at": bookmark.created_at,
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
@@ -1075,6 +1086,8 @@ async def admin_list_all_relics(
                 "content_type": r.content_type,
                 "size_bytes": r.size_bytes,
                 "access_level": r.access_level,
+                "access_count": r.access_count,
+                "bookmark_count": r.bookmark_count,
                 "created_at": r.created_at,
                 "expires_at": r.expires_at,
                 "tags": [{"id": t.id, "name": t.name} for t in r.tags]

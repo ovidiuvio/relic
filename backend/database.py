@@ -1,5 +1,5 @@
 """Database session and initialization."""
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker, Session
 from backend.config import settings
 from backend.models import Base
@@ -25,5 +25,23 @@ def get_db():
 
 
 def init_db():
-    """Initialize database tables."""
+    """Initialize database tables and run migrations."""
+    # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
+    
+    # Run alembic migrations
+    import os
+    from alembic.config import Config
+    from alembic import command
+    
+    # Get backend directory
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    alembic_cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", os.path.join(backend_dir, "migrations"))
+    
+    print("Running database migrations...")
+    try:
+        command.upgrade(alembic_cfg, "head")
+        print("Database migrations applied successfully.")
+    except Exception as e:
+        print(f"Error applying migrations: {e}")

@@ -579,6 +579,17 @@
                                                     >{relic.name ||
                                                         "Untitled"}</a
                                                 >
+                                                <!-- Views & Bookmarks (Top Row) -->
+                                                <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                                                    <span class="flex items-center gap-1" title="Views">
+                                                        <i class="fas fa-eye text-[9px]"></i>
+                                                        {relic.access_count || 0}
+                                                    </span>
+                                                    <span class="flex items-center gap-1" title="Bookmarks">
+                                                        <i class="fas fa-bookmark text-[9px]"></i>
+                                                        {relic.bookmark_count || 0}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div
                                                 class="flex items-center group gap-1 mt-1"

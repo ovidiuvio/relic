@@ -70,8 +70,8 @@
       sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'
     } else {
       sortBy = column
-      // Default to descending for date and size, ascending for title
-      sortOrder = (column === 'date' || column === 'size') ? 'desc' : 'asc'
+      // Default to descending for date, size, and statistics
+      sortOrder = (column === 'date' || column === 'size' || column === 'access_count' || column === 'bookmark_count') ? 'desc' : 'asc'
     }
     dispatch('sort', { sortBy, sortOrder })
   }
@@ -172,9 +172,21 @@
                     </div>
                   {/if}
                   <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-sm flex-shrink-0" title={getTypeLabel(relic.content_type)}></i>
-                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate flex-1">
+                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate">
                     {relic.name || 'Untitled'}
                   </a>
+
+                  <!-- Views & Bookmarks as small inline badges (Top Row) -->
+                  <div class="flex items-center gap-3 ml-3 text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                    <span class="flex items-center gap-1" title="Views">
+                      <i class="fas fa-eye text-[9px]"></i>
+                      {relic.access_count || 0}
+                    </span>
+                    <span class="flex items-center gap-1" title="Bookmarks">
+                      <i class="fas fa-bookmark text-[9px]"></i>
+                      {relic.bookmark_count || 0}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center flex-wrap gap-2 mt-1">
                   <!-- Copy ID -->
@@ -188,10 +200,9 @@
                       <i class="fas fa-copy text-xs"></i>
                     </button>
                   </div>
-
-                  <!-- Tags -->
+                  <!-- Tags (Bottom Row) -->
                   {#if relic.tags && relic.tags.length > 0}
-                    <div class="flex flex-wrap gap-1 ml-auto">
+                    <div class="flex items-center flex-wrap gap-1.5 ml-auto">
                       {#each relic.tags as tag}
                         <button
                           on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
