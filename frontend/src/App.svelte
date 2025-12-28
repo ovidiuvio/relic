@@ -11,7 +11,7 @@
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
   import { showToast } from "./stores/toastStore";
 
-  let currentSection = "new";
+  let currentSection = null;
   let currentRelicId = null;
   let currentFilePath = null; // For archive file paths
   let showKeyDropdown = false;
@@ -80,6 +80,9 @@
     );
   }
 
+  // Initial routing on page load - call it before onMount to prevent flicker
+  updateRouting();
+
   onMount(async () => {
     // Initialize client key on app start
     const key = getOrCreateClientKey();
@@ -118,8 +121,7 @@
       relicViewerFullWidth = saved === "true";
     }
 
-    // Initial routing on page load
-    updateRouting();
+    // Initial routing already handled at top level
 
     // Close credentials dropdown when clicking outside
     function handleDocumentClick(e) {
