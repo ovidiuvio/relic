@@ -44,8 +44,11 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database, storage, and backup scheduler on startup."""
-    init_db()
+    import os
+    if not os.getenv("SKIP_DB_INIT"):
+        init_db()
     storage_service.ensure_bucket()
+
 
     # Start backup scheduler
     if settings.BACKUP_ENABLED:
