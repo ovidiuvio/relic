@@ -92,7 +92,7 @@ clean:
 # Start development services
 dev-up:
 	@echo "Starting Relic services in development mode..."
-	GIT_HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo "dev") docker compose -f $(COMPOSE_DEV) up -d
+	GIT_HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo "dev") docker compose -f $(COMPOSE_DEV) up -d --build
 	@echo ""
 	@echo "✓ Development services started!"
 	@echo ""
