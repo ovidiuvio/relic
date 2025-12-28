@@ -17,11 +17,14 @@ fi
 echo "Running database initialization..."
 # Run init_db once before starting workers to prevent race conditions
 export PYTHONPATH=$PYTHONPATH:/app
-python -c "from backend.database import init_db; init_db()"
+python3 -c "from backend.database import init_db; init_db()"
 
 # Set flag to avoid redundant (and potentially racing) init in workers
 export SKIP_DB_INIT=true
 
+echo "Database initialization completed."
+
 # Start the application
-echo "Starting application with: $@"
+echo "Starting application with command: $@"
 exec "$@"
+

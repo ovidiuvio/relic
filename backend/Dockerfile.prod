@@ -21,7 +21,11 @@ RUN pip install --no-cache-dir gunicorn
 # Copy backend code
 COPY backend/ ./backend/
 
-# Create non-root user for security
+# Copy and set entrypoint (must be done as root)
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create non-root user for security and set ownership
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
@@ -31,11 +35,9 @@ ENV APP_VERSION=${VERSION}
 # Expose port
 EXPOSE 8000
 
-# Copy and set entrypoint
-COPY backend/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Run with Gunicorn
 # Workers: 2 * CPUs + 1 is a common formula, but we'll start with 4
 CMD ["gunicorn", "backend.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+
