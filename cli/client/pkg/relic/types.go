@@ -25,8 +25,8 @@ func (rt *RelicTime) UnmarshalJSON(data []byte) error {
 	formats := []string{
 		time.RFC3339,
 		time.RFC3339Nano,
-		"2006-01-02T15:04:05.999999",  // Python isoformat without timezone
-		"2006-01-02T15:04:05",          // Without microseconds
+		"2006-01-02T15:04:05.999999", // Python isoformat without timezone
+		"2006-01-02T15:04:05",        // Without microseconds
 	}
 
 	var parseErr error
@@ -63,17 +63,25 @@ type RelicMetadata struct {
 	CreatedAt    RelicTime  `json:"created_at"`
 	ExpiresAt    *RelicTime `json:"expires_at,omitempty"`
 	AccessCount  int        `json:"access_count"`
+	Tags         []Tag      `json:"tags,omitempty"`
+}
+
+// Tag represents a tag associated with a relic
+type Tag struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // RelicCreateRequest represents the request to create a relic
 type RelicCreateRequest struct {
-	Name         string `json:"name,omitempty"`
-	Description  string `json:"description,omitempty"`
-	ContentType  string `json:"content_type"`
-	LanguageHint string `json:"language_hint,omitempty"`
-	AccessLevel  string `json:"access_level"`
-	ExpiresIn    string `json:"expires_in,omitempty"`
-	Password     string `json:"password,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Description  string   `json:"description,omitempty"`
+	ContentType  string   `json:"content_type"`
+	LanguageHint string   `json:"language_hint,omitempty"`
+	AccessLevel  string   `json:"access_level"`
+	ExpiresIn    string   `json:"expires_in,omitempty"`
+	Password     string   `json:"password,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 // RelicCreateResponse represents the response when creating a relic

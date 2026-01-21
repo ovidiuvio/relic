@@ -127,6 +127,15 @@ func printRelicInfoHuman(metadata *relic.RelicMetadata) error {
 		fmt.Printf("%s %s %s\n", Muted("🍴"), Bold("Fork of:"), metadata.ForkOf)
 	}
 
+	// Display tags if present
+	if len(metadata.Tags) > 0 {
+		tagNames := make([]string, len(metadata.Tags))
+		for i, tag := range metadata.Tags {
+			tagNames[i] = Cyan(tag.Name)
+		}
+		fmt.Printf("%s %s %s\n", Muted("🏷"), Bold("Tags:"), strings.Join(tagNames, ", "))
+	}
+
 	fmt.Println()
 	fmt.Println(Muted("─────────────────────────────────────────────────────────"))
 	fmt.Println()
@@ -303,7 +312,7 @@ func friendlyContentType(contentType string) string {
 		return "Text"
 	}
 	if contentType == "text/markdown" || contentType == "markdown" ||
-	   contentType == "text/x-markdown" || strings.Contains(contentType, "markdown") {
+		contentType == "text/x-markdown" || strings.Contains(contentType, "markdown") {
 		return "Markdown"
 	}
 	if contentType == "text/html" {
