@@ -24,6 +24,7 @@ type UploadOptions struct {
 	AccessLevel  string
 	ExpiresIn    string
 	Password     string
+	Tags         []string
 	ShowProgress bool
 	Verbose      bool
 }
@@ -156,6 +157,15 @@ func upload(cfg *config.Config, clientKey string, reader io.Reader, name, conten
 	if metadata.Password != "" {
 		if err := writer.WriteField("password", metadata.Password); err != nil {
 			return nil, err
+		}
+	}
+
+	// Add tags
+	for _, tag := range opts.Tags {
+		if tag != "" {
+			if err := writer.WriteField("tags", tag); err != nil {
+				return nil, err
+			}
 		}
 	}
 

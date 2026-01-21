@@ -36,6 +36,7 @@ var (
 	privateFlag  bool
 	expiresIn    string
 	password     string
+	tags         []string
 
 	// List flags
 	limit       int
@@ -75,6 +76,7 @@ func main() {
 	rootCmd.Flags().BoolVarP(&privateFlag, "private", "S", false, "make relic private/secret (default)")
 	rootCmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "", "expiration time (1h, 24h, 7d, 30d, never)")
 	rootCmd.Flags().StringVarP(&password, "password", "p", "", "password protection")
+	rootCmd.Flags().StringArrayVarP(&tags, "tag", "t", []string{}, "add tags (can be used multiple times)")
 	rootCmd.Flags().BoolVar(&noProgress, "no-progress", false, "disable progress bar")
 
 	// Subcommands
@@ -121,6 +123,7 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 		AccessLevel:  getAccessLevel(cfg),
 		ExpiresIn:    getExpiresIn(cfg),
 		Password:     password,
+		Tags:         tags,
 		ShowProgress: !noProgress && cfg.Progress && !quiet,
 		Verbose:      verbose,
 	}
