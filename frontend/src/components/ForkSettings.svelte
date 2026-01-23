@@ -91,10 +91,14 @@
         class="w-full px-2 py-1.5 text-sm maas-input bg-white"
       >
         <option value="never">Never</option>
+        <option value="10m">10 Minutes</option>
         <option value="1h">1 Hour</option>
+        <option value="12h">12 Hours</option>
         <option value="24h">24 Hours</option>
+        <option value="3d">3 Days</option>
         <option value="7d">7 Days</option>
         <option value="30d">30 Days</option>
+        <option value="1y">1 Year</option>
       </select>
     </div>
 

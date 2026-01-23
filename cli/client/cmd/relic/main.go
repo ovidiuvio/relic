@@ -74,7 +74,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&accessLevel, "access-level", "a", "", "access level (public or private)")
 	rootCmd.Flags().BoolVarP(&publicFlag, "public", "P", false, "make relic public")
 	rootCmd.Flags().BoolVarP(&privateFlag, "private", "S", false, "make relic private/secret (default)")
-	rootCmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "", "expiration time (1h, 24h, 7d, 30d, never)")
+	rootCmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "", "expiration time (e.g. 10m, 1h, 24h, 7d, 30d, 1y, never)")
 	rootCmd.Flags().StringVarP(&password, "password", "p", "", "password protection")
 	rootCmd.Flags().StringArrayVarP(&tags, "tag", "t", []string{}, "add tags (can be used multiple times)")
 	rootCmd.Flags().BoolVar(&noProgress, "no-progress", false, "disable progress bar")

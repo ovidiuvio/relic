@@ -55,10 +55,14 @@
     const expiryOptions = [
         { value: 'no-change', label: 'No change (keep current)' },
         { value: 'never', label: 'Remove expiry (never expire)' },
+        { value: '10m', label: '10 minutes from now' },
         { value: '1h', label: '1 hour from now' },
+        { value: '12h', label: '12 hours from now' },
         { value: '24h', label: '24 hours from now' },
+        { value: '3d', label: '3 days from now' },
         { value: '7d', label: '7 days from now' },
-        { value: '30d', label: '30 days from now' }
+        { value: '30d', label: '30 days from now' },
+        { value: '1y', label: '1 year from now' }
     ]
 
     async function handleSubmit() {
