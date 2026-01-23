@@ -3,6 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from unittest.mock import AsyncMock, patch, MagicMock
+import io
 
 from backend.main import app
 from backend.database import Base, get_db
@@ -31,6 +33,48 @@ def db():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
+@pytest.fixture(autouse=True)
+def mock_storage():
+    """Mock the storage service."""
+    storage_data = {}
+
+    async def mock_upload(key, data, content_type=None, length=None):
+        # data can be bytes or file-like
+        if hasattr(data, 'read'):
+            if hasattr(data, 'seek'):
+                data.seek(0)
+            content = data.read()
+        else:
+            content = data
+        storage_data[key] = content
+        return key
+
+    async def mock_download(key):
+        return storage_data.get(key, b"")
+
+    async def mock_download_stream(key):
+        content = storage_data.get(key, b"")
+        mock_resp = MagicMock()
+        mock_resp.read = lambda: content
+        # stream returns a generator yielding bytes
+        def stream_gen(chunk_size=1024):
+            yield content
+        mock_resp.stream = stream_gen
+        mock_resp.close = lambda: None
+        mock_resp.release_conn = lambda: None
+        return mock_resp
+
+    async def mock_copy(source_key, dest_key):
+        storage_data[dest_key] = storage_data.get(source_key, b"")
+
+    with patch("backend.main.storage_service") as mock:
+        mock.upload = AsyncMock(side_effect=mock_upload)
+        mock.download = AsyncMock(side_effect=mock_download)
+        mock.download_stream = AsyncMock(side_effect=mock_download_stream)
+        mock.copy = AsyncMock(side_effect=mock_copy)
+        mock.delete = AsyncMock()
+        mock.ensure_bucket = lambda: None
+        yield mock
 
 @pytest.fixture(scope="function")
 def client(db):
