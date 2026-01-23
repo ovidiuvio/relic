@@ -480,6 +480,7 @@ async def get_relic(
 
     return relic
 
+@app.get("/{relic_id}")
 @app.get("/{relic_id}/raw")
 async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
     """Get raw relic content."""

@@ -1,5 +1,6 @@
 """Pytest configuration and fixtures."""
 import pytest
+from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -43,8 +44,32 @@ def client(db):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # Mock storage service to avoid MinIO connection
+    with patch("backend.main.storage_service") as mock_storage:
+        # Simple in-memory storage for tests
+        storage_data = {}
+
+        async def mock_upload(key, data, content_type="application/octet-stream"):
+            storage_data[key] = data
+            return key
+
+        async def mock_download(key):
+            return storage_data.get(key, b"")
+
+        async def mock_delete(key):
+            storage_data.pop(key, None)
+
+        async def mock_exists(key):
+            return key in storage_data
+
+        mock_storage.ensure_bucket = MagicMock()
+        mock_storage.upload = AsyncMock(side_effect=mock_upload)
+        mock_storage.download = AsyncMock(side_effect=mock_download)
+        mock_storage.delete = AsyncMock(side_effect=mock_delete)
+        mock_storage.exists = AsyncMock(side_effect=mock_exists)
+
+        with TestClient(app) as test_client:
+            yield test_client
 
     app.dependency_overrides.clear()
 
