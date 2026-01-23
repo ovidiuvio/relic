@@ -5,6 +5,7 @@
   import RecentRelics from "./components/RecentRelics.svelte";
   import MyRelics from "./components/MyRelics.svelte";
   import MyBookmarks from "./components/MyBookmarks.svelte";
+  import MyFeeds from "./components/MyFeeds.svelte";
   import AdminPanel from "./components/AdminPanel.svelte";
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
@@ -40,6 +41,7 @@
       parts[0] !== "recent" &&
       parts[0] !== "my-relics" &&
       parts[0] !== "my-bookmarks" &&
+      parts[0] !== "my-feeds" &&
       parts[0] !== "new" &&
       parts[0] !== "admin"
     ) {
@@ -171,7 +173,7 @@
     activeTagFilter = tagName;
     
     // If we're already in a list section that supports tag filtering, stay there
-    if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks") {
+    if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks" && currentSection !== "my-feeds") {
       currentSection = "recent"; // Default to recent (public) view for discovering tags
     }
     
@@ -329,6 +331,14 @@
           >
             <i class="fas fa-bookmark mr-2"></i>Bookmarks
           </button>
+          <button
+            on:click={() => handleNavigation("my-feeds")}
+            class="maas-nav-top {currentSection === 'my-feeds'
+              ? 'active'
+              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-rss mr-2"></i>Feeds
+          </button>
           {#if isAdmin}
             <button
               on:click={() => handleNavigation("admin")}
@@ -458,6 +468,8 @@
         <MyRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "my-bookmarks"}
         <MyBookmarks tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
+      {:else if currentSection === "my-feeds"}
+        <MyFeeds tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "admin"}
         <AdminPanel />
       {/if}

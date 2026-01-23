@@ -22,6 +22,7 @@ api.interceptors.request.use((config) => {
             { endpoint: 'client/relics', methods: ['GET'] },
             { endpoint: '/client/name', methods: ['PUT'] },
             { endpoint: '/bookmarks', methods: ['GET', 'POST', 'DELETE'] },
+            { endpoint: '/feeds', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
             { endpoint: '/admin/', methods: ['GET', 'POST', 'DELETE'] }
         ]
 

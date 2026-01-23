@@ -1,0 +1,40 @@
+
+> Relic-frontend@1.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 842 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+6:49:48 PM [vite-plugin-svelte] /app/frontend/src/App.svelte:380:20 A11y: A form label must be associated with a control.
+6:49:48 PM [vite-plugin-svelte] /app/frontend/src/App.svelte:366:14 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:48 PM [vite-plugin-svelte] /app/frontend/src/App.svelte:366:14 A11y: <div> with click handler must have an ARIA role
+6:49:50 PM [vite-plugin-svelte] /app/frontend/src/components/MyFeeds.svelte:172:20 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:50 PM [vite-plugin-svelte] /app/frontend/src/components/MyFeeds.svelte:172:20 A11y: <div> with click handler must have an ARIA role
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/ForkModal.svelte:198:4 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/ForkModal.svelte:198:4 A11y: <div> with click handler must have an ARIA role
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/ForkModal.svelte:194:2 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/ForkModal.svelte:194:2 A11y: <div> with click handler must have an ARIA role
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/PDFViewer.svelte:249:10 A11y: Avoid using autofocus
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/renderers/ArchiveRenderer.svelte:285:4 A11y: noninteractive element cannot have nonnegative tabIndex value
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/renderers/ArchiveRenderer.svelte:285:4 A11y: Non-interactive element <div> should not be assigned mouse or keyboard event listeners.
+6:49:51 PM [vite-plugin-svelte] /app/frontend/src/components/renderers/RelicIndexRenderer.svelte:9:15 RelicIndexRenderer has unused export property 'relicId'. If it is for external reference only, please consider using `export const relicId`
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:109:20 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:122:20 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:146:20 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:173:20 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:187:20 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:102:4 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/EditRelicModal.svelte:102:4 A11y: <div> with click handler must have an ARIA role
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ForkEditor.svelte:206:6 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ForkEditor.svelte:252:6 A11y: A form label must be associated with a control.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ReportModal.svelte:55:8 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ReportModal.svelte:55:8 A11y: <div> with click handler must have an ARIA role
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ReportModal.svelte:51:4 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/ReportModal.svelte:51:4 A11y: <div> with click handler must have an ARIA role
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/AddToFeedModal.svelte:80:4 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/AddToFeedModal.svelte:80:4 A11y: <div> with click handler must have an ARIA role
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/AddToFeedModal.svelte:79:2 A11y: visible, non-interactive elements with an on:click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as <button type="button"> or <a> might be more appropriate. See https://svelte.dev/docs/accessibility-warnings#a11y-click-events-have-key-events for more details.
+6:49:52 PM [vite-plugin-svelte] /app/frontend/src/components/AddToFeedModal.svelte:79:2 A11y: <div> with click handler must have an ARIA role
