@@ -40,7 +40,7 @@ def parse_expiry_string(expires_in: Optional[str]) -> Optional[datetime]:
     Parse expiry string and return expiration datetime.
 
     Args:
-        expires_in: "1h", "24h", "7d", "30d", or None
+        expires_in: "10m", "1h", "24h", "7d", "30d", "1y", or None
 
     Returns:
         Datetime object or None
@@ -49,12 +49,23 @@ def parse_expiry_string(expires_in: Optional[str]) -> Optional[datetime]:
         return None
 
     now = datetime.utcnow()
-    multipliers = {"h": 3600, "d": 86400}
+    multipliers = {
+        "m": 60,
+        "h": 3600,
+        "d": 86400,
+        "w": 604800,
+        "M": 2592000,  # 30 days
+        "y": 31536000  # 365 days
+    }
 
     try:
         value = int(expires_in[:-1])
         unit = expires_in[-1]
-        seconds = value * multipliers.get(unit, 0)
+
+        if unit not in multipliers:
+            return None
+
+        seconds = value * multipliers[unit]
         return now + timedelta(seconds=seconds)
     except (ValueError, KeyError):
         return None
