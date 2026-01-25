@@ -10,6 +10,7 @@ export * from './bookmarks'
 export * from './admin'
 export * from './clients'
 export * from './comments'
+export * from './feeds'
 
 // Default export checks out
 export default api

@@ -17,6 +17,7 @@
   } from "../services/relicActions";
   import ReportModal from "./ReportModal.svelte";
   import EditRelicModal from "./EditRelicModal.svelte";
+  import AddToFeedModal from "./AddToFeedModal.svelte";
   import { createEventDispatcher } from "svelte";
 
   export let relic;
@@ -34,6 +35,7 @@
 
   let showReportModal = false;
   let showEditModal = false;
+  let showAddToFeedModal = false;
 
   function handleUpdate(event) {
     const updatedRelic = event.detail;
@@ -151,6 +153,13 @@
           <i class="far fa-bookmark text-sm"></i>
         {/if}
       </button>
+      <button
+        on:click={() => (showAddToFeedModal = true)}
+        class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+        title="Add to Feed"
+      >
+        <i class="fas fa-rss text-sm"></i>
+      </button>
     {/if}
     <button
       on:click={() => (showReportModal = true)}
@@ -232,4 +241,10 @@
   {relic}
   on:close={() => (showEditModal = false)}
   on:update={handleUpdate}
+/>
+<AddToFeedModal
+  bind:open={showAddToFeedModal}
+  {relicId}
+  relicName={relic.name}
+  on:close={() => (showAddToFeedModal = false)}
 />

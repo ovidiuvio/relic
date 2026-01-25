@@ -18,6 +18,13 @@ relic_tags = Table(
 )
 
 
+# Association table for many-to-many relationship between feeds and relics
+feed_relics = Table(
+    'feed_relics',
+    Base.metadata,
+    Column('feed_id', String, ForeignKey('feed.id')),
+    Column('relic_id', String, ForeignKey('relic.id'))
+)
 
 
 class Relic(Base):
@@ -135,3 +142,18 @@ class Comment(Base):
     relic = relationship("Relic", backref="comments")
     client = relationship("ClientKey", backref="comments")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id]), cascade="all, delete-orphan")
+
+
+class Feed(Base):
+    """Feed model - collections of relics."""
+    __tablename__ = "feed"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    client = relationship("ClientKey", backref="feeds")
+    relics = relationship("Relic", secondary=feed_relics, backref="feeds")

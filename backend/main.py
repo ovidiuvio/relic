@@ -12,12 +12,12 @@ import io
 
 from backend.config import settings
 from backend.database import init_db, get_db, SessionLocal
-from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookmark, RelicReport, Comment
+from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookmark, RelicReport, Comment, Feed
 from backend.schemas import (
     RelicCreate, RelicResponse, RelicListResponse,
     RelicFork, ReportCreate, ReportResponse,
     CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate,
-    RelicUpdate
+    RelicUpdate, FeedCreate, FeedUpdate, FeedResponse, FeedListResponse
 )
 from backend.storage import storage_service
 from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
@@ -1031,6 +1031,203 @@ async def delete_comment(
     db.delete(comment)
     db.commit()
     return {"status": "deleted"}
+
+
+# ==================== Feed Operations ====================
+
+@app.post("/api/v1/feeds", response_model=FeedResponse)
+async def create_feed(
+    feed: FeedCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Create a new feed."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    new_feed = Feed(
+        client_id=client.id,
+        name=feed.name,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+
+    db.add(new_feed)
+    db.commit()
+    db.refresh(new_feed)
+
+    return new_feed
+
+
+@app.get("/api/v1/feeds", response_model=FeedListResponse)
+async def list_feeds(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """List all feeds for the authenticated client."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feeds = db.query(Feed).options(selectinload(Feed.relics)).filter(Feed.client_id == client.id).order_by(Feed.updated_at.desc()).all()
+
+    # Calculate relic counts manually since it's a many-to-many
+    response_feeds = []
+    for f in feeds:
+        f_dict = FeedResponse.from_orm(f)
+        f_dict.relic_count = len(f.relics)
+        # Optimization: Don't send full relic objects in the list view
+        f_dict.relics = []
+        response_feeds.append(f_dict)
+
+    return {"feeds": response_feeds}
+
+
+@app.get("/api/v1/feeds/{feed_id}", response_model=FeedResponse)
+async def get_feed(
+    feed_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Get a specific feed and its relics."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feed = db.query(Feed).options(selectinload(Feed.relics).selectinload(Relic.tags)).filter(
+        Feed.id == feed_id,
+        Feed.client_id == client.id
+    ).first()
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    response = FeedResponse.from_orm(feed)
+    response.relic_count = len(feed.relics)
+
+    # Sort relics by creation date descending
+    response.relics = sorted(feed.relics, key=lambda r: r.created_at, reverse=True)
+
+    # Enrich relics with permissions
+    enriched_relics = []
+    for r in response.relics:
+        # We need to calculate can_edit for each relic
+        r.can_edit = check_ownership_or_admin(r, client, require_auth=False)
+        enriched_relics.append(r)
+
+    response.relics = enriched_relics
+
+    return response
+
+
+@app.put("/api/v1/feeds/{feed_id}", response_model=FeedResponse)
+async def update_feed(
+    feed_id: str,
+    feed_update: FeedUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update a feed."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feed = db.query(Feed).filter(Feed.id == feed_id, Feed.client_id == client.id).first()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    feed.name = feed_update.name
+    feed.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(feed)
+
+    response = FeedResponse.from_orm(feed)
+    response.relic_count = len(feed.relics)
+    return response
+
+
+@app.delete("/api/v1/feeds/{feed_id}")
+async def delete_feed(
+    feed_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Delete a feed."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feed = db.query(Feed).filter(Feed.id == feed_id, Feed.client_id == client.id).first()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    db.delete(feed)
+    db.commit()
+
+    return {"message": "Feed deleted successfully"}
+
+
+@app.post("/api/v1/feeds/{feed_id}/relics/{relic_id}")
+async def add_relic_to_feed(
+    feed_id: str,
+    relic_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Add a relic to a feed."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feed = db.query(Feed).filter(Feed.id == feed_id, Feed.client_id == client.id).first()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    # Check if already in feed
+    if relic in feed.relics:
+        raise HTTPException(status_code=409, detail="Relic already in feed")
+
+    feed.relics.append(relic)
+    feed.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Relic added to feed"}
+
+
+@app.delete("/api/v1/feeds/{feed_id}/relics/{relic_id}")
+async def remove_relic_from_feed(
+    feed_id: str,
+    relic_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Remove a relic from a feed."""
+    client = get_client_key(request, db)
+    if not client:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    feed = db.query(Feed).filter(Feed.id == feed_id, Feed.client_id == client.id).first()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not relic:
+        raise HTTPException(status_code=404, detail="Relic not found")
+
+    if relic not in feed.relics:
+        raise HTTPException(status_code=404, detail="Relic not in feed")
+
+    feed.relics.remove(relic)
+    feed.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Relic removed from feed"}
 
 
 # ==================== Admin Operations ====================

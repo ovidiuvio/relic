@@ -142,3 +142,36 @@ class CommentResponse(CommentBase):
 class ClientNameUpdate(BaseModel):
     """Schema for updating client name."""
     name: str
+
+
+class FeedBase(BaseModel):
+    """Base feed schema."""
+    name: str
+
+
+class FeedCreate(FeedBase):
+    """Feed creation schema."""
+    pass
+
+
+class FeedUpdate(FeedBase):
+    """Feed update schema."""
+    pass
+
+
+class FeedResponse(FeedBase):
+    """Feed response schema."""
+    id: str
+    client_id: str
+    created_at: datetime
+    updated_at: datetime
+    relic_count: int = 0
+    relics: Optional[List[RelicResponse]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FeedListResponse(BaseModel):
+    """Feed list response schema."""
+    feeds: List[FeedResponse]
