@@ -196,7 +196,10 @@
               zip.file(zipPath, file);
             });
 
-            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const zipBlob = await zip.generateAsync({
+              type: "blob",
+              compression: "DEFLATE",
+            });
             const zipName = title
               ? `${title}.zip`
               : uploadedFiles.length > 0
