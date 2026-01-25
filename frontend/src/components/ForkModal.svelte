@@ -14,6 +14,7 @@
   export let open = false;
   export let relicId = "";
   export let relic = null;
+  export let darkMode = true;
 
   let forkName = "";
   let forkContent = "";
@@ -244,6 +245,7 @@
           {relic}
           {editorContent}
           {forkLanguage}
+          {darkMode}
           on:change={handleContentChange}
           on:expand={(e) => isExpanded = e.detail}
         />

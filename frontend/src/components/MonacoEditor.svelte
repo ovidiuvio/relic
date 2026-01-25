@@ -27,7 +27,7 @@
   export let comments = []
   export let isAdmin = false
   export let ansiDecorations = [] // ANSI color decorations
-  export let darkAnsi = true
+  export let darkMode = true
 
   let container
   let editor
@@ -54,7 +54,7 @@
   let hoveredGlyphLine = null
   let currentClientId = null
 
-  $: isDarkMode = (darkAnsi && ansiDecorations.length > 0)
+  $: isDarkMode = darkMode
 
   const dispatch = createEventDispatcher()
 
@@ -116,7 +116,7 @@
         value: value || '',
         language: getMonacoLanguage(language),
         readOnly,
-        theme: (darkAnsi && ansiDecorations.length > 0) ? 'relic-theme-dark' : 'relic-theme',
+        theme: darkMode ? 'relic-theme-dark' : 'relic-theme',
         automaticLayout: true,
         minimap: { enabled: false },
         folding: false,
@@ -180,13 +180,13 @@
   // Apply ANSI decorations when they change
   $: if (editor && ansiDecorations) {
     applyAnsiDecorations()
-    // Re-evaluate theme if ansiDecorations or darkAnsi change
-    const theme = (darkAnsi && ansiDecorations.length > 0) ? 'relic-theme-dark' : 'relic-theme'
+    // Re-evaluate theme if ansiDecorations or darkMode change
+    const theme = darkMode ? 'relic-theme-dark' : 'relic-theme'
     monaco.editor.setTheme(theme)
   }
 
-  $: if (editor && (darkAnsi !== undefined)) {
-    const theme = (darkAnsi && ansiDecorations.length > 0) ? 'relic-theme-dark' : 'relic-theme'
+  $: if (editor && (darkMode !== undefined)) {
+    const theme = darkMode ? 'relic-theme-dark' : 'relic-theme'
     monaco.editor.setTheme(theme)
     injectAnsiStyles() // Colors might need adjustment if theme changes
   }
@@ -287,11 +287,11 @@
           const temp = fgColor || '#CCCCCC'
           fgColor = bgColor || 'transparent'
           bgColor = temp
-          if (fgColor === 'transparent') fgColor = darkAnsi ? '#1E1E1E' : '#FFFFFF'
+          if (fgColor === 'transparent') fgColor = darkMode ? '#1E1E1E' : '#FFFFFF'
         }
 
         // Adjust colors for light background if needed
-        if (!darkAnsi) {
+        if (!darkMode) {
             const lightColorMap = {
                 '#E5E510': '#A6A600', // Yellow
                 '#E5E5E5': '#444444', // White

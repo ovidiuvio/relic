@@ -11,7 +11,7 @@
   export let fontSize = 13
   export let comments = []
   export let isAdmin = false
-  export let darkAnsi = true
+  export let darkMode = true
 
   const dispatch = createEventDispatcher()
   const forwardEvent = createEventForwarder(dispatch)
@@ -33,7 +33,7 @@
     {fontSize}
     {comments}
     {isAdmin}
-    {darkAnsi}
+    {darkMode}
     ansiDecorations={showSyntaxHighlighting && processed.hasAnsiCodes ? (processed.ansiDecorations || []) : []}
     on:line-clicked={forwardEvent}
     on:line-range-selected={forwardEvent}

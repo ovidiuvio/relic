@@ -8,13 +8,16 @@
   import CsvRenderer from './CsvRenderer.svelte';
   import ExcalidrawRenderer from './ExcalidrawRenderer.svelte';
   import PDFViewer from '../PDFViewer.svelte';
+  import { createEventDispatcher } from 'svelte';
 
   export let processed
   export let relicId
   export let showSyntaxHighlighting = true
   export let showLineNumbers = true
   export let fontSize = 13
-  export let darkAnsi = true
+  export let darkMode = true
+
+  const dispatch = createEventDispatcher()
 
   let selectedFile = null
   let previewedFile = null
@@ -342,13 +345,16 @@
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              {#if previewedFile?.processed?.hasAnsiCodes}
+              {#if previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text' || previewedFile?.processed?.type === 'markdown' || previewedFile?.processed?.type === 'html'}
                 <button
-                  on:click={() => darkAnsi = !darkAnsi}
-                  class="p-2 transition-colors rounded {darkAnsi ? 'bg-purple-100 text-[#772953]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}"
-                  title={darkAnsi ? 'Switch to light background' : 'Switch to dark background'}
+                  on:click={() => {
+                    darkMode = !darkMode;
+                    dispatch('toggle-dark-mode', darkMode);
+                  }}
+                  class="p-2 transition-colors rounded {darkMode ? 'bg-purple-100 text-[#772953]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}"
+                  title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                  <i class="fas {darkAnsi ? 'fa-moon' : 'fa-sun'} text-sm"></i>
+                  <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'} text-sm"></i>
                 </button>
               {/if}
               <button
@@ -377,7 +383,7 @@
                 {showSyntaxHighlighting}
                 {showLineNumbers}
                 {fontSize}
-                {darkAnsi}
+                {darkMode}
               />
             {:else if previewedFile.processed.type === 'markdown'}
               <MarkdownRenderer
@@ -385,7 +391,7 @@
                 {relicId}
                 {showSyntaxHighlighting}
                 {showLineNumbers}
-                {darkAnsi}
+                {darkMode}
               />
             {:else if previewedFile.processed.type === 'html'}
               <HtmlRenderer
@@ -393,7 +399,7 @@
                 {relicId}
                 {showSyntaxHighlighting}
                 {showLineNumbers}
-                {darkAnsi}
+                {darkMode}
               />
             {:else if previewedFile.processed.type === 'csv'}
               <CsvRenderer processed={previewedFile.processed} />

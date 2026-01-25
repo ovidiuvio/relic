@@ -17,6 +17,7 @@
   export let relic = null;
   export let editorContent = "";
   export let forkLanguage = "auto";
+  export let darkMode = true;
 
   let isExpanded = false;
   let showPreview = false;
@@ -398,6 +399,7 @@
           showSyntaxHighlighting={showSyntaxHighlighting}
           showLineNumbers={showLineNumbers}
           fontSize={fontSize}
+          {darkMode}
           on:change={handleContentChange}
         />
       {/if}
