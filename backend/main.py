@@ -394,12 +394,15 @@ async def create_relic(
         # Generate unique relic ID with collision handling
         relic_id = generate_unique_relic_id(db)
 
-        # Upload to storage
-        s3_key = f"relics/{relic_id}"
-        await storage_service.upload(s3_key, content, content_type)
-
         # Parse expiry
         expires_at = parse_expiry_string(expires_in)
+
+        # Determine storage tier
+        tier = "ephemeral" if expires_at else "standard"
+
+        # Upload to storage
+        s3_key = f"relics/{relic_id}"
+        await storage_service.upload(s3_key, content, content_type, tier=tier)
 
         # Process tags
         tag_objects = process_tags(db, tags) if tags else []
@@ -413,6 +416,7 @@ async def create_relic(
             language_hint=language_hint,
             size_bytes=len(content),
             s3_key=s3_key,
+            tier=tier,
             access_level=access_level,
             created_at=datetime.utcnow(),
             expires_at=expires_at
@@ -495,7 +499,7 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")    
     try:
-        content = await storage_service.download(relic.s3_key)
+        content = await storage_service.download(relic.s3_key, tier=relic.tier)
         return StreamingResponse(
             iter([content]),
             media_type=relic.content_type,
@@ -545,20 +549,23 @@ async def fork_relic(
             content = await file.read()
             content_type = file.content_type or original.content_type
         else:
-            content = await storage_service.download(original.s3_key)
+            content = await storage_service.download(original.s3_key, tier=original.tier)
             content_type = original.content_type
 
         # Generate unique new ID with collision handling
         new_id = generate_unique_relic_id(db)
 
-        # Upload to storage
-        s3_key = f"relics/{new_id}"
-        await storage_service.upload(s3_key, content, content_type)
-
         # Calculate expiry date if provided
         expires_at = None
         if expires_in and expires_in != 'never':
             expires_at = parse_expiry_string(expires_in)
+
+        # Determine storage tier
+        tier = "ephemeral" if expires_at else "standard"
+
+        # Upload to storage
+        s3_key = f"relics/{new_id}"
+        await storage_service.upload(s3_key, content, content_type, tier=tier)
 
         # Process tags: use provided tags or copy from original
         if tags is not None:
@@ -575,6 +582,7 @@ async def fork_relic(
             language_hint=original.language_hint,
             size_bytes=len(content),
             s3_key=s3_key,
+            tier=tier,
             fork_of=relic_id,
             access_level=access_level or original.access_level,
             expires_at=expires_at
@@ -673,7 +681,7 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
 
     # Delete file from S3 storage
     try:
-        await storage_service.delete(relic.s3_key)
+        await storage_service.delete(relic.s3_key, tier=relic.tier)
     except Exception as e:
         # Log error but don't fail the delete operation
         print(f"Failed to delete file from S3: {e}")
@@ -1205,7 +1213,7 @@ async def admin_delete_client(
         client_relics = db.query(Relic).filter(Relic.client_id == client_id).all()
         for relic in client_relics:
             try:
-                await storage_service.delete(relic.s3_key)
+                await storage_service.delete(relic.s3_key, tier=relic.tier)
             except Exception as e:
                 print(f"Failed to delete file from S3: {e}")
             db.delete(relic)

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY") or os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY") or os.getenv("MINIO_SECRET_KEY", "minioadmin")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME") or os.getenv("MINIO_BUCKET", "relics")
+    S3_EPHEMERAL_BUCKET_NAME: str = os.getenv("S3_EPHEMERAL_BUCKET_NAME") or os.getenv("MINIO_EPHEMERAL_BUCKET") or (os.getenv("S3_BUCKET_NAME") or os.getenv("MINIO_BUCKET", "relics"))
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
 
     # Upload limits
