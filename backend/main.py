@@ -2,6 +2,8 @@
 from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, selectinload
@@ -379,7 +381,11 @@ async def create_relic(
     try:
         # Read file content
         if file:
-            content = await file.read()
+            # Get file size
+            await run_in_threadpool(file.file.seek, 0, 2)
+            size = await run_in_threadpool(file.file.tell)
+            await file.seek(0)
+
             if not content_type:
                 content_type = file.content_type or "application/octet-stream"
             if not name:
@@ -388,7 +394,7 @@ async def create_relic(
             raise HTTPException(status_code=400, detail="No content provided")
 
         # Check size limit
-        if len(content) > settings.MAX_UPLOAD_SIZE:
+        if size > settings.MAX_UPLOAD_SIZE:
             raise HTTPException(status_code=413, detail="File too large")
 
         # Generate unique relic ID with collision handling
@@ -396,7 +402,7 @@ async def create_relic(
 
         # Upload to storage
         s3_key = f"relics/{relic_id}"
-        await storage_service.upload(s3_key, content, content_type)
+        await storage_service.upload(s3_key, file.file, content_type=content_type, length=size)
 
         # Parse expiry
         expires_at = parse_expiry_string(expires_in)
@@ -411,7 +417,7 @@ async def create_relic(
             name=name,
             content_type=content_type,
             language_hint=language_hint,
-            size_bytes=len(content),
+            size_bytes=size,
             s3_key=s3_key,
             access_level=access_level,
             created_at=datetime.utcnow(),
@@ -495,11 +501,12 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")    
     try:
-        content = await storage_service.download(relic.s3_key)
+        response = await storage_service.download_stream(relic.s3_key)
         return StreamingResponse(
-            iter([content]),
+            response.stream(32 * 1024),
             media_type=relic.content_type,
-            headers={"Content-Disposition": f"inline; filename={relic.name or relic.id}"}
+            headers={"Content-Disposition": f"inline; filename={relic.name or relic.id}"},
+            background=BackgroundTask(response.close)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -540,20 +547,24 @@ async def fork_relic(
         raise HTTPException(status_code=404, detail="Relic not found")
 
     try:
-        # If no new content provided, fork with same content
-        if file:
-            content = await file.read()
-            content_type = file.content_type or original.content_type
-        else:
-            content = await storage_service.download(original.s3_key)
-            content_type = original.content_type
-
         # Generate unique new ID with collision handling
         new_id = generate_unique_relic_id(db)
-
-        # Upload to storage
         s3_key = f"relics/{new_id}"
-        await storage_service.upload(s3_key, content, content_type)
+
+        # If no new content provided, fork with same content
+        if file:
+            # Get file size
+            await run_in_threadpool(file.file.seek, 0, 2)
+            size = await run_in_threadpool(file.file.tell)
+            await file.seek(0)
+
+            content_type = file.content_type or original.content_type
+            await storage_service.upload(s3_key, file.file, content_type=content_type, length=size)
+        else:
+            # Server-side copy
+            content_type = original.content_type
+            size = original.size_bytes
+            await storage_service.copy(original.s3_key, s3_key)
 
         # Calculate expiry date if provided
         expires_at = None
@@ -573,7 +584,7 @@ async def fork_relic(
             name=name or original.name,
             content_type=content_type,
             language_hint=original.language_hint,
-            size_bytes=len(content),
+            size_bytes=size,
             s3_key=s3_key,
             fork_of=relic_id,
             access_level=access_level or original.access_level,
@@ -1376,15 +1387,15 @@ async def admin_download_backup(
 
     try:
         # Get the backup file from S3
-        data = await storage_service.download(key)
+        response = await storage_service.download_stream(key)
         
-        from fastapi.responses import Response
-        return Response(
-            content=data,
+        return StreamingResponse(
+            response.stream(32 * 1024),
             media_type="application/gzip",
             headers={
                 "Content-Disposition": f"attachment; filename={filename}"
-            }
+            },
+            background=BackgroundTask(response.close)
         )
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Backup not found: {str(e)}")
