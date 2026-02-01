@@ -347,7 +347,7 @@
         </div>
     {:else if !isAdmin}
         <div
-            class="bg-white shadow-sm rounded-lg border border-gray-200 p-8 text-center"
+            class="bg-white shadow-sm rounded-sm border border-gray-200 p-8 text-center"
         >
             <i class="fas fa-lock text-gray-300 text-4xl mb-4"></i>
             <h2 class="text-lg font-semibold text-gray-900 mb-2">
@@ -364,7 +364,7 @@
         <!-- Stats Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+                class="bg-white shadow-sm rounded-sm border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
                     <i class="fas fa-archive text-[#772953] text-xl"></i>
@@ -377,7 +377,7 @@
                 </div>
             </div>
             <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+                class="bg-white shadow-sm rounded-sm border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
                     <i class="fas fa-users text-[#0E8420] text-xl"></i>
@@ -390,7 +390,7 @@
                 </div>
             </div>
             <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+                class="bg-white shadow-sm rounded-sm border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
                     <i class="fas fa-database text-[#E95420] text-xl"></i>
@@ -403,7 +403,7 @@
                 </div>
             </div>
             <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
+                class="bg-white shadow-sm rounded-sm border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
                     <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
@@ -418,7 +418,7 @@
         </div>
 
         <!-- Tabs -->
-        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div class="bg-white shadow-sm rounded-sm border border-gray-200">
             <div
                 class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
             >
@@ -1205,7 +1205,7 @@
                                     {section}
                                 </h3>
                                 <div
-                                    class="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200"
+                                    class="bg-gray-50 rounded-sm border border-gray-200 divide-y divide-gray-200"
                                 >
                                     {#each Object.entries(values) as [key, value]}
                                         <div

@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-50 text-gray-900;
-  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-  background-size: 20px 20px;
+  @apply bg-[#E0E0E0] text-gray-900;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden; /* Prevent body scroll, layout handles it */
 }
 
 code {
@@ -82,7 +82,7 @@ code {
 /* Code blocks - GitHub-style minimal rounding */
 .prose pre {
   @apply bg-gray-50 border border-gray-200 mb-4 overflow-x-auto text-sm;
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 16px;
 }
 
@@ -95,14 +95,14 @@ code {
 .prose :not(pre) > code {
   @apply bg-gray-100 text-pink-600 font-mono font-medium;
   border: 1px solid #e5e7eb;
-  border-radius: 3px;
+  border-radius: 2px;
   padding: 0.2em 0.4em;
   font-size: 85%;
 }
 
 /* Tables */
 .prose table {
-  @apply w-full border-collapse border border-gray-200 rounded-lg overflow-hidden mb-6;
+  @apply w-full border-collapse border border-gray-200 rounded-sm overflow-hidden mb-6;
 }
 
 .prose thead {
@@ -132,17 +132,17 @@ code {
 }
 
 .prose .task-list-item input {
-  @apply mr-2 rounded;
+  @apply mr-2 rounded-sm;
 }
 
 /* Images */
 .prose img {
-  @apply rounded-lg shadow-sm border border-gray-200 max-w-full h-auto;
+  @apply rounded-sm shadow-sm border border-gray-200 max-w-full h-auto;
 }
 
 /* Details/summary for collapsible content */
 .prose details {
-  @apply border border-gray-200 rounded-lg mb-4;
+  @apply border border-gray-200 rounded-sm mb-4;
 }
 
 .prose summary {
@@ -159,7 +159,7 @@ code {
 
 /* Error styling */
 .markdown-error {
-  @apply bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg;
+  @apply bg-red-50 border border-red-200 text-red-700 p-4 rounded-sm;
 }
 
 /* Highlight.js theme overrides for light mode */
@@ -237,26 +237,128 @@ code {
   font-weight: bold;
 }
 
-/* Custom Scrollbar to match sleek UI */
+/* Custom Scrollbar to match desktop UI */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
 }
 ::-webkit-scrollbar-track {
-    background: #f1f1f1; 
+    background: #f0f0f0;
 }
 ::-webkit-scrollbar-thumb {
-    background: #ccc; 
-    border-radius: 4px;
+    background: #c1c1c1;
+    border-radius: 0;
+    border: 2px solid #f0f0f0;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #b3b3b3; 
+    background: #a8a8a8;
 }
 
-/* Svelte-select styling to match maas-input */
+/* Proxmox-inspired Button Primary */
+.maas-btn-primary {
+    background-color: #2196f3;
+    color: white;
+    border: 1px solid #1976d2;
+    padding: 0.4rem 1rem;
+    border-radius: 0;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.maas-btn-primary:hover {
+    background-color: #1976d2;
+}
+
+.maas-btn-primary:active {
+    background-color: #1565c0;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Proxmox-inspired Button Secondary */
+.maas-btn-secondary {
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 0.4rem 1rem;
+    border-radius: 0;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.maas-btn-secondary:hover {
+    background-color: #e0e0e0;
+    border-color: #bbb;
+}
+
+/* Sharp Inputs */
+.maas-input {
+    border: 1px solid #ccc;
+    border-radius: 0;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+    background-color: white;
+    transition: all 0.2s;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.maas-input:focus {
+    border-color: #2196f3;
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px #2196f3;
+}
+
+/* Card styling - Sharper */
+.maas-card {
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Table styling - Proxmox inspired */
+.maas-table th {
+    font-weight: bold;
+    color: #333;
+    background: linear-gradient(to bottom, #f7f7f7, #e0e0e0);
+    border-bottom: 1px solid #ccc;
+    border-right: 1px solid #e0e0e0;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.maas-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    font-size: 0.85rem;
+    color: #333;
+}
+
+.maas-table tr:hover td {
+    background-color: #e3f2fd;
+}
+
+/* Svelte-select styling to match new inputs */
 .svelte-select {
   transition: all 0.2s;
   align-items: center !important;
+  border-radius: 0 !important;
+  border: 1px solid #ccc !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
 }
 
 .svelte-select .svelte-select-container {
@@ -264,7 +366,8 @@ code {
 }
 
 .svelte-select.focused {
-  box-shadow: 0 0 0 1px #E95420 !important;
+  border-color: #2196f3 !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px #2196f3 !important;
 }
 
 .svelte-select input {
@@ -274,81 +377,23 @@ code {
 }
 
 .svelte-select .svelte-select-list {
-  border: 1px solid #AEA79F !important;
-  border-radius: 6px !important;
-  background: #f3f4f5 !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
-  margin-top: 2px;
-  overflow: hidden;
-}
-
-.svelte-select .svelte-select-list > div {
-  padding: 4px !important;
+  border: 1px solid #ccc !important;
+  border-radius: 0 !important;
+  background: white !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  margin-top: 1px;
 }
 
 .svelte-select .item {
-  background: #f3f4f5 !important;
-  color: rgb(17 24 39);
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem !important;
-  line-height: 1.25 !important;
-  min-height: unset !important;
-  height: auto !important;
-  border-radius: 4px !important;
-  margin: 1px 0 !important;
+  border-radius: 0 !important;
+  font-size: 0.85rem !important;
 }
 
 .svelte-select .item.hover:not(.active) {
-  background: #bcdff1 !important;
-  color: rgb(17 24 39) !important;
-  border-radius: 4px !important;
+  background: #e3f2fd !important;
 }
 
 .svelte-select .item.active {
-  background: #f3f4f5 !important;
-  color: rgb(17 24 39) !important;
-  border-radius: 4px !important;
+  background: #2196f3 !important;
+  color: white !important;
 }
-
-.svelte-select .item.active.hover {
-  background: #bcdff1 !important;
-  color: rgb(17 24 39) !important;
-  border-radius: 4px !important;
-}
-
-.svelte-select .item:active {
-  background: #bcdff1 !important;
-  border-radius: 4px !important;
-}
-
-.svelte-select .indicators {
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.svelte-select .indicator {
-  display: flex !important;
-  align-items: center !important;
-  color: rgb(107, 114, 128);
-}
-
-.svelte-select .chevron {
-  display: inline-block;
-  padding-right: 4px;
-  color: rgb(107, 114, 128);
-}
-
-.svelte-select .indicator svg {
-  width: 18px !important;
-  height: 18px !important;
-}
-
-/* Markdown Body Styles */
-.markdown-body p { margin-bottom: 0.5em; }
-.markdown-body pre { background: #f3f4f6; padding: 8px; border-radius: 4px; overflow-x: auto; }
-.markdown-body code { font-family: monospace; background: #f3f4f6; padding: 2px 4px; border-radius: 2px; }
-.markdown-body blockquote { border-left: 3px solid #e5e7eb; padding-left: 8px; color: #6b7280; }
-.markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 0.5em; list-style-type: disc; }
-.markdown-body ol { list-style-type: decimal; }
-.markdown-body a { color: #2563eb; text-decoration: underline; }

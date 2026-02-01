@@ -538,7 +538,7 @@
     <div
       class="bg-white shadow-sm border border-gray-200 overflow-hidden {isFullWidth
         ? 'rounded-none'
-        : 'rounded-lg'}"
+        : 'maas-card'}"
     >
       <RelicHeader
         {relic}

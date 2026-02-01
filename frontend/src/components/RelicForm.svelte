@@ -389,63 +389,60 @@
   }
 </script>
 
-<div class="mb-8">
-  <div class="bg-white shadow-sm rounded-lg border border-gray-200">
-    <div
-      class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
-    >
-      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-        {#if creationResult}
-          <i class="fas fa-check-circle text-green-600 mr-2"></i>
-          Relics Created Successfully
-        {:else}
-          <i class="fas fa-plus text-blue-600 mr-2"></i>
-          Create New Relic
-        {/if}
-      </h2>
-      {#if !creationResult && activeTab === "upload"}
-        <div class="flex items-center gap-4">
-          <div class="text-xs text-gray-500">
-            {#if uploadedFiles.length > 0}
-              {uploadedFiles.length} file(s) attached
-            {:else}
-              {content.length} characters
-            {/if}
-          </div>
-        </div>
+<div class="maas-card mb-8">
+  <div class="px-4 py-3 border-b border-[#ccc] bg-[#f5f5f5] flex items-center justify-between">
+    <h2 class="text-sm font-bold text-gray-800 flex items-center uppercase tracking-wide">
+      {#if creationResult}
+        <i class="fas fa-check-circle text-green-600 mr-2"></i>
+        Relics Created
+      {:else}
+        <i class="fas fa-plus-circle text-blue-600 mr-2"></i>
+        Create Relic
       {/if}
-    </div>
+    </h2>
+    {#if !creationResult && activeTab === "upload"}
+      <div class="flex items-center gap-4">
+        <div class="text-xs text-gray-500 font-mono">
+          {#if uploadedFiles.length > 0}
+            {uploadedFiles.length} file(s) attached
+          {:else}
+            {content.length} characters
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </div>
 
     {#if !creationResult}
       <!-- Tab Navigation -->
-      <div class="border-b border-gray-200">
-        <nav class="flex -mb-px px-6">
+      <div class="border-b border-[#ccc] bg-gray-50">
+        <nav class="flex px-4">
           <button
             on:click={() => (activeTab = "upload")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab ===
             'upload'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'}"
           >
             <i class="fas fa-upload mr-2"></i>
             Upload
           </button>
           <button
             on:click={() => (activeTab = "cli")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab ===
             'cli'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'}"
           >
             <i class="fas fa-terminal mr-2"></i>
             CLI
           </button>
           <button
             on:click={() => (activeTab = "curl")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
+            class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab ===
             'curl'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'}"
           >
             <i class="fas fa-code mr-2"></i>
             Curl
@@ -457,7 +454,7 @@
     <div class="p-6">
       {#if creationResult}
         <div class="space-y-6">
-          <div class="bg-green-50 border border-green-200 rounded-md p-4">
+          <div class="bg-green-50 border border-green-200 p-4 rounded-sm">
             <div class="flex">
               <div class="flex-shrink-0">
                 <i class="fas fa-check-circle text-green-400"></i>
@@ -475,10 +472,10 @@
             </div>
           </div>
 
-          <div class="border rounded-md divide-y divide-gray-200">
+          <div class="border border-[#ccc] divide-y divide-[#ccc]">
             {#each creationResult.success as relic}
               <div
-                class="p-4 flex items-center justify-between hover:bg-gray-50"
+                class="p-4 flex items-center justify-between hover:bg-gray-50 bg-white"
               >
                 <div class="flex items-center space-x-3 truncate">
                   <i class="fas fa-file-code text-gray-400"></i>
@@ -500,14 +497,14 @@
                   <button
                     on:click={() =>
                       copyToClipboard(`${window.location.origin}/${relic.id}`)}
-                    class="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                    class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-sm"
                     title="Copy Link"
                   >
                     <i class="fas fa-link"></i>
                   </button>
                   <a
                     href="/{relic.id}"
-                    class="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50"
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-sm"
                     title="View Relic"
                   >
                     <i class="fas fa-external-link-alt"></i>
@@ -520,7 +517,7 @@
           <div class="flex justify-end pt-4">
             <button
               on:click={resetForm}
-              class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm"
+              class="maas-btn-primary px-6 py-2 text-sm shadow-sm"
             >
               <i class="fas fa-plus mr-1"></i>
               Create More
@@ -529,108 +526,110 @@
         </div>
       {:else if activeTab === "upload"}
         <form on:submit={handleSubmit} class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label
-            for="title"
-            class="block text-sm font-medium text-gray-700 mb-1"
-            >Title</label
-          >
-          <input
-            type="text"
-            id="title"
-            bind:value={title}
-            placeholder="e.g. Nginx Configuration"
-            class="w-full px-3 py-2 text-sm maas-input"
-          />
-          <p class="text-xs text-gray-500 mt-1">
-            A descriptive name for this relic (used for text content)
-          </p>
-        </div>
 
-        <div>
-          <label
-            for="syntax"
-            class="block text-sm font-medium text-gray-700 mb-1">Type</label
-          >
-          <div class="w-full">
-            <Select
-              items={syntaxOptions}
-              bind:value={syntaxValue}
-              placeholder="Search or select language..."
-              searchable={true}
-              clearable={false}
-              showChevron={true}
-              --border="1px solid #AEA79F"
-              --border-radius="2px"
-              --border-focused="1px solid #E95420"
-              --border-hover="1px solid #AEA79F"
-              --padding="0.15rem 0.5rem"
-              --font-size="0.875rem"
-              --height="24px"
-              --item-padding="0.25rem 0.5rem"
-              --item-height="auto"
-              --item-line-height="1.25"
-              --background="white"
-              --list-background="#f3f4f5"
-              --list-border="1px solid #AEA79F"
-              --list-border-radius="6px"
-              --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
-              --input-color="rgb(17 24 39)"
-              --item-color="rgb(17 24 39)"
-              --item-hover-bg="#bcdff1"
-              --item-hover-color="rgb(17 24 39)"
-              --item-is-active-bg="#f3f4f5"
-              --item-is-active-color="rgb(17 24 39)"
-              --internal-padding="0"
-              --chevron-height="20px"
-              --chevron-width="20px"
-              --chevron-color="rgb(107, 114, 128)"
-            />
+        <fieldset class="border border-[#ccc] p-4 bg-white">
+          <legend class="text-xs font-bold text-blue-600 uppercase px-1">General Properties</legend>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label
+                for="title"
+                class="block text-sm font-bold text-gray-700 mb-1"
+                >Name</label
+              >
+              <input
+                type="text"
+                id="title"
+                bind:value={title}
+                placeholder="e.g. Nginx Configuration"
+                class="w-full maas-input"
+              />
+              <p class="text-[11px] text-gray-500 mt-1">
+                A descriptive name for this relic
+              </p>
+            </div>
+
+            <div>
+              <label
+                for="syntax"
+                class="block text-sm font-bold text-gray-700 mb-1">Content Type</label
+              >
+              <div class="w-full">
+                <Select
+                  items={syntaxOptions}
+                  bind:value={syntaxValue}
+                  placeholder="Auto-detect"
+                  searchable={true}
+                  clearable={false}
+                  showChevron={true}
+                  --border="1px solid #ccc"
+                  --border-radius="0"
+                  --border-focused="1px solid #2196f3"
+                  --border-hover="1px solid #bbb"
+                  --padding="0.2rem 0.5rem"
+                  --font-size="0.85rem"
+                  --height="30px"
+                  --item-padding="0.25rem 0.5rem"
+                  --item-height="auto"
+                  --item-line-height="1.25"
+                  --background="white"
+                  --list-background="white"
+                  --list-border="1px solid #ccc"
+                  --list-border-radius="0"
+                  --list-shadow="0 2px 4px rgba(0,0,0,0.1)"
+                  --input-color="#333"
+                  --item-color="#333"
+                  --item-hover-bg="#e3f2fd"
+                  --item-hover-color="#333"
+                  --item-is-active-bg="#2196f3"
+                  --item-is-active-color="white"
+                  --internal-padding="0"
+                  --chevron-height="16px"
+                  --chevron-width="16px"
+                  --chevron-color="#666"
+                />
+              </div>
+              <p class="text-[11px] text-gray-500 mt-1">
+                Applies to text content only.
+              </p>
+            </div>
+
+             <div>
+              <label
+                for="tags"
+                class="block text-sm font-bold text-gray-700 mb-1"
+                >Tags</label
+              >
+              <input
+                type="text"
+                id="tags"
+                bind:value={tags}
+                placeholder="e.g. config, nginx (comma separated)"
+                class="w-full maas-input"
+              />
+            </div>
           </div>
-          <p class="text-xs text-gray-500 mt-1">
-            Applies to text content only. Files are auto-detected.
-          </p>
-        </div>
-      </div>
+        </fieldset>
 
-      <div>
-        <label
-          for="tags"
-          class="block text-sm font-medium text-gray-700 mb-1"
-          >Tags</label
-        >
-        <input
-          type="text"
-          id="tags"
-          bind:value={tags}
-          placeholder="e.g. config, nginx, production (comma separated)"
-          class="w-full px-3 py-2 text-sm maas-input"
-        />
-        <p class="text-xs text-gray-500 mt-1">
-          Optional tags to categorize this relic
-        </p>
-      </div>
-
-
+        <fieldset class="border border-[#ccc] p-4 bg-white">
+          <legend class="text-xs font-bold text-blue-600 uppercase px-1">Access & Lifecycle</legend>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label
                 for="visibility"
-                class="block text-sm font-medium text-gray-700 mb-1"
+                class="block text-sm font-bold text-gray-700 mb-1"
                 >Visibility</label
               >
               <select
                 id="visibility"
                 bind:value={visibility}
-                class="w-full px-3 py-2 text-sm maas-input bg-white"
+                class="w-full maas-input"
               >
                 <option value="public">Public</option>
                 <option value="private">Private</option>
               </select>
-              <p class="text-xs text-gray-500 mt-1">
-                {#if visibility === "public"}Anyone can view this relic
-                {:else}Private relic - only accessible via direct URL
+              <p class="text-[11px] text-gray-500 mt-1">
+                {#if visibility === "public"}Visible in 'Recent Relics'
+                {:else}Hidden from lists, accessible via direct link only
                 {/if}
               </p>
             </div>
@@ -638,13 +637,13 @@
             <div>
               <label
                 for="expiry"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Expires</label
+                class="block text-sm font-bold text-gray-700 mb-1"
+                >Expiration</label
               >
               <select
                 id="expiry"
                 bind:value={expiry}
-                class="w-full px-3 py-2 text-sm maas-input bg-white"
+                class="w-full maas-input"
               >
                 <option value="never">Never</option>
                 <option value="10m">10 Minutes</option>
@@ -658,14 +657,34 @@
               </select>
             </div>
           </div>
+        </fieldset>
 
 
           <div>
-            <label
-              for="content"
-              class="block text-sm font-medium text-gray-700 mb-1"
-              >Content</label
-            >
+            <div class="flex justify-between items-center mb-1">
+                 <label
+                  for="content"
+                  class="block text-sm font-bold text-gray-700"
+                  >Content</label
+                >
+                <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      on:click={() => fileInput?.click()}
+                      class="text-xs text-blue-600 hover:underline font-bold"
+                    >
+                      <i class="fas fa-upload mr-1"></i> Upload Files
+                    </button>
+                    <input
+                      type="file"
+                      bind:this={fileInput}
+                      on:change={handleFileUpload}
+                      class="hidden"
+                      multiple
+                    />
+                </div>
+            </div>
+
             <div class="relative">
               <textarea
                 id="content"
@@ -674,8 +693,8 @@
                 on:dragleave={handleDragLeave}
                 on:drop={handleDrop}
                 rows="16"
-                class="w-full h-64 font-mono text-sm p-4 maas-input resize-y focus:shadow-none border border-[#dfdcd9] transition-colors"
-                placeholder="// Paste your code here or drop files..."
+                class="w-full h-64 font-mono text-sm p-4 maas-input resize-y border border-[#ccc]"
+                placeholder="// Paste code here or drag & drop files..."
               ></textarea>
             </div>
 
@@ -683,7 +702,7 @@
             {#if uploadedFiles.length > 0}
               <div class="mt-4 space-y-2">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-sm font-medium text-gray-700">
+                  <h3 class="text-sm font-bold text-gray-700 uppercase">
                     Attached Files ({uploadedFiles.length})
                   </h3>
                   {#if uploadedFiles.length > 1}
@@ -693,17 +712,17 @@
                       <input
                         type="checkbox"
                         bind:checked={zipMultiple}
-                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        class="rounded-sm border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                       />
                       <span>Zip multiple files</span>
                     </label>
                   {/if}
                 </div>
                 <div
-                  class="bg-gray-50 rounded border border-gray-200 divide-y divide-gray-200 max-h-48 overflow-y-auto"
+                  class="bg-gray-50 border border-[#ccc] divide-y divide-[#ccc] max-h-48 overflow-y-auto"
                 >
                   {#each uploadedFiles as { file, id }}
-                    <div class="flex items-center justify-between p-2 text-sm">
+                    <div class="flex items-center justify-between p-2 text-sm bg-white hover:bg-gray-50">
                       <div class="flex items-center truncate">
                         <i class="fas fa-file text-gray-400 mr-2"></i>
                         <span
@@ -717,7 +736,7 @@
                       <button
                         type="button"
                         on:click={() => removeFile(id)}
-                        class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                        class="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 transition-colors"
                         title="Remove file"
                       >
                         <i class="fas fa-times"></i>
@@ -727,35 +746,14 @@
                 </div>
               </div>
             {/if}
-
-            <div class="flex items-center gap-4 text-sm text-gray-500 mt-2">
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  on:click={() => fileInput?.click()}
-                  class="maas-btn-secondary px-3 py-1 text-xs rounded font-medium"
-                >
-                  <i class="fas fa-upload mr-1"></i>
-                  Add Files
-                </button>
-                <input
-                  type="file"
-                  bind:this={fileInput}
-                  on:change={handleFileUpload}
-                  class="hidden"
-                  multiple
-                />
-              </div>
-              <span class="text-xs">or drag & drop files</span>
-            </div>
           </div>
 
 
-          <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex justify-end pt-4 border-t border-[#ccc]">
             <button
               type="submit"
               disabled={isLoading}
-              class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              class="maas-btn-primary px-6 py-2 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {#if isLoading}
                 <i class="fas fa-spinner fa-spin mr-1"></i>
@@ -779,25 +777,25 @@
         <!-- CLI Tab -->
         <div class="space-y-6">
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               CLI Installation
             </h3>
             <p class="text-sm text-gray-600 mb-3">
               Install the Relic CLI with a single command:
             </p>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre>curl -sSL {serverUrl}/install.sh | bash</pre>
             </div>
           </div>
 
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               Quick Start
             </h3>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre># Upload a file
 relic script.py
@@ -817,23 +815,23 @@ relic get &lt;relic-id&gt;</pre>
           </div>
 
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               Configuration
             </h3>
             <p class="text-sm text-gray-600 mb-2">
               The CLI automatically configures itself to use <code
-                class="bg-gray-200 px-2 py-0.5 rounded text-xs font-mono"
+                class="bg-gray-200 px-2 py-0.5 rounded-sm text-xs font-mono"
                 >{serverUrl}</code
               > as the server.
             </p>
             <p class="text-sm text-gray-600 mb-3">
               Configuration file: <code
-                class="bg-gray-200 px-2 py-0.5 rounded text-xs font-mono"
+                class="bg-gray-200 px-2 py-0.5 rounded-sm text-xs font-mono"
                 >~/.relic/config</code
               >
             </p>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre># View configuration
 relic config --list
@@ -847,11 +845,11 @@ relic config core.server {serverUrl}</pre>
         <!-- Curl Tab -->
         <div class="space-y-6">
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               Upload from stdin
             </h3>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre>echo "Hello World" | curl -X POST {serverUrl}/api/v1/relics \
   -F "file=@-" \
@@ -860,11 +858,11 @@ relic config core.server {serverUrl}</pre>
           </div>
 
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               Upload a file
             </h3>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre>curl -X POST {serverUrl}/api/v1/relics \
   -F "file=@script.py" \
@@ -875,11 +873,11 @@ relic config core.server {serverUrl}</pre>
           </div>
 
           <div>
-            <h3 class="text-base font-semibold text-gray-900 mb-2">
+            <h3 class="text-sm font-bold text-gray-800 mb-2 uppercase border-b border-[#ccc] pb-1">
               Pipe command output
             </h3>
             <div
-              class="bg-gray-100 border-l-3 border-gray-400 rounded p-3 text-gray-900 text-xs font-mono overflow-x-auto"
+              class="bg-[#f5f5f5] border border-[#ccc] p-3 text-gray-900 text-xs font-mono overflow-x-auto"
             >
               <pre>ps aux | curl -X POST {serverUrl}/api/v1/relics \
   -F "file=@-" \
@@ -887,10 +885,10 @@ relic config core.server {serverUrl}</pre>
             </div>
           </div>
 
-          <div class="p-3 bg-gray-50 border border-gray-300 rounded">
-            <p class="text-sm text-gray-700">
+          <div class="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+            <p>
               <strong>Tip:</strong> Use the <code
-                class="bg-white px-2 py-0.5 rounded text-xs font-mono border border-gray-300"
+                class="bg-white px-2 py-0.5 rounded-sm text-xs font-mono border border-blue-300"
                 >X-Client-Key</code
               > header to authenticate and associate relics with your account.
             </p>
@@ -899,7 +897,6 @@ relic config core.server {serverUrl}</pre>
       {/if}
     </div>
   </div>
-</div>
 
 <style>
   /* Component-specific styles only - global svelte-select styles are in app.css */
