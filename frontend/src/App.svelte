@@ -6,6 +6,8 @@
   import MyRelics from "./components/MyRelics.svelte";
   import MyBookmarks from "./components/MyBookmarks.svelte";
   import AdminPanel from "./components/AdminPanel.svelte";
+  import SpacesList from "./components/SpacesList.svelte";
+  import SpaceViewer from "./components/SpaceViewer.svelte";
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
@@ -40,6 +42,7 @@
       parts[0] !== "recent" &&
       parts[0] !== "my-relics" &&
       parts[0] !== "my-bookmarks" &&
+      parts[0] !== "spaces" &&
       parts[0] !== "new" &&
       parts[0] !== "admin"
     ) {
@@ -60,6 +63,11 @@
       console.log("[App] Navigating to home");
       currentSection = "new";
       currentRelicId = null;
+      currentFilePath = null;
+    } else if (parts[0] === "spaces" && parts.length > 1) {
+      console.log("[App] Navigating to space view:", parts[1]);
+      currentSection = "space-view";
+      currentRelicId = parts[1]; // Using currentRelicId to store the space_id
       currentFilePath = null;
     } else {
       console.log("[App] Navigating to section:", parts[0]);
@@ -338,6 +346,14 @@
           >
             <i class="fas fa-bookmark mr-2"></i>Bookmarks
           </button>
+          <button
+            on:click={() => handleNavigation("spaces")}
+            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view'
+              ? 'active'
+              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-layer-group mr-2"></i>Spaces
+          </button>
           {#if isAdmin}
             <button
               on:click={() => handleNavigation("admin")}
@@ -467,6 +483,10 @@
         <MyRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "my-bookmarks"}
         <MyBookmarks tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
+      {:else if currentSection === "spaces"}
+        <SpacesList on:navigate={(e) => handleNavigation('spaces/' + e.detail.spaceId)} />
+      {:else if currentSection === "space-view" && currentRelicId}
+        <SpaceViewer spaceId={currentRelicId} on:navigate={(e) => handleNavigation(e.detail.path)} />
       {:else if currentSection === "admin"}
         <AdminPanel />
       {/if}

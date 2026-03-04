@@ -37,7 +37,7 @@
   export let onEdit = null // function(relic) for edit action
   export let onDelete = null // function(relic) for delete action
   export let onRemoveBookmark = null // function(relic) for remove bookmark action
-  export let customActions = [] // Array of { icon, color, title, handler, position }
+  export let customActions = [] // Array of { icon, color, title, action }
 
   // Unique ID for form elements
   export let tableId = 'relics'
@@ -305,6 +305,17 @@
                       <i class="fas fa-trash text-xs"></i>
                     </button>
                   {/if}
+
+                  <!-- Custom actions -->
+                  {#each customActions as customAction}
+                    <button
+                      on:click|stopPropagation={() => customAction.action(relic.id)}
+                      class="p-1.5 text-gray-400 rounded transition-colors {customAction.color || 'hover:text-blue-600 hover:bg-blue-50'}"
+                      title={customAction.title}
+                    >
+                      <i class="fas {customAction.icon} text-xs"></i>
+                    </button>
+                  {/each}
                 </div>
               </td>
             </tr>

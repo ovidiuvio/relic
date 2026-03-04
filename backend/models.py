@@ -18,6 +18,57 @@ relic_tags = Table(
 )
 
 
+# Association table for many-to-many relationship between spaces and relics
+space_relics = Table(
+    'space_relics',
+    Base.metadata,
+    Column('space_id', String(32), ForeignKey('space.id', ondelete="CASCADE"), primary_key=True),
+    Column('relic_id', String(32), ForeignKey('relic.id', ondelete="CASCADE"), primary_key=True)
+)
+
+
+class Space(Base):
+    """
+    Space model.
+
+    Groups relics together. Can be public or private.
+    Private spaces have an access list.
+    """
+    __tablename__ = "space"
+
+    id = Column(String(32), primary_key=True)  # 32-char hex ID
+    name = Column(String, nullable=False)
+    owner_client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
+    visibility = Column(String, default="public")  # "public" or "private"
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    owner = relationship("ClientKey", backref="owned_spaces", foreign_keys=[owner_client_id])
+    relics = relationship("Relic", secondary=space_relics, back_populates="spaces")
+    access_list = relationship("SpaceAccess", back_populates="space", cascade="all, delete-orphan")
+
+
+class SpaceAccess(Base):
+    """
+    Space access list model.
+    Tracks which clients have access to a private space, and their roles.
+    """
+    __tablename__ = "space_access"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    space_id = Column(String(32), ForeignKey('space.id', ondelete="CASCADE"), nullable=False, index=True)
+    client_id = Column(String(32), ForeignKey('client_key.id', ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String, default="viewer")  # "viewer" or "editor"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    space = relationship("Space", back_populates="access_list")
+    client = relationship("ClientKey", backref="space_accesses")
+
+    # Unique constraint to prevent duplicate access entries
+    __table_args__ = (
+        UniqueConstraint('space_id', 'client_id', name='unique_space_client_access'),
+    )
 
 
 class Relic(Base):
@@ -60,6 +111,7 @@ class Relic(Base):
 
     # Relationships
     tags = relationship("Tag", secondary=relic_tags, back_populates="relics")
+    spaces = relationship("Space", secondary=space_relics, back_populates="relics")
 
 class ClientKey(Base):
     """Client identification key."""

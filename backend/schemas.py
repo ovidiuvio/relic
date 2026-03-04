@@ -40,6 +40,52 @@ class RelicFork(BaseModel):
     name: Optional[str] = None
 
 
+class SpaceBase(BaseModel):
+    """Base space schema."""
+    name: str
+    visibility: Literal["public", "private"] = "public"
+
+
+class SpaceCreate(SpaceBase):
+    """Space creation schema."""
+    pass
+
+
+class SpaceUpdate(BaseModel):
+    """Space update schema."""
+    name: Optional[str] = None
+    visibility: Optional[Literal["public", "private"]] = None
+
+
+class SpaceAccessBase(BaseModel):
+    """Base space access schema."""
+    client_id: str
+    role: Literal["viewer", "editor"] = "viewer"
+
+
+class SpaceAccessResponse(SpaceAccessBase):
+    """Space access response schema."""
+    id: str
+    space_id: str
+    created_at: datetime
+    client_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SpaceResponse(SpaceBase):
+    """Space response schema."""
+    id: str
+    owner_client_id: str
+    created_at: datetime
+    relic_count: int = 0
+    role: Optional[str] = None  # Role of the current user in this space (e.g., owner, editor, viewer)
+
+    class Config:
+        from_attributes = True
+
+
 class RelicUpdate(BaseModel):
     """Relic update schema."""
     name: Optional[str] = None
