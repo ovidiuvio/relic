@@ -2,6 +2,8 @@
     import { onMount, createEventDispatcher } from 'svelte';
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
+    import { getTypeLabel, getDefaultItemsPerPage } from '../services/typeUtils';
+    import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
     import RelicTable from './RelicTable.svelte';
 
     export let spaceId;
@@ -32,9 +34,23 @@
     let newRelicId = '';
     let addingRelic = false;
     let searchTerm = '';
+    let currentPage = 1;
+    let itemsPerPage = 20;
+    let sortBy = 'date';
+    let sortOrder = 'desc';
 
     $: canEdit = space?.role === 'owner' || space?.role === 'editor' || space?.role === 'admin';
     $: isOwner = space?.role === 'owner' || space?.role === 'admin';
+
+    // Search and pagination logic
+    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel);
+    $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
+    $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
+    $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
+
+    function goToPage(page) {
+        currentPage = clampPage(page, totalPages);
+    }
 
     $: if (spaceId) {
         loadSpace();
@@ -226,6 +242,7 @@
     }
 
     onMount(() => {
+        itemsPerPage = getDefaultItemsPerPage();
         loadSpace();
     });
 </script>
@@ -373,9 +390,15 @@
                     <!-- In SpaceViewer, we use RelicTable directly without its internal header to maintain connection -->
                     <div class="relic-table-connected">
                         <RelicTable
-                            data={relics}
-                            paginatedData={relics}
-                            {searchTerm}
+                            data={sortedRelics}
+                            paginatedData={paginatedRelics}
+                            bind:searchTerm
+                            bind:currentPage
+                            bind:itemsPerPage
+                            bind:sortBy
+                            bind:sortOrder
+                            {totalPages}
+                            {goToPage}
                             showHeader={false}
                             embedded={true}
                             on:tag-click={handleTagClick}
