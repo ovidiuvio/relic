@@ -12,6 +12,8 @@
   } from "../services/typeUtils";
   import { formatBytes } from "../services/utils/formatting";
 
+  export let spaceId = null;
+
   const syntaxOptions = getAvailableSyntaxOptions();
 
   let activeTab = "upload"; // upload, cli, curl, api
@@ -176,6 +178,7 @@
             access_level: visibility,
             expires_in: expiry !== "never" ? expiry : undefined,
             tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+            space_id: spaceId || undefined,
           });
           createdRelics.push(response.data);
         } catch (err) {
@@ -217,6 +220,7 @@
               access_level: visibility,
               expires_in: expiry !== "never" ? expiry : undefined,
               tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+              space_id: spaceId || undefined,
             });
             createdRelics.push(response.data);
           } catch (err) {
@@ -273,6 +277,7 @@
                 access_level: visibility,
                 expires_in: expiry !== "never" ? expiry : undefined,
                 tags: tags.trim() ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+                space_id: spaceId || undefined,
               });
               createdRelics.push(response.data);
             } catch (err) {

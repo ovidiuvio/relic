@@ -10,6 +10,7 @@ export async function createRelic(formData) {
     if (formData.language_hint) data.append('language_hint', formData.language_hint)
     data.append('access_level', formData.access_level || 'public')
     if (formData.expires_in) data.append('expires_in', formData.expires_in)
+    if (formData.space_id) data.append('space_id', formData.space_id)
 
     // Handle tags: FastAPI expects List[str], which usually means repeating keys or comma separated
     // Sending as comma separated string works best with the backend implementation we added

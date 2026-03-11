@@ -23,17 +23,20 @@
   let isNameSaving = false;
   let appVersion = "loading...";
   let activeTagFilter = null;
+  let activeSpaceParam = null;
 
   function updateRouting() {
     const path = window.location.pathname;
     const parts = path.split("/").filter((p) => p);
     const urlParams = new URLSearchParams(window.location.search);
     const tagParam = urlParams.get('tag');
+    const spaceParam = urlParams.get('space');
 
-    console.log("[App] Route update - path:", path, "parts:", parts, "tag:", tagParam);
+    console.log("[App] Route update - path:", path, "parts:", parts, "tag:", tagParam, "space:", spaceParam);
 
     // Update tag filter from URL
     activeTagFilter = tagParam;
+    activeSpaceParam = spaceParam;
 
     if (
       parts.length >= 1 &&
@@ -85,6 +88,8 @@
       currentFilePath,
       "tagFilter:",
       activeTagFilter,
+      "spaceParam:",
+      activeSpaceParam
     );
   }
 
@@ -473,7 +478,7 @@
           on:tag-click={handleTagClick}
         />
       {:else if currentSection === "new" || currentSection === "default" || currentSection === ""}
-        <RelicForm />
+        <RelicForm spaceId={activeSpaceParam} />
       {:else if currentSection === "recent"}
         <RecentRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "my-relics"}

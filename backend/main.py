@@ -355,6 +355,7 @@ async def create_relic(
     access_level: str = Form("public"),
     expires_in: Optional[str] = Form(None),
     tags: Optional[List[str]] = Form(None),
+    space_id: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -427,6 +428,26 @@ async def create_relic(
             client.relic_count += 1
 
         db.add(relic)
+        
+        # Add to space if space_id is provided
+        if space_id:
+            space = db.query(Space).filter(Space.id == space_id).first()
+            if space:
+                has_access = False
+                if client:
+                    if space.owner_client_id == client.id or is_admin_client(client):
+                        has_access = True
+                    else:
+                        access = db.query(SpaceAccess).filter(
+                            SpaceAccess.space_id == space_id,
+                            SpaceAccess.client_id == client.id
+                        ).first()
+                        if access and access.role in ['admin', 'editor']:
+                            has_access = True
+                
+                if has_access:
+                    space.relics.append(relic)
+
         db.commit()
         db.refresh(relic)
 

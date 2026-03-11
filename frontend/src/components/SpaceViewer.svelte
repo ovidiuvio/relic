@@ -296,11 +296,18 @@
 
                     {#if canEdit}
                         <button
-                            on:click={() => showAddRelicModal = true}
+                            on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
                             class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 text-sm font-semibold shadow-sm whitespace-nowrap"
                         >
                             <i class="fas fa-plus"></i>
-                            Add Relic
+                            Create Relic
+                        </button>
+                        <button
+                            on:click={() => showAddRelicModal = true}
+                            class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 text-sm font-semibold shadow-sm whitespace-nowrap"
+                        >
+                            <i class="fas fa-link"></i>
+                            Add Existing
                         </button>
                     {/if}
 
@@ -346,12 +353,20 @@
                         <h3 class="text-xl font-bold text-gray-900 mb-2">This space is empty</h3>
                         <p class="text-gray-500 max-w-sm mx-auto mb-8">This space doesn't have any relics yet. Start adding relics to organize your collection.</p>
                         {#if canEdit}
-                            <button
-                                on:click={() => showAddRelicModal = true}
-                                class="maas-btn-primary px-8 py-2.5"
-                            >
-                                <i class="fas fa-plus mr-2"></i> Add Your First Relic
-                            </button>
+                            <div class="flex gap-4 justify-center">
+                                <button
+                                    on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
+                                    class="maas-btn-primary px-8 py-2.5"
+                                >
+                                    <i class="fas fa-plus mr-2"></i> Create New Relic
+                                </button>
+                                <button
+                                    on:click={() => showAddRelicModal = true}
+                                    class="maas-btn-secondary px-8 py-2.5"
+                                >
+                                    <i class="fas fa-link mr-2"></i> Add Existing
+                                </button>
+                            </div>
                         {/if}
                     </div>
                 {:else}
