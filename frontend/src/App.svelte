@@ -333,6 +333,14 @@
             <i class="fas fa-clock mr-2"></i>Recent
           </button>
           <button
+            on:click={() => handleNavigation("spaces")}
+            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view'
+              ? 'active'
+              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          >
+            <i class="fas fa-layer-group mr-2"></i>Spaces
+          </button>
+          <button
             on:click={() => handleNavigation("my-relics")}
             class="maas-nav-top {currentSection === 'my-relics'
               ? 'active'
@@ -347,14 +355,6 @@
               : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           >
             <i class="fas fa-bookmark mr-2"></i>Bookmarks
-          </button>
-          <button
-            on:click={() => handleNavigation("spaces")}
-            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-          >
-            <i class="fas fa-layer-group mr-2"></i>Spaces
           </button>
           {#if isAdmin}
             <button
