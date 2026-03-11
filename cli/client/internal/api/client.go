@@ -286,3 +286,104 @@ func (c *Client) DeleteRelic(relicID string) error {
 
 	return nil
 }
+
+// ListSpaces lists spaces accessible to the client
+func (c *Client) ListSpaces(visibility string) (relic.SpaceListResponse, error) {
+	path := "/api/v1/spaces"
+	if visibility != "" {
+		path += "?visibility=" + visibility
+	}
+
+	resp, err := c.get(path)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseErrorResponse(resp)
+	}
+
+	var spaces relic.SpaceListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&spaces); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return spaces, nil
+}
+
+// GetSpace retrieves details for a single space
+func (c *Client) GetSpace(spaceID string) (*relic.SpaceInfo, error) {
+	resp, err := c.get(fmt.Sprintf("/api/v1/spaces/%s", spaceID))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseErrorResponse(resp)
+	}
+
+	var space relic.SpaceInfo
+	if err := json.NewDecoder(resp.Body).Decode(&space); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &space, nil
+}
+
+// CreateSpace creates a new space
+func (c *Client) CreateSpace(req *relic.SpaceCreateRequest) (*relic.SpaceInfo, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	resp, err := c.post("/api/v1/spaces", bytes.NewReader(body), "application/json")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, parseErrorResponse(resp)
+	}
+
+	var space relic.SpaceInfo
+	if err := json.NewDecoder(resp.Body).Decode(&space); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &space, nil
+}
+
+// DeleteSpace deletes a space
+func (c *Client) DeleteSpace(spaceID string) error {
+	resp, err := c.delete(fmt.Sprintf("/api/v1/spaces/%s", spaceID))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return parseErrorResponse(resp)
+	}
+
+	return nil
+}
+
+// AddRelicToSpace adds an existing relic to a space
+func (c *Client) AddRelicToSpace(spaceID, relicID string) error {
+	path := fmt.Sprintf("/api/v1/spaces/%s/relics?relic_id=%s", spaceID, relicID)
+	resp, err := c.post(path, nil, "")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return parseErrorResponse(resp)
+	}
+
+	return nil
+}

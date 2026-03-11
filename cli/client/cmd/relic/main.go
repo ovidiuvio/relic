@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -37,6 +38,7 @@ var (
 	expiresIn    string
 	password     string
 	tags         []string
+	spaceID      string
 
 	// List flags
 	limit       int
@@ -78,6 +80,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&password, "password", "p", "", "password protection")
 	rootCmd.Flags().StringArrayVarP(&tags, "tag", "t", []string{}, "add tags (can be used multiple times)")
 	rootCmd.Flags().BoolVar(&noProgress, "no-progress", false, "disable progress bar")
+	rootCmd.Flags().StringVarP(&spaceID, "space", "s", "", "post relic into a space (space ID)")
 
 	// Subcommands
 	rootCmd.AddCommand(infoCmd())
@@ -90,6 +93,7 @@ func main() {
 	rootCmd.AddCommand(configCmd())
 	rootCmd.AddCommand(recentCmd())
 	rootCmd.AddCommand(installCmd())
+	rootCmd.AddCommand(spacesCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		utils.HandleError(err)
@@ -124,6 +128,7 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 		ExpiresIn:    getExpiresIn(cfg),
 		Password:     password,
 		Tags:         tags,
+		SpaceID:      spaceID,
 		ShowProgress: !noProgress && cfg.Progress && !quiet,
 		Verbose:      verbose,
 	}
@@ -319,6 +324,17 @@ func forkCmd() *cobra.Command {
 				return err
 			}
 
+			// Add to space if requested
+			if spaceID != "" {
+				if err := apiClient.AddRelicToSpace(spaceID, resp.ID); err != nil {
+					if !quiet {
+						fmt.Fprintf(os.Stderr, "%s Warning: relic forked but could not add to space: %v\n", ui.Warning(ui.SymbolWarning), err)
+					}
+				} else if !quiet {
+					fmt.Fprintf(os.Stderr, "%s Added to space %s\n", ui.Success(ui.SymbolSuccess), spaceID)
+				}
+			}
+
 			// Get metadata for detailed output
 			format := getOutputFormat()
 			var metadata *relic.RelicMetadata
@@ -333,6 +349,7 @@ func forkCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&relicName, "name", "n", "", "relic name")
 	cmd.Flags().StringVarP(&description, "description", "d", "", "relic description")
 	cmd.Flags().StringVarP(&accessLevel, "access-level", "a", "", "access level (public or private)")
+	cmd.Flags().StringVarP(&spaceID, "space", "s", "", "add forked relic into a space (space ID)")
 
 	return cmd
 }
@@ -562,7 +579,192 @@ Note: You may need sudo privileges to install to system directories.`,
 	return cmd
 }
 
-// Helper functions
+// spacesCmd returns the spaces command group
+func spacesCmd() *cobra.Command {
+	var (
+		spaceVisibility string
+		spaceSkipConfirm bool
+	)
+
+	root := &cobra.Command{
+		Use:   "spaces",
+		Short: "Manage spaces",
+		Long:  `List, create, and delete spaces. Use --space (-s) when uploading to post directly into a space.`,
+	}
+
+	// spaces list
+	listSub := &cobra.Command{
+		Use:   "list",
+		Short: "List accessible spaces",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadConfig()
+			if err != nil {
+				return err
+			}
+
+			apiClient := api.NewClient(cfg, verbose)
+			spaces, err := apiClient.ListSpaces(spaceVisibility)
+			if err != nil {
+				return err
+			}
+
+			format := getOutputFormat()
+			if format == ui.FormatJSON {
+				return printJSON(spaces)
+			}
+
+			fmt.Println()
+			fmt.Printf("%s %s\n", ui.InfoBold(ui.SymbolFolder), ui.InfoBold("Spaces"))
+			fmt.Println(ui.Muted("═══════════════════════════════════════════════════════════════════════════════════════"))
+
+			if len(spaces) == 0 {
+				fmt.Printf("%s %s\n", ui.Muted(ui.SymbolInfo), "No spaces found.")
+				fmt.Println()
+				return nil
+			}
+
+			fmt.Printf("%-34s %-25s %-10s %-8s %-10s\n", "ID", "Name", "Visibility", "Relics", "Your Role")
+			fmt.Println(ui.Muted("───────────────────────────────────────────────────────────────────────────────────────"))
+
+			for _, s := range spaces {
+				id := s.ID
+				if len(id) > 34 {
+					id = id[:31] + "..."
+				}
+				name := s.Name
+				if len(name) > 25 {
+					name = name[:22] + "..."
+				}
+				role := s.Role
+				if role == "" {
+					role = "-"
+				}
+
+				visIcon := ui.Muted("🔒")
+				if s.Visibility == "public" {
+					visIcon = ui.Info("🌐")
+				}
+
+				fmt.Printf("%s %-25s %s %-3s %-8d %s\n",
+					ui.Cyan(fmt.Sprintf("%-34s", id)),
+					name,
+					visIcon,
+					fmt.Sprintf("%-7s", s.Visibility),
+					s.RelicCount,
+					ui.Muted(role),
+				)
+			}
+
+			fmt.Println(ui.Muted("───────────────────────────────────────────────────────────────────────────────────────"))
+			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Total:"), ui.WhiteBold(fmt.Sprintf("%d spaces", len(spaces))))
+			fmt.Println()
+			return nil
+		},
+	}
+	listSub.Flags().StringVar(&spaceVisibility, "visibility", "", "filter by visibility (public, private)")
+
+	// spaces create
+	createSub := &cobra.Command{
+		Use:   "create NAME",
+		Short: "Create a new space",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadConfig()
+			if err != nil {
+				return err
+			}
+
+			if cfg.ClientKey == "" {
+				return utils.NewCLIError("Client key required. Run a command to generate one.", utils.ExitAuthError)
+			}
+
+			vis := spaceVisibility
+			if vis == "" {
+				vis = "private"
+			}
+
+			apiClient := api.NewClient(cfg, verbose)
+			space, err := apiClient.CreateSpace(&relic.SpaceCreateRequest{
+				Name:       args[0],
+				Visibility: vis,
+			})
+			if err != nil {
+				return err
+			}
+
+			format := getOutputFormat()
+			if format == ui.FormatJSON {
+				return printJSON(space)
+			}
+
+			fmt.Println()
+			fmt.Printf("%s %s\n", ui.SuccessBold(ui.SymbolSuccess), ui.SuccessBold("Space Created!"))
+			fmt.Println(ui.Muted("─────────────────────────────────────────────────────────"))
+			fmt.Printf("%s %s %s\n", ui.Muted("ID:"), ui.CyanBold(space.ID), "")
+			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolFile), ui.Bold("Name:"), space.Name)
+			visIcon := ui.Info("🌐 public")
+			if space.Visibility == "private" {
+				visIcon = ui.Warning("🔒 private")
+			}
+			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Visibility:"), visIcon)
+			fmt.Println(ui.Muted("─────────────────────────────────────────────────────────"))
+			fmt.Printf("%s Use %s to post relics into this space\n",
+				ui.Muted(ui.SymbolInfo),
+				ui.Cyan("relic [file] --space "+space.ID),
+			)
+			fmt.Println()
+			return nil
+		},
+	}
+	createSub.Flags().StringVar(&spaceVisibility, "visibility", "", "space visibility: public or private (default: private)")
+
+	// spaces delete
+	deleteSub := &cobra.Command{
+		Use:   "delete ID",
+		Short: "Delete a space",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadConfig()
+			if err != nil {
+				return err
+			}
+
+			if cfg.ClientKey == "" {
+				return utils.NewCLIError("Client key required.", utils.ExitAuthError)
+			}
+
+			if !spaceSkipConfirm {
+				if !ui.Confirm(fmt.Sprintf("Delete space %s?", args[0])) {
+					fmt.Println("Cancelled")
+					return nil
+				}
+			}
+
+			apiClient := api.NewClient(cfg, verbose)
+			if err := apiClient.DeleteSpace(args[0]); err != nil {
+				return err
+			}
+
+			if !quiet {
+				fmt.Printf("%s Deleted space: %s\n", ui.Success(ui.SymbolSuccess), args[0])
+			}
+			return nil
+		},
+	}
+	deleteSub.Flags().BoolVarP(&spaceSkipConfirm, "yes", "y", false, "skip confirmation")
+
+	root.AddCommand(listSub, createSub, deleteSub)
+	return root
+}
+
+// printJSON is a package-level helper to print JSON (mirrors ui package's printJSON but accessible here)
+func printJSON(data interface{}) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
+
 
 func loadConfig() (*config.Config, error) {
 	cfg, err := config.Load()

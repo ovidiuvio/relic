@@ -25,6 +25,7 @@ type UploadOptions struct {
 	ExpiresIn    string
 	Password     string
 	Tags         []string
+	SpaceID      string
 	ShowProgress bool
 	Verbose      bool
 }
@@ -156,6 +157,11 @@ func upload(cfg *config.Config, clientKey string, reader io.Reader, name, conten
 	}
 	if metadata.Password != "" {
 		if err := writer.WriteField("password", metadata.Password); err != nil {
+			return nil, err
+		}
+	}
+	if opts.SpaceID != "" {
+		if err := writer.WriteField("space_id", opts.SpaceID); err != nil {
 			return nil, err
 		}
 	}

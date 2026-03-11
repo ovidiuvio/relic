@@ -105,6 +105,26 @@ type ClientInfo struct {
 	RelicCount int       `json:"relic_count"`
 }
 
+// SpaceInfo represents a space
+type SpaceInfo struct {
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Visibility    string    `json:"visibility"`
+	OwnerClientID string    `json:"owner_client_id"`
+	CreatedAt     RelicTime `json:"created_at"`
+	RelicCount    int       `json:"relic_count"`
+	Role          string    `json:"role,omitempty"`
+}
+
+// SpaceListResponse is a list of spaces
+type SpaceListResponse []SpaceInfo
+
+// SpaceCreateRequest is the payload for creating a space
+type SpaceCreateRequest struct {
+	Name       string `json:"name"`
+	Visibility string `json:"visibility"`
+}
+
 // ErrorResponse represents an API error response
 type ErrorResponse struct {
 	Detail string `json:"detail"`
