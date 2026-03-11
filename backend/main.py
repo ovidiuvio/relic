@@ -1403,27 +1403,42 @@ def get_space_role(space: Space, client_id: Optional[str]) -> Optional[str]:
     """Helper to determine a client's role in a space."""
     if not client_id:
         return None
+    
+    # Admins get 'admin' role if no other role
+    is_admin = client_id in settings.get_admin_client_ids()
+    
     if space.owner_client_id == client_id:
         return "owner"
+    
+    if is_admin:
+        return "admin"
+
     for access in space.access_list:
         if access.client_id == client_id:
             return access.role
+            
     return None
 
 def check_space_access(space: Space, client_id: Optional[str], required_role: str = "viewer") -> bool:
     """Helper to check if client has required access to space."""
-    if space.owner_client_id == client_id:
+    # Admins have full access to all spaces
+    if client_id and client_id in settings.get_admin_client_ids():
         return True
 
     role = get_space_role(space, client_id)
+    if role == "owner":
+        return True
+
     if not role:
         # Public spaces can be viewed by anyone
         return required_role == "viewer" and space.visibility == "public"
 
     if required_role == "viewer":
-        return role in ("viewer", "editor")
+        return role in ("viewer", "editor", "admin")
     elif required_role == "editor":
-        return role == "editor"
+        return role in ("editor", "admin")
+    elif required_role == "admin":
+        return role == "admin"
 
     return False
 
@@ -1472,6 +1487,7 @@ async def list_spaces(
     Optionally filter by visibility.
     """
     client_id = request.headers.get("X-Client-Key")
+    is_admin = client_id and client_id in settings.get_admin_client_ids()
 
     query = db.query(Space)
 
@@ -1486,9 +1502,7 @@ async def list_spaces(
 
         # Determine if space should be included
         is_visible = False
-        if space.visibility == "public":
-            is_visible = True
-        elif role is not None:
+        if is_admin or space.visibility == "public" or role is not None:
             is_visible = True
 
         if is_visible:
@@ -1617,7 +1631,7 @@ async def get_space_relics(
 
     for relic in space.relics:
         # Hide expired relics
-        if is_expired(relic):
+        if is_expired(relic.expires_at):
             continue
 
         # Check relic access
@@ -1732,11 +1746,8 @@ async def get_space_access(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner, editors, or admin can view access list
-    is_admin = client_id in settings.get_admin_client_ids() if client_id else False
-    if space.owner_client_id != client_id and not is_admin:
-        role = get_space_role(space, client_id)
-        if role != "editor":
-            raise HTTPException(status_code=403, detail="Not authorized to view space access list")
+    if not check_space_access(space, client_id, "editor"):
+        raise HTTPException(status_code=403, detail="Not authorized to view space access list")
 
     result = []
     for access in space.access_list:
@@ -1768,8 +1779,7 @@ async def add_space_access(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can modify access list
-    is_admin = client_id in settings.get_admin_client_ids()
-    if space.owner_client_id != client_id and not is_admin:
+    if not check_space_access(space, client_id, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to modify space access list")
 
     # Prevent modifying owner's own access
@@ -1828,8 +1838,7 @@ async def remove_space_access(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner, admin, or the user themselves can remove access
-    is_admin = client_id in settings.get_admin_client_ids()
-    if space.owner_client_id != client_id and target_client_id != client_id and not is_admin:
+    if target_client_id != client_id and not check_space_access(space, client_id, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to remove space access")
 
     access = db.query(SpaceAccess).filter(

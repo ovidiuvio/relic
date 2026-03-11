@@ -17,6 +17,7 @@
   } from "../services/relicActions";
   import ReportModal from "./ReportModal.svelte";
   import EditRelicModal from "./EditRelicModal.svelte";
+  import AddToSpaceModal from "./AddToSpaceModal.svelte";
   import { createEventDispatcher } from "svelte";
 
   export let relic;
@@ -34,6 +35,7 @@
 
   let showReportModal = false;
   let showEditModal = false;
+  let showAddToSpaceModal = false;
 
   function handleUpdate(event) {
     const updatedRelic = event.detail;
@@ -166,6 +168,15 @@
     >
       <i class="fas fa-share text-sm"></i>
     </button>
+    {#if !isArchiveFile}
+      <button
+        on:click={() => (showAddToSpaceModal = true)}
+        class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+        title="Add to Space"
+      >
+        <i class="fas fa-layer-group text-sm"></i>
+      </button>
+    {/if}
     <button
       on:click={handleCopyContent}
       class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
@@ -232,4 +243,9 @@
   {relic}
   on:close={() => (showEditModal = false)}
   on:update={handleUpdate}
+/>
+<AddToSpaceModal
+  bind:open={showAddToSpaceModal}
+  {relicId}
+  relicName={relic.name}
 />

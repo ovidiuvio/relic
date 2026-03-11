@@ -60,7 +60,7 @@ class SpaceUpdate(BaseModel):
 class SpaceAccessBase(BaseModel):
     """Base space access schema."""
     client_id: str
-    role: Literal["viewer", "editor"] = "viewer"
+    role: Literal["viewer", "editor", "admin"] = "viewer"
 
 
 class SpaceAccessResponse(SpaceAccessBase):

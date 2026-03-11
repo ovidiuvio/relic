@@ -163,15 +163,12 @@
   }
 
   function handleNavigation(section) {
-    currentSection = section;
-    currentRelicId = null;
-    activeTagFilter = null;
-
     if (section === "new") {
       window.history.pushState({}, "", "/");
     } else {
       window.history.pushState({}, "", `/${section}`);
     }
+    updateRouting();
   }
 
   function handleTagClick(event) {
