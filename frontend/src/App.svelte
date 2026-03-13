@@ -486,7 +486,7 @@
       {:else if currentSection === "my-bookmarks"}
         <MyBookmarks tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
       {:else if currentSection === "spaces"}
-        <SpacesList on:navigate={(e) => handleNavigation('spaces/' + e.detail.spaceId)} />
+        <SpacesList on:navigate={(e) => handleNavigation(e.detail.path)} />
       {:else if currentSection === "space-view" && currentRelicId}
         <SpaceViewer spaceId={currentRelicId} on:navigate={(e) => handleNavigation(e.detail.path)} />
       {:else if currentSection === "admin"}

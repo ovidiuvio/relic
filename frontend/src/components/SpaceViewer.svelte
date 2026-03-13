@@ -317,7 +317,7 @@
                             class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 text-sm font-semibold shadow-sm whitespace-nowrap"
                         >
                             <i class="fas fa-plus"></i>
-                            Create Relic
+                            New Relic
                         </button>
                         <button
                             on:click={() => showAddRelicModal = true}
@@ -375,7 +375,7 @@
                                     on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
                                     class="maas-btn-primary px-8 py-2.5"
                                 >
-                                    <i class="fas fa-plus mr-2"></i> Create New Relic
+                                    <i class="fas fa-plus mr-2"></i> New Relic
                                 </button>
                                 <button
                                     on:click={() => showAddRelicModal = true}

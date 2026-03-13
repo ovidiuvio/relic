@@ -99,7 +99,7 @@
     }
 
     function openSpace(spaceId) {
-        dispatch('navigate', { spaceId });
+        dispatch('navigate', { path: 'spaces/' + spaceId });
     }
 
     function handleSort(column) {
@@ -133,7 +133,7 @@
                 </h2>
             </div>
             
-            <div class="flex items-center gap-4 flex-1 max-w-2xl ml-8">
+            <div class="flex items-center gap-3 flex-1 max-w-2xl ml-8">
                 <!-- Search -->
                 <div class="relative flex-1">
                     <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
@@ -145,14 +145,25 @@
                     />
                 </div>
 
-                <!-- Create Button -->
-                <button
-                    on:click={() => showCreateModal = true}
-                    class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
-                >
-                    <i class="fas fa-plus"></i>
-                    New Space
-                </button>
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <button
+                        on:click={() => dispatch('navigate', { path: 'new' })}
+                        class="maas-btn-secondary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
+                        title="Create a new relic globally"
+                    >
+                        <i class="fas fa-plus"></i>
+                        New Relic
+                    </button>
+                    <button
+                        on:click={() => showCreateModal = true}
+                        class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
+                        title="Create a new space to organize relics"
+                    >
+                        <i class="fas fa-layer-group"></i>
+                        New Space
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -286,6 +297,15 @@
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
+                                            <button
+                                                on:click|stopPropagation={() => dispatch('navigate', { path: 'new?space=' + space.id })}
+                                                class="p-2 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                                title="New Relic in this Space"
+                                            >
+                                                <i class="fas fa-plus text-xs"></i>
+                                            </button>
+                                        {/if}
                                         <button
                                             on:click|stopPropagation={() => openSpace(space.id)}
                                             class="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
