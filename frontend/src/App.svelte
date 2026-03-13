@@ -181,12 +181,16 @@
     activeTagFilter = tagName;
     
     // If we're already in a list section that supports tag filtering, stay there
-    if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks") {
+    if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks" && currentSection !== "space-view") {
       currentSection = "recent"; // Default to recent (public) view for discovering tags
     }
     
-    currentRelicId = null;
-    window.history.pushState({}, "", `/${currentSection}?tag=${encodeURIComponent(tagName)}`);
+    if (currentSection === "space-view") {
+        window.history.pushState({}, "", `/spaces/${currentRelicId}?tag=${encodeURIComponent(tagName)}`);
+    } else {
+        currentRelicId = null;
+        window.history.pushState({}, "", `/${currentSection}?tag=${encodeURIComponent(tagName)}`);
+    }
   }
 
   function downloadClientKey() {
@@ -488,7 +492,16 @@
       {:else if currentSection === "spaces"}
         <SpacesList on:navigate={(e) => handleNavigation(e.detail.path)} />
       {:else if currentSection === "space-view" && currentRelicId}
-        <SpaceViewer spaceId={currentRelicId} on:navigate={(e) => handleNavigation(e.detail.path)} />
+        <SpaceViewer
+          spaceId={currentRelicId}
+          tagFilter={activeTagFilter}
+          on:navigate={(e) => handleNavigation(e.detail.path)}
+          on:tag-click={handleTagClick}
+          on:clear-tag-filter={() => {
+            activeTagFilter = null;
+            window.history.pushState({}, "", `/spaces/${currentRelicId}`);
+          }}
+        />
       {:else if currentSection === "admin"}
         <AdminPanel />
       {/if}

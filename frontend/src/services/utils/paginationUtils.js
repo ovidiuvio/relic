@@ -1,8 +1,15 @@
 import { writable, derived } from 'svelte/store'
 
 // Simple filter function for relics
-export function filterRelics(relics, searchTerm, getTypeLabel) {
+export function filterRelics(relics, searchTerm, getTypeLabel, tagFilter = null) {
   return relics.filter(relic => {
+    // If a tagFilter is configured, reject any relic that doesn't include it.
+    if (tagFilter) {
+      if (!relic.tags) return false;
+      const hasTag = relic.tags.some(tag => (typeof tag === 'string' ? tag : tag.name) === tagFilter);
+      if (!hasTag) return false;
+    }
+
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return (

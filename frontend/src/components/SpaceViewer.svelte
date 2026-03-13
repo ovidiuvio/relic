@@ -7,6 +7,7 @@
     import RelicTable from './RelicTable.svelte';
 
     export let spaceId;
+    export let tagFilter = null;
 
     const dispatch = createEventDispatcher();
 
@@ -43,7 +44,7 @@
     $: isOwner = space?.role === 'owner' || space?.role === 'admin';
 
     // Search and pagination logic
-    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel);
+    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter);
     $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
     $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
     $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
@@ -232,9 +233,7 @@
     }
 
     function handleTagClick(event) {
-        // Tag clicking in spaces might navigate differently or just filter
-        console.log("Tag clicked in space:", event.detail);
-        // For now, let's just show a toast or implement basic filtering
+        dispatch('tag-click', event.detail);
     }
 
     function handleRelicClick(relicId) {
@@ -259,6 +258,22 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-1">
                             <h1 class="text-xl font-bold text-gray-900 truncate">{space.name}</h1>
+                            {#if tagFilter}
+                                <div class="flex items-center animate-fade-in">
+                                    <div class="h-4 w-[1px] bg-gray-300 mx-1"></div>
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm ml-1">
+                                        <i class="fas fa-tag text-[9px] opacity-70"></i>
+                                        <span>{tagFilter}</span>
+                                        <button
+                                          on:click|stopPropagation={() => dispatch('clear-tag-filter')}
+                                          class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
+                                          title="Clear tag filter"
+                                        >
+                                          <i class="fas fa-times-circle text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {/if}
                             <div class="flex gap-1.5">
                                 {#if space.visibility === 'public'}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-800 border border-green-200">
@@ -301,7 +316,7 @@
 
                 <div class="flex items-center gap-4 flex-shrink-0 ml-4">
                     <!-- Search within Space -->
-                    <div class="relative w-48 md:w-64">
+                    <div class="relative w-64 md:w-80 lg:w-96">
                         <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input
                             type="text"
@@ -311,24 +326,24 @@
                         />
                     </div>
 
-                    {#if canEdit}
-                        <button
-                            on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
-                            class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 text-sm font-semibold shadow-sm whitespace-nowrap"
-                        >
-                            <i class="fas fa-plus"></i>
-                            New Relic
-                        </button>
-                        <button
-                            on:click={() => showAddRelicModal = true}
-                            class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 text-sm font-semibold shadow-sm whitespace-nowrap"
-                        >
-                            <i class="fas fa-link"></i>
-                            Add Existing
-                        </button>
-                    {/if}
-
                     <div class="flex items-center gap-2">
+                        {#if canEdit}
+                            <button
+                                on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
+                                class="maas-btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
+                                title="New Relic"
+                            >
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button
+                                on:click={() => showAddRelicModal = true}
+                                class="maas-btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
+                                title="Add Existing"
+                            >
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                        {/if}
                         <button
                             on:click={() => {
                                 navigator.clipboard.writeText(`${window.location.origin}/spaces/${spaceId}`).then(() => {
