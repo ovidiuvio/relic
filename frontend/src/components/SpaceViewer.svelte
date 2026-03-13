@@ -329,6 +329,18 @@
                     {/if}
 
                     <div class="flex items-center gap-2">
+                        <button
+                            on:click={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/spaces/${spaceId}`).then(() => {
+                                    showToast('Space link copied to clipboard!', 'success');
+                                });
+                            }}
+                            class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
+                            title="Share Space"
+                        >
+                            <i class="fas fa-share text-gray-400 group-hover:text-indigo-600 transition-colors"></i>
+                        </button>
+
                         {#if isOwner || space.role === 'admin' || space.role === 'editor'}
                             <button
                                 on:click={() => {

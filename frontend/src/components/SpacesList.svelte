@@ -257,7 +257,7 @@
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
-                                                    class="hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    class="hover:text-gray-600 transition-opacity"
                                                 >
                                                     <i class="fas fa-copy"></i>
                                                 </button>
@@ -296,7 +296,7 @@
                                     {new Date(space.created_at).toLocaleDateString()}
                                 </td>
                                 <td class="px-6 py-4 text-right">
-                                    <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div class="flex justify-end gap-1">
                                         {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
                                             <button
                                                 on:click|stopPropagation={() => dispatch('navigate', { path: 'new?space=' + space.id })}
@@ -306,6 +306,13 @@
                                                 <i class="fas fa-plus text-xs"></i>
                                             </button>
                                         {/if}
+                                        <button
+                                            on:click|stopPropagation={() => copyToClipboard(`${window.location.origin}/spaces/${space.id}`, 'Space link copied to clipboard!')}
+                                            class="p-2 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                            title="Share Space"
+                                        >
+                                            <i class="fas fa-share text-xs"></i>
+                                        </button>
                                         <button
                                             on:click|stopPropagation={() => openSpace(space.id)}
                                             class="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
