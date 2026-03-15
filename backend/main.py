@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint
+from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint, func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, selectinload
 from datetime import datetime
@@ -428,25 +428,12 @@ async def create_relic(
             client.relic_count += 1
 
         db.add(relic)
-        
+
         # Add to space if space_id is provided
         if space_id:
             space = db.query(Space).filter(Space.id == space_id).first()
-            if space:
-                has_access = False
-                if client:
-                    if space.owner_client_id == client.id or is_admin_client(client):
-                        has_access = True
-                    else:
-                        access = db.query(SpaceAccess).filter(
-                            SpaceAccess.space_id == space_id,
-                            SpaceAccess.client_id == client.id
-                        ).first()
-                        if access and access.role in ['admin', 'editor']:
-                            has_access = True
-                
-                if has_access:
-                    space.relics.append(relic)
+            if space and client and check_space_access(space, client.id, "editor"):
+                space.relics.append(relic)
 
         db.commit()
         db.refresh(relic)
@@ -1171,8 +1158,6 @@ async def admin_get_stats(
     """
     get_admin_client(request, db)
 
-    from sqlalchemy import func
-
     total_relics = db.query(func.count(Relic.id)).scalar() or 0
     total_clients = db.query(func.count(ClientKey.id)).scalar() or 0
     total_size = db.query(func.sum(Relic.size_bytes)).scalar() or 0
@@ -1463,6 +1448,13 @@ def check_space_access(space: Space, client_id: Optional[str], required_role: st
 
     return False
 
+def get_space_relic_count(space_id: str, db: Session) -> int:
+    """Get the count of relics in a space efficiently using COUNT query."""
+    count = db.query(func.count(Relic.id)).join(
+        space_relics, Relic.id == space_relics.c.relic_id
+    ).filter(space_relics.c.space_id == space_id).scalar()
+    return count or 0
+
 @app.post("/api/v1/spaces", response_model=SpaceResponse)
 async def create_space(
     space_in: SpaceCreate,
@@ -1533,7 +1525,7 @@ async def list_spaces(
                 "visibility": space.visibility,
                 "owner_client_id": space.owner_client_id,
                 "created_at": space.created_at,
-                "relic_count": len(space.relics),
+                "relic_count": get_space_relic_count(space.id, db),
                 "role": role
             })
 
@@ -1563,7 +1555,7 @@ async def get_space(
         "visibility": space.visibility,
         "owner_client_id": space.owner_client_id,
         "created_at": space.created_at,
-        "relic_count": len(space.relics),
+        "relic_count": get_space_relic_count(space.id, db),
         "role": get_space_role(space, client_id)
     }
 
@@ -1602,7 +1594,7 @@ async def update_space(
         "visibility": space.visibility,
         "owner_client_id": space.owner_client_id,
         "created_at": space.created_at,
-        "relic_count": len(space.relics),
+        "relic_count": get_space_relic_count(space.id, db),
         "role": get_space_role(space, client_id)
     }
 
@@ -1638,6 +1630,7 @@ async def get_space_relics(
 ):
     """Get relics in a space."""
     client_id = request.headers.get("X-Client-Key")
+    is_admin = client_id in settings.get_admin_client_ids() if client_id else False
 
     space = db.query(Space).filter(Space.id == space_id).first()
     if not space:
@@ -1646,27 +1639,29 @@ async def get_space_relics(
     if not check_space_access(space, client_id, "viewer"):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
-    # Filter relics for visibility
-    visible_relics = []
-    is_admin = client_id in settings.get_admin_client_ids() if client_id else False
+    # Query relics in space with filters applied at database level
+    # Filter: not expired, and either public or owned by/visible to client
+    query = db.query(Relic).join(
+        space_relics, Relic.id == space_relics.c.relic_id
+    ).filter(
+        space_relics.c.space_id == space_id
+    ).filter(
+        # Exclude expired relics
+        or_(Relic.expires_at.is_(None), Relic.expires_at > datetime.utcnow())
+    ).filter(
+        # Show public relics to everyone, or private relics to owner/admin
+        or_(
+            Relic.access_level == "public",
+            and_(Relic.access_level == "private", Relic.client_id == client_id),
+            and_(Relic.access_level == "private", is_admin)
+        )
+    ).order_by(Relic.created_at.desc())
 
-    for relic in space.relics:
-        # Hide expired relics
-        if is_expired(relic.expires_at):
-            continue
-
-        # Check relic access
-        if relic.access_level == "public":
-            visible_relics.append(relic)
-        elif client_id and (relic.client_id == client_id or is_admin):
-            visible_relics.append(relic)
-
-    # Sort newest first
-    visible_relics.sort(key=lambda x: x.created_at, reverse=True)
+    relics = query.all()
 
     # Format response
     result = []
-    for relic in visible_relics:
+    for relic in relics:
         can_edit = client_id is not None and (relic.client_id == client_id or is_admin)
         relic_dict = {
             "id": relic.id,
