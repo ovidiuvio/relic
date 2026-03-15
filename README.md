@@ -11,39 +11,57 @@ Relic is a self-hosted pastebin and artifact storage system designed for develop
 ## Key Features
 
 - **Immutable Artifacts**: Each relic is permanent. Edits create new versions via forking with complete history preserved.
+- **Version Comparison**: Visually analyze additions and deletions across text and code lineage through rich diffing.
 - **Universal Content Support**: 
-  - **Code**: Syntax highlighting for 100+ languages.
-  - **Images**: Preview and zoom support.
-  - **Archives**: Browse ZIP/TAR contents directly in the browser.
+  - **Code**: Integrated Monaco editor and syntax highlighting for 100+ languages.
+  - **Structured Data**: Visually navigate and explore JSON, YAML, TOML, and XML files with an interactive tree viewer.
+  - **Images**: Direct preview support.
+  - **Archives**: Browse ZIP/TAR contents directly in the browser, complete with structured data exploration for embedded files.
   - **Documents**: PDF rendering, CSV/Excel tables, and Markdown rendering.
   - **Diagrams**: Integrated Excalidraw support.
+- **Spaces**: Organize relics into curated dynamic collections with access controls and filtering.
+- **Tagging & Discovery**: Easily organize and search relics using tags.
+- **Bookmarks**: Save important relics using the bookmark functionality to easily find them later.
+- **Comments & Collaboration**: Discuss code snippets and collaborate directly on relics.
 - **CLI Tool**: Powerful command-line interface for quick uploads from terminal.
-- **Relic Indexes**: Create curated collections of relics (`.rix` files).
-- **Access Control**: Public, unlisted, and private relics.
+- **Relic Indexes**: Create file-based curated collections of relics (`.rix` files).
+- **Access Control**: Public and private relics.
 - **Expiration**: Set relics to expire after 1h, 24h, 7d, 30d, or never.
 - **Admin Panel**: Manage users, view system stats, and moderate content.
 
 ## Visual Tour
-
-### Create Relics
-Upload files via drag-and-drop, paste text directly, or use the CLI.
-![Create Relic](assets/newrelic.png)
 
 ### Rich Code Viewing
 Syntax highlighting with line numbers, copy-to-clipboard, and raw view options.
 ![Source View](assets/source-view.png)
 
 ### Image Previews
-Direct image rendering with zoom capabilities.
+Direct image rendering.
 ![Image View](assets/relicimg.png)
 
 ### Archive Explorer
 Browse the contents of ZIP and TAR files without downloading them.
 ![Archive View](assets/archive.png)
 
+### Structured Data Explorer
+Visually navigate and explore JSON, YAML, TOML, and XML structured data directly in the browser.
+![JSON Explorer](assets/json-explore.png)
+
 ### Recent Relics & Management
 View recently created public relics or manage your own.
 ![Recent Relics](assets/recent.png)
+
+### Spaces
+Organize your relics into specialized spaces.
+![Spaces](assets/spaces.png)
+
+### Space Management
+View, search, and manage relics within your curated collections.
+![Space View](assets/space-view.png)
+
+### Diff viewer
+Compare and diff changes effortlessly across different text and code versions.
+![Diff View](assets/diff-view.png)
 
 ### Comments & Collaboration
 Discuss code snippets and artifacts directly on the relic page.
@@ -72,6 +90,12 @@ relic myfile.txt
 
 # Upload with options
 relic --name "My Script" --private --expires 24h script.py
+
+# Push a relic into a space
+relic --space <space_id> script.py
+
+# Manage spaces
+relic spaces create "My Cool Space" --visibility public
 ```
 
 ## Quick Start
