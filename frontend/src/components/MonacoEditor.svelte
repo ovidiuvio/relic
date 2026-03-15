@@ -120,7 +120,7 @@
         theme: darkMode ? 'relic-theme-dark' : 'relic-theme',
         automaticLayout: true,
         minimap: { enabled: false },
-        folding: false,
+        folding: true,
         guides: { indentation: false },
         scrollBeyondLastLine: false,
         wordWrap: 'on',
