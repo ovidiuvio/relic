@@ -9,7 +9,9 @@
   import ExcalidrawRenderer from './ExcalidrawRenderer.svelte';
   import DiffRenderer from './DiffRenderer.svelte';
   import PDFViewer from '../PDFViewer.svelte';
+  import TreeRenderer from './TreeRenderer.svelte';
   import { createEventDispatcher } from 'svelte';
+  import { getFileTypeDefinition, getSyntaxFromExtension } from '../../services/typeUtils.js';
 
   export let processed
   export let relicId
@@ -30,6 +32,45 @@
   let sidebarWidth = parseInt(localStorage.getItem('archiveSidebarWidth') || '400')
   let isDragging = false
   let containerRef
+  let treeRendererRef = null
+
+  let treeViewMode = (() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("relic_viewer_tree_mode") ?? "code";
+    }
+    return "code";
+  })();
+
+  let treePageSize = (() => {
+    if (typeof window !== "undefined") {
+      const saved = parseInt(localStorage.getItem("relic_viewer_tree_page_size"), 10);
+      return isNaN(saved) ? 100 : saved;
+    }
+    return 100;
+  })();
+
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_viewer_tree_mode", treeViewMode);
+  }
+
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_viewer_tree_page_size", treePageSize.toString());
+  }
+
+  const TREE_LANGS = new Set(['json', 'yaml', 'yml', 'toml', 'xml'])
+  let effectiveLang = null
+  $: {
+    if (previewedFile) {
+      const metaLang = previewedFile.processed?.metadata?.language
+      const nameExt = previewedFile.name?.split('.').pop()?.toLowerCase()
+      const extLang = getSyntaxFromExtension(nameExt)
+      effectiveLang = TREE_LANGS.has(metaLang) ? metaLang : (TREE_LANGS.has(extLang) ? extLang : metaLang)
+    } else {
+      effectiveLang = null
+    }
+  }
+  $: isTreeSupported = TREE_LANGS.has(effectiveLang)
+  $: isFormattable = effectiveLang === 'json'
 
   // Handle resize divider drag
   function startDrag(e) {
@@ -329,6 +370,35 @@
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              {#if isTreeSupported && treeViewMode === 'tree' && (previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text')}
+                <div class="flex items-center gap-1 pr-2 mr-2 border-r border-gray-300">
+                  <button
+                    on:click={() => treeRendererRef?.expandAll()}
+                    class="p-1.5 transition-colors rounded text-gray-500 hover:text-gray-700 hover:bg-gray-200"
+                    title="Expand all"
+                  >
+                    <i class="fas fa-plus-square text-sm"></i>
+                  </button>
+                  <button
+                    on:click={() => treeRendererRef?.collapseAll()}
+                    class="p-1.5 transition-colors rounded text-gray-500 hover:text-gray-700 hover:bg-gray-200"
+                    title="Collapse all"
+                  >
+                    <i class="fas fa-minus-square text-sm"></i>
+                  </button>
+                  <select
+                    value={treePageSize}
+                    on:change={(e) => (treePageSize = parseInt(e.target.value, 10))}
+                    class="text-[10px] rounded border border-gray-300 pl-1 pr-6 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    title="Nodes per page"
+                  >
+                    {#each [25, 50, 100, 250, 500] as size}
+                      <option value={size}>{size}/pg</option>
+                    {/each}
+                  </select>
+                </div>
+              {/if}
+
               {#if previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text' || previewedFile?.processed?.type === 'markdown' || previewedFile?.processed?.type === 'html' || previewedFile?.processed?.type === 'diff'}
                 <button
                   on:click={() => {
@@ -341,6 +411,26 @@
                   <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'} text-sm"></i>
                 </button>
               {/if}
+
+              {#if isTreeSupported && (previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text')}
+                <div class="flex items-center bg-white border border-gray-300 rounded-md p-0.5 ml-1 mr-1">
+                  <button
+                    on:click={() => (treeViewMode = 'code')}
+                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+                    title="Code view"
+                  >
+                    Code
+                  </button>
+                  <button
+                    on:click={() => (treeViewMode = 'tree')}
+                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+                    title="Explorer tree view"
+                  >
+                    Explorer
+                  </button>
+                </div>
+              {/if}
+
               <button
                 class="p-2 text-[#772953] hover:text-[#5a1f3f] rounded transition-colors"
                 on:click={() => openInFullView(selectedFile)}
@@ -360,7 +450,17 @@
 
           <!-- File content -->
           <div class="flex-1 overflow-auto">
-            {#if previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text'}
+            {#if (previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text') && isTreeSupported && treeViewMode === 'tree'}
+              <TreeRenderer
+                bind:this={treeRendererRef}
+                processed={previewedFile.processed}
+                {darkMode}
+                {fontSize}
+                lang={effectiveLang}
+                pageSize={treePageSize}
+                on:parse-error={() => (treeViewMode = 'code')}
+              />
+            {:else if previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text'}
               <CodeRenderer
                 processed={previewedFile.processed}
                 {relicId}
