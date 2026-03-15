@@ -1,0 +1,11 @@
+
+> Relic-frontend@1.0.0 dev
+> vite
+
+Forced re-optimization of dependencies
+
+  VITE v5.4.21  ready in 804 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`

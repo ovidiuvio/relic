@@ -11,6 +11,7 @@
     getFileTypeDefinition,
   } from "../services/typeUtils";
   import { formatBytes } from "../services/utils/formatting";
+  import { onMount } from "svelte";
 
   export let spaceId = null;
 
@@ -29,6 +30,24 @@
   let uploadedFiles = []; // Array of { file, id }
   let creationResult = null; // { success: [], errors: [] }
   let zipMultiple = true; // Default to true for auto-zipping
+  let contentTextArea;
+
+  onMount(() => {
+    // Auto-focus the main content area on load
+    if (contentTextArea) {
+      contentTextArea.focus();
+    }
+  });
+
+  function handleKeydown(e) {
+    // Cmd/Ctrl + Enter to submit form
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if (activeTab === 'upload') {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    }
+  }
 
   // Get current server URL
   const serverUrl = window.location.origin;
@@ -394,6 +413,8 @@
   }
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
+
 <div class="mb-8">
   <div class="bg-white shadow-sm rounded-lg border border-gray-200">
     <div
@@ -673,6 +694,7 @@
             >
             <div class="relative">
               <textarea
+                bind:this={contentTextArea}
                 id="content"
                 bind:value={content}
                 on:dragover={handleDragOver}
@@ -772,9 +794,9 @@
               {:else}
                 <i class="fas fa-plus mr-1"></i>
                 {#if uploadedFiles.length > 1 && zipMultiple}
-                  Create Zip Archive
+                  Create Zip Archive (Cmd+Enter)
                 {:else}
-                  Create Relic(s)
+                  Create Relic(s) (Cmd+Enter)
                 {/if}
               {/if}
             </button>
