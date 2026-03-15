@@ -1509,6 +1509,13 @@ async def list_spaces(
 
     spaces = query.all()
 
+    # Fetch all relic counts in a single query instead of one per space
+    relic_counts = dict(
+        db.query(space_relics.c.space_id, func.count(space_relics.c.relic_id))
+        .group_by(space_relics.c.space_id)
+        .all()
+    )
+
     result = []
     for space in spaces:
         role = get_space_role(space, client_id)
@@ -1525,7 +1532,7 @@ async def list_spaces(
                 "visibility": space.visibility,
                 "owner_client_id": space.owner_client_id,
                 "created_at": space.created_at,
-                "relic_count": get_space_relic_count(space.id, db),
+                "relic_count": relic_counts.get(space.id, 0),
                 "role": role
             })
 
