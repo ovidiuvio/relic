@@ -19,16 +19,27 @@ class StorageService:
             secure="https" in settings.S3_ENDPOINT_URL
         )
         self.bucket_name = settings.S3_BUCKET_NAME
+        self.ephemeral_bucket_name = settings.S3_EPHEMERAL_BUCKET_NAME
+
+    def get_bucket_name(self, tier: str = "standard") -> str:
+        """Get bucket name based on storage tier."""
+        if tier == "ephemeral":
+            return self.ephemeral_bucket_name
+        return self.bucket_name
 
     def ensure_bucket(self) -> None:
-        """Ensure bucket exists, create if not."""
+        """Ensure buckets exist, create if not."""
         try:
             if not self.client.bucket_exists(bucket_name=self.bucket_name):
                 self.client.make_bucket(bucket_name=self.bucket_name)
+
+            if self.ephemeral_bucket_name != self.bucket_name:
+                if not self.client.bucket_exists(bucket_name=self.ephemeral_bucket_name):
+                    self.client.make_bucket(bucket_name=self.ephemeral_bucket_name)
         except S3Error as e:
             print(f"Error ensuring bucket exists: {e}")
 
-    async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+    async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream", tier: str = "standard") -> str:
         """
         Upload content to S3.
 
@@ -36,6 +47,7 @@ class StorageService:
             key: S3 object key
             data: Content as bytes
             content_type: MIME type
+            tier: Storage tier (standard, ephemeral)
 
         Returns:
             S3 key
@@ -43,7 +55,7 @@ class StorageService:
         try:
             data_stream = io.BytesIO(data)
             self.client.put_object(
-                bucket_name=self.bucket_name,
+                bucket_name=self.get_bucket_name(tier),
                 object_name=key,
                 data=data_stream,
                 length=len(data),
@@ -53,40 +65,41 @@ class StorageService:
         except S3Error as e:
             raise Exception(f"Failed to upload to S3: {e}")
 
-    async def download(self, key: str) -> bytes:
+    async def download(self, key: str, tier: str = "standard") -> bytes:
         """
         Download content from S3.
 
         Args:
             key: S3 object key
+            tier: Storage tier
 
         Returns:
             Content as bytes
         """
         try:
             response = self.client.get_object(
-                bucket_name=self.bucket_name,
+                bucket_name=self.get_bucket_name(tier),
                 object_name=key
             )
             return response.read()
         except S3Error as e:
             raise Exception(f"Failed to download from S3: {e}")
 
-    async def delete(self, key: str) -> None:
+    async def delete(self, key: str, tier: str = "standard") -> None:
         """Delete object from S3."""
         try:
             self.client.remove_object(
-                bucket_name=self.bucket_name,
+                bucket_name=self.get_bucket_name(tier),
                 object_name=key
             )
         except S3Error as e:
             raise Exception(f"Failed to delete from S3: {e}")
 
-    async def exists(self, key: str) -> bool:
+    async def exists(self, key: str, tier: str = "standard") -> bool:
         """Check if object exists in S3."""
         try:
             self.client.stat_object(
-                bucket_name=self.bucket_name,
+                bucket_name=self.get_bucket_name(tier),
                 object_name=key
             )
             return True

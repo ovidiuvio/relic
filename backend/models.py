@@ -96,6 +96,7 @@ class Relic(Base):
 
     # Storage
     s3_key = Column(String)
+    tier = Column(String, default="standard")  # standard, ephemeral
 
     # Access control
     # public: Listed in recents, discoverable
