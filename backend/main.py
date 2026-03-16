@@ -1,26 +1,23 @@
 """Main FastAPI application."""
-from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import FastAPI, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint, func, or_, and_
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, relationship, selectinload
+from fastapi.responses import StreamingResponse
+from sqlalchemy import func, or_, and_
+from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
-import uuid
 from typing import Optional, List
-import io
 
 from backend.config import settings
-from backend.database import init_db, get_db, SessionLocal
-from backend.models import Base, Relic, ClientKey, Tag, relic_tags, ClientBookmark, RelicReport, Comment, Space, SpaceAccess, space_relics
+from backend.database import init_db, get_db
+from backend.models import Relic, ClientKey, Tag, ClientBookmark, RelicReport, Comment, Space, SpaceAccess, space_relics
 from backend.schemas import (
-    RelicCreate, RelicResponse, RelicListResponse,
-    RelicFork, ReportCreate, ReportResponse,
+    RelicResponse, RelicListResponse,
+    ReportCreate,
     CommentCreate, CommentResponse, ClientNameUpdate, CommentUpdate,
     RelicUpdate, SpaceCreate, SpaceUpdate, SpaceResponse, SpaceAccessBase, SpaceAccessResponse
 )
 from backend.storage import storage_service
-from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password, generate_client_id
+from backend.utils import generate_relic_id, parse_expiry_string, is_expired, hash_password
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
 
