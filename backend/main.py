@@ -1648,7 +1648,8 @@ async def get_space_relics(
 
     # Query relics in space with filters applied at database level
     # Filter: not expired, and either public or owned by/visible to client
-    query = db.query(Relic).join(
+    # ⚡ Bolt: Use selectinload(Relic.tags) to prevent N+1 queries when accessing relic.tags later
+    query = db.query(Relic).options(selectinload(Relic.tags)).join(
         space_relics, Relic.id == space_relics.c.relic_id
     ).filter(
         space_relics.c.space_id == space_id
