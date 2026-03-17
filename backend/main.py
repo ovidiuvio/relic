@@ -6,6 +6,10 @@ from sqlalchemy import func, or_, and_
 from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 from typing import Optional, List
+import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 from backend.config import settings
 from backend.database import init_db, get_db
@@ -446,7 +450,8 @@ async def create_relic(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Operation failed: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @app.get("/api/v1/relics/{relic_id}", response_model=RelicResponse)
@@ -507,7 +512,8 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
             headers={"Content-Disposition": f"inline; filename={relic.name or relic.id}"}
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Operation failed: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 
@@ -606,7 +612,8 @@ async def fork_relic(
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Operation failed: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @app.put("/api/v1/relics/{relic_id}", response_model=RelicResponse)
