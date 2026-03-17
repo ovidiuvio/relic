@@ -18,6 +18,7 @@
   export let treeViewMode = 'code'
   export let isTreeSupported = false
   export let treePageSize = 100
+  export let showLineFilter = false
 
   const dispatch = createEventDispatcher()
 </script>
@@ -218,6 +219,16 @@
             title="Toggle pretty-print / beautify"
           >
             <i class="fas fa-magic text-xs"></i>
+          </button>
+        {/if}
+        <!-- Line filter toggle -->
+        {#if processed.type === 'code' || processed.type === 'text'}
+          <button
+            on:click={() => dispatch('toggle-line-filter')}
+            class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineFilter ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+            title="Toggle line filter"
+          >
+            <i class="fas fa-filter text-xs"></i>
           </button>
         {/if}
 

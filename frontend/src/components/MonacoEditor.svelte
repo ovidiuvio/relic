@@ -1128,6 +1128,8 @@
     const currentValue = editor.getValue()
     if (currentValue !== value) {
       editor.setValue(value)
+      // Reapply decorations — setValue clears them
+      applyAnsiDecorations()
       // Reapply line highlighting after content update
       if (currentFragment) {
         setTimeout(() => applyLineHighlighting(currentFragment), 100)

@@ -143,6 +143,9 @@
     return false;
   })();
 
+  let showLineFilter = localStorage.getItem('showLineFilter') === 'true';
+  $: localStorage.setItem('showLineFilter', String(showLineFilter));
+
   let treeViewMode = (() => {
     if (typeof window !== "undefined") {
       if (getCurrentLineNumberFragment()) return "code";
@@ -650,6 +653,8 @@
         {treeViewMode}
         {isTreeSupported}
         on:toggle-beautify={() => (beautify = !beautify)}
+        on:toggle-line-filter={() => (showLineFilter = !showLineFilter)}
+        {showLineFilter}
         on:toggle-tree-view={(e) => (treeViewMode = e.detail)}
         on:tree-expand-all={() => treeRendererRef?.expandAll()}
         on:tree-collapse-all={() => treeRendererRef?.collapseAll()}
@@ -733,6 +738,7 @@
               {darkMode}
               {beautify}
               {isFormattable}
+              {showLineFilter}
               on:line-clicked={handleLineClicked}
               on:line-range-selected={handleLineRangeSelected}
               on:multi-line-selected={handleMultiLineSelected}
