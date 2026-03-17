@@ -1506,7 +1506,7 @@ async def list_spaces(
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id and client_id in settings.get_admin_client_ids()
 
-    query = db.query(Space)
+    query = db.query(Space).options(selectinload(Space.access_list))
 
     if visibility:
         query = query.filter(Space.visibility == visibility)
