@@ -97,7 +97,7 @@
             <button
               on:click|stopPropagation={clearTagFilter}
               class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
-              title="Clear tag filter"
+              title="Clear tag filter" aria-label="Clear tag filter"
             >
               <i class="fas fa-times-circle text-[10px]"></i>
             </button>
@@ -199,7 +199,7 @@
                     <button
                       on:click|stopPropagation={() => copyToClipboard(relic.id, 'Relic ID copied to clipboard!')}
                       class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all duration-200 -mt-0.5"
-                      title="Copy ID"
+                      title="Copy ID" aria-label="Copy ID"
                     >
                       <i class="fas fa-copy text-xs"></i>
                     </button>
@@ -232,7 +232,7 @@
                     <button
                       on:click|stopPropagation={() => onRemoveBookmark(relic)}
                       class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
-                      title="Remove from bookmarks"
+                      title="Remove from bookmarks" aria-label="Remove from bookmarks"
                     >
                       <i class="fas fa-bookmark text-xs"></i>
                     </button>
@@ -242,21 +242,21 @@
                   <button
                     on:click|stopPropagation={() => shareRelic(relic.id)}
                     class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Share relic"
+                    title="Share relic" aria-label="Share relic"
                   >
                     <i class="fas fa-share text-xs"></i>
                   </button>
                   <button
                     on:click|stopPropagation={() => copyRelicContent(relic.id)}
                     class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                    title="Copy content to clipboard"
+                    title="Copy content to clipboard" aria-label="Copy content to clipboard"
                   >
                     <i class="fas fa-copy text-xs"></i>
                   </button>
                   <button
                     on:click|stopPropagation={() => viewRaw(relic.id)}
                     class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
-                    title="View raw content"
+                    title="View raw content" aria-label="View raw content"
                   >
                     <i class="fas fa-code text-xs"></i>
                   </button>
@@ -264,7 +264,7 @@
                     <button
                       on:click|stopPropagation={() => fastForkRelic(relic)}
                       class="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-                      title="Fast fork - create instant copy"
+                      title="Fast fork - create instant copy" aria-label="Fast fork - create instant copy"
                     >
                       <i class="fas fa-code-branch text-xs"></i>
                     </button>
@@ -272,7 +272,7 @@
                   <button
                     on:click|stopPropagation={() => downloadRelic(relic.id, relic.name, relic.content_type)}
                     class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                    title="Download relic"
+                    title="Download relic" aria-label="Download relic"
                   >
                     <i class="fas fa-download text-xs"></i>
                   </button>
@@ -282,7 +282,7 @@
                     <button
                       on:click|stopPropagation={() => onEdit(relic)}
                       class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                      title="Edit relic"
+                      title="Edit relic" aria-label="Edit relic"
                     >
                       <i class="fas fa-edit text-xs"></i>
                     </button>
@@ -293,7 +293,7 @@
                     <button
                       on:click|stopPropagation={() => action.handler(relic)}
                       class="p-1.5 text-{action.color}-600 hover:text-{action.color}-700 hover:bg-{action.color}-50 rounded transition-colors"
-                      title={action.title}
+                      title={action.title} aria-label={action.title}
                     >
                       <i class="fas {action.icon} text-xs"></i>
                     </button>
@@ -304,7 +304,7 @@
                     <button
                       on:click|stopPropagation={() => onDelete(relic)}
                       class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                      title="Delete relic"
+                      title="Delete relic" aria-label="Delete relic"
                     >
                       <i class="fas fa-trash text-xs"></i>
                     </button>
@@ -348,7 +348,7 @@
             on:click={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
             class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
-            title="Previous page"
+            title="Previous page" aria-label="Previous page"
           >
             <i class="fas fa-chevron-left text-xs"></i>
           </button>
@@ -356,7 +356,7 @@
             on:click={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
             class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
-            title="Next page"
+            title="Next page" aria-label="Next page"
           >
             <i class="fas fa-chevron-right text-xs"></i>
           </button>
