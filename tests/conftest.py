@@ -45,7 +45,9 @@ def client(db):
     app.dependency_overrides[get_db] = override_get_db
 
     # Mock storage service to avoid MinIO connection
-    with patch("backend.main.storage_service") as mock_storage:
+    with patch("backend.main.storage_service") as mock_main_storage, \
+         patch("backend.routes.relics.storage_service") as mock_storage, \
+         patch("backend.routes.admin.storage_service") as mock_admin_storage:
         # Simple in-memory storage for tests
         storage_data = {}
 
@@ -62,11 +64,12 @@ def client(db):
         async def mock_exists(key):
             return key in storage_data
 
-        mock_storage.ensure_bucket = MagicMock()
-        mock_storage.upload = AsyncMock(side_effect=mock_upload)
-        mock_storage.download = AsyncMock(side_effect=mock_download)
-        mock_storage.delete = AsyncMock(side_effect=mock_delete)
-        mock_storage.exists = AsyncMock(side_effect=mock_exists)
+        for mock in (mock_main_storage, mock_storage, mock_admin_storage):
+            mock.ensure_bucket = MagicMock()
+            mock.upload = AsyncMock(side_effect=mock_upload)
+            mock.download = AsyncMock(side_effect=mock_download)
+            mock.delete = AsyncMock(side_effect=mock_delete)
+            mock.exists = AsyncMock(side_effect=mock_exists)
 
         with TestClient(app) as test_client:
             yield test_client
