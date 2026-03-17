@@ -57,6 +57,17 @@
     dispatch('clear-tag-filter')
   }
 
+  let searchInput;
+
+  function handleKeydown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (searchInput) {
+        searchInput.focus();
+      }
+    }
+  }
+
   // Helper function to determine date field
   function getDateField(relic) {
     return relic.bookmarked_at || relic.created_at
@@ -78,6 +89,8 @@
     dispatch('sort', { sortBy, sortOrder })
   }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200'}">
   {#if showHeader}
@@ -108,9 +121,10 @@
     <div class="relative flex-1 max-w-md ml-4">
       <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
       <input
+        bind:this={searchInput}
         type="text"
         bind:value={searchTerm}
-        placeholder="Filter by name, type, or id..."
+        placeholder="Filter by name, type, or id... (Cmd/Ctrl+K)"
         class="w-full pl-9 pr-3 py-1.5 text-sm maas-input"
       />
     </div>
