@@ -3,7 +3,7 @@ import os
 import json
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import Optional, List
+from typing import List
 
 
 class Settings(BaseSettings):

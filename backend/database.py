@@ -1,6 +1,6 @@
 """Database session and initialization."""
-from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from backend.config import settings
 from backend.models import Base
 

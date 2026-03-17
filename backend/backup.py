@@ -14,8 +14,8 @@ import logging
 import gzip
 import asyncio
 import re
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from datetime import datetime
+from typing import List, Dict
 from urllib.parse import urlparse
 
 from backend.config import settings

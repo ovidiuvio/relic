@@ -1,7 +1,5 @@
 """Background tasks for relic expiration and cleanup."""
-import asyncio
-from datetime import datetime, timedelta
-from sqlalchemy import delete
+from datetime import datetime
 from backend.database import SessionLocal
 from backend.models import Relic
 from backend.storage import storage_service

@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, ForeignKey, Boolean, JSON, Text, Table, UniqueConstraint
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Table, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime

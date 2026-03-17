@@ -1,7 +1,5 @@
 """Storage service for S3/MinIO integration."""
 import io
-import asyncio
-from typing import Optional, Tuple
 from minio import Minio
 from minio.error import S3Error
 from backend.config import settings
