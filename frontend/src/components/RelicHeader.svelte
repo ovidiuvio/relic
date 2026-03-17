@@ -110,6 +110,7 @@
         on:click={copyRelicId}
         class="hover:text-gray-700 transition-colors flex items-center gap-1.5"
         title="Copy ID"
+        aria-label="Copy ID"
       >
         <span>{relicId}</span>
         <i class="fas fa-copy text-[10px]"></i>
@@ -144,6 +145,7 @@
           ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
           : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
         title={isBookmarked ? "Remove bookmark" : "Bookmark this relic"}
+        aria-label={isBookmarked ? "Remove bookmark" : "Bookmark this relic"}
       >
         {#if bookmarkLoading}
           <i class="fas fa-spinner fa-spin text-sm"></i>
@@ -158,6 +160,7 @@
       on:click={() => (showReportModal = true)}
       class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
       title="Report relic"
+      aria-label="Report relic"
     >
       <i class="fas fa-flag text-sm"></i>
     </button>
@@ -165,6 +168,7 @@
       on:click={handleShare}
       class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
       title="Share relic"
+      aria-label="Share relic"
     >
       <i class="fas fa-share text-sm"></i>
     </button>
@@ -173,6 +177,7 @@
         on:click={() => (showAddToSpaceModal = true)}
         class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
         title="Add to Space"
+        aria-label="Add to Space"
       >
         <i class="fas fa-layer-group text-sm"></i>
       </button>
@@ -181,6 +186,7 @@
       on:click={handleCopyContent}
       class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
       title="Copy content to clipboard"
+      aria-label="Copy content to clipboard"
     >
       <i class="fas fa-copy text-sm"></i>
     </button>
@@ -188,6 +194,7 @@
       on:click={handleViewRaw}
       class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
       title="View raw content"
+      aria-label="View raw content"
     >
       <i class="fas fa-code text-sm"></i>
     </button>
@@ -196,6 +203,7 @@
       disabled={forkLoading}
       class="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
       title="Create fork"
+      aria-label="Create fork"
     >
       {#if forkLoading}
         <i class="fas fa-spinner fa-spin text-sm"></i>
@@ -207,6 +215,7 @@
       on:click={handleDownload}
       class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
       title="Download relic"
+      aria-label="Download relic"
     >
       <i class="fas fa-download text-sm"></i>
     </button>
@@ -215,6 +224,7 @@
         on:click={() => (showEditModal = true)}
         class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
         title="Edit relic"
+        aria-label="Edit relic"
       >
         <i class="fas fa-edit text-sm"></i>
       </button>
@@ -226,6 +236,7 @@
         disabled={deleteLoading}
         class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
         title="Delete relic (Admin)"
+        aria-label="Delete relic (Admin)"
       >
         {#if deleteLoading}
           <i class="fas fa-spinner fa-spin text-sm"></i>
