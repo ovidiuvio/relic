@@ -1,6 +1,9 @@
 """Admin endpoints."""
+import logging
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import Response
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 from typing import Optional
@@ -300,11 +303,12 @@ async def admin_list_backups(
             "backups": formatted
         }
     except Exception as e:
+        logger.error(f"Failed to list backups: {e}")
         return {
             "total": 0,
             "total_size_bytes": 0,
             "backups": [],
-            "error": str(e)
+            "error": "Failed to list backups"
         }
 
 
@@ -329,7 +333,8 @@ async def admin_create_backup(
         else:
             return {"success": False, "message": "Backup failed - check server logs"}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        logger.error(f"Manual backup failed: {e}")
+        return {"success": False, "message": "Backup operation failed"}
 
 
 @router.get("/backups/{filename}/download")
@@ -363,7 +368,8 @@ async def admin_download_backup(
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Backup not found: {str(e)}")
+        logger.error(f"Failed to download backup: {e}")
+        raise HTTPException(status_code=404, detail="Backup not found or an error occurred")
 
 
 @router.get("/reports", response_model=dict)
