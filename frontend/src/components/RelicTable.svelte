@@ -111,6 +111,7 @@
         type="text"
         bind:value={searchTerm}
         placeholder="Filter by name, type, or id..."
+        aria-label="Search relics"
         class="w-full pl-9 pr-3 py-1.5 text-sm maas-input"
       />
     </div>
