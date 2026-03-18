@@ -94,3 +94,7 @@ export async function getRelicRaw(relicId) {
         responseType: 'blob'
     })
 }
+
+export async function getRelicLineage(relicId) {
+    return api.get(`/relics/${relicId}/lineage`);
+}

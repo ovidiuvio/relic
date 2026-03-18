@@ -19,6 +19,7 @@
   export let isTreeSupported = false
   export let treePageSize = 100
   export let showLineFilter = false
+  export let hasLineage = false
 
   const dispatch = createEventDispatcher()
 </script>
@@ -67,10 +68,27 @@
       </span>
     {/if}
     {#if relic.fork_of}
-      <a href="/{relic.fork_of}" class="inline-flex items-center gap-1.5 px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-medium leading-none hover:bg-teal-200 transition-colors" title="Fork of {relic.fork_of}">
-        <i class="fas fa-code-branch text-[10px]"></i>
-        <span class="font-mono">{relic.fork_of.substring(0, 8)}</span>
-      </a>
+      <div class="flex items-center gap-[1px]">
+        <a href="/{relic.fork_of}" class="inline-flex items-center gap-1.5 px-2 py-1 bg-teal-100 text-teal-700 rounded-l text-xs font-medium leading-none hover:bg-teal-200 transition-colors" title="Fork of {relic.fork_of}">
+          <i class="fas fa-code-branch text-[10px]"></i>
+          <span class="font-mono">{relic.fork_of.substring(0, 8)}</span>
+        </a>
+        <button
+          class="inline-flex items-center justify-center px-1.5 py-1 bg-teal-100 text-teal-700 rounded-r text-xs font-medium leading-none hover:bg-teal-200 transition-colors border-l border-teal-200"
+          title="View full lineage"
+          on:click={() => dispatch('show-lineage')}
+        >
+          <i class="fas fa-network-wired text-[10px]"></i>
+        </button>
+      </div>
+    {:else if hasLineage}
+      <button
+        class="inline-flex items-center justify-center px-1.5 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium leading-none hover:bg-gray-200 transition-colors border border-gray-200"
+        title="View full lineage"
+        on:click={() => dispatch('show-lineage')}
+      >
+        <i class="fas fa-network-wired text-[10px]"></i>
+      </button>
     {/if}
     {#if relic.password_hash}
       <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium leading-none" title="Password protected">
