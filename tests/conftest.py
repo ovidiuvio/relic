@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.main import app
 from backend.database import Base, get_db
-from backend.config import settings
 
 
 # Use in-memory SQLite for tests

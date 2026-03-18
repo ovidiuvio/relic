@@ -8,7 +8,7 @@ from sqlalchemy import func
 
 from backend.config import settings
 from backend.models import Relic, ClientKey, Tag, Space, space_relics
-from backend.utils import generate_relic_id, hash_password
+from backend.utils import generate_relic_id
 
 
 def get_client_key(request: Request, db: Session) -> Optional[ClientKey]:

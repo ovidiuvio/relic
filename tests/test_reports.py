@@ -1,7 +1,6 @@
 """Tests for the relic reporting functionality."""
 import pytest
 from io import BytesIO
-from backend.models import RelicReport
 
 @pytest.mark.unit
 def test_create_report(client):

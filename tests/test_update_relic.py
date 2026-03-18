@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timedelta
 from backend.models import Relic, ClientKey
-from backend.utils import generate_relic_id, parse_expiry_string
+from backend.utils import generate_relic_id
 
 @pytest.mark.unit
 def test_update_relic_permissions(client, db):

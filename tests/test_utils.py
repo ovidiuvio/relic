@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from backend.utils import parse_expiry_string
 
 @pytest.mark.unit

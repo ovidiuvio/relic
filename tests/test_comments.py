@@ -1,14 +1,10 @@
 from fastapi.testclient import TestClient
 from backend.main import app
-from backend.models import Relic, Comment
-from backend.database import get_db
-import pytest
 
 client = TestClient(app)
 
 def test_create_and_get_comment():
     # Create a relic first
-    relic_data = {"content": "test content"}
     files = {"file": ("test.txt", "test content")}
     response = client.post("/api/v1/relics", files=files)
     assert response.status_code == 200
