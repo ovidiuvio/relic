@@ -118,15 +118,15 @@
 {/if}
 
   {#if loading}
-    <div class="p-8 text-center">
+    <div class="p-8 text-center" role="status" aria-live="polite">
       <div class="inline-block">
-        <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
+        <i class="fas fa-spinner fa-spin text-[#772953] text-2xl" aria-hidden="true"></i>
       </div>
       <p class="text-sm text-gray-500 mt-2">Loading...</p>
     </div>
   {:else if data.length === 0}
-    <div class="p-8 text-center text-gray-500">
-      <i class="fas {emptyIcon} text-4xl mb-2"></i>
+    <div class="p-8 text-center text-gray-500" role="status">
+      <i class="fas {emptyIcon} text-4xl mb-2" aria-hidden="true"></i>
       <p>
         {searchTerm ? `${emptyMessageWithSearch} matching "${searchTerm}"` : emptyMessage}
       </p>
