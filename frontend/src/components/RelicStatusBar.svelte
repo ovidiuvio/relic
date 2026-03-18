@@ -89,7 +89,7 @@
           <button
             on:click={() => dispatch('tag-click', tag.name)}
             class="flex items-center gap-1.5 px-2 py-1 h-full cursor-pointer focus:outline-none"
-            title="Filter by tag: {tag.name}"
+            title="Filter by tag: {tag.name}" aria-label="Filter by tag: {tag.name}"
           >
             <i class="fas fa-tag text-[10px]"></i>
             <span>{tag.name}</span>
@@ -99,7 +99,7 @@
             <button
               on:click|stopPropagation={() => dispatch('remove-tag', tag.name)}
               class="px-1.5 h-full border-l border-gray-400/30 hover:bg-red-100 hover:text-red-600 transition-colors focus:outline-none"
-              title="Remove tag"
+              title="Remove tag" aria-label="Remove tag"
             >
               <i class="fas fa-times text-[10px]"></i>
             </button>
@@ -115,7 +115,7 @@
     <button
       on:click={() => dispatch('toggle-fullwidth')}
       class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-      title={isFullWidth ? 'Normal width' : 'Full width'}
+      title={isFullWidth ? 'Normal width' : 'Full width'} aria-label={isFullWidth ? 'Normal width' : 'Full width'}
     >
       <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
     </button>
@@ -126,21 +126,21 @@
         <button
           on:click={() => dispatch('tree-expand-all')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          title="Expand all"
+          title="Expand all" aria-label="Expand all"
         >
           <i class="fas fa-plus-square text-xs"></i>
         </button>
         <button
           on:click={() => dispatch('tree-collapse-all')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          title="Collapse all"
+          title="Collapse all" aria-label="Collapse all"
         >
           <i class="fas fa-minus-square text-xs"></i>
         </button>
         <button
           on:click={() => dispatch('toggle-dark-mode')}
           class="px-2 py-1 rounded text-xs transition-colors {darkMode ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'}"></i>
         </button>
@@ -193,21 +193,21 @@
         <button
           on:click={() => dispatch('toggle-syntax')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Toggle syntax highlighting"
+          title="Toggle syntax highlighting" aria-label="Toggle syntax highlighting"
         >
           <i class="fas fa-palette text-xs"></i>
         </button>
         <button
           on:click={() => dispatch('toggle-linenumbers')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Toggle line numbers"
+          title="Toggle line numbers" aria-label="Toggle line numbers"
         >
           <i class="fas fa-list-ol text-xs"></i>
         </button>
         <button
           on:click={() => dispatch('toggle-comments')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showComments ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Toggle comments"
+          title="Toggle comments" aria-label="Toggle comments"
         >
           <i class="fas fa-comment-alt text-[10px]"></i>
         </button>
@@ -216,7 +216,7 @@
           <button
             on:click={() => dispatch('toggle-beautify')}
             class="px-2 py-1 rounded text-xs font-medium transition-colors {beautify ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-            title="Toggle pretty-print / beautify"
+            title="Toggle pretty-print / beautify" aria-label="Toggle pretty-print / beautify"
           >
             <i class="fas fa-magic text-xs"></i>
           </button>
@@ -226,7 +226,7 @@
           <button
             on:click={() => dispatch('toggle-line-filter')}
             class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineFilter ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-            title="Toggle line filter"
+            title="Toggle line filter" aria-label="Toggle line filter"
           >
             <i class="fas fa-filter text-xs"></i>
           </button>
@@ -269,7 +269,7 @@
         <button
           on:click={() => dispatch('toggle-dark-mode')}
           class="px-2 py-1 rounded text-xs transition-colors {darkMode ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'}"></i>
         </button>
@@ -282,7 +282,7 @@
         <button
           on:click={() => dispatch('pdf-zoom-out')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          title="Zoom out (-)"
+          title="Zoom out (-)" aria-label="Zoom out (-)"
         >
           <i class="fas fa-search-minus"></i>
         </button>
@@ -292,14 +292,14 @@
         <button
           on:click={() => dispatch('pdf-zoom-in')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          title="Zoom in (+)"
+          title="Zoom in (+)" aria-label="Zoom in (+)"
         >
           <i class="fas fa-search-plus"></i>
         </button>
         <button
           on:click={() => dispatch('pdf-reset-zoom')}
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          title="Reset zoom (0)"
+          title="Reset zoom (0)" aria-label="Reset zoom (0)"
         >
           <i class="fas fa-undo text-[10px]"></i>
         </button>
@@ -314,14 +314,14 @@
             <button
               on:click={() => dispatch('toggle-diff-view')}
               class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {diffViewMode === 'unified' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-              title="Unified View"
+              title="Unified View" aria-label="Unified View"
             >
               Unified
             </button>
             <button
               on:click={() => dispatch('toggle-diff-view')}
               class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {diffViewMode === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-              title="Split View"
+              title="Split View" aria-label="Split View"
             >
               Split
             </button>
@@ -330,14 +330,14 @@
         <button
           on:click={() => dispatch('toggle-source', true)}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Show source"
+          title="Show source" aria-label="Show source"
         >
           <i class="fas fa-file-code"></i>
         </button>
         <button
           on:click={() => dispatch('toggle-source', false)}
           class="px-2 py-1 rounded text-xs font-medium transition-colors {!showSource ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-          title="Show preview"
+          title="Show preview" aria-label="Show preview"
         >
           <i class="fas fa-eye"></i>
         </button>
@@ -350,14 +350,14 @@
         <button
           on:click={() => dispatch('toggle-tree-view', 'code')}
           class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-          title="Code view"
+          title="Code view" aria-label="Code view"
         >
           Code
         </button>
         <button
           on:click={() => dispatch('toggle-tree-view', 'tree')}
           class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-          title="Explorer tree view"
+          title="Explorer tree view" aria-label="Explorer tree view"
         >
           Explorer
         </button>
