@@ -210,7 +210,7 @@ async def get_space_relics(
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
     # Query relics in space with filters applied at database level
-    # Filter: not expired, and either public or owned by/visible to client
+    # Filter: not expired, and either public or private but visible to space member
     # ⚡ Bolt: Use selectinload(Relic.tags) to prevent N+1 queries when accessing relic.tags later
     query = db.query(Relic).options(selectinload(Relic.tags)).join(
         space_relics, Relic.id == space_relics.c.relic_id
@@ -220,11 +220,13 @@ async def get_space_relics(
         # Exclude expired relics
         or_(Relic.expires_at.is_(None), Relic.expires_at > datetime.utcnow())
     ).filter(
-        # Show public relics to everyone, or private relics to owner/admin
+        # Show public relics to everyone, or private relics to space members/admin
         or_(
             Relic.access_level == "public",
             and_(Relic.access_level == "private", Relic.client_id == client_id),
-            and_(Relic.access_level == "private", is_admin)
+            and_(Relic.access_level == "private", is_admin),
+            # Private relics are visible to anyone with space access (space membership grants visibility)
+            and_(Relic.access_level == "private", client_id is not None)
         )
     ).order_by(Relic.created_at.desc())
 
