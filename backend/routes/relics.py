@@ -291,6 +291,62 @@ async def fork_relic(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
+@router.get("/api/v1/relics/{relic_id}/lineage")
+async def get_relic_lineage(relic_id: str, db: Session = Depends(get_db)):
+    """Get the fork lineage tree for a relic."""
+    current = db.query(Relic).filter(Relic.id == relic_id).first()
+    if not current:
+        raise HTTPException(status_code=404, detail="Relic not found")
+        
+    visited = set()
+    root_id = current.id
+    current_relic = current
+    
+    while current_relic.fork_of and current_relic.fork_of not in visited:
+        visited.add(current_relic.fork_of)
+        parent = db.query(Relic).filter(Relic.id == current_relic.fork_of).first()
+        if not parent:
+            break
+        root_id = parent.id
+        current_relic = parent
+
+    tree_nodes = {}
+    queue = [root_id]
+    visited_down = set([root_id])
+    
+    root_relic_obj = db.query(Relic).filter(Relic.id == root_id).first()
+    if not root_relic_obj:
+        return {"current_relic_id": relic_id, "root": None}
+        
+    tree_nodes[root_id] = {
+        "id": root_relic_obj.id,
+        "name": root_relic_obj.name,
+        "created_at": root_relic_obj.created_at,
+        "children": []
+    }
+    
+    while queue:
+        current_id = queue.pop(0)
+        children = db.query(Relic).filter(Relic.fork_of == current_id).all()
+        for child in children:
+            if child.id not in visited_down:
+                visited_down.add(child.id)
+                queue.append(child.id)
+                child_data = {
+                    "id": child.id,
+                    "name": child.name,
+                    "created_at": child.created_at,
+                    "children": []
+                }
+                tree_nodes[child.id] = child_data
+                tree_nodes[current_id]["children"].append(child_data)
+                
+    return {
+        "current_relic_id": relic_id,
+        "root": tree_nodes[root_id]
+    }
+
+
 @router.put("/api/v1/relics/{relic_id}", response_model=RelicResponse)
 async def update_relic(
     relic_id: str,

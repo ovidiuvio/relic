@@ -12,7 +12,8 @@
     getComments,
     createComment,
     updateComment,
-    deleteComment
+    deleteComment,
+    getRelicLineage
   } from "../services/api";
   import { processContent } from '../services/processors';
   import { processArchive } from '../services/processors/archiveProcessor';
@@ -37,6 +38,7 @@
   import RelicIndexRenderer from './renderers/RelicIndexRenderer.svelte';
   import DiffRenderer from './renderers/DiffRenderer.svelte';
   import TreeRenderer from './renderers/TreeRenderer.svelte';
+  import LineageModal from './LineageModal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -53,7 +55,9 @@
   let checkingBookmark = false;
   let bookmarkLoading = false;
   let showForkModal = false;
+  let showLineageModal = false;
   let forkLoading = false;
+  let hasLineage = false;
   let pdfViewerRef = null;
   let treeRendererRef = null;
   let effectiveLang = null;
@@ -300,6 +304,18 @@
       const relicResponse = await getRelic(id);
       console.log("[RelicViewer] Relic metadata received:", relicResponse.data);
       relic = relicResponse.data;
+
+      // Fetch lineage to determine if we should show the lineage button
+      if (relic.fork_of) {
+        hasLineage = true;
+      } else {
+        try {
+          const lineageRes = await getRelicLineage(id);
+          hasLineage = lineageRes.data?.root?.children?.length > 0;
+        } catch (e) {
+          hasLineage = false;
+        }
+      }
 
       // Fetch and process raw content
       console.log("[RelicViewer] Fetching raw content...");
@@ -660,6 +676,8 @@
         on:tree-collapse-all={() => treeRendererRef?.collapseAll()}
         {treePageSize}
         on:set-tree-page-size={(e) => (treePageSize = e.detail)}
+        on:show-lineage={() => (showLineageModal = true)}
+        {hasLineage}
       />
 
       <!-- Optional Description -->
@@ -835,6 +853,11 @@
 <!-- Fork Modal -->
 {#if relic}
   <ForkModal bind:open={showForkModal} {relicId} {relic} {darkMode} />
+{/if}
+
+<!-- Lineage Modal -->
+{#if relic}
+  <LineageModal bind:open={showLineageModal} {relicId} />
 {/if}
 
 <style>

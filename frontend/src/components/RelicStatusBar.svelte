@@ -19,6 +19,7 @@
   export let isTreeSupported = false
   export let treePageSize = 100
   export let showLineFilter = false
+  export let hasLineage = false
 
   const dispatch = createEventDispatcher()
 </script>
@@ -75,19 +76,18 @@
         <button
           class="inline-flex items-center justify-center px-1.5 py-1 bg-teal-100 text-teal-700 rounded-r text-xs font-medium leading-none hover:bg-teal-200 transition-colors border-l border-teal-200"
           title="View full lineage"
-          on:click={() => showLineageModal = true}
+          on:click={() => dispatch('show-lineage')}
         >
           <i class="fas fa-network-wired text-[10px]"></i>
         </button>
       </div>
-    {:else}
+    {:else if hasLineage}
       <button
-        class="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium leading-none hover:bg-gray-200 transition-colors border border-gray-200"
+        class="inline-flex items-center justify-center px-1.5 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium leading-none hover:bg-gray-200 transition-colors border border-gray-200"
         title="View full lineage"
-        on:click={() => showLineageModal = true}
+        on:click={() => dispatch('show-lineage')}
       >
         <i class="fas fa-network-wired text-[10px]"></i>
-        <span>Lineage</span>
       </button>
     {/if}
     {#if relic.password_hash}
