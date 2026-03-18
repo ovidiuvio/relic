@@ -18,6 +18,65 @@ import { decodeContent } from './utils/contentUtils'
 import 'highlight.js/styles/github.css'
 
 /**
+ * Custom rehype plugin to generate IDs for headings and build a TOC
+ */
+function rehypeSlugAndToc() {
+  return (tree, file) => {
+    const toc = []
+    const slugCounts = {}
+
+    // Simple traverse function since we don't have unist-util-visit
+    const traverse = (node) => {
+      if (node.type === 'element' && /^h[1-6]$/.test(node.tagName)) {
+        // Extract text content from the heading
+        let text = ''
+        const extractText = (n) => {
+          if (n.type === 'text') {
+            text += n.value
+          } else if (n.children) {
+            n.children.forEach(extractText)
+          }
+        }
+        extractText(node)
+
+        text = text.trim()
+
+        // Generate a slug based on text
+        let slug = text.toLowerCase().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-').replace(/^-+|-+$/g, '')
+        if (!slug) slug = 'heading'
+
+        // Handle duplicate slugs
+        if (slugCounts[slug] !== undefined) {
+          slugCounts[slug]++
+          slug = `${slug}-${slugCounts[slug]}`
+        } else {
+          slugCounts[slug] = 0
+        }
+
+        // Assign ID to heading
+        node.properties = node.properties || {}
+        node.properties.id = slug
+
+        // Add to TOC
+        toc.push({
+          level: parseInt(node.tagName[1], 10),
+          id: slug,
+          text: text
+        })
+      }
+
+      // Recursively traverse children
+      if (node.children) {
+        node.children.forEach(traverse)
+      }
+    }
+
+    traverse(tree)
+    file.data.toc = toc
+  }
+}
+
+/**
  * Create the unified processing pipeline
  */
 const processor = unified()
@@ -35,6 +94,7 @@ const processor = unified()
       py: 'python'
     }
   })
+  .use(rehypeSlugAndToc)
   .use(rehypeSanitize, {                // Security sanitization
     allowedTags: [
       // Text content
@@ -74,6 +134,12 @@ const processor = unified()
     allowedAttributes: {
       '*': ['class', 'style'],
       'a': ['href', 'title', 'rel'],
+      'h1': ['id'],
+      'h2': ['id'],
+      'h3': ['id'],
+      'h4': ['id'],
+      'h5': ['id'],
+      'h6': ['id'],
       'img': ['src', 'alt', 'title', 'width', 'height', 'loading'],
       'code': ['class'],
       'pre': ['class'],
@@ -121,7 +187,8 @@ export async function processMarkdown(content) {
         hasCodeBlocks: (html.match(/<code/g) || []).length,
         hasTables: html.includes('<table'),
         hasLinks: html.includes('<a'),
-        hasImages: html.includes('<img')
+        hasImages: html.includes('<img'),
+        toc: file.data.toc || []
       }
     }
   } catch (error) {
@@ -148,6 +215,7 @@ export async function processMarkdown(content) {
         hasTables: false,
         hasLinks: false,
         hasImages: false,
+        toc: [],
         error: error.message
       }
     }
