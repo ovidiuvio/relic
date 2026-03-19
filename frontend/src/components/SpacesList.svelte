@@ -303,7 +303,7 @@
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
-                                                    class="hover:text-gray-600 transition-opacity"
+                                                    class="opacity-0 group-hover:opacity-100 hover:text-gray-600 transition-opacity"
                                                 >
                                                     <i class="fas fa-copy"></i>
                                                 </button>
