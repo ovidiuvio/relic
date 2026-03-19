@@ -343,10 +343,10 @@ async def get_space_access(
         result.append({
             "id": access.id,
             "space_id": access.space_id,
-            "client_id": access.client_id,
+            "public_id": access.client.public_id,
+            "client_name": access.client.name,
             "role": access.role,
             "created_at": access.created_at,
-            "client_name": access.client.name
         })
 
     return result
@@ -371,19 +371,19 @@ async def add_space_access(
     if not check_space_access(space, client_id, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to modify space access list")
 
-    # Prevent modifying owner's own access
-    if access_in.client_id == space.owner_client_id:
-         raise HTTPException(status_code=400, detail="Cannot modify owner access")
-
-    # Check if client to be added exists
-    target_client = db.query(ClientKey).filter(ClientKey.id == access_in.client_id).first()
+    # Look up target client by public_id
+    target_client = db.query(ClientKey).filter(ClientKey.public_id == access_in.public_id).first()
     if not target_client:
-        raise HTTPException(status_code=404, detail="Client to add not found")
+        raise HTTPException(status_code=404, detail="No user found with that Public ID")
+
+    # Prevent modifying owner's own access
+    if target_client.id == space.owner_client_id:
+        raise HTTPException(status_code=400, detail="Cannot modify owner access")
 
     # Check if access already exists
     access = db.query(SpaceAccess).filter(
         SpaceAccess.space_id == space_id,
-        SpaceAccess.client_id == access_in.client_id
+        SpaceAccess.client_id == target_client.id
     ).first()
 
     if access:
@@ -393,7 +393,7 @@ async def add_space_access(
         # Create new
         access = SpaceAccess(
             space_id=space_id,
-            client_id=access_in.client_id,
+            client_id=target_client.id,
             role=access_in.role
         )
         db.add(access)
@@ -404,16 +404,16 @@ async def add_space_access(
     return {
         "id": access.id,
         "space_id": access.space_id,
-        "client_id": access.client_id,
+        "public_id": target_client.public_id,
+        "client_name": target_client.name,
         "role": access.role,
         "created_at": access.created_at,
-        "client_name": target_client.name
     }
 
-@router.delete("/{space_id}/access/{target_client_id}")
+@router.delete("/{space_id}/access/{access_id}")
 async def remove_space_access(
     space_id: str,
-    target_client_id: str,
+    access_id: str,
     request: Request,
     db: Session = Depends(get_db)
 ):
@@ -426,17 +426,17 @@ async def remove_space_access(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    # Only owner, admin, or the user themselves can remove access
-    if target_client_id != client_id and not check_space_access(space, client_id, "admin"):
-        raise HTTPException(status_code=403, detail="Not authorized to remove space access")
-
     access = db.query(SpaceAccess).filter(
-        SpaceAccess.space_id == space_id,
-        SpaceAccess.client_id == target_client_id
+        SpaceAccess.id == access_id,
+        SpaceAccess.space_id == space_id
     ).first()
 
     if not access:
         raise HTTPException(status_code=404, detail="Access record not found")
+
+    # Only owner, admin, or the user themselves can remove access
+    if access.client_id != client_id and not check_space_access(space, client_id, "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to remove space access")
 
     db.delete(access)
     db.commit()

@@ -117,7 +117,8 @@ class ClientKey(Base):
     """Client identification key."""
     __tablename__ = "client_key"
 
-    id = Column(String(32), primary_key=True)  # 32-char hex client ID
+    id = Column(String(32), primary_key=True)  # 32-char hex client ID (auth secret, never exposed)
+    public_id = Column(String(16), unique=True, index=True, nullable=True)  # 16-char hex, safe to share
     name = Column(String, nullable=True)  # User's display name
     created_at = Column(DateTime, default=datetime.utcnow)
     relic_count = Column(Integer, default=0)

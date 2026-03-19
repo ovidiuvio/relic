@@ -62,9 +62,9 @@ export const spaces = {
         return response.data;
     },
 
-    // Remove user access from a space
-    removeAccess: async (spaceId, clientId) => {
-        const response = await api.delete(`/spaces/${spaceId}/access/${clientId}`);
+    // Remove user access from a space (accessId is the SpaceAccess record UUID)
+    removeAccess: async (spaceId, accessId) => {
+        const response = await api.delete(`/spaces/${spaceId}/access/${accessId}`);
         return response.data;
     }
 };

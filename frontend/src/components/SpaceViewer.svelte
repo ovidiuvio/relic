@@ -190,19 +190,19 @@
 
     async function addAccess() {
         if (!newAccessClientId.trim()) {
-            showToast("Client ID is required", "error");
+            showToast("Public ID is required", "error");
             return;
         }
 
         managingAccess = true;
         try {
             const access = await spacesApi.addAccess(spaceId, {
-                client_id: newAccessClientId.trim(),
+                public_id: newAccessClientId.trim(),
                 role: newAccessRole
             });
 
             // Update local list
-            const index = accessList.findIndex(a => a.client_id === access.client_id);
+            const index = accessList.findIndex(a => a.id === access.id);
             if (index >= 0) {
                 accessList[index] = access;
             } else {
@@ -219,12 +219,12 @@
         }
     }
 
-    async function removeAccess(clientId) {
+    async function removeAccess(accessId) {
         if (!confirm("Remove this user's access?")) return;
 
         try {
-            await spacesApi.removeAccess(spaceId, clientId);
-            accessList = accessList.filter(a => a.client_id !== clientId);
+            await spacesApi.removeAccess(spaceId, accessId);
+            accessList = accessList.filter(a => a.id !== accessId);
             showToast("Access removed", "success");
         } catch (error) {
             console.error("Failed to remove access:", error);
@@ -599,12 +599,12 @@
                         </h3>
                         <div class="flex items-end gap-3">
                             <div class="flex-1">
-                                <label for="grantClientId" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Client ID</label>
+                                <label for="grantClientId" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Public ID</label>
                                 <input
                                     id="grantClientId"
                                     type="text"
                                     bind:value={newAccessClientId}
-                                    placeholder="Enter user's Client Key ID"
+                                    placeholder="Enter user's Public ID (e.g. 7f2a-3b1c-9d2e-ab4f)"
                                     class="maas-input w-full font-mono text-sm bg-white"
                                 />
                             </div>
@@ -670,7 +670,7 @@
                                                     </div>
                                                     <div class="min-w-0">
                                                         <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{access.client_name || 'Anonymous User'}</div>
-                                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{access.client_id}</div>
+                                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{access.public_id || '—'}</div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -692,7 +692,7 @@
                                             <td class="px-5 py-3.5 whitespace-nowrap text-right">
                                                 {#if isOwner}
                                                     <button
-                                                        on:click={() => removeAccess(access.client_id)}
+                                                        on:click={() => removeAccess(access.id)}
                                                         class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                                         title="Remove Access"
                                                     >

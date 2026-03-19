@@ -3,6 +3,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 from typing import Optional
+import secrets
 
 from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag
@@ -10,6 +11,15 @@ from backend.schemas import ClientNameUpdate
 from backend.dependencies import get_client_key
 
 router = APIRouter(prefix="/api/v1/client")
+
+
+def generate_public_id(db: Session) -> str:
+    """Generate a unique 16-char hex public_id, retrying on collision."""
+    for _ in range(10):
+        pid = secrets.token_hex(8)
+        if not db.query(ClientKey).filter(ClientKey.public_id == pid).first():
+            return pid
+    raise RuntimeError("Failed to generate unique public_id after 10 attempts")
 
 
 @router.post("/register", response_model=dict)
@@ -27,8 +37,13 @@ async def register_client(request: Request, db: Session = Depends(get_db)):
     # Check if client already exists
     existing_client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
     if existing_client:
+        # Lazily generate public_id for existing clients that don't have one
+        if not existing_client.public_id:
+            existing_client.public_id = generate_public_id(db)
+            db.commit()
         return {
             "client_id": existing_client.id,
+            "public_id": existing_client.public_id,
             "name": existing_client.name,
             "created_at": existing_client.created_at,
             "relic_count": existing_client.relic_count,
@@ -38,6 +53,7 @@ async def register_client(request: Request, db: Session = Depends(get_db)):
     # Create new client
     client = ClientKey(
         id=x_client_key,
+        public_id=generate_public_id(db),
         created_at=datetime.utcnow()
     )
     db.add(client)
@@ -45,6 +61,7 @@ async def register_client(request: Request, db: Session = Depends(get_db)):
 
     return {
         "client_id": client.id,
+        "public_id": client.public_id,
         "created_at": client.created_at,
         "relic_count": 0,
         "message": "Client registered successfully"
