@@ -1,12 +1,13 @@
 """Client registration and management endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 from typing import Optional
 import secrets
 
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Tag
+from backend.models import Relic, ClientKey, Tag, Comment
 from backend.schemas import ClientNameUpdate
 from backend.dependencies import get_client_key
 
@@ -100,6 +101,25 @@ async def get_client_relics(
 
     relics = query.order_by(Relic.created_at.desc()).all()
 
+    # Fetch all counts in bulk (2 queries instead of N*2)
+    relic_ids = [r.id for r in relics]
+    comments_counts = {}
+    forks_counts = {}
+
+    if relic_ids:
+        comments_counts = {
+            row[0]: row[1]
+            for row in db.query(Comment.relic_id, func.count(Comment.id)).filter(
+                Comment.relic_id.in_(relic_ids)
+            ).group_by(Comment.relic_id).all()
+        }
+        forks_counts = {
+            row[0]: row[1]
+            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
+                Relic.fork_of.in_(relic_ids)
+            ).group_by(Relic.fork_of).all()
+        }
+
     return {
         "client_id": client.id,
         "relic_count": len(relics),
@@ -113,6 +133,8 @@ async def get_client_relics(
                 "access_level": relic.access_level,
                 "access_count": relic.access_count,
                 "bookmark_count": relic.bookmark_count,
+                "comments_count": comments_counts.get(relic.id, 0),
+                "forks_count": forks_counts.get(relic.id, 0),
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
             }
             for relic in relics
