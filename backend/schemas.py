@@ -57,18 +57,25 @@ class SpaceUpdate(BaseModel):
     visibility: Optional[Literal["public", "private"]] = None
 
 
+class SpaceTransferOwnership(BaseModel):
+    """Schema for transferring space ownership."""
+    public_id: str  # new owner's public_id
+
+
 class SpaceAccessBase(BaseModel):
     """Base space access schema."""
-    client_id: str
+    public_id: str  # target user's public_id (safe to share); resolved to client_id server-side
     role: Literal["viewer", "editor", "admin"] = "viewer"
 
 
-class SpaceAccessResponse(SpaceAccessBase):
+class SpaceAccessResponse(BaseModel):
     """Space access response schema."""
     id: str
     space_id: str
-    created_at: datetime
+    public_id: Optional[str] = None  # target user's public_id (safe to display)
     client_name: Optional[str] = None
+    role: Literal["owner", "viewer", "editor", "admin"]
+    created_at: datetime
 
     class Config:
         from_attributes = True

@@ -20,6 +20,7 @@
   let relicViewerFullWidth = false;
   let isAdmin = false;
   let clientName = "";
+  let clientPublicId = "";
   let isNameSaving = false;
   let appVersion = "loading...";
   let activeTagFilter = null;
@@ -112,9 +113,8 @@
     // Register/Fetch client info
     try {
         const clientInfo = await registerClient(key);
-        if (clientInfo && clientInfo.name) {
-            clientName = clientInfo.name;
-        }
+        if (clientInfo && clientInfo.name) clientName = clientInfo.name;
+        if (clientInfo && clientInfo.public_id) clientPublicId = clientInfo.public_id;
     } catch (e) {
         console.error("Failed to fetch client info", e);
     }
@@ -420,6 +420,23 @@
                         </button>
                     </div>
                     <p class="text-[10px] text-gray-500 mt-1">Required for commenting</p>
+                </div>
+
+                <div class="p-3 border-b border-gray-200">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Your Public ID</label>
+                    <div class="flex gap-2 items-center">
+                        <span class="flex-1 text-sm font-mono text-gray-900 select-all">
+                            {clientPublicId || '...'}
+                        </span>
+                        <button
+                            on:click={() => navigator.clipboard.writeText(clientPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
+                            class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
+                            title="Copy Public ID"
+                        >
+                            <i class="fas fa-copy text-xs text-gray-600"></i>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1">Share this ID so others can add you to spaces</p>
                 </div>
 
                 <div class="py-2">
