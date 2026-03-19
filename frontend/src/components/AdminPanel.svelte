@@ -876,6 +876,7 @@
                                     class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
                                 >
                                     <th>Relic</th>
+                                    <th>Owner</th>
                                     <th>Reason</th>
                                     <th>Reported</th>
                                     <th class="w-32">Actions</th>
@@ -898,6 +899,28 @@
                                                     >{report.relic_id}</span
                                                 >
                                             </div>
+                                        </td>
+                                        <td>
+                                            {#if report.relic_owner_id}
+                                                <div class="flex flex-col">
+                                                    <button
+                                                        on:click={() =>
+                                                            viewClientRelics({
+                                                                id: report.relic_owner_id,
+                                                            })}
+                                                        class="font-medium text-purple-600 hover:text-purple-800 hover:underline text-left leading-tight"
+                                                        title="View client's relics"
+                                                    >
+                                                        {report.relic_owner_name || "Anonymous"}
+                                                    </button>
+                                                    <span class="text-xs text-gray-400 font-mono">{report.relic_owner_id}</span>
+                                                </div>
+                                            {:else}
+                                                <span
+                                                    class="text-gray-400 text-xs"
+                                                    >anonymous</span
+                                                >
+                                            {/if}
                                         </td>
                                         <td
                                             class="text-gray-700 max-w-md truncate"

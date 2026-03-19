@@ -489,11 +489,13 @@ async def admin_list_reports(
     total = db.query(RelicReport).count()
 
     # ⚡ Bolt: Use joinedload(RelicReport.relic) to prevent N+1 queries when accessing relic.name later
-    reports = db.query(RelicReport).options(joinedload(RelicReport.relic)).order_by(
+    reports = db.query(RelicReport).options(
+        joinedload(RelicReport.relic).joinedload(Relic.owner_client)
+    ).order_by(
         RelicReport.created_at.desc()
     ).offset(offset).limit(limit).all()
 
-    # Enrich with relic names
+    # Enrich with relic names and owners
     report_responses = []
     for r in reports:
         relic = r.relic
@@ -502,7 +504,9 @@ async def admin_list_reports(
             "relic_id": r.relic_id,
             "reason": r.reason,
             "created_at": r.created_at,
-            "relic_name": relic.name if relic else "Unknown (Deleted)"
+            "relic_name": relic.name if relic else "Unknown (Deleted)",
+            "relic_owner_id": relic.client_id if relic else None,
+            "relic_owner_name": relic.owner_client.name if relic and relic.owner_client else "Anonymous"
         })
 
     return {
