@@ -15,7 +15,7 @@
     deleteComment,
     getRelicLineage
   } from "../services/api";
-  import { processContent } from '../services/processors';
+  import { processContent } from '../services/processors/index.js';
   import { processArchive } from '../services/processors/archiveProcessor';
   import { showToast } from '../stores/toastStore';
   import { downloadRelic, fastForkArchiveFile } from '../services/relicActions';

@@ -182,9 +182,6 @@ async def get_relic_raw(relic_id: str, db: Session = Depends(get_db)):
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not relic:
-        raise HTTPException(status_code=404, detail="Relic not found")
-
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
     try:

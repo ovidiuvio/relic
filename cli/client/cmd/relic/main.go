@@ -24,9 +24,9 @@ var (
 	verbose     bool
 	outputFmt   string
 	quiet       bool
-	noProgress  bool
 	serverURL   string
 	clientKey   string
+	noProgress  bool
 
 	// Upload flags
 	relicName    string
@@ -47,9 +47,6 @@ var (
 
 	// Delete flags
 	skipConfirm bool
-
-	// Output file flag
-	outputFile string
 )
 
 func main() {
@@ -249,6 +246,8 @@ func recentCmd() *cobra.Command {
 
 // getCmd returns the get command
 func getCmd() *cobra.Command {
+	var outputFile string
+
 	cmd := &cobra.Command{
 		Use:   "get ID",
 		Short: "Download relic content",

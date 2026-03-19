@@ -12,8 +12,6 @@ const api = axios.create({
 
 // Add client key to requests that need it
 api.interceptors.request.use((config) => {
-    // console.log('[API] Intercepted request:', config.method?.toUpperCase(), config.url)
-
     // Only add client key to protected endpoints
     const needsAuth = (url, method) => {
         const protectedPatterns = [
@@ -30,13 +28,11 @@ api.interceptors.request.use((config) => {
             url?.includes(endpoint) && methods.includes(method?.toUpperCase())
         )
 
-        // console.log('[API] Auth check:', { url, method, needs })
         return needs
     }
 
     if (needsAuth(config.url, config.method)) {
         const clientKey = getOrCreateClientKey()
-        // console.log('[API] Adding client key to', config.method, config.url, ':', clientKey)
         if (clientKey) {
             config.headers['X-Client-Key'] = clientKey
         }

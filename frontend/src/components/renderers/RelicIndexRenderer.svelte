@@ -3,7 +3,7 @@
     import { getRelic } from "../../services/api";
     import RelicTable from "../RelicTable.svelte";
     import { getDefaultItemsPerPage, getTypeLabel } from "../../services/typeUtils";
-    import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from "../../services/paginationUtils";
+    import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from "../../services/utils/paginationUtils";
 
     export let processed;
 
