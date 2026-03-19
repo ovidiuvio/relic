@@ -98,6 +98,19 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                 <tr>
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >PUT</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Update relic metadata</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                     >GET</td
                   >
                   <td

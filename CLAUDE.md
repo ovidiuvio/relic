@@ -91,12 +91,11 @@ All API endpoints are prefixed with `/api/v1` and served via Nginx at `http://lo
 ```
 POST   /api/v1/relics                  Create relic
 GET    /api/v1/relics/:id              Get relic metadata
+PUT    /api/v1/relics/:id              Update relic metadata
 GET    /:id/raw                        Get raw content (served from root)
 POST   /api/v1/relics/:id/fork         Create fork (independent copy)
 DELETE /api/v1/relics/:id              Delete relic (owner OR admin)
 
-GET    /api/v1/relics/:id/preview      Get type-specific preview
-GET    /api/v1/relics/:id/thumbnail    Get thumbnail image
 GET    /api/v1/relics                  List recent public relics
 ```
 
@@ -128,9 +127,8 @@ DELETE /api/v1/admin/clients/:id       Delete a client
 ### Request/Response Pattern
 
 - **Create**: Returns `{id, url, fork_of?, created_at}`
-- **Get**: Returns full metadata including `content_type`, `size`, `created_at`, etc.
+- **Get**: Returns full metadata including `id`, `name`, `description`, `content_type`, `language_hint`, `size_bytes`, `fork_of`, `access_level`, `created_at`, `expires_at`, `access_count`, `bookmark_count`, `can_edit`, `tags`.
 - **Fork**: Returns `{id, url, fork_of, created_at}`
-- **Preview**: Type-specific (images: metadata+thumbnail_url, CSV: rows+columns+preview+stats, etc.)
 
 
 ## Project Structure

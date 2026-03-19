@@ -1,0 +1,3 @@
+## 2026-03-19 — API Endpoints and Field Names Sync
+**Finding:** The endpoints `GET /api/v1/relics/:id/preview` and `GET /api/v1/relics/:id/thumbnail` were listed in CLAUDE.md but did not exist anywhere in the actual codebase (backend/routes/relics.py). The PUT route for updating a relic existed in the backend but was missing from both CLAUDE.md and ApiDocs.svelte.
+**Action:** Removed non-existent endpoints from documentation and added the missing PUT endpoint. In the future, explicitly separate PRs by category (e.g. endpoint syncs vs project structure syncs) to adhere strictly to the ONE fix category per PR rule.
