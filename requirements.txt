@@ -18,9 +18,6 @@ minio>=7.1.0
 # Image Processing
 Pillow>=9.0.0
 
-# Document Processing
-PyPDF2>=3.0.0
-
 # Code Processing
 pygments>=2.12.0
 
