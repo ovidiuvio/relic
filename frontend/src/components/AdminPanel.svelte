@@ -11,6 +11,7 @@
         createAdminBackup,
         downloadAdminBackup,
         restoreAdminBackup,
+        restoreFromUpload,
         deleteRelic,
         deleteClient,
         getAdminReports,
@@ -76,8 +77,9 @@
 
     // Restore state
     let restoreModalOpen = false;
-    let restoreTarget = null;
+    let restoreTarget = null;   // { source: 's3', filename, timestamp, size_bytes } | { source: 'upload', filename, size_bytes, file }
     let restoreInProgress = false;
+    let uploadFileInput;
 
     // Reports state
     let reports = [];
@@ -232,7 +234,7 @@
     }
 
     function openRestoreModal(backup) {
-        restoreTarget = backup;
+        restoreTarget = { source: 's3', ...backup };
         restoreModalOpen = true;
     }
 
@@ -242,11 +244,28 @@
         restoreTarget = null;
     }
 
+    function handleUploadFileChange(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        // Reset input so same file can be re-selected if needed
+        event.target.value = '';
+        if (!file.name.endsWith('.sql.gz')) {
+            showToast("File must be a .sql.gz backup", "error");
+            return;
+        }
+        restoreTarget = { source: 'upload', filename: file.name, size_bytes: file.size, file };
+        restoreModalOpen = true;
+    }
+
     async function confirmRestore() {
         if (!restoreTarget) return;
         restoreInProgress = true;
         try {
-            await restoreAdminBackup(restoreTarget.filename);
+            if (restoreTarget.source === 'upload') {
+                await restoreFromUpload(restoreTarget.file);
+            } else {
+                await restoreAdminBackup(restoreTarget.filename);
+            }
             showToast("Database restored successfully", "success");
             restoreModalOpen = false;
             restoreTarget = null;
@@ -1086,23 +1105,38 @@
 
             <!-- Backups Tab -->
             {#if activeTab === "backups"}
+                <input
+                    type="file"
+                    accept=".sql.gz"
+                    class="hidden"
+                    bind:this={uploadFileInput}
+                    on:change={handleUploadFileChange}
+                />
                 <div
                     class="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50"
                 >
                     <span class="text-sm text-gray-600"
                         >Database backups stored in S3</span
                     >
-                    <button
-                        on:click={handleBackupNow}
-                        disabled={backupInProgress}
-                        class="px-3 py-1.5 text-sm bg-[#E95420] text-white rounded hover:bg-[#c7451a] transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {#if backupInProgress}
-                            <i class="fas fa-spinner fa-spin"></i>Creating...
-                        {:else}
-                            <i class="fas fa-plus"></i>Backup Now
-                        {/if}
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button
+                            on:click={() => uploadFileInput.click()}
+                            class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
+                        >
+                            <i class="fas fa-upload"></i>Restore from file
+                        </button>
+                        <button
+                            on:click={handleBackupNow}
+                            disabled={backupInProgress}
+                            class="px-3 py-1.5 text-sm bg-[#E95420] text-white rounded hover:bg-[#c7451a] transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {#if backupInProgress}
+                                <i class="fas fa-spinner fa-spin"></i>Creating...
+                            {:else}
+                                <i class="fas fa-plus"></i>Backup Now
+                            {/if}
+                        </button>
+                    </div>
                 </div>
                 {#if backupsLoading}
                     <div class="p-8 text-center">
@@ -1340,10 +1374,16 @@
                 </div>
 
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                    <p class="text-gray-500 text-xs uppercase tracking-wider mb-2">Backup to restore</p>
+                    <p class="text-gray-500 text-xs uppercase tracking-wider mb-2">
+                        {restoreTarget.source === 'upload' ? 'File to restore' : 'Backup to restore'}
+                    </p>
                     <p class="font-mono text-gray-900 break-all">{restoreTarget.filename}</p>
                     <p class="text-gray-500 text-xs mt-1">
-                        {formatDate(restoreTarget.timestamp)} &bull; {formatBytes(restoreTarget.size_bytes)}
+                        {#if restoreTarget.source === 'upload'}
+                            Local upload &bull; {formatBytes(restoreTarget.size_bytes)}
+                        {:else}
+                            {formatDate(restoreTarget.timestamp)} &bull; {formatBytes(restoreTarget.size_bytes)}
+                        {/if}
                     </p>
                 </div>
 

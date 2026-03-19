@@ -98,27 +98,18 @@ async def perform_backup(backup_type: str = 'scheduled') -> bool:
     return False
 
 
-async def perform_restore(filename: str, engine) -> dict:
+async def _run_restore(sql_bytes: bytes, engine, label: str) -> None:
     """
-    Restore the database from a backup file stored in S3.
+    Core restore: terminate active connections, dispose pool, run psql.
 
-    Sequence:
-    1. Validate filename format
-    2. Terminate all other active DB connections
-    3. Dispose SQLAlchemy connection pool
-    4. Download + decompress backup from S3
-    5. Pipe SQL to psql subprocess
-
-    Note: After restore, the DB reflects the backup's Alembic migration state.
-    The service does NOT auto-run 'alembic upgrade head'.
+    Args:
+        sql_bytes: Decompressed SQL dump content
+        engine: SQLAlchemy engine (pool will be disposed after termination)
+        label: Human-readable label for logging (filename or 'upload')
     """
-    if not filename.startswith('backup-') or not filename.endswith('.sql.gz'):
-        raise ValueError(f"Invalid backup filename: {filename}")
-
     db_info = parse_database_url(settings.DATABASE_URL)
 
-    # Terminate all active connections except our own, then recycle the pool
-    logger.info(f"Terminating active connections for restore: {filename}")
+    logger.info(f"Terminating active connections for restore: {label}")
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(
             text("""
@@ -132,13 +123,6 @@ async def perform_restore(filename: str, engine) -> dict:
         )
     engine.dispose()
 
-    # Download and decompress backup
-    logger.info(f"Downloading backup from S3: db/{filename}")
-    compressed = await storage_service.download(f"db/{filename}")
-    sql_bytes = gzip.decompress(compressed)
-    logger.info(f"Decompressed {len(compressed):,} -> {len(sql_bytes):,} bytes")
-
-    # Restore via psql
     process = await asyncio.create_subprocess_exec(
         'psql',
         '-h', db_info['host'],
@@ -157,8 +141,40 @@ async def perform_restore(filename: str, engine) -> dict:
         logger.error(f"psql restore failed (rc={process.returncode}): {error_msg}")
         raise RuntimeError(f"psql restore failed: {error_msg[:500]}")
 
-    logger.info(f"Database restore completed successfully: {filename}")
+    logger.info(f"Database restore completed successfully: {label}")
+
+
+async def perform_restore(filename: str, engine) -> dict:
+    """
+    Restore the database from a backup file stored in S3.
+
+    Note: After restore, the DB reflects the backup's Alembic migration state.
+    The service does NOT auto-run 'alembic upgrade head'.
+    """
+    if not filename.startswith('backup-') or not filename.endswith('.sql.gz'):
+        raise ValueError(f"Invalid backup filename: {filename}")
+
+    logger.info(f"Downloading backup from S3: db/{filename}")
+    compressed = await storage_service.download(f"db/{filename}")
+    sql_bytes = gzip.decompress(compressed)
+    logger.info(f"Decompressed {len(compressed):,} -> {len(sql_bytes):,} bytes")
+
+    await _run_restore(sql_bytes, engine, label=filename)
     return {'success': True, 'filename': filename, 'message': 'Restore completed successfully'}
+
+
+async def perform_restore_upload(compressed: bytes, original_filename: str, engine) -> dict:
+    """
+    Restore the database from an uploaded .sql.gz file.
+
+    Note: After restore, the DB reflects the backup's Alembic migration state.
+    The service does NOT auto-run 'alembic upgrade head'.
+    """
+    sql_bytes = gzip.decompress(compressed)
+    logger.info(f"Decompressed upload {original_filename}: {len(compressed):,} -> {len(sql_bytes):,} bytes")
+
+    await _run_restore(sql_bytes, engine, label=original_filename)
+    return {'success': True, 'filename': original_filename, 'message': 'Restore completed successfully'}
 
 
 async def cleanup_old_backups() -> None:

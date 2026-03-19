@@ -1,6 +1,6 @@
 """Admin endpoints."""
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
@@ -428,6 +428,43 @@ async def admin_restore_backup(
         return {"success": True, "message": result['message'], "filename": filename}
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/backups/restore-upload", response_model=dict)
+async def admin_restore_from_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    [ADMIN] Restore the database from an uploaded .sql.gz file. DESTRUCTIVE.
+
+    Accepts a gzip-compressed SQL dump (as produced by pg_dump).
+    Terminates active connections, replaces all current data, recycles the pool.
+
+    Requires admin privileges.
+    """
+    from backend.backup import perform_restore_upload
+    from backend.database import engine
+
+    get_admin_client(request, db)
+
+    if not file.filename or not file.filename.endswith('.sql.gz'):
+        raise HTTPException(status_code=400, detail="File must be a .sql.gz backup")
+
+    compressed = await file.read()
+    if len(compressed) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    db.close()
+
+    logger.warning(f"Admin restore from upload initiated: {file.filename} ({len(compressed):,} bytes)")
+    try:
+        result = await perform_restore_upload(compressed, file.filename, engine)
+        return {"success": True, "message": result['message'], "filename": file.filename}
+    except Exception as e:
+        logger.error(f"Restore from upload failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

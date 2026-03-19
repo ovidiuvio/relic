@@ -42,6 +42,14 @@ export async function restoreAdminBackup(filename) {
     return api.post(`/admin/backups/${encodeURIComponent(filename)}/restore`)
 }
 
+export async function restoreFromUpload(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/admin/backups/restore-upload', formData, {
+        headers: { 'Content-Type': undefined }
+    })
+}
+
 export async function downloadAdminBackup(filename) {
     const response = await api.get(`/admin/backups/${filename}/download`, {
         responseType: 'blob'
