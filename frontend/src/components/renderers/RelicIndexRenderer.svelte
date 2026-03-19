@@ -6,7 +6,6 @@
     import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from "../../services/paginationUtils";
 
     export let processed;
-    export let relicId;
 
     let relics = [];
     let loading = true;
