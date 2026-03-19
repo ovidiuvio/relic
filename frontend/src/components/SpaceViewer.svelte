@@ -29,6 +29,8 @@
     let editName = '';
     let editVisibility = 'public';
     let updating = false;
+    let transferPublicId = '';
+    let transferring = false;
 
     // Add relic state
     let showAddRelicModal = false;
@@ -127,6 +129,26 @@
             showToast("Failed to update space", "error");
         } finally {
             updating = false;
+        }
+    }
+
+    async function transferOwnership() {
+        if (!transferPublicId.trim()) {
+            showToast("Public ID is required", "error");
+            return;
+        }
+        if (!confirm(`Transfer ownership of "${space.name}" to user ${transferPublicId.trim()}? You will become an admin.`)) return;
+
+        transferring = true;
+        try {
+            space = await spacesApi.transferOwnership(spaceId, transferPublicId.trim());
+            transferPublicId = '';
+            showEditModal = false;
+            showToast("Ownership transferred successfully", "success");
+        } catch (error) {
+            showToast(error.response?.data?.detail || "Failed to transfer ownership", "error");
+        } finally {
+            transferring = false;
         }
     }
 
@@ -485,6 +507,30 @@
                 </div>
             </div>
 
+                <div class="pt-2 border-t border-gray-100">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transfer Ownership</label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            bind:value={transferPublicId}
+                            placeholder="New owner's Public ID"
+                            class="flex-1 maas-input font-mono text-sm"
+                        />
+                        <button
+                            on:click={transferOwnership}
+                            disabled={transferring || !transferPublicId.trim()}
+                            class="maas-btn-secondary px-3 text-sm whitespace-nowrap disabled:opacity-50"
+                        >
+                            {#if transferring}
+                                <i class="fas fa-spinner fa-spin"></i>
+                            {:else}
+                                Transfer
+                            {/if}
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1">You will become an admin after transfer.</p>
+                </div>
+
             <div class="mt-8 flex justify-between items-center">
                 <button
                     on:click={deleteSpace}
@@ -675,7 +721,11 @@
                                                 </div>
                                             </td>
                                             <td class="px-5 py-3.5 whitespace-nowrap">
-                                                {#if access.role === 'admin'}
+                                                {#if access.role === 'owner'}
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
+                                                        <i class="fas fa-crown mr-1.5 scale-90"></i> Owner
+                                                    </span>
+                                                {:else if access.role === 'admin'}
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
                                                         <i class="fas fa-shield-alt mr-1.5 scale-90"></i> Admin
                                                     </span>
@@ -690,7 +740,7 @@
                                                 {/if}
                                             </td>
                                             <td class="px-5 py-3.5 whitespace-nowrap text-right">
-                                                {#if isOwner}
+                                                {#if isOwner && access.role !== 'owner'}
                                                     <button
                                                         on:click={() => removeAccess(access.id)}
                                                         class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"

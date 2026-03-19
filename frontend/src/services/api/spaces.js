@@ -66,5 +66,11 @@ export const spaces = {
     removeAccess: async (spaceId, accessId) => {
         const response = await api.delete(`/spaces/${spaceId}/access/${accessId}`);
         return response.data;
+    },
+
+    // Transfer space ownership to another user (by public_id)
+    transferOwnership: async (spaceId, publicId) => {
+        const response = await api.post(`/spaces/${spaceId}/transfer-ownership`, { public_id: publicId });
+        return response.data;
     }
 };
