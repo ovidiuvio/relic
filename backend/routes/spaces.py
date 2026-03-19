@@ -1,7 +1,7 @@
 """Space endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, or_, and_
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 from datetime import datetime
 from typing import Optional, List
 
@@ -330,7 +330,10 @@ async def get_space_access(
     """Get the access list for a space."""
     client_id = request.headers.get("X-Client-Key")
 
-    space = db.query(Space).filter(Space.id == space_id).first()
+    # ⚡ Bolt: Use selectinload and joinedload to prevent N+1 queries when accessing access.client.name
+    space = db.query(Space).options(
+        selectinload(Space.access_list).joinedload(SpaceAccess.client)
+    ).filter(Space.id == space_id).first()
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
