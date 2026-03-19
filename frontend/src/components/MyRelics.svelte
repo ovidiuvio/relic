@@ -6,6 +6,8 @@
   import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
+  import RelicDropModal from './RelicDropModal.svelte';
+  import { getFilesFromDrop } from '../services/utils/fileProcessing';
 
   export let tagFilter = null
 
@@ -18,6 +20,11 @@
   let selectedRelic = null
   let sortBy = 'date'
   let sortOrder = 'desc'
+
+  // Drop handling state
+  let showDropModal = false
+  let droppedFiles = []
+  let isDraggingOver = false
 
   // Use the shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel)
@@ -82,6 +89,32 @@
     }
   }
 
+  function handleDragOver(e) {
+    e.preventDefault()
+    isDraggingOver = true
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault()
+    isDraggingOver = false
+  }
+
+  async function handleDrop(e) {
+    e.preventDefault()
+    isDraggingOver = false
+    
+    const files = await getFilesFromDrop(e.dataTransfer)
+    if (files.length > 0) {
+      droppedFiles = files
+      showDropModal = true
+    }
+  }
+
+  function handleUploadSuccess() {
+    showDropModal = false
+    loadMyRelics()
+  }
+
   function goToPage(page) {
     currentPage = clampPage(page, totalPages)
   }
@@ -92,7 +125,23 @@
   })
 </script>
 
-<div class="px-4 sm:px-0">
+<div 
+  class="px-4 sm:px-0 relative min-h-[400px]"
+  on:dragover={handleDragOver}
+  on:dragleave={handleDragLeave}
+  on:drop={handleDrop}
+  role="region"
+  aria-label="My Relics Drop Zone"
+>
+  {#if isDraggingOver}
+    <div class="absolute inset-0 z-[100] bg-blue-50/80 backdrop-blur-[2px] border-4 border-dashed border-blue-400 rounded-lg flex flex-col items-center justify-center animate-in fade-in duration-200">
+      <div class="w-20 h-20 bg-white rounded-full shadow-xl flex items-center justify-center text-blue-500 mb-6 border-4 border-blue-100">
+        <i class="fas fa-cloud-upload-alt text-4xl animate-bounce"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-blue-700">Drop files to upload</h3>
+      <p class="text-blue-500 font-medium mt-2">Uploading to your collection</p>
+    </div>
+  {/if}
   <RelicTable
     data={sortedRelics}
     {loading}
@@ -130,4 +179,12 @@
     on:close={handleEditModalClose}
     on:update={handleEditModalUpdate}
   />
+{/if}
+
+{#if showDropModal}
+    <RelicDropModal
+        files={droppedFiles}
+        on:close={() => showDropModal = false}
+        on:success={handleUploadSuccess}
+    />
 {/if}

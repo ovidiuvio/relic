@@ -155,7 +155,7 @@
   tabindex="0"
   aria-label="Close modal"
 >
-  <div 
+  <section 
     class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" 
     on:click|stopPropagation
     on:keydown|stopPropagation
@@ -169,9 +169,11 @@
           <i class="fas fa-cloud-upload-alt text-xl"></i>
         </div>
         <div>
-          <h2 class="text-lg font-bold text-gray-800 leading-tight">Upload to Space</h2>
+          <h2 class="text-lg font-bold text-gray-800 leading-tight">
+            {spaceName ? 'Upload to Space' : 'Add to Collection'}
+          </h2>
           <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
-            {spaceName ? `Target: ${spaceName}` : 'No space target'}
+            {spaceName ? `Target: ${spaceName}` : 'Uploading as global relics'}
           </p>
         </div>
       </div>
@@ -334,10 +336,10 @@
             Syncing...
           {:else}
             <i class="fas fa-upload mr-2 group-hover:-translate-y-0.5 transition-transform"></i>
-            Sync to Space
+            {spaceName ? 'Sync to Space' : 'Add to Relics'}
           {/if}
         </button>
       </div>
     </div>
-  </div>
+  </section>
 </div>
