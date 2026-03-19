@@ -132,6 +132,8 @@ async def admin_list_clients(
         "clients": [
             {
                 "id": c.id,
+                "public_id": c.public_id,
+                "name": c.name,
                 "created_at": c.created_at,
                 "relic_count": c.relic_count,
                 "is_admin": c.id in admin_ids
