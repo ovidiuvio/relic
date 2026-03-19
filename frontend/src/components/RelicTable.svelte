@@ -242,7 +242,7 @@
               <td class="text-gray-500 text-xs">
                 {formatTimeAgo(getDateField(relic))}
               </td>
-              <td class="font-mono text-xs">
+              <td class="text-gray-500 text-xs">
                 {formatBytes(relic.size_bytes || 0)}
               </td>
               <td>
