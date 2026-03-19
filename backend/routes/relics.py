@@ -165,10 +165,12 @@ async def get_relic(
     relic.access_count += 1
     db.commit()
 
-    # Calculate comments count using SQL COUNT (efficient)
+    # Calculate counts using SQL COUNT (efficient, single queries)
     comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic_id).scalar()
+    forks_count = db.query(func.count(Relic.id)).filter(Relic.fork_of == relic_id).scalar()
     relic_response = RelicResponse.from_orm(relic)
     relic_response.comments_count = comments_count or 0
+    relic_response.forks_count = forks_count or 0
     return relic_response
 
 @router.get("/{relic_id}")
@@ -459,12 +461,14 @@ async def list_relics(
 
     relics = query.order_by(Relic.created_at.desc()).limit(limit).all()
 
-    # Add comments_count to each relic using SQL COUNT
+    # Add comments_count and forks_count to each relic using SQL COUNT
     relic_responses = []
     for relic in relics:
         comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic.id).scalar()
+        forks_count = db.query(func.count(Relic.id)).filter(Relic.fork_of == relic.id).scalar()
         relic_response = RelicResponse.from_orm(relic)
         relic_response.comments_count = comments_count or 0
+        relic_response.forks_count = forks_count or 0
         relic_responses.append(relic_response)
 
     return {

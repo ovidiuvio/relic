@@ -182,7 +182,7 @@
                     {relic.name || 'Untitled'}
                   </a>
 
-                  <!-- Views, Bookmarks & Comments as small inline badges (Top Row) -->
+                  <!-- Views, Bookmarks, Comments & Forks as small inline badges (Top Row) -->
                   <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
                     {#if relic.access_count}
                       <span class="flex items-center gap-0.5" title="Views">
@@ -200,6 +200,12 @@
                       <span class="flex items-center gap-0.5" title="Comments">
                         <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px]"></i>
                         <span>{relic.comments_count}</span>
+                      </span>
+                    {/if}
+                    {#if relic.forks_count}
+                      <span class="flex items-center gap-0.5" title="Forks">
+                        <i class="fas fa-code-branch text-[9px] translate-y-[0.5px]"></i>
+                        <span>{relic.forks_count}</span>
                       </span>
                     {/if}
                   </div>

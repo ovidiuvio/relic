@@ -118,6 +118,7 @@ class RelicResponse(BaseModel):
     access_count: int
     bookmark_count: int
     comments_count: int = 0
+    forks_count: int = 0
     can_edit: bool = False
     tags: List[TagResponse] = []
 
