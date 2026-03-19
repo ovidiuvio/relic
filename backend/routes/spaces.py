@@ -7,7 +7,7 @@ from typing import Optional, List
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics
+from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics, Comment
 from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
@@ -296,6 +296,7 @@ async def get_space_relics(
     result = []
     for relic in relics:
         can_edit = client_id is not None and (relic.client_id == client_id or is_admin)
+        comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic.id).scalar()
         relic_dict = {
             "id": relic.id,
             "name": relic.name,
@@ -309,6 +310,7 @@ async def get_space_relics(
             "expires_at": relic.expires_at,
             "access_count": relic.access_count,
             "bookmark_count": relic.bookmark_count,
+            "comments_count": comments_count or 0,
             "can_edit": can_edit,
             "tags": [{"name": t.name, "id": t.id} for t in relic.tags]
         }

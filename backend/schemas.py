@@ -1,5 +1,5 @@
 """Pydantic schemas for request/response validation."""
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional, List, Literal
 from datetime import datetime
 
@@ -117,6 +117,7 @@ class RelicResponse(BaseModel):
     expires_at: Optional[datetime]
     access_count: int
     bookmark_count: int
+    comments_count: int = 0
     can_edit: bool = False
     tags: List[TagResponse] = []
 

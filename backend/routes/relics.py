@@ -2,13 +2,14 @@
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func
 from datetime import datetime
 from typing import Optional, List
 import logging
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Tag, Space
+from backend.models import Relic, ClientKey, Tag, Space, Comment
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate
 from backend.storage import storage_service
 from backend.utils import parse_expiry_string, is_expired, hash_password
@@ -164,7 +165,11 @@ async def get_relic(
     relic.access_count += 1
     db.commit()
 
-    return relic
+    # Calculate comments count using SQL COUNT (efficient)
+    comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic_id).scalar()
+    relic_response = RelicResponse.from_orm(relic)
+    relic_response.comments_count = comments_count or 0
+    return relic_response
 
 @router.get("/{relic_id}")
 @router.get("/{relic_id}/raw")
@@ -454,6 +459,14 @@ async def list_relics(
 
     relics = query.order_by(Relic.created_at.desc()).limit(limit).all()
 
+    # Add comments_count to each relic using SQL COUNT
+    relic_responses = []
+    for relic in relics:
+        comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic.id).scalar()
+        relic_response = RelicResponse.from_orm(relic)
+        relic_response.comments_count = comments_count or 0
+        relic_responses.append(relic_response)
+
     return {
-        "relics": relics
+        "relics": relic_responses
     }
