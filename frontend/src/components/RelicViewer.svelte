@@ -792,7 +792,7 @@
             on:toggle-dark-mode={(e) => (darkMode = e.detail)}
           />
         {:else if processed.type === "relicindex"}
-          <RelicIndexRenderer {processed} {relicId} />
+          <RelicIndexRenderer {processed} />
         {:else if processed.type === "diff"}
           <DiffRenderer
             {processed}
