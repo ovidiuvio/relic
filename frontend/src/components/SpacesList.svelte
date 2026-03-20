@@ -3,6 +3,7 @@
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
+    import { formatTimeAgo } from '../services/typeUtils';
     import RelicDropModal from './RelicDropModal.svelte';
 
     const dispatch = createEventDispatcher();
@@ -165,7 +166,7 @@
 <div class="space-y-6">
     <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
         <!-- Header -->
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/30">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
             <div class="flex items-center gap-3">
                 <h2 class="text-lg font-semibold text-gray-900 flex items-center">
                     <i class="fas fa-layer-group text-blue-600 mr-2"></i>
@@ -260,50 +261,51 @@
             <div class="overflow-x-auto">
                 <table class="w-full maas-table text-sm">
                     <thead>
-                        <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50/50 border-b border-gray-200">
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('name')}>
+                        <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
+                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Name / ID</span>
                                     <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="px-6 py-3 text-left">Role / Visibility</th>
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('relic_count')}>
+                            <th class="px-4 py-3 text-left">Role / Visibility</th>
+                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Relics</span>
                                     <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('created_at')}>
+                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Created</span>
                                     <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="px-4 py-3 text-right w-40">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         {#each sortedSpaces as space (space.id)}
                             <tr 
-                                class="hover:bg-blue-50/30 transition-colors group cursor-pointer {dragOverSpaceId === space.id ? 'bg-blue-50 ring-2 ring-inset ring-blue-500 z-10' : ''}" 
+                                class="hover:bg-gray-50 transition-colors group cursor-pointer {dragOverSpaceId === space.id ? 'bg-blue-50 ring-2 ring-inset ring-blue-500 z-10' : ''}" 
                                 on:click={() => openSpace(space.id)}
                                 on:dragover={(e) => handleDragOver(e, space.id)}
                                 on:dragleave={handleDragLeave}
                                 on:drop={(e) => handleDrop(e, space)}
                             >
-                                <td class="px-6 py-4">
+                                <td class="px-4 py-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-green-600' : 'fa-lock text-gray-400'} text-sm"></i>
+                                        <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-sm"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="font-bold text-gray-900 truncate" title={space.name}>{space.name}</div>
-                                            <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono mt-0.5">
+                                            <div class="font-medium text-[#0066cc] hover:underline truncate" title={space.name}>{space.name}</div>
+                                            <div class="flex items-center gap-1 text-xs text-gray-400 font-mono mt-0.5">
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
-                                                    class="opacity-0 group-hover:opacity-100 hover:text-gray-600 transition-opacity"
+                                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all duration-200 -mt-0.5"
+                                                    title="Copy ID"
                                                 >
                                                     <i class="fas fa-copy"></i>
                                                 </button>
@@ -311,42 +313,42 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td class="px-4 py-4">
                                     <div class="flex items-center gap-2">
                                         {#if space.role === 'owner'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                                 <i class="fas fa-crown mr-1"></i> Owner
                                             </span>
                                         {:else if space.role === 'editor'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-100">
                                                 <i class="fas fa-edit mr-1"></i> Editor
                                             </span>
                                         {:else if space.role === 'admin'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-800 border border-red-200">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-700 border border-red-100">
                                                 <i class="fas fa-shield-alt mr-1"></i> Admin
                                             </span>
                                         {:else}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100">
                                                 <i class="fas fa-eye mr-1"></i> Viewer
                                             </span>
                                         {/if}
                                     </div>
                                 </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                <td class="px-4 py-4">
+                                    <div class="flex items-center gap-1.5 text-gray-500 text-xs">
                                         <i class="fas fa-file-alt text-gray-300"></i>
                                         <span class="font-medium">{space.relic_count}</span>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-gray-500 text-xs">
-                                    {new Date(space.created_at).toLocaleDateString()}
+                                <td class="px-4 py-4 text-gray-500 text-xs">
+                                    {formatTimeAgo(space.created_at)}
                                 </td>
-                                <td class="px-6 py-4 text-right">
+                                <td class="px-4 py-4 text-right">
                                     <div class="flex justify-end gap-1">
                                         {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
                                             <button
                                                 on:click|stopPropagation={() => dispatch('navigate', { path: 'new?space=' + space.id })}
-                                                class="p-2 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                                class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                                                 title="New Relic in this Space"
                                             >
                                                 <i class="fas fa-plus text-xs"></i>
@@ -354,14 +356,14 @@
                                         {/if}
                                         <button
                                             on:click|stopPropagation={() => copyToClipboard(`${window.location.origin}/spaces/${space.id}`, 'Space link copied to clipboard!')}
-                                            class="p-2 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                            class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                                             title="Share Space"
                                         >
                                             <i class="fas fa-share text-xs"></i>
                                         </button>
                                         <button
                                             on:click|stopPropagation={() => openSpace(space.id)}
-                                            class="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                            class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                             title="Open Space"
                                         >
                                             <i class="fas fa-external-link-alt text-xs"></i>
@@ -369,7 +371,7 @@
                                         {#if space.role === 'owner' || space.role === 'admin'}
                                             <button
                                                 on:click|stopPropagation={() => deleteSpace(space)}
-                                                class="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                                class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Delete Space"
                                             >
                                                 <i class="fas fa-trash text-xs"></i>
@@ -399,9 +401,10 @@
 <style>
     .sort-arrow {
         font-size: 9px;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         opacity: 0;
         color: #9ca3af;
+        display: inline-block;
     }
 
     .group:hover .sort-arrow {
