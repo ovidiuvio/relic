@@ -17,3 +17,9 @@ export async function checkBookmark(relicId) {
 export async function getClientBookmarks() {
     return api.get('/bookmarks')
 }
+
+export async function getRelicBookmarkers(relicId) {
+    const response = await api.get(`/bookmarks/${relicId}/bookmarkers`)
+    return response.data
+}
+

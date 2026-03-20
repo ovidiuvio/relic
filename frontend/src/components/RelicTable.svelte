@@ -2,6 +2,9 @@
   import { createEventDispatcher } from 'svelte'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw, fastForkRelic, copyToClipboard } from '../services/relicActions'
   import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes, formatTimeAgo } from '../services/typeUtils'
+  import LineageModal from './LineageModal.svelte'
+  import BookmarkersModal from './BookmarkersModal.svelte'
+  import CommentsSummaryModal from './CommentsSummaryModal.svelte'
 
   // Props
   export let data = [] // Array of relics/bookmarks
@@ -92,6 +95,31 @@
     const avg = avgStats[type];
     const floors = { views: 10, bookmarks: 3, comments: 2, forks: 2 };
     return value > Math.max(avg * 2, floors[type]);
+  }
+
+  // Modal states
+  let showLineageModal = false;
+  let showBookmarkersModal = false;
+  let showCommentsModal = false;
+  let selectedRelicId = "";
+  let selectedRelicName = "";
+
+  function openLineage(relic) {
+    selectedRelicId = relic.id;
+    selectedRelicName = relic.name || relic.id;
+    showLineageModal = true;
+  }
+
+  function openBookmarkers(relic) {
+    selectedRelicId = relic.id;
+    selectedRelicName = relic.name || relic.id;
+    showBookmarkersModal = true;
+  }
+
+  function openComments(relic) {
+    selectedRelicId = relic.id;
+    selectedRelicName = relic.name || relic.id;
+    showCommentsModal = true;
   }
 </script>
 
@@ -211,24 +239,36 @@
                     {/if}
                     {#if relic.bookmark_count}
                       {@const highlight = isAboveAverage(relic.bookmark_count, 'bookmarks')}
-                      <span class="flex items-center gap-0.5 {highlight ? 'text-amber-600/90' : ''}" title="Bookmarks">
+                      <button
+                        class="flex items-center gap-0.5 {highlight ? 'text-amber-600/90' : 'text-gray-400/60 hover:text-amber-500/80'} transition-all hover:scale-105 active:scale-95"
+                        title="View Bookmarkers"
+                        on:click|stopPropagation={() => openBookmarkers(relic)}
+                      >
                         <i class="fas fa-bookmark text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
                         <span class="{highlight ? 'font-semibold' : ''}">{relic.bookmark_count}</span>
-                      </span>
+                      </button>
                     {/if}
                     {#if relic.comments_count}
                       {@const highlight = isAboveAverage(relic.comments_count, 'comments')}
-                      <span class="flex items-center gap-0.5 {highlight ? 'text-green-600/90' : ''}" title="Comments">
+                      <button
+                        class="flex items-center gap-0.5 {highlight ? 'text-green-600/90' : 'text-gray-400/60 hover:text-green-500/80'} transition-all hover:scale-105 active:scale-95"
+                        title="View Comments Summary"
+                        on:click|stopPropagation={() => openComments(relic)}
+                      >
                         <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
                         <span class="{highlight ? 'font-semibold' : ''}">{relic.comments_count}</span>
-                      </span>
+                      </button>
                     {/if}
                     {#if relic.forks_count}
                       {@const highlight = isAboveAverage(relic.forks_count, 'forks')}
-                      <span class="flex items-center gap-0.5 {highlight ? 'text-indigo-600/90' : ''}" title="Forks">
+                      <button
+                        class="flex items-center gap-0.5 {highlight ? 'text-indigo-600/90' : 'text-gray-400/60 hover:text-indigo-500/80'} transition-all hover:scale-105 active:scale-95"
+                        title="View Lineage"
+                        on:click|stopPropagation={() => openLineage(relic)}
+                      >
                         <i class="fas fa-code-branch text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
                         <span class="{highlight ? 'font-semibold' : ''}">{relic.forks_count}</span>
-                      </span>
+                      </button>
                     {/if}
                   </div>
                 </div>
@@ -406,6 +446,10 @@
     </div>
   {/if}
 </div>
+
+<LineageModal bind:open={showLineageModal} relicId={selectedRelicId} />
+<BookmarkersModal bind:open={showBookmarkersModal} relicId={selectedRelicId} relicName={selectedRelicName} />
+<CommentsSummaryModal bind:open={showCommentsModal} relicId={selectedRelicId} relicName={selectedRelicName} />
 
 <style>
   .animate-fade-in {

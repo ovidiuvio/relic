@@ -28,6 +28,7 @@
   export let isAdmin = false
   export let ansiDecorations = [] // ANSI color decorations
   export let darkMode = true
+  export let lineNumberOffset = 0 // Offset for line numbers in snippets
 
   let container
   let editor
@@ -124,7 +125,7 @@
         guides: { indentation: false },
         scrollBeyondLastLine: false,
         wordWrap: 'on',
-        lineNumbers: 'on',
+        lineNumbers: (num) => (num + lineNumberOffset).toString(),
         fontSize,
         lineHeight: 24,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
@@ -205,6 +206,10 @@
   $: if (editor && (showComments !== undefined)) {
     updateCommentDecorations()
     updateCommentZones()
+  }
+
+  $: if (editor && (lineNumberOffset !== undefined)) {
+    editor.updateOptions({ lineNumbers: (num) => (num + lineNumberOffset).toString() })
   }
 
   $: if (editor && language && showSyntaxHighlighting) {

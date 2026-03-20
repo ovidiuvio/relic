@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 
 from backend.database import get_db
-from backend.models import Relic, ClientBookmark, Comment
+from backend.models import Relic, ClientBookmark, Comment, ClientKey
 from backend.dependencies import get_client_key
 
 router = APIRouter(prefix="/api/v1/bookmarks")
@@ -191,3 +191,29 @@ async def get_client_bookmarks(
             for bookmark, relic in bookmarks
         ]
     }
+
+
+@router.get("/{relic_id}/bookmarkers", response_model=list)
+async def get_relic_bookmarkers(
+    relic_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of clients who bookmarked a specific relic.
+    Returns public_id and names.
+    """
+    bookmarkers = db.query(ClientKey, ClientBookmark).join(
+        ClientBookmark, ClientBookmark.client_id == ClientKey.id
+    ).filter(
+        ClientBookmark.relic_id == relic_id
+    ).all()
+
+    return [
+        {
+            "public_id": c.public_id,
+            "name": c.name or "Anonymous",
+            "bookmarked_at": b.created_at
+        }
+        for c, b in bookmarkers
+    ]
+
