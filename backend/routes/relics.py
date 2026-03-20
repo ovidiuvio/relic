@@ -1,7 +1,7 @@
 """Relic CRUD and content endpoints."""
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 from sqlalchemy import func
 from datetime import datetime
 from typing import Optional, List
@@ -513,7 +513,10 @@ async def get_relic_access(relic_id: str, request: Request, db: Session = Depend
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    relic = db.query(Relic).options(selectinload(Relic.access_list)).filter(Relic.id == relic_id).first()
+    # ⚡ Bolt: Use joinedload to eagerly load the associated clients for each access list entry to prevent N+1 queries
+    relic = db.query(Relic).options(
+        selectinload(Relic.access_list).joinedload(RelicAccess.client)
+    ).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
@@ -522,7 +525,7 @@ async def get_relic_access(relic_id: str, request: Request, db: Session = Depend
 
     result = []
     for entry in relic.access_list:
-        allowed_client = db.query(ClientKey).filter(ClientKey.id == entry.client_id).first()
+        allowed_client = entry.client
         result.append(RelicAccessEntry(
             public_id=allowed_client.public_id if allowed_client else None,
             client_name=allowed_client.name if allowed_client else None,
