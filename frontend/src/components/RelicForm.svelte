@@ -584,6 +584,9 @@
                 <option value="30d">30 Days</option>
                 <option value="1y">1 Year</option>
               </select>
+              <p class="text-xs text-gray-500 mt-1">
+                After expiry, the relic is permanently deleted and its URL stops working.
+              </p>
             </div>
           </div>
 
