@@ -287,39 +287,39 @@
                             {#if tagFilter}
                                 <div class="flex items-center animate-fade-in">
                                     <div class="h-4 w-[1px] bg-gray-300 mx-1"></div>
-                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm ml-1">
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200 shadow-sm ml-1">
                                         <i class="fas fa-tag text-[9px] opacity-70"></i>
                                         <span>{tagFilter}</span>
                                         <button
                                           on:click|stopPropagation={() => dispatch('clear-tag-filter')}
-                                          class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
+                                          class="ml-1 text-fuchsia-900 hover:text-red-700 transition-colors focus:outline-none flex items-center"
                                           title="Clear tag filter"
                                         >
-                                          <i class="fas fa-times-circle text-[10px]"></i>
+                                          <i class="fas fa-times-circle text-xs"></i>
                                         </button>
                                     </div>
                                 </div>
                             {/if}
                             <div class="flex gap-1.5">
                                 {#if space.visibility === 'public'}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-800 border border-green-200">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-green-100 text-green-800 border border-green-200">
                                         <i class="fas fa-globe mr-1.5"></i> Public
                                     </span>
                                 {:else}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-600 border border-gray-200">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-600 border border-gray-200">
                                         <i class="fas fa-lock mr-1.5"></i> Private
                                     </span>
                                 {/if}
                                 {#if space.role === 'owner'}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
                                         <i class="fas fa-crown mr-1.5"></i> Owner
                                     </span>
                                 {:else if space.role === 'admin'}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
                                         <i class="fas fa-shield-alt mr-1.5"></i> Admin
                                     </span>
                                 {:else if space.role === 'editor'}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-purple-100 text-purple-800 border border-purple-200">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-purple-100 text-purple-800 border border-purple-200">
                                         <i class="fas fa-edit mr-1.5"></i> Editor
                                     </span>
                                 {/if}
@@ -559,7 +559,7 @@
                             {/if}
                         </button>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-1">You will become an admin after transfer.</p>
+                    <p class="text-xs text-gray-500 mt-1">You will become an admin after transfer.</p>
                 </div>
 
             <div class="mt-8 flex justify-between items-center">
@@ -676,7 +676,7 @@
                         </h3>
                         <div class="flex items-end gap-3">
                             <div class="flex-1">
-                                <label for="grantClientId" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Public ID</label>
+                                <label for="grantClientId" class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Public ID</label>
                                 <input
                                     id="grantClientId"
                                     type="text"
@@ -686,7 +686,7 @@
                                 />
                             </div>
                             <div class="w-32">
-                                <label for="grantRole" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Role</label>
+                                <label for="grantRole" class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Role</label>
                                 <select id="grantRole" bind:value={newAccessRole} class="maas-input w-full py-[7px] bg-white cursor-pointer">
                                     <option value="viewer">Viewer</option>
                                     <option value="editor">Editor</option>
@@ -732,9 +732,9 @@
                             <table class="min-w-full divide-y divide-gray-100">
                                 <thead class="bg-gray-50/80">
                                     <tr>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">User Details</th>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest w-32">Role</th>
-                                        <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-widest w-24">Actions</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-widest">User Details</th>
+                                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-widest w-32">Role</th>
+                                        <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-widest w-24">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
@@ -747,25 +747,25 @@
                                                     </div>
                                                     <div class="min-w-0">
                                                         <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{access.client_name || 'Anonymous User'}</div>
-                                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{access.public_id || '—'}</div>
+                                                        <div class="text-xs text-gray-400 font-mono mt-0.5 tracking-tight">{access.public_id || '—'}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td class="px-5 py-3.5 whitespace-nowrap">
                                                 {#if access.role === 'owner'}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
                                                         <i class="fas fa-crown mr-1.5 scale-90"></i> Owner
                                                     </span>
                                                 {:else if access.role === 'admin'}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
                                                         <i class="fas fa-shield-alt mr-1.5 scale-90"></i> Admin
                                                     </span>
                                                 {:else if access.role === 'editor'}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-purple-100 text-purple-800 border border-purple-200">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-purple-100 text-purple-800 border border-purple-200">
                                                         <i class="fas fa-edit mr-1.5 scale-90"></i> Editor
                                                     </span>
                                                 {:else}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-600 border border-gray-200">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-600 border border-gray-200">
                                                         <i class="fas fa-eye mr-1.5 scale-90"></i> Viewer
                                                     </span>
                                                 {/if}

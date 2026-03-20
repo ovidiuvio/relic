@@ -224,20 +224,20 @@
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Name / ID</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up text-[9px] transition-all duration-200 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 {sortBy === 'name' ? '!opacity-100 text-blue-600' : ''} {sortOrder === 'desc' && sortBy === 'name' ? 'rotate-180' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-6 py-3 text-left">Role / Visibility</th>
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Relics</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up text-[9px] transition-all duration-200 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 {sortBy === 'relic_count' ? '!opacity-100 text-blue-600' : ''} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'rotate-180' : ''}"></i>
                                 </div>
                             </th>
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-6 py-3 text-left select-none" on:click={() => handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Created</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up text-[9px] transition-all duration-200 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 {sortBy === 'created_at' ? '!opacity-100 text-blue-600' : ''} {sortOrder === 'desc' && sortBy === 'created_at' ? 'rotate-180' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-6 py-3 text-right">Actions</th>
@@ -253,7 +253,7 @@
                                         </div>
                                         <div class="min-w-0">
                                             <div class="font-bold text-gray-900 truncate" title={space.name}>{space.name}</div>
-                                            <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono mt-0.5">
+                                            <div class="flex items-center gap-1 text-xs text-gray-400 font-mono mt-0.5">
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
@@ -268,19 +268,19 @@
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-2">
                                         {#if space.role === 'owner'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
                                                 <i class="fas fa-crown mr-1"></i> Owner
                                             </span>
                                         {:else if space.role === 'editor'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
                                                 <i class="fas fa-edit mr-1"></i> Editor
                                             </span>
                                         {:else if space.role === 'admin'}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-800 border border-red-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-red-100 text-red-800 border border-red-200">
                                                 <i class="fas fa-shield-alt mr-1"></i> Admin
                                             </span>
                                         {:else}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
                                                 <i class="fas fa-eye mr-1"></i> Viewer
                                             </span>
                                         {/if}
@@ -340,27 +340,6 @@
     </div>
 </div>
 
-<style>
-    .sort-arrow {
-        font-size: 9px;
-        transition: all 0.2s ease;
-        opacity: 0;
-        color: #9ca3af;
-    }
-
-    .group:hover .sort-arrow {
-        opacity: 0.5;
-    }
-
-    .sort-arrow.active {
-        opacity: 1 !important;
-        color: #2563eb !important;
-    }
-
-    .sort-arrow.desc {
-        transform: rotate(180deg);
-    }
-</style>
 
 <!-- Create Space Modal -->
 {#if showCreateModal}

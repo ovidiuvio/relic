@@ -91,15 +91,15 @@
       {#if tagFilter}
         <div class="flex items-center animate-fade-in">
           <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
-          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200 shadow-sm">
             <i class="fas fa-tag text-[9px] opacity-70"></i>
             <span>{tagFilter}</span>
             <button
               on:click|stopPropagation={clearTagFilter}
-              class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
+              class="ml-1 text-fuchsia-900 hover:text-red-700 transition-colors focus:outline-none flex items-center"
               title="Clear tag filter" aria-label="Clear tag filter"
             >
-              <i class="fas fa-times-circle text-[10px]"></i>
+              <i class="fas fa-times-circle text-xs"></i>
             </button>
           </div>
         </div>
@@ -121,7 +121,7 @@
   {#if loading}
     <div class="p-8 text-center" role="status" aria-live="polite">
       <div class="inline-block">
-        <i class="fas fa-spinner fa-spin text-[#772953] text-2xl" aria-hidden="true"></i>
+        <i class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl" aria-hidden="true"></i>
       </div>
       <p class="text-sm text-gray-500 mt-2">Loading...</p>
     </div>
@@ -143,20 +143,20 @@
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('title')}>
               <div class="flex items-center gap-1.5">
                 <span>{columnHeaders.title}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'active' : ''} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up text-[9px] transition-all duration-300 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 inline-block {sortBy === 'title' ? '!opacity-100 text-blue-600' : ''} {sortBy === 'title' && sortOrder === 'desc' ? 'rotate-180' : ''}"></i>
               </div>
             </th>
             <th class="px-4 py-3 text-left">Tags</th>
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('date')}>
               <div class="flex items-center gap-1.5">
                 <span>{getDateColumnHeader()}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'active' : ''} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up text-[9px] transition-all duration-300 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 inline-block {sortBy === 'date' ? '!opacity-100 text-blue-600' : ''} {sortBy === 'date' && sortOrder === 'desc' ? 'rotate-180' : ''}"></i>
               </div>
             </th>
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('size')}>
               <div class="flex items-center gap-1.5">
                 <span>{columnHeaders.size}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'active' : ''} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up text-[9px] transition-all duration-300 ease-in-out opacity-0 text-gray-400 group-hover:opacity-50 inline-block {sortBy === 'size' ? '!opacity-100 text-blue-600' : ''} {sortBy === 'size' && sortOrder === 'desc' ? 'rotate-180' : ''}"></i>
               </div>
             </th>
             <th class="px-4 py-3 text-left w-40">{columnHeaders.actions}</th>
@@ -185,7 +185,7 @@
                   </a>
 
                   <!-- Views, Bookmarks, Comments & Forks as small inline badges (Top Row) -->
-                  <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
+                  <div class="flex items-center gap-2 ml-3 text-xs text-gray-400/80 whitespace-nowrap mt-[1px]">
                     {#if relic.access_count}
                       <span class="flex items-center gap-0.5" title="Views">
                         <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
@@ -232,7 +232,7 @@
                     {#each relic.tags as tag}
                       <button
                         on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
-                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
                       >
                         <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
                         {typeof tag === 'string' ? tag : tag.name}
@@ -403,24 +403,4 @@
     }
   }
 
-  .sort-arrow {
-    font-size: 9px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    color: #9ca3af;
-    display: inline-block;
-  }
-
-  .group:hover .sort-arrow {
-    opacity: 0.5;
-  }
-
-  .sort-arrow.active {
-    opacity: 1 !important;
-    color: #2563eb !important;
-  }
-
-  .sort-arrow.desc {
-    transform: rotate(180deg);
-  }
 </style>

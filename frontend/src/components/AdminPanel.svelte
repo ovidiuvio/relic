@@ -342,7 +342,7 @@
 <div class="px-4 sm:px-0">
     {#if loading}
         <div class="p-8 text-center">
-            <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
+            <i class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"></i>
             <p class="text-sm text-gray-500 mt-2">Loading...</p>
         </div>
     {:else if !isAdmin}
@@ -367,7 +367,7 @@
                 class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
-                    <i class="fas fa-archive text-[#772953] text-xl"></i>
+                    <i class="fas fa-archive text-fuchsia-900 text-xl"></i>
                     <div>
                         <p class="text-2xl font-semibold text-gray-900">
                             {stats.total_relics}
@@ -393,7 +393,7 @@
                 class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
-                    <i class="fas fa-database text-[#E95420] text-xl"></i>
+                    <i class="fas fa-database text-orange-600 text-xl"></i>
                     <div>
                         <p class="text-2xl font-semibold text-gray-900">
                             {formatBytes(stats.total_size_bytes)}
@@ -406,7 +406,7 @@
                 class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
             >
                 <div class="flex items-center gap-3">
-                    <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
+                    <i class="fas fa-shield-alt text-fuchsia-900 text-xl"></i>
                     <div>
                         <p class="text-2xl font-semibold text-gray-900">
                             {stats.admin_count}
@@ -427,7 +427,7 @@
                         on:click={() => (activeTab = "relics")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
                         'relics'
-                            ? 'border-[#E95420] text-[#E95420]'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-archive mr-2"></i>Relics
@@ -436,7 +436,7 @@
                         on:click={() => (activeTab = "clients")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
                         'clients'
-                            ? 'border-[#E95420] text-[#E95420]'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-users mr-2"></i>Clients
@@ -445,7 +445,7 @@
                         on:click={() => (activeTab = "reports")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
                         'reports'
-                            ? 'border-[#E95420] text-[#E95420]'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-flag mr-2"></i>Reports
@@ -454,7 +454,7 @@
                         on:click={() => (activeTab = "backups")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
                         'backups'
-                            ? 'border-[#E95420] text-[#E95420]'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-history mr-2"></i>Backups
@@ -463,7 +463,7 @@
                         on:click={() => (activeTab = "config")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
                         'config'
-                            ? 'border-[#E95420] text-[#E95420]'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-cog mr-2"></i>Config
@@ -524,7 +524,7 @@
                 {#if relicsLoading}
                     <div class="p-8 text-center">
                         <i
-                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                            class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"
                         ></i>
                     </div>
                 {:else if filteredRelics.length === 0}
@@ -587,7 +587,7 @@
                                                         "Untitled"}</a
                                                 >
                                                 <!-- Views, Bookmarks, Comments & Forks (Top Row) -->
-                                                <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
+                                                <div class="flex items-center gap-2 ml-3 text-xs text-gray-400/80 whitespace-nowrap mt-[1px]">
                                                     {#if relic.access_count}
                                                         <span class="flex items-center gap-0.5" title="Views">
                                                             <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
@@ -774,7 +774,7 @@
                 {#if reportsLoading}
                     <div class="p-8 text-center">
                         <i
-                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                            class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"
                         ></i>
                     </div>
                 {:else if reports.length === 0}
@@ -922,7 +922,7 @@
                 {#if clientsLoading}
                     <div class="p-8 text-center">
                         <i
-                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                            class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"
                         ></i>
                     </div>
                 {:else if clients.length === 0}
@@ -963,7 +963,7 @@
                                             {#if client.is_admin}
                                                 <span
                                                     class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                                    style="background-color: #f3e5f5; color: #772953;"
+                                                    style="background-color: #f3e5f5; color: #701a75;"
                                                     ><i
                                                         class="fas fa-shield-alt mr-1"
                                                     ></i>admin</span
@@ -1062,7 +1062,7 @@
                     <button
                         on:click={handleBackupNow}
                         disabled={backupInProgress}
-                        class="px-3 py-1.5 text-sm bg-[#E95420] text-white rounded hover:bg-[#c7451a] transition-colors disabled:opacity-50 flex items-center gap-2"
+                        class="px-3 py-1.5 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
                         {#if backupInProgress}
                             <i class="fas fa-spinner fa-spin"></i>Creating...
@@ -1074,7 +1074,7 @@
                 {#if backupsLoading}
                     <div class="p-8 text-center">
                         <i
-                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                            class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"
                         ></i>
                     </div>
                 {:else if backups.length === 0}
@@ -1101,7 +1101,7 @@
                                                 class="flex items-center gap-2"
                                             >
                                                 <i
-                                                    class="fas fa-file-archive text-[#E95420]"
+                                                    class="fas fa-file-archive text-orange-600"
                                                 ></i>
                                                 <span class="font-mono text-sm"
                                                     >{backup.filename}</span
@@ -1186,7 +1186,7 @@
                 {#if configLoading}
                     <div class="p-8 text-center">
                         <i
-                            class="fas fa-spinner fa-spin text-[#772953] text-2xl"
+                            class="fas fa-spinner fa-spin text-fuchsia-900 text-2xl"
                         ></i>
                     </div>
                 {:else if !config}

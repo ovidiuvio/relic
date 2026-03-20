@@ -113,7 +113,7 @@
         aria-label="Copy ID"
       >
         <span>{relicId}</span>
-        <i class="fas fa-copy text-[10px]"></i>
+        <i class="fas fa-copy text-xs"></i>
       </button>
       <span>&bull;</span>
       <span>{new Date(relic.created_at).toLocaleDateString()}</span>

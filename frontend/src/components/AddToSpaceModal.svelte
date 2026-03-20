@@ -151,7 +151,7 @@
                                     
                                     <div class="flex-1 min-w-0">
                                         <div class="font-medium text-sm text-gray-900 truncate">{space.name}</div>
-                                        <div class="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                                        <div class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
                                             <span class="capitalize font-semibold {space.role === 'owner' ? 'text-blue-700' : space.role === 'admin' ? 'text-red-700' : 'text-purple-700'}">{space.role}</span>
                                             <span class="text-gray-300">&bull;</span>
                                             <span class="font-mono">{space.id.substring(0, 8)}</span>

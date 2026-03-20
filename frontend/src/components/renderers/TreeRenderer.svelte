@@ -172,15 +172,15 @@
     </div>
   {:else if parsedValue !== null && parsedValue !== undefined}
     {#if repaired}
-      <div class="flex items-center gap-1.5 px-4 py-1.5 border-b {darkMode ? 'border-amber-900/40 bg-amber-950/30 text-amber-400' : 'border-amber-200 bg-amber-50 text-amber-700'} text-[11px] font-medium">
-        <i class="fas fa-wrench text-[10px]"></i>
+      <div class="flex items-center gap-1.5 px-4 py-1.5 border-b {darkMode ? 'border-amber-900/40 bg-amber-950/30 text-amber-400' : 'border-amber-200 bg-amber-50 text-amber-700'} text-xs font-medium">
+        <i class="fas fa-wrench text-xs"></i>
         auto-repaired — displaying best-effort output; stored relic is unchanged
       </div>
     {/if}
     <!-- Filter input -->
     <div class="border-b {darkMode ? 'border-gray-700' : 'border-gray-200'} px-3 py-1.5">
       <div class="relative">
-        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-[10px] {darkMode ? 'text-gray-500' : 'text-gray-400'}"></i>
+        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-xs {darkMode ? 'text-gray-500' : 'text-gray-400'}"></i>
         <input
           type="text"
           placeholder="Filter keys and values…"
@@ -193,7 +193,7 @@
             on:click={clearFilter}
             class="absolute right-2 top-1/2 -translate-y-1/2 {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
           >
-            <i class="fas fa-times text-[10px]"></i>
+            <i class="fas fa-times text-xs"></i>
           </button>
         {/if}
       </div>

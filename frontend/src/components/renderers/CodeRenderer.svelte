@@ -170,8 +170,8 @@
 
 <div class="border-t border-gray-200">
   {#if beautify && beautifyRepaired}
-    <div class="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-700 font-medium">
-      <i class="fas fa-wrench text-[10px]"></i>
+    <div class="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-700 font-medium">
+      <i class="fas fa-wrench text-xs"></i>
       auto-repaired — displaying best-effort formatted output; stored relic is unchanged
     </div>
   {/if}
@@ -179,7 +179,7 @@
   {#if showLineFilter}
     <div class="border-b {darkMode ? 'border-gray-700' : 'border-gray-200'} px-3 py-1.5">
       <div class="relative">
-        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-[10px] {regexError ? 'text-red-400' : (darkMode ? 'text-gray-500' : 'text-gray-400')}"></i>
+        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-xs {regexError ? 'text-red-400' : (darkMode ? 'text-gray-500' : 'text-gray-400')}"></i>
         <input
           type="text"
           placeholder="Filter lines… (regex)"
@@ -193,17 +193,17 @@
           <button
             on:click={() => filterCase = !filterCase}
             title="Case sensitive"
-            class="px-1 py-0.5 rounded text-[10px] font-mono leading-none transition-colors {filterCase ? 'text-blue-400' : (darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600')}"
+            class="px-1 py-0.5 rounded text-xs font-mono leading-none transition-colors {filterCase ? 'text-blue-400' : (darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600')}"
           >Aa</button>
           <!-- Regex cheatsheet -->
           <button
             on:click={() => showCheatsheet = true}
             title="Regex cheatsheet"
-            class="px-1 py-0.5 rounded text-[10px] font-mono leading-none transition-colors {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
+            class="px-1 py-0.5 rounded text-xs font-mono leading-none transition-colors {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
           >?</button>
           <!-- Match count -->
           {#if matchLine !== null}
-            <span class="text-[11px] {darkMode ? 'text-gray-400' : 'text-gray-500'} whitespace-nowrap pointer-events-none ml-0.5">
+            <span class="text-xs {darkMode ? 'text-gray-400' : 'text-gray-500'} whitespace-nowrap pointer-events-none ml-0.5">
               {filterMatchCount}/{totalLineCount}
             </span>
           {/if}
@@ -213,7 +213,7 @@
               on:click={clearFilter}
               class="{darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} ml-0.5"
             >
-              <i class="fas fa-times text-[10px]"></i>
+              <i class="fas fa-times text-xs"></i>
             </button>
           {/if}
         </div>
@@ -272,7 +272,7 @@
         ><i class="fas fa-times text-xs"></i></button>
       </div>
       <!-- Rows -->
-      <div class="px-4 py-3 space-y-2.5 text-[12px]">
+      <div class="px-4 py-3 space-y-2.5 text-xs">
         {#each [
           ['error|warn',           'match either term'],
           ['error.*warn',          'error followed by warn'],
@@ -284,13 +284,13 @@
           ['(TODO|FIXME)',         'either annotation'],
         ] as [pattern, desc]}
           <div class="flex items-center gap-3">
-            <code class="font-mono text-[11px] w-36 shrink-0 {darkMode ? 'text-blue-300' : 'text-blue-600'}">{pattern}</code>
+            <code class="font-mono text-xs w-36 shrink-0 {darkMode ? 'text-blue-300' : 'text-blue-600'}">{pattern}</code>
             <span class="{darkMode ? 'text-gray-400' : 'text-gray-500'}">{desc}</span>
           </div>
         {/each}
       </div>
       <!-- Footer hint -->
-      <div class="px-4 py-2.5 border-t text-[11px] {darkMode ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-400'}">
+      <div class="px-4 py-2.5 border-t text-xs {darkMode ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-400'}">
         Toggle <span class="font-mono font-medium">Aa</span> for case-sensitive matching
       </div>
     </div>

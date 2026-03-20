@@ -389,7 +389,7 @@
                   <select
                     value={treePageSize}
                     on:change={(e) => (treePageSize = parseInt(e.target.value, 10))}
-                    class="text-[10px] rounded border border-gray-300 pl-1 pr-6 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    class="text-xs rounded border border-gray-300 pl-1 pr-6 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
                     title="Nodes per page"
                   >
                     {#each [25, 50, 100, 250, 500] as size}
@@ -405,7 +405,7 @@
                     darkMode = !darkMode;
                     dispatch('toggle-dark-mode', darkMode);
                   }}
-                  class="p-2 transition-colors rounded {darkMode ? 'bg-purple-100 text-[#772953]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}"
+                  class="p-2 transition-colors rounded {darkMode ? 'bg-purple-100 text-fuchsia-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}"
                   title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'} text-sm"></i>
@@ -416,14 +416,14 @@
                 <div class="flex items-center bg-white border border-gray-300 rounded-md p-0.5 ml-1 mr-1">
                   <button
                     on:click={() => (treeViewMode = 'code')}
-                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+                    class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
                     title="Code view"
                   >
                     Code
                   </button>
                   <button
                     on:click={() => (treeViewMode = 'tree')}
-                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+                    class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
                     title="Explorer tree view"
                   >
                     Explorer
@@ -432,14 +432,14 @@
               {/if}
 
               <button
-                class="p-2 text-[#772953] hover:text-[#5a1f3f] rounded transition-colors"
+                class="p-2 text-fuchsia-900 hover:text-fuchsia-950 rounded transition-colors"
                 on:click={() => openInFullView(selectedFile)}
                 title="Open in full view"
               >
                 <i class="fas fa-expand-alt text-sm"></i>
               </button>
               <button
-                class="p-2 text-[#772953] hover:text-[#5a1f3f] rounded transition-colors"
+                class="p-2 text-fuchsia-900 hover:text-fuchsia-950 rounded transition-colors"
                 on:click={() => downloadFile(selectedFile)}
                 title="Download file"
               >

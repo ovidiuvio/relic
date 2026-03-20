@@ -129,7 +129,7 @@
 <div class="tree-node" style="padding-left: {depth > 0 ? '1.25rem' : '0'}">
   {#if isObject || isArray}
     <div class="group flex items-center gap-1 cursor-pointer rounded px-1 py-0.5 select-none" role="button" tabindex="0" on:click={toggle} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}>
-      <span class="{darkMode ? 'text-gray-500' : 'text-gray-400'} w-3 text-center text-[10px]">{effectiveExpanded ? '▼' : '▶'}</span>
+      <span class="{darkMode ? 'text-gray-500' : 'text-gray-400'} w-3 text-center text-xs">{effectiveExpanded ? '▼' : '▶'}</span>
       {#if key !== undefined}
         <span class="{darkMode ? 'text-gray-200' : 'text-gray-800'} font-medium">{@html highlightMatch(String(key), filter)}</span>
         <span class="{darkMode ? 'text-gray-500' : 'text-gray-400'}">:</span>
@@ -145,21 +145,21 @@
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Copy as JSON"
         >
-          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-[10px]"></i>
+          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-xs"></i>
         </button>
         <button
           on:click|stopPropagation={forkNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Fork node as new relic"
         >
-          <i class="fas fa-code-branch text-[10px]"></i>
+          <i class="fas fa-code-branch text-xs"></i>
         </button>
         <button
           on:click|stopPropagation={downloadNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Download node"
         >
-          <i class="fas fa-download text-[10px]"></i>
+          <i class="fas fa-download text-xs"></i>
         </button>
       </span>
     </div>
@@ -204,21 +204,21 @@
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Copy value"
         >
-          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-[10px]"></i>
+          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-xs"></i>
         </button>
         <button
           on:click|stopPropagation={forkNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Fork node as new relic"
         >
-          <i class="fas fa-code-branch text-[10px]"></i>
+          <i class="fas fa-code-branch text-xs"></i>
         </button>
         <button
           on:click|stopPropagation={downloadNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Download node"
         >
-          <i class="fas fa-download text-[10px]"></i>
+          <i class="fas fa-download text-xs"></i>
         </button>
       </span>
     </div>

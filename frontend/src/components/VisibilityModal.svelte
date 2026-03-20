@@ -205,11 +205,11 @@
                                                 <td class="px-4 py-2.5">
                                                     <div class="flex items-center gap-2.5">
                                                         <div class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 flex-shrink-0">
-                                                            <i class="fas fa-user text-[10px]"></i>
+                                                            <i class="fas fa-user text-xs"></i>
                                                         </div>
                                                         <div>
                                                             <div class="text-sm font-semibold text-gray-900">{entry.client_name || 'Anonymous'}</div>
-                                                            <div class="text-[10px] text-gray-400 font-mono">{entry.public_id || '—'}</div>
+                                                            <div class="text-xs text-gray-400 font-mono">{entry.public_id || '—'}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -222,7 +222,7 @@
                                                         class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ml-auto"
                                                         title="Remove access"
                                                     >
-                                                        <i class="fas fa-trash-alt text-[10px]"></i>
+                                                        <i class="fas fa-trash-alt text-xs"></i>
                                                     </button>
                                                 </td>
                                             </tr>
