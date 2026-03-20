@@ -1,6 +1,7 @@
 """Database session and initialization."""
+from typing import Iterator
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from backend.config import settings
 from backend.models import Base
 
@@ -15,7 +16,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_db():
+def get_db() -> Iterator[Session]:
     """Dependency to get database session."""
     db = SessionLocal()
     try:
