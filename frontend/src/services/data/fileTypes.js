@@ -973,6 +973,14 @@ export const FILE_TYPES = [
     // BINARY & ARCHIVE FORMATS
     // ============================================
     {
+        syntax: 'audio',
+        label: 'Audio',
+        icon: 'fa-file-audio',
+        mime: 'audio/',
+        extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'weba'],
+        category: 'audio'
+    },
+    {
         syntax: 'pdf',
         label: 'PDF',
         icon: 'fa-file-pdf',

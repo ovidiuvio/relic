@@ -9,6 +9,7 @@ import { getFileTypeDefinition, isCodeType } from '../typeUtils.js'
 import { processText, shouldEnableAnsiByDefault } from './textProcessor.js'
 import { processCode, detectLanguage, highlightCode } from './codeProcessor.js'
 import { processImage } from './imageProcessor.js'
+import { processAudio } from './audioProcessor.js'
 import { processHTML } from './htmlProcessor.js'
 import { processCSV } from './csvProcessor.js'
 import { processRelicIndex, isRelicIndex } from './relicIndexProcessor.js'
@@ -26,6 +27,7 @@ export {
   detectLanguage,
   highlightCode,
   processImage,
+  processAudio,
   processHTML,
   processCSV,
   processRelicIndex,
@@ -64,6 +66,8 @@ export async function processContent(content, contentType, languageHint) {
       return processCSV(content)
     case 'image':
       return processImage(content, contentType)
+    case 'audio':
+      return processAudio(content, contentType)
     case 'archive':
       return processArchive(content, contentType)
     case 'excalidraw':

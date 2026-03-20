@@ -32,6 +32,7 @@
   import HtmlRenderer from './renderers/HtmlRenderer.svelte';
   import CodeRenderer from './renderers/CodeRenderer.svelte';
   import ImageRenderer from './renderers/ImageRenderer.svelte';
+  import AudioRenderer from './renderers/AudioRenderer.svelte';
   import CsvRenderer from './renderers/CsvRenderer.svelte';
   import ArchiveRenderer from './renderers/ArchiveRenderer.svelte';
   import ExcalidrawRenderer from './renderers/ExcalidrawRenderer.svelte';
@@ -772,6 +773,8 @@
           {/if}
         {:else if processed.type === "image"}
           <ImageRenderer {processed} relicName={relic.name} />
+        {:else if processed.type === "audio"}
+          <AudioRenderer {processed} />
         {:else if processed.type === "pdf"}
           <div class="border-t border-gray-200">
             <PDFViewer

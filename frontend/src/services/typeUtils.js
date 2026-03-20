@@ -30,6 +30,7 @@ export function getFileTypeDefinition(contentType) {
   // Special cases for generic matches
   if (lowerType.includes('pdf')) return FILE_TYPES.find(t => t.syntax === 'pdf')
   if (lowerType.includes('image')) return FILE_TYPES.find(t => t.syntax === 'image')
+  if (lowerType.includes('audio')) return FILE_TYPES.find(t => t.syntax === 'audio')
   if (lowerType.includes('csv')) return FILE_TYPES.find(t => t.syntax === 'csv')
   if (lowerType.includes('zip') || lowerType.includes('archive') || lowerType.includes('tar') || lowerType.includes('gzip')) return FILE_TYPES.find(t => t.syntax === 'archive')
 
@@ -150,7 +151,7 @@ export function getDefaultItemsPerPage() {
 // Check if content type is binary/non-editable
 export function isBinaryType(contentType) {
   const type = getFileTypeDefinition(contentType)
-  return ['image', 'pdf', 'archive', 'unknown'].includes(type.category)
+  return ['audio', 'image', 'pdf', 'archive', 'unknown'].includes(type.category)
 }
 
 /**
