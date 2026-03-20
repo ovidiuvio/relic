@@ -80,12 +80,12 @@
 
     try {
       await deleteRelic(relic.id)
-      showToast('Relic deleted successfully', 'success')
+      showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
       // Reload the relics list
       await loadMyRelics()
     } catch (error) {
       console.error('Failed to delete relic:', error)
-      showToast('Failed to delete relic', 'error')
+      showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
     }
   }
 
