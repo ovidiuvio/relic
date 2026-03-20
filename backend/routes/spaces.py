@@ -1,7 +1,7 @@
 """Space endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, or_, and_
-from sqlalchemy.orm import Session, selectinload, joinedload
+from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 from typing import Optional, List
 
