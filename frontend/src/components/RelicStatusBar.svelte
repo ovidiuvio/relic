@@ -40,26 +40,26 @@
         class="flex items-center gap-1.5 mr-2 pr-2 border-r border-gray-300"
         title="This file was extracted from an archive. Actions (fork, download) will work on just this file."
       >
-        <i class="fas fa-file-archive text-purple-600 text-[10px] flex-shrink-0"></i>
+        <i class="fas fa-file-archive text-purple-600 text-xs flex-shrink-0"></i>
         <a 
           href="/{archiveContext.archiveId}" 
-          class="text-[11px] font-medium text-purple-700 hover:text-purple-900 transition-colors whitespace-nowrap"
+          class="text-xs font-medium text-purple-700 hover:text-purple-900 transition-colors whitespace-nowrap"
         >
           {archiveContext.archiveName || archiveContext.archiveId}
         </a>
         <i class="fas fa-chevron-right text-gray-400 text-[9px] flex-shrink-0"></i>
-        <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] leading-tight font-mono text-gray-700 bg-purple-50 rounded border border-purple-100 truncate max-w-[240px]">
+        <span class="inline-flex items-center px-1.5 py-0.5 text-xs leading-tight font-mono text-gray-700 bg-purple-50 rounded border border-purple-100 truncate max-w-[240px]">
           {archiveContext.filePath}
         </span>
       </div>
     {/if}
     {#if processed?.type === 'archive'}
       <div class="flex items-center gap-1.5 mr-2 pr-2 border-r border-gray-300">
-        <i class="fas fa-file-archive text-purple-600 text-[10px]"></i>
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-bold uppercase">
+        <i class="fas fa-file-archive text-purple-600 text-xs"></i>
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-bold uppercase">
           {processed.metadata.archiveType}
         </span>
-        <span class="text-[11px] text-gray-500">
+        <span class="text-xs text-gray-500">
           {processed.metadata.totalFiles} files
         </span>
       </div>
@@ -72,7 +72,7 @@
         style="background-color: #fce3eb; color: #76306c;"
         title={relic.can_edit ? 'Change visibility' : 'Private - accessible only via URL'}
       >
-        <i class="fas fa-lock text-[10px]"></i>
+        <i class="fas fa-lock text-xs"></i>
         <span>Private</span>
         {#if relic.can_edit}<i class="fas fa-chevron-down text-[8px] opacity-60 ml-0.5"></i>{/if}
       </svelte:element>
@@ -84,7 +84,7 @@
         style="background-color: #fef3c7; color: #b45309;"
         title={relic.can_edit ? 'Change visibility / manage access' : 'Restricted - allowlist only'}
       >
-        <i class="fas fa-user-lock text-[10px]"></i>
+        <i class="fas fa-user-lock text-xs"></i>
         <span>Restricted</span>
         {#if relic.can_edit}<i class="fas fa-chevron-down text-[8px] opacity-60 ml-0.5"></i>{/if}
       </svelte:element>
@@ -96,7 +96,7 @@
         style="background-color: #e2f2fd; color: #217db1;"
         title={relic.can_edit ? 'Change visibility' : 'Public - discoverable'}
       >
-        <i class="fas fa-globe text-[10px]"></i>
+        <i class="fas fa-globe text-xs"></i>
         <span>Public</span>
         {#if relic.can_edit}<i class="fas fa-chevron-down text-[8px] opacity-60 ml-0.5"></i>{/if}
       </svelte:element>
@@ -111,7 +111,7 @@
     {#if relic.fork_of}
       <div class="flex items-center gap-[1px]">
         <a href="/{relic.fork_of}" class="inline-flex items-center gap-1.5 px-2 py-1 bg-teal-100 text-teal-700 rounded-l text-xs font-medium leading-none hover:bg-teal-200 transition-colors" title="Fork of {relic.fork_of}">
-          <i class="fas fa-code-branch text-[10px]"></i>
+          <i class="fas fa-code-branch text-xs"></i>
           <span class="font-mono">{relic.fork_of.substring(0, 8)}</span>
         </a>
         <button
@@ -119,7 +119,7 @@
           title="View full lineage"
           on:click={() => dispatch('show-lineage')}
         >
-          <i class="fas fa-network-wired text-[10px]"></i>
+          <i class="fas fa-network-wired text-xs"></i>
         </button>
       </div>
     {:else if hasLineage}
@@ -128,18 +128,18 @@
         title="View full lineage"
         on:click={() => dispatch('show-lineage')}
       >
-        <i class="fas fa-network-wired text-[10px]"></i>
+        <i class="fas fa-network-wired text-xs"></i>
       </button>
     {/if}
     {#if relic.password_hash}
       <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium leading-none" title="Password protected">
-        <i class="fas fa-key text-[10px]"></i>
+        <i class="fas fa-key text-xs"></i>
       </span>
     {/if}
     {#if relic.expires_at}
       <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium leading-none" title="Expires {new Date(relic.expires_at).toLocaleDateString()}">
-        <i class="fas fa-clock text-[10px]"></i>
-        <span class="text-[11px]">{new Date(relic.expires_at).toLocaleDateString()}</span>
+        <i class="fas fa-clock text-xs"></i>
+        <span class="text-xs">{new Date(relic.expires_at).toLocaleDateString()}</span>
       </span>
     {/if}
     {#if relic.tags && relic.tags.length > 0}
@@ -150,7 +150,7 @@
             class="flex items-center gap-1.5 px-2 py-1 h-full cursor-pointer focus:outline-none"
             title="Filter by tag: {tag.name}" aria-label="Filter by tag: {tag.name}"
           >
-            <i class="fas fa-tag text-[10px]"></i>
+            <i class="fas fa-tag text-xs"></i>
             <span>{tag.name}</span>
           </button>
           
@@ -160,7 +160,7 @@
               class="px-1.5 h-full border-l border-gray-400/30 hover:bg-red-100 hover:text-red-600 transition-colors focus:outline-none"
               title="Remove tag" aria-label="Remove tag"
             >
-              <i class="fas fa-times text-[10px]"></i>
+              <i class="fas fa-times text-xs"></i>
             </button>
           {/if}
         </div>
@@ -268,7 +268,7 @@
           class="px-2 py-1 rounded text-xs font-medium transition-colors {showComments ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
           title="Toggle comments" aria-label="Toggle comments"
         >
-          <i class="fas fa-comment-alt text-[10px]"></i>
+          <i class="fas fa-comment-alt text-xs"></i>
         </button>
         <!-- Beautify (only for formattable languages) -->
         {#if isFormattable}
@@ -360,7 +360,7 @@
           class="px-2 py-1 rounded text-xs font-medium transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
           title="Reset zoom (0)" aria-label="Reset zoom (0)"
         >
-          <i class="fas fa-undo text-[10px]"></i>
+          <i class="fas fa-undo text-xs"></i>
         </button>
       </div>
     {/if}
@@ -372,14 +372,14 @@
           <div class="flex items-center bg-white border border-gray-300 rounded-md p-0.5 mr-2">
             <button
               on:click={() => dispatch('toggle-diff-view')}
-              class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {diffViewMode === 'unified' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+              class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {diffViewMode === 'unified' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
               title="Unified View" aria-label="Unified View"
             >
               Unified
             </button>
             <button
               on:click={() => dispatch('toggle-diff-view')}
-              class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {diffViewMode === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+              class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {diffViewMode === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
               title="Split View" aria-label="Split View"
             >
               Split
@@ -408,14 +408,14 @@
       <div class="flex items-center bg-white border border-gray-300 rounded-md p-0.5 ml-2">
         <button
           on:click={() => dispatch('toggle-tree-view', 'code')}
-          class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+          class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
           title="Code view" aria-label="Code view"
         >
           Code
         </button>
         <button
           on:click={() => dispatch('toggle-tree-view', 'tree')}
-          class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+          class="px-2 py-0.5 rounded text-xs uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
           title="Explorer tree view" aria-label="Explorer tree view"
         >
           Explorer
