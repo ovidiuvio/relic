@@ -111,22 +111,24 @@
 </script>
 
 {#if open}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" on:click|self={close}>
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col" role="dialog" aria-modal="true">
 
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                        <i class="fas fa-shield-alt text-xl"></i>
+                        <i class="fas fa-shield-alt text-xl" aria-hidden="true"></i>
                     </div>
                     <div>
                         <h2 class="text-lg font-bold text-gray-800 leading-tight">Visibility & Access</h2>
                         <p class="text-xs text-gray-500 font-medium uppercase tracking-wider truncate max-w-xs">{relic.name || relic.id}</p>
                     </div>
                 </div>
-                <button on:click={close} class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
-                    <i class="fas fa-times"></i>
+                <button aria-label="Close modal" on:click={close} class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -137,19 +139,20 @@
                     {#each levels as level}
                         {@const active = selectedLevel === level.value}
                         <button
+                            aria-pressed={active}
                             on:click={() => selectedLevel = level.value}
                             class="w-full flex items-center gap-4 px-4 py-3 rounded-xl border-2 text-left transition-all"
                             style="border-color: {active ? level.borderActive : '#e5e7eb'}; background: {active ? level.bg : 'white'};"
                         >
                             <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background: {level.bg}; color: {level.color};">
-                                <i class="fas {level.icon} text-sm"></i>
+                                <i class="fas {level.icon} text-sm" aria-hidden="true"></i>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="text-sm font-bold" style="color: {active ? level.color : '#374151'};">{level.label}</div>
                                 <div class="text-xs text-gray-500 mt-0.5">{level.description}</div>
                             </div>
                             {#if active}
-                                <i class="fas fa-check-circle flex-shrink-0" style="color: {level.color};"></i>
+                                <i class="fas fa-check-circle flex-shrink-0" style="color: {level.color};" aria-hidden="true"></i>
                             {/if}
                         </button>
                     {/each}
@@ -159,7 +162,7 @@
                 {#if selectedLevel === 'restricted'}
                     <div class="space-y-3 pt-1 border-t border-gray-100">
                         <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-users text-amber-500"></i>
+                            <i class="fas fa-users text-amber-500" aria-hidden="true"></i>
                             Allowed Clients
                         </h3>
 
@@ -178,9 +181,9 @@
                                 class="maas-btn-primary px-4 flex items-center gap-1.5 whitespace-nowrap"
                             >
                                 {#if managingAccess}
-                                    <i class="fas fa-spinner fa-spin text-xs"></i>
+                                    <i class="fas fa-spinner fa-spin text-xs" aria-hidden="true"></i>
                                 {:else}
-                                    <i class="fas fa-user-plus text-xs"></i>
+                                    <i class="fas fa-user-plus text-xs" aria-hidden="true"></i>
                                     <span>Add</span>
                                 {/if}
                             </button>
@@ -189,11 +192,11 @@
                         <!-- List -->
                         {#if loadingAccess}
                             <div class="text-center py-6 text-gray-400 text-sm">
-                                <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+                                <i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Loading...
                             </div>
                         {:else if accessList.length === 0}
                             <div class="text-center py-6 px-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                <i class="fas fa-user-lock text-gray-300 text-2xl mb-2"></i>
+                                <i class="fas fa-user-lock text-gray-300 text-2xl mb-2" aria-hidden="true"></i>
                                 <p class="text-xs text-gray-500">No users added yet. Only you can view this relic.</p>
                             </div>
                         {:else}
@@ -205,7 +208,7 @@
                                                 <td class="px-4 py-2.5">
                                                     <div class="flex items-center gap-2.5">
                                                         <div class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 flex-shrink-0">
-                                                            <i class="fas fa-user text-[10px]"></i>
+                                                            <i class="fas fa-user text-[10px]" aria-hidden="true"></i>
                                                         </div>
                                                         <div>
                                                             <div class="text-sm font-semibold text-gray-900">{entry.client_name || 'Anonymous'}</div>
@@ -218,11 +221,12 @@
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right">
                                                     <button
+                                                        aria-label="Remove access"
                                                         on:click={() => removeAccess(entry.public_id)}
                                                         class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ml-auto"
                                                         title="Remove access"
                                                     >
-                                                        <i class="fas fa-trash-alt text-[10px]"></i>
+                                                        <i class="fas fa-trash-alt text-[10px]" aria-hidden="true"></i>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -245,9 +249,9 @@
                     class="maas-btn-primary px-6 flex items-center gap-2"
                 >
                     {#if saving}
-                        <i class="fas fa-spinner fa-spin text-xs"></i> Saving...
+                        <i class="fas fa-spinner fa-spin text-xs" aria-hidden="true"></i> Saving...
                     {:else}
-                        <i class="fas fa-check text-xs"></i> Save
+                        <i class="fas fa-check text-xs" aria-hidden="true"></i> Save
                     {/if}
                 </button>
             </div>

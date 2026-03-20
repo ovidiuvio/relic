@@ -48,13 +48,18 @@
 </script>
 
 {#if open}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         on:click={handleBackdropClick}
     >
+        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
         <div
             class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300"
             on:click|stopPropagation
+            role="dialog"
+            aria-modal="true"
         >
             <!-- Header -->
             <div
@@ -64,16 +69,17 @@
                     <h2
                         class="text-lg font-semibold text-gray-900 flex items-center"
                     >
-                        <i class="fas fa-flag text-red-600 mr-2"></i>
+                        <i class="fas fa-flag text-red-600 mr-2" aria-hidden="true"></i>
                         Report Relic
                     </h2>
                 </div>
                 <button
                     on:click={closeModal}
                     class="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    aria-label="Close modal"
                     title="Close"
                 >
-                    <i class="fas fa-times"></i>
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -116,7 +122,7 @@
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-sm disabled:opacity-50 flex items-center"
                     >
                         {#if isLoading}
-                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            <i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>
                             Submitting...
                         {:else}
                             Submit Report
