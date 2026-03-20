@@ -30,7 +30,8 @@ def test_create_relic(client):
     data = response.json()
     assert "id" in data
     assert "url" in data
-    assert data["version"] == 1
+    assert "created_at" in data
+    assert "size_bytes" in data
 
 
 @pytest.mark.unit
