@@ -100,6 +100,9 @@
         <option value="30d">30 Days</option>
         <option value="1y">1 Year</option>
       </select>
+      <p class="text-xs text-gray-500 mt-1">
+        After expiry, the fork is permanently deleted and its URL stops working.
+      </p>
     </div>
 
     <div class="sm:col-span-2 lg:col-span-1">
