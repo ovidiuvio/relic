@@ -137,6 +137,19 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                 <tr>
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/lineage</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get relic lineage</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                     >DELETE</td
                   >
                   <td
@@ -145,6 +158,552 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
                     >Delete relic (hard delete)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List users with relic access</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add user to relic access list</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access/:public_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Remove user from relic access list</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/comments</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get relic comments</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/comments</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add a comment to relic</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >PUT</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/comments/:comment_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Update a comment</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/comments/:comment_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Delete a comment</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/reports</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Create a report for a relic</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/client/register</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Register a new client</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/client/relics</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get client relics</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >PUT</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/client/name</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Update client display name</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/bookmarks</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get client bookmarks</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/bookmarks</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add bookmark</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/bookmarks/check/:id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Check if relic is bookmarked</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/bookmarks/:id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Remove bookmark</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List client spaces</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Create a new space</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get space metadata</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >PUT</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Update space metadata</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Delete a space</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/relics</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List relics in a space</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/relics</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add relic to a space</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/relics/:relic_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Remove relic from a space</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get space access list</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add/update user space access</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/access/:access_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Remove user from space access</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/spaces/:space_id/transfer-ownership</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Transfer space ownership</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/check</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Check admin status</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/relics</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List all relics (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/clients</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List all clients (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/clients/:client_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Delete a client (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/stats</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get system stats (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/config</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get system config (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/backups</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List system backups (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/backups</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Create system backup (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/backups/:filename/download</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Download a backup (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/backups/:filename/restore</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Restore from a backup (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/backups/restore-upload</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Restore from uploaded backup (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/reports</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >List all reports (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/admin/reports/:report_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Delete a report (admin)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/health</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Health check</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/version</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get application version</td
                   >
                 </tr>
               </tbody>
