@@ -1,7 +1,7 @@
 """Relic CRUD and content endpoints."""
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, selectinload, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from datetime import datetime
 from typing import Optional, List
@@ -51,6 +51,10 @@ async def create_relic(
             status_code=400,
             detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
         )
+
+    # Validate name length
+    if name and len(name) > 255:
+        raise HTTPException(status_code=422, detail="Name must be 255 characters or fewer")
 
     # Get or create client
     client = get_or_create_client_key(request, db)

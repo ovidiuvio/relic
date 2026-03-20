@@ -12,6 +12,18 @@ def test_health_check(client):
 
 
 @pytest.mark.unit
+def test_create_relic_name_too_long(client):
+    """Returns 422 when name exceeds 255 characters."""
+    response = client.post(
+        "/api/v1/relics",
+        data={"name": "x" * 256},
+        files={"file": ("test.txt", b"Test", "text/plain")}
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Name must be 255 characters or fewer"
+
+
+@pytest.mark.unit
 def test_create_relic(client):
     """Test creating a new relic."""
     content = b"Hello, World!"
