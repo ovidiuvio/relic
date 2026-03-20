@@ -1,6 +1,7 @@
 <script>
   import { getContext } from 'svelte'
   import { showToast } from '../../stores/toastStore'
+  import { triggerDownload } from '../../services/utils/download'
 
   export let key = undefined
   export let value
@@ -83,13 +84,8 @@
       ? (value === null ? 'null' : String(value))
       : JSON.stringify(value, null, 2)
     const name = (key !== undefined ? String(key) : 'node') + (isLeaf ? '.txt' : '.json')
-    const blob = new Blob([json], { type: isLeaf ? 'text/plain' : 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    a.click()
-    URL.revokeObjectURL(url)
+
+    triggerDownload(json, name, isLeaf ? 'text/plain' : 'application/json')
   }
 
   // --- Highlight helpers ---

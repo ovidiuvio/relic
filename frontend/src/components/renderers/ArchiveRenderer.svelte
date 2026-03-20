@@ -12,6 +12,7 @@
   import TreeRenderer from './TreeRenderer.svelte';
   import { createEventDispatcher } from 'svelte';
   import { getFileTypeDefinition, getSyntaxFromExtension } from '../../services/typeUtils.js';
+  import { triggerDownload } from '../../services/utils/download';
 
   export let processed
   export let relicId
@@ -173,13 +174,7 @@
   async function downloadFile(file) {
     try {
       const content = await processed.extractFile(file.path)
-      const blob = new Blob([content], { type: file.contentType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = file.name
-      a.click()
-      URL.revokeObjectURL(url)
+      triggerDownload(content, file.name, file.contentType)
     } catch (err) {
       console.error('Error downloading file:', err)
       alert('Failed to download file: ' + err.message)
