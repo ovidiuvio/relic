@@ -63,6 +63,8 @@ type RelicMetadata struct {
 	CreatedAt    RelicTime  `json:"created_at"`
 	ExpiresAt    *RelicTime `json:"expires_at,omitempty"`
 	AccessCount  int        `json:"access_count"`
+	BookmarkCount int       `json:"bookmark_count"`
+	CanEdit      bool       `json:"can_edit"`
 	Tags         []Tag      `json:"tags,omitempty"`
 }
 

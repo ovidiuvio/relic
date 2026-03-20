@@ -209,6 +209,11 @@ var fileTypes = []FileType{
 	{Syntax: "archive", Label: "Archive", MIME: "application/zip", Extensions: []string{"zip", "tar", "gz", "bz2", "xz", "7z", "rar", "tgz", "tbz2", "txz"}, Category: "archive"},
 
 	// ============================================
+	// DRAWING & DIAGRAM TOOLS
+	// ============================================
+	{Syntax: "excalidraw", Label: "Excalidraw", MIME: "application/vnd.excalidraw+json", Extensions: []string{"excalidraw", "excalidraw.json"}, Category: "excalidraw"},
+
+	// ============================================
 	// PLAIN TEXT (FALLBACK)
 	// ============================================
 	{Syntax: "text", Label: "Text", MIME: "text/plain", Extensions: []string{"txt", "text", "log"}, Category: "text"},
