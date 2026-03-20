@@ -77,6 +77,22 @@
     }
     dispatch('sort', { sortBy, sortOrder })
   }
+
+  // Calculate averages for "above average" highlighting
+  $: avgStats = data.length > 0 ? {
+    views: data.reduce((sum, r) => sum + (r.access_count || 0), 0) / data.length,
+    bookmarks: data.reduce((sum, r) => sum + (r.bookmark_count || 0), 0) / data.length,
+    comments: data.reduce((sum, r) => sum + (r.comments_count || 0), 0) / data.length,
+    forks: data.reduce((sum, r) => sum + (r.forks_count || 0), 0) / data.length
+  } : { views: 0, bookmarks: 0, comments: 0, forks: 0 };
+
+  // Determine if a value is "way above average" (e.g., 2x average and above a minimum floor)
+  function isAboveAverage(value, type) {
+    if (!value || value <= 0) return false;
+    const avg = avgStats[type];
+    const floors = { views: 10, bookmarks: 3, comments: 2, forks: 2 };
+    return value > Math.max(avg * 2, floors[type]);
+  }
 </script>
 
 <div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200'}">
@@ -185,29 +201,33 @@
                   </a>
 
                   <!-- Views, Bookmarks, Comments & Forks as small inline badges (Top Row) -->
-                  <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
+                  <div class="flex items-center gap-2.5 ml-4 text-[10.5px] text-gray-400/60 whitespace-nowrap mt-[1px]">
                     {#if relic.access_count}
-                      <span class="flex items-center gap-0.5" title="Views">
-                        <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
-                        <span>{relic.access_count}</span>
+                      {@const highlight = isAboveAverage(relic.access_count, 'views')}
+                      <span class="flex items-center gap-0.5 {highlight ? 'text-blue-600/90' : ''}" title="Views">
+                        <i class="fas fa-eye text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
+                        <span class="{highlight ? 'font-semibold' : ''}">{relic.access_count}</span>
                       </span>
                     {/if}
                     {#if relic.bookmark_count}
-                      <span class="flex items-center gap-0.5" title="Bookmarks">
-                        <i class="fas fa-bookmark text-[9px] translate-y-[0.5px]"></i>
-                        <span>{relic.bookmark_count}</span>
+                      {@const highlight = isAboveAverage(relic.bookmark_count, 'bookmarks')}
+                      <span class="flex items-center gap-0.5 {highlight ? 'text-amber-600/90' : ''}" title="Bookmarks">
+                        <i class="fas fa-bookmark text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
+                        <span class="{highlight ? 'font-semibold' : ''}">{relic.bookmark_count}</span>
                       </span>
                     {/if}
                     {#if relic.comments_count}
-                      <span class="flex items-center gap-0.5" title="Comments">
-                        <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px]"></i>
-                        <span>{relic.comments_count}</span>
+                      {@const highlight = isAboveAverage(relic.comments_count, 'comments')}
+                      <span class="flex items-center gap-0.5 {highlight ? 'text-green-600/90' : ''}" title="Comments">
+                        <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
+                        <span class="{highlight ? 'font-semibold' : ''}">{relic.comments_count}</span>
                       </span>
                     {/if}
                     {#if relic.forks_count}
-                      <span class="flex items-center gap-0.5" title="Forks">
-                        <i class="fas fa-code-branch text-[9px] translate-y-[0.5px]"></i>
-                        <span>{relic.forks_count}</span>
+                      {@const highlight = isAboveAverage(relic.forks_count, 'forks')}
+                      <span class="flex items-center gap-0.5 {highlight ? 'text-indigo-600/90' : ''}" title="Forks">
+                        <i class="fas fa-code-branch text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
+                        <span class="{highlight ? 'font-semibold' : ''}">{relic.forks_count}</span>
                       </span>
                     {/if}
                   </div>
