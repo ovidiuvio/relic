@@ -16,6 +16,9 @@
   let sortBy = 'date'
   let sortOrder = 'desc'
 
+  let showConfirm = false
+  let bookmarkToRemove = null
+
   // Use shared filter utility
   $: filteredBookmarks = filterRelics(bookmarks, searchTerm, getTypeLabel)
   // Apply tag filter if present
@@ -44,19 +47,25 @@
     }
   }
 
-  async function handleRemoveBookmark(bookmark) {
-    if (!confirm(`Remove bookmark for "${bookmark.name || 'Untitled'}"?`)) {
-      return
-    }
+  function handleRemoveBookmark(bookmark) {
+    bookmarkToRemove = bookmark
+    showConfirm = true
+  }
 
+  async function executeRemoveBookmark() {
+    if (!bookmarkToRemove) return
+
+    showConfirm = false
     try {
-      await removeBookmark(bookmark.id)
+      await removeBookmark(bookmarkToRemove.id)
       showToast('Bookmark removed', 'success')
       // Reload the bookmarks list
       await loadBookmarks()
     } catch (error) {
       console.error('Failed to remove bookmark:', error)
       showToast('Failed to remove bookmark', 'error')
+    } finally {
+      bookmarkToRemove = null
     }
   }
 
@@ -106,3 +115,15 @@
     {goToPage}
   />
 </div>
+
+{#if showConfirm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+      <p class="text-sm text-gray-700 mb-6">Remove bookmark for "{bookmarkToRemove?.name || 'Untitled'}"?</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => { showConfirm = false; bookmarkToRemove = null; }}>Cancel</button>
+        <button class="maas-btn-primary" on:click={executeRemoveBookmark}>Remove</button>
+      </div>
+    </div>
+  </div>
+{/if}
