@@ -26,6 +26,12 @@
   let droppedFiles = []
   let isDraggingOver = false
 
+  // Confirm modal state
+  let showConfirm = false
+  let confirmTitle = ''
+  let confirmMessage = ''
+  let confirmAction = null
+
   // Use the shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter)
 
@@ -75,20 +81,22 @@
     handleEditModalClose()
   }
 
-  async function handleDeleteRelic(relic) {
-    if (!confirm(`Are you sure you want to delete "${relic.name || 'Untitled'}"? This action cannot be undone.`)) {
-      return
+  function handleDeleteRelic(relic) {
+    confirmTitle = 'Delete Relic'
+    confirmMessage = `Are you sure you want to delete "${relic.name || 'Untitled'}"? This action cannot be undone.`
+    confirmAction = async () => {
+      showConfirm = false
+      try {
+        await deleteRelic(relic.id)
+        showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
+        // Reload the relics list
+        await loadMyRelics()
+      } catch (error) {
+        console.error('Failed to delete relic:', error)
+        showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
+      }
     }
-
-    try {
-      await deleteRelic(relic.id)
-      showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
-      // Reload the relics list
-      await loadMyRelics()
-    } catch (error) {
-      console.error('Failed to delete relic:', error)
-      showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
-    }
+    showConfirm = true
   }
 
   function handleDragOver(e) {
@@ -189,4 +197,17 @@
         on:close={() => showDropModal = false}
         on:success={handleUploadSuccess}
     />
+{/if}
+
+{#if showConfirm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
+      <p class="text-sm text-gray-600 mb-6">{confirmMessage}</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
+        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
+      </div>
+    </div>
+  </div>
 {/if}

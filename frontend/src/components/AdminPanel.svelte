@@ -94,6 +94,14 @@
     // Selected client for viewing their relics
     let selectedClient = null;
 
+    // Confirm modal state
+    let showConfirm = false;
+    let confirmTitle = '';
+    let confirmMessage = '';
+    let confirmAction = null;
+    let showDeleteRelicsConfirm = false;
+    let confirmClientToDelete = null;
+
     // Filter relics by search term
     $: filteredRelics = relics.filter((r) => {
         if (!searchTerm) return true;
@@ -309,43 +317,41 @@
         }
     }
 
-    async function handleDeleteRelic(relic) {
-        if (
-            !confirm(
-                `Delete "${relic.name || relic.id}"?\n\nThis cannot be undone.`,
-            )
-        )
-            return;
-        try {
-            await deleteRelic(relic.id);
-            showToast("Relic deleted", "success");
-            await loadRelics();
-            await loadStats();
-        } catch (error) {
-            console.error("Failed to delete relic:", error);
-            showToast("Failed to delete relic", "error");
-        }
+    function handleDeleteRelic(relic) {
+        confirmTitle = 'Delete Relic';
+        confirmMessage = `Delete "${relic.name || relic.id}"?\n\nThis cannot be undone.`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await deleteRelic(relic.id);
+                showToast("Relic deleted", "success");
+                await loadRelics();
+                await loadStats();
+            } catch (error) {
+                console.error("Failed to delete relic:", error);
+                showToast("Failed to delete relic", "error");
+            }
+        };
+        showConfirm = true;
     }
 
-    async function handleDeleteClient(client) {
-        // First confirm they want to delete
-        if (
-            !confirm(
-                `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`,
-            )
-        ) {
-            return;
-        }
+    function handleDeleteClient(client) {
+        confirmTitle = 'Delete Client';
+        confirmMessage = `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`;
+        confirmClientToDelete = client;
+        confirmAction = () => {
+            showConfirm = false;
+            showDeleteRelicsConfirm = true;
+        };
+        showConfirm = true;
+    }
 
-        // Ask what to do with relics
-        const deleteRelicsChoice = confirm(
-            `Also delete their ${client.relic_count} relic(s)?\n\n` +
-                `OK = Delete relics too\n` +
-                `Cancel = Keep relics (become anonymous)`,
-        );
+    async function performDeleteClient(deleteRelicsChoice) {
+        showDeleteRelicsConfirm = false;
+        if (!confirmClientToDelete) return;
 
         try {
-            await deleteClient(client.id, deleteRelicsChoice);
+            await deleteClient(confirmClientToDelete.id, deleteRelicsChoice);
             showToast("Client deleted", "success");
             await loadClients();
             await loadStats();
@@ -355,19 +361,26 @@
                 error.response?.data?.detail || "Failed to delete client",
                 "error",
             );
+        } finally {
+            confirmClientToDelete = null;
         }
     }
 
-    async function handleDismissReport(report) {
-        if (!confirm("Dismiss this report?")) return;
-        try {
-            await deleteReport(report.id);
-            showToast("Report dismissed", "success");
-            await loadReports();
-        } catch (error) {
-            console.error("Failed to dismiss report:", error);
-            showToast("Failed to dismiss report", "error");
-        }
+    function handleDismissReport(report) {
+        confirmTitle = 'Dismiss Report';
+        confirmMessage = 'Dismiss this report?';
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await deleteReport(report.id);
+                showToast("Report dismissed", "success");
+                await loadReports();
+            } catch (error) {
+                console.error("Failed to dismiss report:", error);
+                showToast("Failed to dismiss report", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     function navigateToRelic(relicId) {
@@ -1471,6 +1484,32 @@
         </div>
     {/if}
 </div>
+
+{#if showConfirm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
+      <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">{confirmMessage}</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
+        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showDeleteRelicsConfirm && confirmClientToDelete}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-2">Delete Relics Too?</h3>
+      <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">Also delete their {confirmClientToDelete.relic_count} relic(s)?</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => performDeleteClient(false)}>Keep relics (become anonymous)</button>
+        <button class="maas-btn-primary" on:click={() => performDeleteClient(true)}>Delete relics too</button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 {#if restoreModalOpen && restoreTarget}
     <!-- svelte-ignore a11y-click-events-have-key-events -->

@@ -50,6 +50,12 @@
     let droppedFiles = [];
     let isDraggingOver = false;
 
+    // Confirm modal state
+    let showConfirm = false;
+    let confirmTitle = '';
+    let confirmMessage = '';
+    let confirmAction = null;
+
     $: canEdit = space?.role === 'owner' || space?.role === 'editor' || space?.role === 'admin';
     $: isOwner = space?.role === 'owner' || space?.role === 'admin';
 
@@ -142,41 +148,47 @@
         }
     }
 
-    async function transferOwnership() {
+    function transferOwnership() {
         if (!transferPublicId.trim()) {
             showToast("Public ID is required", "error");
             return;
         }
-        if (!confirm(`Transfer ownership of "${space.name}" to user ${transferPublicId.trim()}? You will become an admin.`)) return;
-
-        transferring = true;
-        try {
-            space = await spacesApi.transferOwnership(spaceId, transferPublicId.trim());
-            transferPublicId = '';
-            showEditModal = false;
-            showToast("Ownership transferred successfully", "success");
-        } catch (error) {
-            showToast(error.response?.data?.detail || "Failed to transfer ownership", "error");
-        } finally {
-            transferring = false;
-        }
+        confirmTitle = 'Transfer Ownership';
+        confirmMessage = `Transfer ownership of "${space.name}" to user ${transferPublicId.trim()}? You will become an admin.`;
+        confirmAction = async () => {
+            showConfirm = false;
+            transferring = true;
+            try {
+                space = await spacesApi.transferOwnership(spaceId, transferPublicId.trim());
+                transferPublicId = '';
+                showEditModal = false;
+                showToast("Ownership transferred successfully", "success");
+            } catch (error) {
+                showToast(error.response?.data?.detail || "Failed to transfer ownership", "error");
+            } finally {
+                transferring = false;
+            }
+        };
+        showConfirm = true;
     }
 
-    async function deleteSpace() {
-        if (!confirm("Are you sure you want to delete this space? This will not delete the relics inside it.")) {
-            return;
-        }
-
-        updating = true;
-        try {
-            await spacesApi.delete(spaceId);
-            showToast("Space deleted successfully", "success");
-            dispatch('navigate', { path: 'spaces' });
-        } catch (error) {
-            console.error("Failed to delete space:", error);
-            showToast("Failed to delete space", "error");
-            updating = false;
-        }
+    function deleteSpace() {
+        confirmTitle = 'Delete Space';
+        confirmMessage = "Are you sure you want to delete this space? This will not delete the relics inside it.";
+        confirmAction = async () => {
+            showConfirm = false;
+            updating = true;
+            try {
+                await spacesApi.delete(spaceId);
+                showToast("Space deleted successfully", "success");
+                dispatch('navigate', { path: 'spaces' });
+            } catch (error) {
+                console.error("Failed to delete space:", error);
+                showToast("Failed to delete space", "error");
+                updating = false;
+            }
+        };
+        showConfirm = true;
     }
 
     async function addRelicToSpace() {
@@ -203,21 +215,25 @@
         }
     }
 
-    async function removeRelic(relic) {
-        if (!confirm("Remove this relic from the space?")) return;
+    function removeRelic(relic) {
+        confirmTitle = 'Remove Relic';
+        confirmMessage = "Remove this relic from the space?";
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                const relicId = relic.id || relic;
+                await spacesApi.removeRelic(spaceId, relicId);
+                relics = relics.filter(r => r.id !== relicId);
+                showToast("Relic removed", "success");
 
-        try {
-            const relicId = relic.id || relic;
-            await spacesApi.removeRelic(spaceId, relicId);
-            relics = relics.filter(r => r.id !== relicId);
-            showToast("Relic removed", "success");
-
-            // Update space count
-            space = { ...space, relic_count: Math.max(0, space.relic_count - 1) };
-        } catch (error) {
-            console.error("Failed to remove relic:", error);
-            showToast("Failed to remove relic", "error");
-        }
+                // Update space count
+                space = { ...space, relic_count: Math.max(0, space.relic_count - 1) };
+            } catch (error) {
+                console.error("Failed to remove relic:", error);
+                showToast("Failed to remove relic", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     async function addAccess() {
@@ -251,17 +267,21 @@
         }
     }
 
-    async function removeAccess(accessId) {
-        if (!confirm("Remove this user's access?")) return;
-
-        try {
-            await spacesApi.removeAccess(spaceId, accessId);
-            accessList = accessList.filter(a => a.id !== accessId);
-            showToast("Access removed", "success");
-        } catch (error) {
-            console.error("Failed to remove access:", error);
-            showToast("Failed to remove access", "error");
-        }
+    function removeAccess(accessId) {
+        confirmTitle = 'Remove Access';
+        confirmMessage = "Remove this user's access?";
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await spacesApi.removeAccess(spaceId, accessId);
+                accessList = accessList.filter(a => a.id !== accessId);
+                showToast("Access removed", "success");
+            } catch (error) {
+                console.error("Failed to remove access:", error);
+                showToast("Failed to remove access", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     function handleTagClick(event) {
@@ -571,6 +591,19 @@
         on:close={() => showDropModal = false}
         on:success={handleUploadSuccess}
     />
+{/if}
+
+{#if showConfirm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-[200] flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
+      <p class="text-sm text-gray-600 mb-6">{confirmMessage}</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
+        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <!-- Edit Space Modal -->

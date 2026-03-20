@@ -26,6 +26,12 @@
     let dropTargetSpace = null;
     let dragOverSpaceId = null;
 
+    // Confirm modal state
+    let showConfirm = false;
+    let confirmTitle = '';
+    let confirmMessage = '';
+    let confirmAction = null;
+
     $: filteredSpaces = spaces.filter(space => {
         // Apply category filter
         let matchesFilter = true;
@@ -94,17 +100,21 @@
         }
     }
 
-    async function deleteSpace(space) {
-        if (!confirm(`Are you sure you want to delete space "${space.name}"?`)) return;
-        
-        try {
-            await spacesApi.delete(space.id);
-            spaces = spaces.filter(s => s.id !== space.id);
-            showToast("Space deleted", "success");
-        } catch (error) {
-            console.error("Failed to delete space:", error);
-            showToast("Failed to delete space", "error");
-        }
+    function deleteSpace(space) {
+        confirmTitle = 'Delete Space';
+        confirmMessage = `Are you sure you want to delete space "${space.name}"?`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await spacesApi.delete(space.id);
+                spaces = spaces.filter(s => s.id !== space.id);
+                showToast("Space deleted", "success");
+            } catch (error) {
+                console.error("Failed to delete space:", error);
+                showToast("Failed to delete space", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     function openSpace(spaceId) {
@@ -396,6 +406,19 @@
         on:close={() => showDropModal = false}
         on:success={handleUploadSuccess}
     />
+{/if}
+
+{#if showConfirm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
+      <p class="text-sm text-gray-600 mb-6">{confirmMessage}</p>
+      <div class="flex justify-end gap-3">
+        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
+        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <style>
