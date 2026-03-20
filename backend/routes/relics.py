@@ -443,7 +443,7 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
         await storage_service.delete(relic.s3_key)
     except Exception as e:
         # Log error but don't fail the delete operation
-        print(f"Failed to delete file from S3: {e}")
+        logger.error(f"Failed to delete file from S3 for relic {relic_id}: {e}", exc_info=True)
 
     # Hard delete in database
     db.delete(relic)
@@ -455,6 +455,8 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
             owner.relic_count -= 1
 
     db.commit()
+
+    logger.info(f"Relic {relic_id} deleted successfully by {'owner' if client and client.id == relic.client_id else 'admin'}")
 
     return {"message": "Relic deleted successfully"}
 
