@@ -43,7 +43,6 @@ var (
 	// List flags
 	limit       int
 	offset      int
-	filterLevel string
 
 	// Delete flags
 	skipConfirm bool
@@ -201,7 +200,7 @@ func listCmd() *cobra.Command {
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
-			list, err := apiClient.ListClientRelics(limit, offset, filterLevel)
+			list, err := apiClient.ListClientRelics(limit, offset, accessLevel)
 			if err != nil {
 				return err
 			}
@@ -212,7 +211,7 @@ func listCmd() *cobra.Command {
 
 	cmd.Flags().IntVar(&limit, "limit", 20, "limit results")
 	cmd.Flags().IntVar(&offset, "offset", 0, "pagination offset")
-	cmd.Flags().StringVar(&filterLevel, "access-level", "", "filter by access level")
+	cmd.Flags().StringVar(&accessLevel, "access-level", "", "filter by access level")
 
 	return cmd
 }
