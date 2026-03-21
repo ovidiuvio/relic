@@ -1,0 +1,12 @@
+INFO:     Started server process [4017]
+INFO:     Waiting for application startup.
+Running database migrations...
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 7df3a938dd0d -> a39d38011b9d, introduce spaces tables
+Alembic Skip: Table 'space' already exists
+Alembic Skip: Table 'space_access' already exists
+Alembic Skip: Table 'space_relics' already exists
+Error applying migrations: (sqlite3.OperationalError) near "ALTER": syntax error
+[SQL: ALTER TABLE relic ALTER COLUMN bookmark_count DROP NOT NULL]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
