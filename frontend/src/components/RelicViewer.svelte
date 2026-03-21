@@ -20,6 +20,7 @@
   import { showToast } from '../stores/toastStore';
   import { downloadRelic, fastForkArchiveFile } from '../services/relicActions';
   import ForkModal from './ForkModal.svelte';
+  import ConfirmModal from './ConfirmModal.svelte';
   import PDFViewer from './PDFViewer.svelte';
   import { createEventDispatcher } from 'svelte';
   import { getCurrentLineNumberFragment } from '../utils/lineNumbers';
@@ -65,6 +66,7 @@
   let pdfState = { currentPage: 1, numPages: 0, scale: 1.5, loading: false };
   let isAdmin = false;
   let deleteLoading = false;
+  let showDeleteConfirm = false;
   let comments = [];
 
   // Update PDF state periodically
@@ -496,15 +498,12 @@
     }
   }
 
-  async function handleDelete() {
-    if (
-      !confirm(
-        `Delete relic "${relic.name || relicId}"?\n\nThis action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+  function handleDelete() {
+    showDeleteConfirm = true;
+  }
 
+  async function performDelete() {
+    showDeleteConfirm = false;
     deleteLoading = true;
     try {
       await deleteRelic(relicId);
@@ -895,6 +894,14 @@
 {#if relic}
   <LineageModal bind:open={showLineageModal} {relicId} />
 {/if}
+
+<ConfirmModal
+  show={showDeleteConfirm}
+  title="Delete Relic"
+  message={`Delete relic "${relic?.name || relicId}"?\n\nThis action cannot be undone.`}
+  on:confirm={performDelete}
+  on:cancel={() => showDeleteConfirm = false}
+/>
 
 <style>
   /* Removed Monaco overrides to allow component styling to take precedence */

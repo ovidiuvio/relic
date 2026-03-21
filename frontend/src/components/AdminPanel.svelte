@@ -1,6 +1,7 @@
 <script>
     import { onMount } from "svelte";
     import { showToast } from "../stores/toastStore";
+    import ConfirmModal from "./ConfirmModal.svelte";
     import {
         checkAdminStatus,
         getAdminStats,
@@ -93,6 +94,14 @@
 
     // Selected client for viewing their relics
     let selectedClient = null;
+
+    // Confirm modal state
+    let showConfirm = false;
+    let confirmTitle = '';
+    let confirmMessage = '';
+    let confirmAction = null;
+    let showDeleteRelicsConfirm = false;
+    let confirmClientToDelete = null;
 
     // Filter relics by search term
     $: filteredRelics = relics.filter((r) => {
@@ -309,43 +318,41 @@
         }
     }
 
-    async function handleDeleteRelic(relic) {
-        if (
-            !confirm(
-                `Delete "${relic.name || relic.id}"?\n\nThis cannot be undone.`,
-            )
-        )
-            return;
-        try {
-            await deleteRelic(relic.id);
-            showToast("Relic deleted", "success");
-            await loadRelics();
-            await loadStats();
-        } catch (error) {
-            console.error("Failed to delete relic:", error);
-            showToast("Failed to delete relic", "error");
-        }
+    function handleDeleteRelic(relic) {
+        confirmTitle = 'Delete Relic';
+        confirmMessage = `Delete "${relic.name || relic.id}"?\n\nThis cannot be undone.`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await deleteRelic(relic.id);
+                showToast("Relic deleted", "success");
+                await loadRelics();
+                await loadStats();
+            } catch (error) {
+                console.error("Failed to delete relic:", error);
+                showToast("Failed to delete relic", "error");
+            }
+        };
+        showConfirm = true;
     }
 
-    async function handleDeleteClient(client) {
-        // First confirm they want to delete
-        if (
-            !confirm(
-                `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`,
-            )
-        ) {
-            return;
-        }
+    function handleDeleteClient(client) {
+        confirmTitle = 'Delete Client';
+        confirmMessage = `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`;
+        confirmClientToDelete = client;
+        confirmAction = () => {
+            showConfirm = false;
+            showDeleteRelicsConfirm = true;
+        };
+        showConfirm = true;
+    }
 
-        // Ask what to do with relics
-        const deleteRelicsChoice = confirm(
-            `Also delete their ${client.relic_count} relic(s)?\n\n` +
-                `OK = Delete relics too\n` +
-                `Cancel = Keep relics (become anonymous)`,
-        );
+    async function performDeleteClient(deleteRelicsChoice) {
+        showDeleteRelicsConfirm = false;
+        if (!confirmClientToDelete) return;
 
         try {
-            await deleteClient(client.id, deleteRelicsChoice);
+            await deleteClient(confirmClientToDelete.id, deleteRelicsChoice);
             showToast("Client deleted", "success");
             await loadClients();
             await loadStats();
@@ -355,19 +362,26 @@
                 error.response?.data?.detail || "Failed to delete client",
                 "error",
             );
+        } finally {
+            confirmClientToDelete = null;
         }
     }
 
-    async function handleDismissReport(report) {
-        if (!confirm("Dismiss this report?")) return;
-        try {
-            await deleteReport(report.id);
-            showToast("Report dismissed", "success");
-            await loadReports();
-        } catch (error) {
-            console.error("Failed to dismiss report:", error);
-            showToast("Failed to dismiss report", "error");
-        }
+    function handleDismissReport(report) {
+        confirmTitle = 'Dismiss Report';
+        confirmMessage = 'Dismiss this report?';
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await deleteReport(report.id);
+                showToast("Report dismissed", "success");
+                await loadReports();
+            } catch (error) {
+                console.error("Failed to dismiss report:", error);
+                showToast("Failed to dismiss report", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     function navigateToRelic(relicId) {
@@ -1471,6 +1485,24 @@
         </div>
     {/if}
 </div>
+
+<ConfirmModal
+  show={showConfirm}
+  title={confirmTitle}
+  message={confirmMessage}
+  on:confirm={confirmAction}
+  on:cancel={() => showConfirm = false}
+/>
+
+<ConfirmModal
+  show={showDeleteRelicsConfirm && !!confirmClientToDelete}
+  title="Delete Relics Too?"
+  message="Also delete their {confirmClientToDelete?.relic_count} relic(s)?"
+  confirmLabel="Delete relics too"
+  cancelLabel="Keep relics (become anonymous)"
+  on:confirm={() => performDeleteClient(true)}
+  on:cancel={() => performDeleteClient(false)}
+/>
 
 {#if restoreModalOpen && restoreTarget}
     <!-- svelte-ignore a11y-click-events-have-key-events -->

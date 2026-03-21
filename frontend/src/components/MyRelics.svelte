@@ -6,7 +6,8 @@
   import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
-  import RelicDropModal from './RelicDropModal.svelte';
+  import RelicDropModal from './RelicDropModal.svelte'
+  import ConfirmModal from './ConfirmModal.svelte';
   import { getFilesFromDrop } from '../services/utils/fileProcessing';
 
   export let tagFilter = null
@@ -25,6 +26,12 @@
   let showDropModal = false
   let droppedFiles = []
   let isDraggingOver = false
+
+  // Confirm modal state
+  let showConfirm = false
+  let confirmTitle = ''
+  let confirmMessage = ''
+  let confirmAction = null
 
   // Use the shared filter utility
   $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter)
@@ -75,20 +82,22 @@
     handleEditModalClose()
   }
 
-  async function handleDeleteRelic(relic) {
-    if (!confirm(`Are you sure you want to delete "${relic.name || 'Untitled'}"? This action cannot be undone.`)) {
-      return
+  function handleDeleteRelic(relic) {
+    confirmTitle = 'Delete Relic'
+    confirmMessage = `Are you sure you want to delete "${relic.name || 'Untitled'}"? This action cannot be undone.`
+    confirmAction = async () => {
+      showConfirm = false
+      try {
+        await deleteRelic(relic.id)
+        showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
+        // Reload the relics list
+        await loadMyRelics()
+      } catch (error) {
+        console.error('Failed to delete relic:', error)
+        showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
+      }
     }
-
-    try {
-      await deleteRelic(relic.id)
-      showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
-      // Reload the relics list
-      await loadMyRelics()
-    } catch (error) {
-      console.error('Failed to delete relic:', error)
-      showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
-    }
+    showConfirm = true
   }
 
   function handleDragOver(e) {
@@ -190,3 +199,11 @@
         on:success={handleUploadSuccess}
     />
 {/if}
+
+<ConfirmModal
+  show={showConfirm}
+  title={confirmTitle}
+  message={confirmMessage}
+  on:confirm={confirmAction}
+  on:cancel={() => showConfirm = false}
+/>

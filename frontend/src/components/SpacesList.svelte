@@ -5,6 +5,7 @@
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
     import { formatTimeAgo } from '../services/typeUtils';
     import RelicDropModal from './RelicDropModal.svelte';
+    import ConfirmModal from './ConfirmModal.svelte';
 
     const dispatch = createEventDispatcher();
 
@@ -25,6 +26,12 @@
     let droppedFiles = [];
     let dropTargetSpace = null;
     let dragOverSpaceId = null;
+
+    // Confirm modal state
+    let showConfirm = false;
+    let confirmTitle = '';
+    let confirmMessage = '';
+    let confirmAction = null;
 
     $: filteredSpaces = spaces.filter(space => {
         // Apply category filter
@@ -94,17 +101,21 @@
         }
     }
 
-    async function deleteSpace(space) {
-        if (!confirm(`Are you sure you want to delete space "${space.name}"?`)) return;
-        
-        try {
-            await spacesApi.delete(space.id);
-            spaces = spaces.filter(s => s.id !== space.id);
-            showToast("Space deleted", "success");
-        } catch (error) {
-            console.error("Failed to delete space:", error);
-            showToast("Failed to delete space", "error");
-        }
+    function deleteSpace(space) {
+        confirmTitle = 'Delete Space';
+        confirmMessage = `Are you sure you want to delete space "${space.name}"?`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await spacesApi.delete(space.id);
+                spaces = spaces.filter(s => s.id !== space.id);
+                showToast("Space deleted", "success");
+            } catch (error) {
+                console.error("Failed to delete space:", error);
+                showToast("Failed to delete space", "error");
+            }
+        };
+        showConfirm = true;
     }
 
     function openSpace(spaceId) {
@@ -397,6 +408,14 @@
         on:success={handleUploadSuccess}
     />
 {/if}
+
+<ConfirmModal
+  show={showConfirm}
+  title={confirmTitle}
+  message={confirmMessage}
+  on:confirm={confirmAction}
+  on:cancel={() => showConfirm = false}
+/>
 
 <style>
     .sort-arrow {
