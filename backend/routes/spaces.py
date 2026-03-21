@@ -296,12 +296,30 @@ async def get_space_relics(
 
     relics = query.all()
 
+    # Fetch all counts in bulk (2 queries instead of N*2)
+    # ⚡ Bolt: Prevent N+1 queries by fetching comment and fork counts in bulk
+    relic_ids = [r.id for r in relics]
+    comments_counts = {}
+    forks_counts = {}
+
+    if relic_ids:
+        comments_counts = {
+            row[0]: row[1]
+            for row in db.query(Comment.relic_id, func.count(Comment.id)).filter(
+                Comment.relic_id.in_(relic_ids)
+            ).group_by(Comment.relic_id).all()
+        }
+        forks_counts = {
+            row[0]: row[1]
+            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
+                Relic.fork_of.in_(relic_ids)
+            ).group_by(Relic.fork_of).all()
+        }
+
     # Format response
     result = []
     for relic in relics:
         can_edit = client_id is not None and (relic.client_id == client_id or is_admin)
-        comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic.id).scalar()
-        forks_count = db.query(func.count(Relic.id)).filter(Relic.fork_of == relic.id).scalar()
         relic_dict = {
             "id": relic.id,
             "name": relic.name,
@@ -315,8 +333,8 @@ async def get_space_relics(
             "expires_at": relic.expires_at,
             "access_count": relic.access_count,
             "bookmark_count": relic.bookmark_count,
-            "comments_count": comments_count or 0,
-            "forks_count": forks_count or 0,
+            "comments_count": comments_counts.get(relic.id, 0),
+            "forks_count": forks_counts.get(relic.id, 0),
             "can_edit": can_edit,
             "tags": [{"name": t.name, "id": t.id} for t in relic.tags]
         }
