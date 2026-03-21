@@ -6,6 +6,7 @@
   import { matchRoute, sectionToPath } from "./routes";
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
   import { showToast } from "./stores/toastStore";
+  import { copyToClipboard } from "./services/utils/clipboard";
 
   let currentSection = null;
   let routeComponent = null;
@@ -357,7 +358,7 @@
                             {clientPublicId || '...'}
                         </span>
                         <button
-                            on:click={() => navigator.clipboard.writeText(clientPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
+                            on:click={() => copyToClipboard(clientPublicId, 'Public ID copied').then(() => { showKeyDropdown = false; })}
                             class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
                             title="Copy Public ID"
                         >

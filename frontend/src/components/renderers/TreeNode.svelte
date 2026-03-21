@@ -2,6 +2,7 @@
   import { getContext } from 'svelte'
   import { showToast } from '../../stores/toastStore'
   import { triggerDownload } from '../../services/utils/download'
+  import { copyToClipboard } from '../../services/utils/clipboard'
 
   export let key = undefined
   export let value
@@ -68,11 +69,10 @@
     const text = isLeaf
       ? (value === null ? 'null' : String(value))
       : JSON.stringify(value, null, 2)
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text, 'Copied to clipboard').then(() => {
       copied = true
-      showToast('Copied to clipboard', 'success')
       setTimeout(() => (copied = false), 1500)
-    }).catch(() => showToast('Failed to copy', 'error'))
+    })
   }
 
   function forkNode() {
