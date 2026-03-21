@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte'
+  import { triggerDownload } from '../../services/utils/download'
 
   export let processed
 
@@ -103,13 +104,7 @@
       )
     ].join('\n')
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = processed.fileName || 'data.csv'
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerDownload(csvContent, processed.fileName || 'data.csv', 'text/csv')
   }
 
   function exportAllToCSV() {
@@ -128,13 +123,7 @@
       )
     ].join('\n')
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = (processed.fileName || 'all-data').replace(/\.[^/.]+$/, '') + '.csv'
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerDownload(csvContent, (processed.fileName || 'all-data').replace(/\.[^/.]+$/, '') + '.csv', 'text/csv')
   }
 
   // Utility functions for cell styling

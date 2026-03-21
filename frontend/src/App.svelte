@@ -10,6 +10,7 @@
   import SpaceViewer from "./components/SpaceViewer.svelte";
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
+  import { triggerDownload } from "./services/utils/download";
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
   import { showToast } from "./stores/toastStore";
 
@@ -195,17 +196,7 @@
 
   function downloadClientKey() {
     const clientKey = getOrCreateClientKey();
-    const blob = new Blob([clientKey], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `relic-client-key-${clientKey.substring(0, 8)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    showToast("Client key downloaded successfully", "success");
+    triggerDownload(clientKey, `relic-client-key-${clientKey.substring(0, 8)}.txt`, 'text/plain', 'Client key downloaded successfully');
     showKeyDropdown = false;
   }
 

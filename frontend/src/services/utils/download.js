@@ -33,7 +33,7 @@ export function getExtensionFromMimeType(contentType) {
 /**
  * Trigger a browser download for a blob or string content
  */
-export function triggerDownload(content, filename, contentType = 'text/plain') {
+export function triggerDownload(content, filename, contentType = 'text/plain', successMessage = null) {
     try {
         const blob = content instanceof Blob ? content : new Blob([content], { type: contentType })
         const url = window.URL.createObjectURL(blob)
@@ -47,7 +47,7 @@ export function triggerDownload(content, filename, contentType = 'text/plain') {
 
         window.URL.revokeObjectURL(url)
 
-        showToast(`Downloading ${filename}...`, 'success')
+        showToast(successMessage ?? `Downloading ${filename}...`, 'success')
         return true
     } catch (error) {
         console.error('Download failed:', error)
