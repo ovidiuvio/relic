@@ -1,22 +1,16 @@
 <script>
   import { onMount } from "svelte";
-  import RelicForm from "./components/RelicForm.svelte";
-  import RelicViewer from "./components/RelicViewer.svelte";
-  import RecentRelics from "./components/RecentRelics.svelte";
-  import MyRelics from "./components/MyRelics.svelte";
-  import MyBookmarks from "./components/MyBookmarks.svelte";
-  import AdminPanel from "./components/AdminPanel.svelte";
-  import SpacesList from "./components/SpacesList.svelte";
-  import SpaceViewer from "./components/SpaceViewer.svelte";
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
   import { triggerDownload } from "./services/utils/download";
+  import { matchRoute } from "./routes";
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
   import { showToast } from "./stores/toastStore";
 
   let currentSection = null;
-  let currentRelicId = null;
-  let currentFilePath = null; // For archive file paths
+  let routeComponent = null;
+  let routeProps = {};
+
   let showKeyDropdown = false;
   let relicViewerFullWidth = false;
   let isAdmin = false;
@@ -24,74 +18,23 @@
   let clientPublicId = "";
   let isNameSaving = false;
   let appVersion = "loading...";
-  let activeTagFilter = null;
-  let activeSpaceParam = null;
 
   function updateRouting() {
     const path = window.location.pathname;
-    const parts = path.split("/").filter((p) => p);
     const urlParams = new URLSearchParams(window.location.search);
-    const tagParam = urlParams.get('tag');
-    const spaceParam = urlParams.get('space');
 
-    console.log("[App] Route update - path:", path, "parts:", parts, "tag:", tagParam, "space:", spaceParam);
+    console.log("[App] Route update - path:", path, "search:", urlParams.toString());
 
-    // Update tag filter from URL
-    activeTagFilter = tagParam;
-    activeSpaceParam = spaceParam;
-
-    if (
-      parts.length >= 1 &&
-      parts[0] &&
-      parts[0] !== "api" &&
-      parts[0] !== "recent" &&
-      parts[0] !== "my-relics" &&
-      parts[0] !== "my-bookmarks" &&
-      parts[0] !== "spaces" &&
-      parts[0] !== "new" &&
-      parts[0] !== "admin"
-    ) {
-      // This looks like a relic ID (possibly with file path)
-      currentRelicId = parts[0];
-      currentSection = "relic";
-
-      // Check if there's a file path (parts after the relic ID)
-      if (parts.length > 1) {
-        currentFilePath = parts.slice(1).join("/");
-        console.log("[App] Detected archive file path:", currentFilePath);
-      } else {
-        currentFilePath = null;
-      }
-
-      console.log("[App] Detected relic ID:", parts[0]);
-    } else if (parts.length === 0) {
-      console.log("[App] Navigating to home");
-      currentSection = "new";
-      currentRelicId = null;
-      currentFilePath = null;
-    } else if (parts[0] === "spaces" && parts.length > 1) {
-      console.log("[App] Navigating to space view:", parts[1]);
-      currentSection = "space-view";
-      currentRelicId = parts[1]; // Using currentRelicId to store the space_id
-      currentFilePath = null;
-    } else {
-      console.log("[App] Navigating to section:", parts[0]);
-      currentSection = parts[0];
-      currentRelicId = null;
-      currentFilePath = null;
-    }
+    const matched = matchRoute(path, urlParams);
+    routeComponent = matched.component;
+    routeProps = matched.props;
+    currentSection = matched.section;
 
     console.log(
       "[App] Routing result - section:",
       currentSection,
-      "relicId:",
-      currentRelicId,
-      "filePath:",
-      currentFilePath,
-      "tagFilter:",
-      activeTagFilter,
-      "spaceParam:",
-      activeSpaceParam
+      "props:",
+      routeProps
     );
   }
 
@@ -179,19 +122,17 @@
 
   function handleTagClick(event) {
     const tagName = event.detail;
-    activeTagFilter = tagName;
     
     // If we're already in a list section that supports tag filtering, stay there
     if (currentSection !== "recent" && currentSection !== "my-relics" && currentSection !== "my-bookmarks" && currentSection !== "space-view") {
-      currentSection = "recent"; // Default to recent (public) view for discovering tags
-    }
-    
-    if (currentSection === "space-view") {
-        window.history.pushState({}, "", `/spaces/${currentRelicId}?tag=${encodeURIComponent(tagName)}`);
+      // Default to recent (public) view for discovering tags
+      window.history.pushState({}, "", `/recent?tag=${encodeURIComponent(tagName)}`);
+    } else if (currentSection === "space-view") {
+      window.history.pushState({}, "", `/spaces/${routeProps.spaceId}?tag=${encodeURIComponent(tagName)}`);
     } else {
-        currentRelicId = null;
-        window.history.pushState({}, "", `/${currentSection}?tag=${encodeURIComponent(tagName)}`);
+      window.history.pushState({}, "", `/${currentSection}?tag=${encodeURIComponent(tagName)}`);
     }
+    updateRouting();
   }
 
   function downloadClientKey() {
@@ -482,36 +423,20 @@
         ? 'w-full'
         : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300"
     >
-      {#if currentSection === "relic" && currentRelicId}
-        <RelicViewer
-          relicId={currentRelicId}
-          filePath={currentFilePath}
+      {#if routeComponent}
+        <svelte:component
+          this={routeComponent}
+          {...routeProps}
           on:fullwidth-toggle={handleFullWidthToggle}
           on:tag-click={handleTagClick}
-        />
-      {:else if currentSection === "new" || currentSection === "default" || currentSection === ""}
-        <RelicForm spaceId={activeSpaceParam} />
-      {:else if currentSection === "recent"}
-        <RecentRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
-      {:else if currentSection === "my-relics"}
-        <MyRelics tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
-      {:else if currentSection === "my-bookmarks"}
-        <MyBookmarks tagFilter={activeTagFilter} on:tag-click={handleTagClick} />
-      {:else if currentSection === "spaces"}
-        <SpacesList on:navigate={(e) => handleNavigation(e.detail.path)} />
-      {:else if currentSection === "space-view" && currentRelicId}
-        <SpaceViewer
-          spaceId={currentRelicId}
-          tagFilter={activeTagFilter}
           on:navigate={(e) => handleNavigation(e.detail.path)}
-          on:tag-click={handleTagClick}
           on:clear-tag-filter={() => {
-            activeTagFilter = null;
-            window.history.pushState({}, "", `/spaces/${currentRelicId}`);
+            if (currentSection === 'space-view') {
+              window.history.pushState({}, "", `/spaces/${routeProps.spaceId}`);
+              updateRouting();
+            }
           }}
         />
-      {:else if currentSection === "admin"}
-        <AdminPanel />
       {/if}
     </div>
   </main>
