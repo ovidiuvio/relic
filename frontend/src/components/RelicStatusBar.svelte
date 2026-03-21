@@ -65,36 +65,45 @@
       </div>
     {/if}
     {#if relic.access_level === 'private'}
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
         class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #fce3eb; color: #76306c;"
         title={relic.can_edit ? 'Change visibility' : 'Private - accessible only via URL'}
+        role={relic.can_edit ? undefined : "presentation"}
       >
         <i class="fas fa-lock text-[10px]"></i>
         <span>Private</span>
         {#if relic.can_edit}<i class="fas fa-chevron-down text-[8px] opacity-60 ml-0.5"></i>{/if}
       </svelte:element>
     {:else if relic.access_level === 'restricted'}
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
         class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #fef3c7; color: #b45309;"
         title={relic.can_edit ? 'Change visibility / manage access' : 'Restricted - allowlist only'}
+        role={relic.can_edit ? undefined : "presentation"}
       >
         <i class="fas fa-user-lock text-[10px]"></i>
         <span>Restricted</span>
         {#if relic.can_edit}<i class="fas fa-chevron-down text-[8px] opacity-60 ml-0.5"></i>{/if}
       </svelte:element>
     {:else if relic.access_level === 'public'}
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
         class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #e2f2fd; color: #217db1;"
         title={relic.can_edit ? 'Change visibility' : 'Public - discoverable'}
+        role={relic.can_edit ? undefined : "presentation"}
       >
         <i class="fas fa-globe text-[10px]"></i>
         <span>Public</span>

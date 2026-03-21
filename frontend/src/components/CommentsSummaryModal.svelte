@@ -129,6 +129,7 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
     class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 transition-opacity backdrop-blur-sm"
     on:click={handleBackdropClick}
@@ -136,9 +137,11 @@
     aria-modal="true"
     aria-labelledby="comments-summary-title"
   >
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div
       class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col transform transition-all border border-gray-200"
       on:click|stopPropagation
+      role="presentation"
     >
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-xl z-20">

@@ -155,6 +155,7 @@
   tabindex="0"
   aria-label="Close modal"
 >
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <section 
     class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" 
     on:click|stopPropagation
