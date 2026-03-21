@@ -179,6 +179,12 @@
                             <span class="ml-2 text-gray-700 dark:text-gray-300">Restricted</span>
                         </label>
                     </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        {#if accessLevel === "public"}Anyone can view this relic
+                        {:else if accessLevel === "restricted"}Restricted - only allowed clients can access
+                        {:else}Private relic - only accessible via direct URL
+                        {/if}
+                    </p>
                     {#if accessLevel === "restricted"}
                         <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
                             <i class="fas fa-info-circle mr-1"></i>
