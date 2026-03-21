@@ -1,0 +1,21 @@
+**Agent:** probe
+**Date:** 2025-03-20
+**Status:** done
+
+**Summary:** fixed test_create_relic in tests/test_api.py
+
+---
+
+## Details
+
+### What I did
+Removed stale assertion `data["version"] == 1` and added assertions for `created_at` and `size_bytes` based on the actual `RelicResponse` schema.
+
+### Files changed
+tests/test_api.py
+
+### Issues found
+Other tests are also failing due to stale assertions (e.g., test_edit_relic expecting a version increment).
+
+### Next time
+Fix `test_edit_relic` or `test_fork_relic` which also use outdated `version` assertions.
