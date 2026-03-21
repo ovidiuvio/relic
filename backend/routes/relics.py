@@ -1,7 +1,7 @@
 """Relic CRUD and content endpoints."""
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, selectinload, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from datetime import datetime
 from typing import Optional, List
