@@ -5,6 +5,7 @@
     import { getTypeLabel, getDefaultItemsPerPage } from '../services/typeUtils';
     import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
+    import { copyToClipboard } from '../services/utils/clipboard';
     import RelicTable from './RelicTable.svelte';
     import RelicDropModal from './RelicDropModal.svelte';
     import ConfirmModal from './ConfirmModal.svelte';
@@ -452,9 +453,7 @@
                         {/if}
                         <button
                             on:click={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/spaces/${spaceId}`).then(() => {
-                                    showToast('Space link copied to clipboard!', 'success');
-                                });
+                                copyToClipboard(`${window.location.origin}/spaces/${spaceId}`, 'Space link copied to clipboard!');
                             }}
                             class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
                             title="Share Space"

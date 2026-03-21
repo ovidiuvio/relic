@@ -12,6 +12,7 @@
   } from "../services/typeUtils";
   import { formatBytes } from "../services/utils/formatting";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
+  import { copyToClipboard } from "../services/utils/clipboard";
 
   export let spaceId = null;
 
@@ -308,11 +309,6 @@
     }
   }
 
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast("Link copied to clipboard", "success");
-    });
-  }
 </script>
 
 <div class="mb-8">

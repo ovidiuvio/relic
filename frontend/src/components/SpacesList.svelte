@@ -3,6 +3,7 @@
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
+    import { copyToClipboard } from '../services/utils/clipboard';
     import { formatTimeAgo } from '../services/typeUtils';
     import RelicDropModal from './RelicDropModal.svelte';
     import ConfirmModal from './ConfirmModal.svelte';
@@ -129,12 +130,6 @@
             sortBy = column;
             sortOrder = 'desc';
         }
-    }
-
-    function copyToClipboard(text, message) {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast(message, "success");
-        });
     }
 
     function handleDragOver(e, spaceId) {
