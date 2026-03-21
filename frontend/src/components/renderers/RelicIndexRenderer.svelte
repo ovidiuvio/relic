@@ -13,6 +13,7 @@
     let progress = 0;
     let total = 0;
     let searchTerm = '';
+    let tagFilter = null;
     let currentPage = 1;
     let itemsPerPage = 25;
     let sortBy = 'date';
@@ -22,15 +23,13 @@
     $: description = processed.meta?.description || "";
 
     // Pagination logic
-    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel);
+    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter);
 
     // Apply sorting
     $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
 
-    // Reset page when search term changes
-    $: if (searchTerm !== undefined) {
-        currentPage = 1;
-    }
+    // Reset page when search term or tag filter changes
+    $: searchTerm, tagFilter, (currentPage = 1)
 
     $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
     $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
@@ -116,6 +115,7 @@
         data={sortedRelics}
         {loading}
         bind:searchTerm
+        bind:tagFilter
         bind:currentPage
         bind:itemsPerPage
         bind:sortBy
@@ -129,6 +129,8 @@
         emptyMessageWithSearch="No matching relics found in this index."
         tableId="relic-index"
         showForkButton={true}
+        on:tag-click={(e) => tagFilter = e.detail}
+        on:clear-tag-filter={() => tagFilter = null}
         {goToPage}
     />
 </div>
