@@ -4,6 +4,7 @@
     getTypeIcon,
     getTypeIconColor,
     formatBytes,
+    formatTimeAgo,
   } from "../services/typeUtils";
   import {
     shareRelic,
@@ -116,7 +117,7 @@
         <i class="fas fa-copy text-[10px]"></i>
       </button>
       <span>&bull;</span>
-      <span>{new Date(relic.created_at).toLocaleDateString()}</span>
+      <span title={formatTimeAgo(relic.created_at)} class="cursor-help">{new Date(relic.created_at).toLocaleDateString()}</span>
       <span>&bull;</span>
       <span class="flex items-center gap-1">
         <i class="fas fa-weight text-gray-400"></i>
