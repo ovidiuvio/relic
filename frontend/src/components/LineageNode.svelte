@@ -5,6 +5,17 @@
 
   // Format date nicely
   $: formattedDate = node.created_at ? new Date(node.created_at).toLocaleDateString() : '';
+
+  let copied = false;
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        copied = true;
+        setTimeout(() => copied = false, 2000);
+      });
+    }
+  }
 </script>
 
 <div class="lineage-node">
@@ -39,8 +50,16 @@
           </span>
         {/if}
       </div>
-      <div class="flex items-center text-xs text-gray-500 mt-0.5 gap-2">
+      <div class="flex items-center text-xs text-gray-500 mt-0.5 gap-2 group">
         <span class="font-mono">{node.id.substring(0, 8)}</span>
+        <button
+          on:click|stopPropagation={() => copyToClipboard(node.id)}
+          class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 transition-all duration-200"
+          title={copied ? "Copied!" : "Copy full ID"}
+          aria-label={copied ? "Copied!" : "Copy full ID"}
+        >
+          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-[10px]"></i>
+        </button>
         <span>&bull;</span>
         <span>{formattedDate}</span>
       </div>
