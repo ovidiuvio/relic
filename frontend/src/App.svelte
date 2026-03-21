@@ -3,7 +3,7 @@
   import Toast from "./components/Toast.svelte";
   import { toastStore } from "./stores/toastStore";
   import { triggerDownload } from "./services/utils/download";
-  import { matchRoute } from "./routes";
+  import { matchRoute, sectionToPath } from "./routes";
   import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
   import { showToast } from "./stores/toastStore";
 
@@ -112,11 +112,7 @@
   }
 
   function handleNavigation(section) {
-    if (section === "new") {
-      window.history.pushState({}, "", "/");
-    } else {
-      window.history.pushState({}, "", `/${section}`);
-    }
+    window.history.pushState({}, "", sectionToPath(section));
     updateRouting();
   }
 

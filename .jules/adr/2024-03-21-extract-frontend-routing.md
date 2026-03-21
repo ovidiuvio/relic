@@ -1,6 +1,6 @@
 # ADR-002: Extract Frontend Routing
 
-**Date:** 2024-03-21
+**Date:** 2026-03-21
 **Status:** Accepted
 
 ## Context

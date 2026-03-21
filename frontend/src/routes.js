@@ -71,6 +71,9 @@ const routes = [
     section: "relic",
     getProps: (match) => {
       // Validate that the first param is not a known root-level route path.
+      // "new" is included even though there's no /new route, because SpacesList and SpaceViewer
+      // dispatch navigate('new?space=id') which lands on /new. The reserved check ensures that
+      // falls through to the fallback (RelicForm) rather than matching as a relic ID.
       const reserved = ["api", "recent", "my-relics", "my-bookmarks", "spaces", "new", "admin"];
       if (reserved.includes(match[1])) {
         return null; // Signals this route shouldn't match
@@ -84,10 +87,28 @@ const routes = [
 ];
 
 /**
+ * Returns the canonical path for a given section name.
+ * Centralizes any section→path mappings so App.svelte doesn't need to know them.
+ * @param {string} section
+ * @returns {string}
+ */
+export function sectionToPath(section) {
+  // "new" maps to root — there is no /new route
+  return section === "new" ? "/" : `/${section}`;
+}
+
+/**
  * Matches a given pathname to an application route.
  * @param {string} path The URL pathname (e.g. window.location.pathname)
  * @param {URLSearchParams} urlParams The query params
- * @returns {Object} { component, props, section } or a default configuration.
+ * @returns {{ component: any, props: Object, section: string }} or a default configuration.
+ *
+ * Route shape:
+ *   pattern   {RegExp}   - matched against the cleaned pathname
+ *   component {any}      - Svelte component to render
+ *   section   {string}   - identifier used for active nav state
+ *   getProps  {Function} - (match, urlParams) => Object | null
+ *                          Return null to reject the match and fall through to the next route.
  */
 export function matchRoute(path, urlParams) {
   // Strip trailing slashes unless it's exactly "/"
