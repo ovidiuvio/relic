@@ -31,6 +31,9 @@
         placeholder="My Fork"
         class="w-full px-2 py-1.5 text-sm maas-input border border-gray-300 rounded"
       />
+      <p class="text-xs text-gray-500 mt-1">
+        A descriptive name for this fork
+      </p>
     </div>
 
     {#if !isBinary}
@@ -68,6 +71,9 @@
           --chevron-width="20px"
           --chevron-color="rgb(107, 114, 128)"
         />
+        <p class="text-xs text-gray-500 mt-1">
+          Applies to text content only. Files are auto-detected.
+        </p>
       </div>
     {/if}
 
@@ -81,6 +87,11 @@
         <option value="public">Public</option>
         <option value="private">Private</option>
       </select>
+      <p class="text-xs text-gray-500 mt-1">
+        {#if forkAccessLevel === "public"}Anyone can view this fork
+        {:else}Private fork - only accessible via direct URL
+        {/if}
+      </p>
     </div>
 
     <div>
@@ -100,6 +111,9 @@
         <option value="30d">30 Days</option>
         <option value="1y">1 Year</option>
       </select>
+      <p class="text-xs text-gray-500 mt-1">
+        After expiry, the fork is permanently deleted and its URL stops working.
+      </p>
     </div>
 
     <div class="sm:col-span-2 lg:col-span-1">
@@ -111,6 +125,9 @@
         placeholder="tag1, tag2..."
         class="w-full px-2 py-1.5 text-sm maas-input border border-gray-300 rounded"
       />
+      <p class="text-xs text-gray-500 mt-1">
+        Optional tags to categorize this fork
+      </p>
     </div>
   </div>
 
