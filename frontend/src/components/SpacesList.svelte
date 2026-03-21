@@ -276,20 +276,20 @@
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Name / ID</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-4 py-3 text-left">Role / Visibility</th>
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Relics</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
                             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Created</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'active' : ''} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-4 py-3 text-right w-40">Actions</th>
@@ -420,19 +420,7 @@
 <style>
     .sort-arrow {
         font-size: 9px;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        opacity: 0;
-        color: #9ca3af;
-        display: inline-block;
-    }
-
-    .group:hover .sort-arrow {
-        opacity: 0.5;
-    }
-
-    .sort-arrow.active {
-        opacity: 1 !important;
-        color: #2563eb !important;
+        transition: all 0.2s ease;
     }
 
     .sort-arrow.desc {

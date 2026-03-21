@@ -187,20 +187,20 @@
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('title')}>
               <div class="flex items-center gap-1.5">
                 <span>{columnHeaders.title}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'active' : ''} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
             <th class="px-4 py-3 text-left">Tags</th>
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('date')}>
               <div class="flex items-center gap-1.5">
                 <span>{getDateColumnHeader()}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'active' : ''} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
             <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('size')}>
               <div class="flex items-center gap-1.5">
                 <span>{columnHeaders.size}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'active' : ''} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
             <th class="px-4 py-3 text-left w-40">{columnHeaders.actions}</th>
@@ -470,18 +470,7 @@
   .sort-arrow {
     font-size: 9px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    color: #9ca3af;
     display: inline-block;
-  }
-
-  .group:hover .sort-arrow {
-    opacity: 0.5;
-  }
-
-  .sort-arrow.active {
-    opacity: 1 !important;
-    color: #2563eb !important;
   }
 
   .sort-arrow.desc {
