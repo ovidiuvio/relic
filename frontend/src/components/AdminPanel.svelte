@@ -1,6 +1,7 @@
 <script>
     import { onMount } from "svelte";
     import { showToast } from "../stores/toastStore";
+    import ConfirmModal from "./ConfirmModal.svelte";
     import {
         checkAdminStatus,
         getAdminStats,
@@ -1485,31 +1486,23 @@
     {/if}
 </div>
 
-{#if showConfirm}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
-      <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">{confirmMessage}</p>
-      <div class="flex justify-end gap-3">
-        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
-        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
-      </div>
-    </div>
-  </div>
-{/if}
+<ConfirmModal
+  show={showConfirm}
+  title={confirmTitle}
+  message={confirmMessage}
+  on:confirm={confirmAction}
+  on:cancel={() => showConfirm = false}
+/>
 
-{#if showDeleteRelicsConfirm && confirmClientToDelete}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-      <h3 class="text-base font-semibold text-gray-900 mb-2">Delete Relics Too?</h3>
-      <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">Also delete their {confirmClientToDelete.relic_count} relic(s)?</p>
-      <div class="flex justify-end gap-3">
-        <button class="maas-btn-secondary" on:click={() => performDeleteClient(false)}>Keep relics (become anonymous)</button>
-        <button class="maas-btn-primary" on:click={() => performDeleteClient(true)}>Delete relics too</button>
-      </div>
-    </div>
-  </div>
-{/if}
+<ConfirmModal
+  show={showDeleteRelicsConfirm && !!confirmClientToDelete}
+  title="Delete Relics Too?"
+  message="Also delete their {confirmClientToDelete?.relic_count} relic(s)?"
+  confirmLabel="Delete relics too"
+  cancelLabel="Keep relics (become anonymous)"
+  on:confirm={() => performDeleteClient(true)}
+  on:cancel={() => performDeleteClient(false)}
+/>
 
 {#if restoreModalOpen && restoreTarget}
     <!-- svelte-ignore a11y-click-events-have-key-events -->

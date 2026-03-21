@@ -6,7 +6,8 @@
   import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
-  import RelicDropModal from './RelicDropModal.svelte';
+  import RelicDropModal from './RelicDropModal.svelte'
+  import ConfirmModal from './ConfirmModal.svelte';
   import { getFilesFromDrop } from '../services/utils/fileProcessing';
 
   export let tagFilter = null
@@ -199,15 +200,10 @@
     />
 {/if}
 
-{#if showConfirm}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-      <h3 class="text-base font-semibold text-gray-900 mb-2">{confirmTitle}</h3>
-      <p class="text-sm text-gray-600 mb-6">{confirmMessage}</p>
-      <div class="flex justify-end gap-3">
-        <button class="maas-btn-secondary" on:click={() => showConfirm = false}>Cancel</button>
-        <button class="maas-btn-primary" on:click={confirmAction}>Confirm</button>
-      </div>
-    </div>
-  </div>
-{/if}
+<ConfirmModal
+  show={showConfirm}
+  title={confirmTitle}
+  message={confirmMessage}
+  on:confirm={confirmAction}
+  on:cancel={() => showConfirm = false}
+/>
