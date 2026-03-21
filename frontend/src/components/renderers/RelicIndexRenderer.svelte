@@ -23,9 +23,14 @@
 
     // Pagination logic
     $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel);
-    
+
     // Apply sorting
     $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
+
+    // Reset page when search term changes
+    $: if (searchTerm !== undefined) {
+        currentPage = 1;
+    }
 
     $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
     $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
