@@ -637,9 +637,10 @@
             </div>
 
                 <div class="pt-2 border-t border-gray-100">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Transfer Ownership</label>
+                    <label for="transferPublicId" class="block text-sm font-medium text-gray-700 mb-1">Transfer Ownership</label>
                     <div class="flex gap-2">
                         <input
+                            id="transferPublicId"
                             type="text"
                             bind:value={transferPublicId}
                             placeholder="New owner's Public ID"
