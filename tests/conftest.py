@@ -90,3 +90,21 @@ def test_file_dict(test_file_content):
         "content_type": "text/plain",
         "content": test_file_content
     }
+
+@pytest.fixture
+def created_relic(client, test_file_content):
+    """Create a relic and return its ID, data, and client key."""
+    # Force client creation with a specific key
+    client_key = "test_client_key_123"
+    response = client.post(
+        "/api/v1/relics",
+        headers={"x-client-key": client_key},
+        data={"name": "Test Relic", "access_level": "public"},
+        files={"file": ("test.txt", test_file_content, "text/plain")}
+    )
+    assert response.status_code == 200
+    return {
+        "id": response.json()["id"],
+        "data": response.json(),
+        "client_key": response.headers.get("x-client-key") or client_key
+    }
