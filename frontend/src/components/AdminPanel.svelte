@@ -26,6 +26,7 @@
         formatBytes,
         formatTimeAgo,
     } from "../services/typeUtils";
+    import { filterRelics } from "../services/utils/paginationUtils";
     import {
         shareRelic,
         copyRelicContent,
@@ -57,6 +58,7 @@
     let relicsLimit = 25;
     let relicsFilter = "all";
     let searchTerm = "";
+    let tagFilter = null;
 
     // Clients state
     let clients = [];
@@ -103,16 +105,8 @@
     let showDeleteRelicsConfirm = false;
     let confirmClientToDelete = null;
 
-    // Filter relics by search term
-    $: filteredRelics = relics.filter((r) => {
-        if (!searchTerm) return true;
-        const term = searchTerm.toLowerCase();
-        return (
-            (r.name || "").toLowerCase().includes(term) ||
-            r.id.toLowerCase().includes(term) ||
-            (r.content_type || "").toLowerCase().includes(term)
-        );
-    });
+    // Filter relics by search term and tag
+    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter);
 
     function formatDate(dateStr) {
         if (!dateStr) return "-";
@@ -617,6 +611,22 @@
                             class="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded"
                         />
                     </div>
+                    {#if tagFilter}
+                        <div class="flex items-center">
+                            <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
+                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
+                                <i class="fas fa-tag text-[9px] opacity-70"></i>
+                                <span>{tagFilter}</span>
+                                <button
+                                    on:click|stopPropagation={() => tagFilter = null}
+                                    class="ml-1 text-[#772953] hover:text-red-700 transition-colors focus:outline-none flex items-center"
+                                    title="Clear tag filter"
+                                >
+                                    <i class="fas fa-times-circle text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {/if}
                 </div>
 
                 {#if relicsLoading}
@@ -637,7 +647,7 @@
                                 <tr
                                     class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
                                 >
-                                    <th>Title / ID</th><th>Owner</th><th
+                                    <th>Title / ID</th><th>Tags</th><th>Owner</th><th
                                         >Created</th
                                     ><th>Size</th><th class="w-40">Actions</th>
                                 </tr>
@@ -729,6 +739,19 @@
                                                         class="fas fa-copy text-xs"
                                                     ></i>
                                                 </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center flex-wrap gap-1">
+                                                {#each relic.tags || [] as tag}
+                                                    <button
+                                                        on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
+                                                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                                                    >
+                                                        <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
+                                                        {typeof tag === 'string' ? tag : tag.name}
+                                                    </button>
+                                                {/each}
                                             </div>
                                         </td>
                                         <td>
