@@ -14,12 +14,12 @@ export async function checkBookmark(relicId) {
     return api.get(`/bookmarks/check/${relicId}`)
 }
 
-export async function getClientBookmarks() {
-    return api.get('/bookmarks')
+export async function getClientBookmarks(params = {}) {
+    return api.get('/bookmarks', { params })
 }
 
-export async function getRelicBookmarkers(relicId) {
-    const response = await api.get(`/bookmarks/${relicId}/bookmarkers`)
+export async function getRelicBookmarkers(relicId, params = {}) {
+    const response = await api.get(`/bookmarks/${relicId}/bookmarkers`, { params })
     return response.data
 }
 

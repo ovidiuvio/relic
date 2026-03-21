@@ -1,12 +1,14 @@
 """Bookmark endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
+from typing import Optional
 
 from backend.database import get_db
-from backend.models import Relic, ClientBookmark, Comment, ClientKey
+from backend.models import Relic, ClientBookmark, Comment, ClientKey, Tag
 from backend.dependencies import get_client_key
+from backend.utils import get_fork_counts
 
 router = APIRouter(prefix="/api/v1/bookmarks")
 
@@ -131,29 +133,59 @@ async def check_bookmark(
 @router.get("", response_model=dict)
 async def get_client_bookmarks(
     request: Request,
+    tag: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    limit: int = 25,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
     """
-    Get all bookmarks for the authenticated client.
+    Get bookmarks for the authenticated client with pagination.
 
     Requires valid X-Client-Key header.
     Returns list of bookmarked relics with bookmark metadata.
+    sort_by: created_at (bookmarked date), name, size, access_count, bookmark_count
     """
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
-    # Join bookmarks with relics, exclude deleted relics, and eagerly load tags
-    bookmarks = db.query(ClientBookmark, Relic).join(
+    query = db.query(ClientBookmark, Relic).join(
         Relic, ClientBookmark.relic_id == Relic.id
     ).options(selectinload(Relic.tags)).filter(
         ClientBookmark.client_id == client.id
-    ).order_by(ClientBookmark.created_at.desc()).all()
+    )
 
-    # Fetch all counts in bulk (2 queries instead of N*2)
+    if tag:
+        tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
+        if tag_obj:
+            query = query.filter(Relic.tags.contains(tag_obj))
+        else:
+            return {
+                "client_id": client.id,
+                "bookmark_count": 0,
+                "bookmarks": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+            }
+
+    sort_map = {
+        "created_at": ClientBookmark.created_at,
+        "name": Relic.name,
+        "size": Relic.size_bytes,
+        "access_count": Relic.access_count,
+        "bookmark_count": Relic.bookmark_count,
+    }
+    sort_col = sort_map.get(sort_by, ClientBookmark.created_at)
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
+    total = query.count()
+    bookmarks = query.order_by(order).offset(offset).limit(limit).all()
+
     relic_ids = [relic.id for _, relic in bookmarks]
     comments_counts = {}
-    forks_counts = {}
 
     if relic_ids:
         comments_counts = {
@@ -162,16 +194,14 @@ async def get_client_bookmarks(
                 Comment.relic_id.in_(relic_ids)
             ).group_by(Comment.relic_id).all()
         }
-        forks_counts = {
-            row[0]: row[1]
-            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
-                Relic.fork_of.in_(relic_ids)
-            ).group_by(Relic.fork_of).all()
-        }
+    forks_counts = get_fork_counts(db, relic_ids)
 
     return {
         "client_id": client.id,
-        "bookmark_count": len(bookmarks),
+        "bookmark_count": total,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
         "bookmarks": [
             {
                 "id": relic.id,
@@ -193,27 +223,35 @@ async def get_client_bookmarks(
     }
 
 
-@router.get("/{relic_id}/bookmarkers", response_model=list)
+@router.get("/{relic_id}/bookmarkers", response_model=dict)
 async def get_relic_bookmarkers(
     relic_id: str,
+    limit: int = 25,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
     """
-    Get list of clients who bookmarked a specific relic.
-    Returns public_id and names.
+    Get list of clients who bookmarked a specific relic with pagination.
+    Returns public_id and names, sorted by most recent first.
     """
-    bookmarkers = db.query(ClientKey, ClientBookmark).join(
+    query = db.query(ClientKey, ClientBookmark).join(
         ClientBookmark, ClientBookmark.client_id == ClientKey.id
-    ).filter(
-        ClientBookmark.relic_id == relic_id
-    ).all()
+    ).filter(ClientBookmark.relic_id == relic_id)
 
-    return [
-        {
-            "public_id": c.public_id,
-            "name": c.name or "Anonymous",
-            "bookmarked_at": b.created_at
-        }
-        for c, b in bookmarkers
-    ]
+    total = query.count()
+    bookmarkers = query.order_by(ClientBookmark.created_at.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "bookmarkers": [
+            {
+                "public_id": c.public_id,
+                "name": c.name or "Anonymous",
+                "bookmarked_at": b.created_at
+            }
+            for c, b in bookmarkers
+        ]
+    }
 

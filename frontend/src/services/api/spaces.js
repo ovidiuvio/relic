@@ -2,8 +2,7 @@ import api from './core';
 
 export const spaces = {
     // List spaces (public, and private if access)
-    list: async (visibility = null) => {
-        const params = visibility ? { visibility } : {};
+    list: async (params = {}) => {
         const response = await api.get('/spaces', { params });
         return response.data;
     },
@@ -33,8 +32,8 @@ export const spaces = {
     },
 
     // Get relics in a space
-    getRelics: async (spaceId) => {
-        const response = await api.get(`/spaces/${spaceId}/relics`);
+    getRelics: async (spaceId, params = {}) => {
+        const response = await api.get(`/spaces/${spaceId}/relics`, { params });
         return response.data;
     },
 
@@ -51,8 +50,8 @@ export const spaces = {
     },
 
     // Get access list for a space
-    getAccessList: async (spaceId) => {
-        const response = await api.get(`/spaces/${spaceId}/access`);
+    getAccessList: async (spaceId, params = {}) => {
+        const response = await api.get(`/spaces/${spaceId}/access`, { params });
         return response.data;
     },
 

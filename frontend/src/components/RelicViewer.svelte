@@ -9,7 +9,7 @@
     deleteRelic,
     updateRelic,
     checkAdminStatus,
-    getComments,
+    getComments, getCommentsPaginated,
     createComment,
     updateComment,
     deleteComment,
@@ -248,8 +248,25 @@
   $: isFormattable = effectiveLang === 'json'
 
   async function loadComments(id) {
+    const LIMIT = 1000;
     try {
-      comments = await getComments(id);
+      const first = await getCommentsPaginated(id, { limit: LIMIT });
+      comments = first.comments;
+      if (first.total > LIMIT) {
+        // Load remaining pages asynchronously without blocking the UI
+        (async () => {
+          let offset = LIMIT;
+          while (offset < first.total) {
+            try {
+              const page = await getCommentsPaginated(id, { limit: LIMIT, offset });
+              comments = [...comments, ...page.comments];
+              offset += LIMIT;
+            } catch {
+              break;
+            }
+          }
+        })();
+      }
     } catch (error) {
       console.error("Failed to load comments:", error);
     }

@@ -3,7 +3,6 @@
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
     import { getTypeLabel, getDefaultItemsPerPage } from '../services/typeUtils';
-    import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
     import RelicTable from './RelicTable.svelte';
     import RelicDropModal from './RelicDropModal.svelte';
@@ -22,11 +21,18 @@
 
     // Access management state
     let accessList = [];
+    let accessTotal = 0;
+    let accessPage = 1;
+    const accessLimit = 25;
+    let accessSearch = '';
+    let accessSearchTimer = null;
     let showAccessModal = false;
     let loadingAccess = false;
     let newAccessClientId = '';
     let newAccessRole = 'viewer';
     let managingAccess = false;
+
+    $: accessTotalPages = Math.max(1, Math.ceil(accessTotal / accessLimit))
 
     // Edit state
     let showEditModal = false;
@@ -45,6 +51,7 @@
     let itemsPerPage = 20;
     let sortBy = 'date';
     let sortOrder = 'desc';
+    let total = 0;
 
     // Drop handling state
     let showDropModal = false;
@@ -60,16 +67,32 @@
     $: canEdit = space?.role === 'owner' || space?.role === 'editor' || space?.role === 'admin';
     $: isOwner = space?.role === 'owner' || space?.role === 'admin';
 
-    // Search and pagination logic
-    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter);
-    $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder);
-    $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage);
-    $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage);
-    
-    $: searchTerm, tagFilter, (currentPage = 1);
+    // Server-side pagination
+    $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
     function goToPage(page) {
-        currentPage = clampPage(page, totalPages);
+        if (page >= 1 && page <= totalPages) loadRelics(page);
+    }
+
+    function handleSort(event) {
+        sortBy = event.detail.sortBy;
+        sortOrder = event.detail.sortOrder;
+        loadRelics(1);
+    }
+
+    // Reload on search/tagFilter changes, but only after initial load
+    let spaceReady = false;
+    let searchTimer;
+    let prevTagFilter = tagFilter;
+
+    $: if (spaceReady && searchTerm !== undefined) {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadRelics(1), 300);
+    }
+
+    $: if (spaceReady && tagFilter !== prevTagFilter) {
+        prevTagFilter = tagFilter;
+        loadRelics(1);
     }
 
     $: if (spaceId) {
@@ -78,10 +101,12 @@
 
     async function loadSpace() {
         loading = true;
+        spaceReady = false;
         errorStatus = null;
         try {
             space = await spacesApi.get(spaceId);
-            await loadRelics();
+            await loadRelics(1);
+            spaceReady = true;
         } catch (error) {
             console.error("Failed to load space:", error);
             errorStatus = error.response?.status || 'unknown';
@@ -94,11 +119,20 @@
         // Initial load is handled by reactive statement if spaceId is present
     });
 
-    async function loadRelics() {
+    async function loadRelics(page = 1) {
         loadingRelics = true;
         try {
-            const data = await spacesApi.getRelics(spaceId);
+            const data = await spacesApi.getRelics(spaceId, {
+                limit: itemsPerPage,
+                offset: (page - 1) * itemsPerPage,
+                search: searchTerm || undefined,
+                tag: tagFilter || undefined,
+                sort_by: sortBy === 'date' ? 'created_at' : sortBy,
+                sort_order: sortOrder,
+            });
             relics = data.relics;
+            total = data.total;
+            currentPage = page;
         } catch (error) {
             console.error("Failed to load space relics:", error);
             showToast("Failed to load relics", "error");
@@ -107,18 +141,30 @@
         }
     }
 
-    async function loadAccessList() {
+    async function loadAccessList(page = accessPage) {
         if (!isOwner && space.role !== 'editor') return;
 
         loadingAccess = true;
         try {
-            accessList = await spacesApi.getAccessList(spaceId);
+            const accessData = await spacesApi.getAccessList(spaceId, {
+                limit: accessLimit,
+                offset: (page - 1) * accessLimit,
+                search: accessSearch.trim() || undefined,
+            });
+            accessList = accessData.access || [];
+            accessTotal = accessData.total || 0;
+            accessPage = page;
         } catch (error) {
             console.error("Failed to load access list:", error);
             showToast("Failed to load access list", "error");
         } finally {
             loadingAccess = false;
         }
+    }
+
+    function handleAccessSearch() {
+        clearTimeout(accessSearchTimer);
+        accessSearchTimer = setTimeout(() => loadAccessList(1), 300);
     }
 
     function openEditModal() {
@@ -201,7 +247,7 @@
         addingRelic = true;
         try {
             await spacesApi.addRelic(spaceId, newRelicId.trim());
-            await loadRelics();
+            await loadRelics(1);
             showAddRelicModal = false;
             newRelicId = '';
             showToast("Relic added successfully", "success");
@@ -224,11 +270,11 @@
             try {
                 const relicId = relic.id || relic;
                 await spacesApi.removeRelic(spaceId, relicId);
-                relics = relics.filter(r => r.id !== relicId);
                 showToast("Relic removed", "success");
-
-                // Update space count
+                // Update space count and reload current page
                 space = { ...space, relic_count: Math.max(0, space.relic_count - 1) };
+                const newPage = relics.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+                await loadRelics(newPage);
             } catch (error) {
                 console.error("Failed to remove relic:", error);
                 showToast("Failed to remove relic", "error");
@@ -245,21 +291,13 @@
 
         managingAccess = true;
         try {
-            const access = await spacesApi.addAccess(spaceId, {
+            await spacesApi.addAccess(spaceId, {
                 public_id: newAccessClientId.trim(),
                 role: newAccessRole
             });
-
-            // Update local list
-            const index = accessList.findIndex(a => a.id === access.id);
-            if (index >= 0) {
-                accessList[index] = access;
-            } else {
-                accessList = [...accessList, access];
-            }
-
             newAccessClientId = '';
             showToast("Access granted successfully", "success");
+            await loadAccessList(1);
         } catch (error) {
             console.error("Failed to grant access:", error);
             showToast(error.response?.data?.detail || "Failed to grant access", "error");
@@ -275,8 +313,9 @@
             showConfirm = false;
             try {
                 await spacesApi.removeAccess(spaceId, accessId);
-                accessList = accessList.filter(a => a.id !== accessId);
                 showToast("Access removed", "success");
+                const newPage = accessList.length === 1 && accessPage > 1 ? accessPage - 1 : accessPage;
+                await loadAccessList(newPage);
             } catch (error) {
                 console.error("Failed to remove access:", error);
                 showToast("Failed to remove access", "error");
@@ -465,8 +504,10 @@
                         {#if isOwner || space.role === 'admin' || space.role === 'editor'}
                             <button
                                 on:click={() => {
+                                    accessSearch = '';
+                                    accessPage = 1;
                                     showAccessModal = true;
-                                    loadAccessList();
+                                    loadAccessList(1);
                                 }}
                                 class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
                                 title="Manage Access"
@@ -523,17 +564,19 @@
                     <!-- In SpaceViewer, we use RelicTable directly without its internal header to maintain connection -->
                     <div class="relic-table-connected">
                         <RelicTable
-                            data={sortedRelics}
-                            paginatedData={paginatedRelics}
+                            data={relics}
+                            paginatedData={relics}
+                            total={total}
                             bind:searchTerm
                             bind:currentPage
                             bind:itemsPerPage
-                            bind:sortBy
-                            bind:sortOrder
+                            {sortBy}
+                            {sortOrder}
                             {totalPages}
                             {goToPage}
                             showHeader={false}
                             embedded={true}
+                            on:sort={handleSort}
                             on:tag-click={handleTagClick}
                             emptyMessage="No relics in this space."
                             customActions={
@@ -808,12 +851,33 @@
                 {/if}
 
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2 px-1">
-                        <i class="fas fa-list-ul text-blue-500"></i>
-                        Current Access List
-                    </h3>
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-list-ul text-blue-500"></i>
+                            Current Access List
+                        </h3>
+                        {#if accessTotal > 0}
+                            <span class="text-xs text-gray-400">{accessTotal} {accessTotal === 1 ? 'user' : 'users'}</span>
+                        {/if}
+                    </div>
 
-                    {#if loadingAccess}
+                    {#if accessTotal > accessLimit || accessSearch}
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input
+                                type="text"
+                                bind:value={accessSearch}
+                                on:input={handleAccessSearch}
+                                placeholder="Filter by name or ID..."
+                                class="maas-input w-full pl-8 py-1.5 text-sm bg-white"
+                            />
+                            {#if loadingAccess}
+                                <i class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            {/if}
+                        </div>
+                    {/if}
+
+                    {#if loadingAccess && accessList.length === 0}
                         <div class="flex flex-col items-center justify-center py-12 bg-gray-50/30 rounded-xl border border-dashed border-gray-200">
                             <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
                             <p class="text-sm text-gray-500">Loading access data...</p>
@@ -823,7 +887,13 @@
                             <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-100">
                                 <i class="fas fa-user-lock text-gray-300"></i>
                             </div>
-                            <p class="text-sm text-gray-500">No additional users have access to this space yet.</p>
+                            <p class="text-sm text-gray-500">
+                                {#if accessSearch}
+                                    No users match "{accessSearch}".
+                                {:else}
+                                    No additional users have access to this space yet.
+                                {/if}
+                            </p>
                         </div>
                     {:else}
                         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
@@ -884,6 +954,28 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        {#if accessTotalPages > 1}
+                            <div class="flex items-center justify-between pt-1">
+                                <span class="text-xs text-gray-400">Page {accessPage} of {accessTotalPages}</span>
+                                <div class="flex items-center gap-1">
+                                    <button
+                                        on:click={() => loadAccessList(accessPage - 1)}
+                                        disabled={accessPage <= 1 || loadingAccess}
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-30"
+                                    >
+                                        <i class="fas fa-chevron-left text-[10px]"></i>
+                                    </button>
+                                    <button
+                                        on:click={() => loadAccessList(accessPage + 1)}
+                                        disabled={accessPage >= accessTotalPages || loadingAccess}
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-30"
+                                    >
+                                        <i class="fas fa-chevron-right text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {/if}
                     {/if}
                 </div>
             </div>

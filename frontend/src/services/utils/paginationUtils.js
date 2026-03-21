@@ -105,3 +105,11 @@ export function sortData(data, sortBy, sortOrder) {
     return 0
   })
 }
+
+export function debounce(fn, delay) {
+  let timer
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}

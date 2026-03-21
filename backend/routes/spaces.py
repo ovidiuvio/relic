@@ -1,18 +1,18 @@
 """Space endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy import func, or_, and_
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, or_, and_, case
+from sqlalchemy.orm import Session, selectinload, joinedload, contains_eager
 from datetime import datetime
 from typing import Optional, List
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics, Comment
+from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics, Comment, Tag
 from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id
+from backend.utils import generate_relic_id, get_fork_counts
 from backend.dependencies import get_space_role, check_space_access, get_space_relic_count
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -50,58 +50,123 @@ async def create_space(
         "role": "owner"
     }
 
-@router.get("", response_model=List[SpaceResponse])
+@router.get("", response_model=dict)
 async def list_spaces(
     request: Request,
     visibility: Optional[str] = None,
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
     """
-    List spaces.
+    List spaces with server-side filtering, sorting, and pagination.
     If authenticated: returns public spaces + private spaces user has access to.
     If anonymous: returns only public spaces.
-    Optionally filter by visibility.
+    category: all, my, shared, public
+    sort_by: created_at, name, relic_count
     """
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id and client_id in settings.get_admin_client_ids()
 
     query = db.query(Space).options(selectinload(Space.access_list))
 
+    # Apply visibility filter at SQL level
+    if not is_admin:
+        if client_id:
+            access_sq = db.query(SpaceAccess.space_id).filter(
+                SpaceAccess.client_id == client_id
+            ).subquery()
+            query = query.filter(
+                or_(
+                    Space.visibility == "public",
+                    Space.owner_client_id == client_id,
+                    Space.id.in_(access_sq)
+                )
+            )
+        else:
+            query = query.filter(Space.visibility == "public")
+
+    # Optional direct visibility filter
     if visibility:
         query = query.filter(Space.visibility == visibility)
 
-    spaces = query.all()
+    # Category filter
+    if category == "my" and client_id:
+        query = query.filter(Space.owner_client_id == client_id)
+    elif category == "shared" and client_id:
+        shared_sq = db.query(SpaceAccess.space_id).filter(
+            SpaceAccess.client_id == client_id
+        ).subquery()
+        query = query.filter(
+            Space.id.in_(shared_sq),
+            Space.owner_client_id != client_id
+        )
+    elif category == "public":
+        query = query.filter(Space.visibility == "public")
 
-    # Fetch all relic counts in a single query instead of one per space
-    relic_counts = dict(
-        db.query(space_relics.c.space_id, func.count(space_relics.c.relic_id))
-        .group_by(space_relics.c.space_id)
-        .all()
-    )
+    # Search
+    if search:
+        term = f"%{search}%"
+        query = query.filter(or_(Space.name.ilike(term), Space.id.ilike(term)))
+
+    # Sort
+    total = query.count()
+
+    if sort_by == "priority" and client_id:
+        priv_access_sq = db.query(SpaceAccess.space_id).filter(
+            SpaceAccess.client_id == client_id
+        ).subquery()
+        priority_expr = case(
+            (Space.owner_client_id == client_id, 1),
+            (and_(Space.id.in_(priv_access_sq), Space.visibility == "private"), 2),
+            else_=3
+        )
+        spaces = query.order_by(priority_expr, Space.created_at.desc()).offset(offset).limit(limit).all()
+    else:
+        if sort_by == "relic_count":
+            relic_count_subq = (
+                db.query(space_relics.c.space_id, func.count(space_relics.c.relic_id).label("cnt"))
+                .group_by(space_relics.c.space_id)
+                .subquery()
+            )
+            query = query.outerjoin(relic_count_subq, Space.id == relic_count_subq.c.space_id)
+            sort_col = func.coalesce(relic_count_subq.c.cnt, 0)
+        elif sort_by == "name":
+            sort_col = Space.name
+        else:
+            sort_col = Space.created_at
+        order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+        spaces = query.order_by(order).offset(offset).limit(limit).all()
+
+    # Bulk relic count for this page only
+    space_ids = [s.id for s in spaces]
+    relic_counts = {}
+    if space_ids:
+        relic_counts = dict(
+            db.query(space_relics.c.space_id, func.count(space_relics.c.relic_id))
+            .filter(space_relics.c.space_id.in_(space_ids))
+            .group_by(space_relics.c.space_id)
+            .all()
+        )
 
     result = []
     for space in spaces:
         role = get_space_role(space, client_id)
+        result.append({
+            "id": space.id,
+            "name": space.name,
+            "visibility": space.visibility,
+            "owner_client_id": space.owner_client_id,
+            "created_at": space.created_at,
+            "relic_count": relic_counts.get(space.id, 0),
+            "role": role
+        })
 
-        # Determine if space should be included
-        is_visible = False
-        if is_admin or space.visibility == "public" or role is not None:
-            is_visible = True
-
-        if is_visible:
-            result.append({
-                "id": space.id,
-                "name": space.name,
-                "visibility": space.visibility,
-                "owner_client_id": space.owner_client_id,
-                "created_at": space.created_at,
-                "relic_count": relic_counts.get(space.id, 0),
-                "role": role
-            })
-
-    # Sort by creation date, newest first
-    result.sort(key=lambda x: x["created_at"], reverse=True)
-    return result
+    return {"spaces": result, "total": total, "limit": limit, "offset": offset}
 
 @router.get("/{space_id}", response_model=SpaceResponse)
 async def get_space(
@@ -252,13 +317,19 @@ async def delete_space(
     db.commit()
     return {"message": "Space deleted successfully"}
 
-@router.get("/{space_id}/relics", response_model=RelicListResponse)
+@router.get("/{space_id}/relics", response_model=dict)
 async def get_space_relics(
     space_id: str,
     request: Request,
+    limit: int = 25,
+    offset: int = 0,
+    search: Optional[str] = None,
+    tag: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     db: Session = Depends(get_db)
 ):
-    """Get relics in a space."""
+    """Get relics in a space with pagination."""
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id in settings.get_admin_client_ids() if client_id else False
 
@@ -269,19 +340,13 @@ async def get_space_relics(
     if not check_space_access(space, client_id, "viewer"):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
-    # Query relics in space with filters applied at database level
-    # Filter: not expired, and either public or private but visible to space member
-    # ⚡ Bolt: Use selectinload(Relic.tags) to prevent N+1 queries when accessing relic.tags later
     query = db.query(Relic).options(selectinload(Relic.tags)).join(
         space_relics, Relic.id == space_relics.c.relic_id
     ).filter(
         space_relics.c.space_id == space_id
     ).filter(
-        # Exclude expired relics
         or_(Relic.expires_at.is_(None), Relic.expires_at > datetime.utcnow())
     ).filter(
-        # Show public relics to everyone; private/restricted relics to space members/admin
-        # Space membership grants visibility — the adder had access when they added it
         or_(
             Relic.access_level == "public",
             and_(Relic.access_level == "private", Relic.client_id == client_id),
@@ -289,20 +354,48 @@ async def get_space_relics(
             and_(Relic.access_level == "private", client_id is not None),
             and_(Relic.access_level == "restricted", Relic.client_id == client_id),
             and_(Relic.access_level == "restricted", is_admin),
-            # Restricted relics are visible to anyone with space access (same as private)
             and_(Relic.access_level == "restricted", client_id is not None),
         )
-    ).order_by(Relic.created_at.desc())
+    )
 
-    relics = query.all()
+    if tag:
+        query = query.join(Relic.tags, isouter=False).filter(Tag.name.ilike(tag)).distinct()
 
-    # Format response
+    if search:
+        term = f"%{search}%"
+        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+        query = query.filter(
+            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
+        ).distinct()
+
+    sort_map = {
+        "created_at": Relic.created_at,
+        "name": Relic.name,
+        "size": Relic.size_bytes,
+        "access_count": Relic.access_count,
+        "bookmark_count": Relic.bookmark_count,
+    }
+    sort_col = sort_map.get(sort_by, Relic.created_at)
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
+    total = query.count()
+    relics = query.order_by(order).offset(offset).limit(limit).all()
+
+    relic_ids = [r.id for r in relics]
+    comments_counts = {}
+    if relic_ids:
+        comments_counts = {
+            row[0]: row[1]
+            for row in db.query(Comment.relic_id, func.count(Comment.id)).filter(
+                Comment.relic_id.in_(relic_ids)
+            ).group_by(Comment.relic_id).all()
+        }
+    forks_counts = get_fork_counts(db, relic_ids)
+
     result = []
     for relic in relics:
         can_edit = client_id is not None and (relic.client_id == client_id or is_admin)
-        comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic.id).scalar()
-        forks_count = db.query(func.count(Relic.id)).filter(Relic.fork_of == relic.id).scalar()
-        relic_dict = {
+        result.append({
             "id": relic.id,
             "name": relic.name,
             "description": relic.description,
@@ -315,14 +408,13 @@ async def get_space_relics(
             "expires_at": relic.expires_at,
             "access_count": relic.access_count,
             "bookmark_count": relic.bookmark_count,
-            "comments_count": comments_count or 0,
-            "forks_count": forks_count or 0,
+            "comments_count": comments_counts.get(relic.id, 0),
+            "forks_count": forks_counts.get(relic.id, 0),
             "can_edit": can_edit,
             "tags": [{"name": t.name, "id": t.id} for t in relic.tags]
-        }
-        result.append(relic_dict)
+        })
 
-    return {"relics": result}
+    return {"relics": result, "total": total, "limit": limit, "offset": offset}
 
 @router.post("/{space_id}/relics")
 async def add_relic_to_space(
@@ -389,48 +481,68 @@ async def remove_relic_from_space(
 
     return {"message": "Relic removed from space successfully"}
 
-@router.get("/{space_id}/access", response_model=List[SpaceAccessResponse])
+@router.get("/{space_id}/access", response_model=dict)
 async def get_space_access(
     space_id: str,
     request: Request,
+    limit: int = 25,
+    offset: int = 0,
+    search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get the access list for a space."""
+    """Get the access list for a space with pagination and optional search."""
     client_id = request.headers.get("X-Client-Key")
 
-    # ⚡ Bolt: Use selectinload and joinedload to prevent N+1 queries when accessing access.client.name
-    space = db.query(Space).options(
-        selectinload(Space.access_list).joinedload(SpaceAccess.client)
-    ).filter(Space.id == space_id).first()
+    space = db.query(Space).filter(Space.id == space_id).first()
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    # Only owner, editors, or admin can view access list
     if not check_space_access(space, client_id, "editor"):
         raise HTTPException(status_code=403, detail="Not authorized to view space access list")
 
-    # Always show the owner first
     owner = db.query(ClientKey).filter(ClientKey.id == space.owner_client_id).first()
-    result = [{
-        "id": space.id,  # use space id as a stable synthetic id for the owner row
+    owner_row = {
+        "id": space.id,
         "space_id": space.id,
         "public_id": owner.public_id if owner else None,
         "client_name": owner.name if owner else None,
         "role": "owner",
         "created_at": space.created_at,
-    }]
+    }
 
-    for access in space.access_list:
-        result.append({
+    access_query = (
+        db.query(SpaceAccess)
+        .join(SpaceAccess.client)
+        .options(contains_eager(SpaceAccess.client))
+        .filter(SpaceAccess.space_id == space_id)
+    )
+    if search:
+        term = f"%{search}%"
+        access_query = access_query.filter(
+            or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
+        )
+
+    access_total = access_query.count()
+    access_entries = access_query.order_by(SpaceAccess.created_at).offset(offset).limit(limit).all()
+
+    result = [owner_row] + [
+        {
             "id": access.id,
             "space_id": access.space_id,
-            "public_id": access.client.public_id,
-            "client_name": access.client.name,
+            "public_id": access.client.public_id if access.client else None,
+            "client_name": access.client.name if access.client else None,
             "role": access.role,
             "created_at": access.created_at,
-        })
+        }
+        for access in access_entries
+    ]
 
-    return result
+    return {
+        "access": result,
+        "total": 1 + access_total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 @router.post("/{space_id}/access", response_model=SpaceAccessResponse)
 async def add_space_access(

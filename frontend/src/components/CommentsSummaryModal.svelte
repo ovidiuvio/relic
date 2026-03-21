@@ -1,5 +1,5 @@
 <script>
-  import { getComments } from '../services/api/comments';
+  import { getCommentsPaginated } from '../services/api/comments';
   import { getRelic, getRelicRaw } from '../services/api/relics';
   import { showToast } from '../stores/toastStore';
   import MonacoEditor from './MonacoEditor.svelte';
@@ -11,12 +11,16 @@
   export let relicName = "";
 
   let comments = [];
+  let totalComments = 0;
   let relicMetadata = null;
   let processed = null;
   let rawContent = '';
   let lines = [];
   let isLoading = false;
+  let loadingMore = false;
   let error = null;
+
+  const PAGE_SIZE = 1000;
 
   async function fetchAllData() {
     if (!relicId) return;
@@ -25,12 +29,13 @@
     error = null;
     try {
       const [commentsRes, relicRes, rawRes] = await Promise.all([
-        getComments(relicId),
+        getCommentsPaginated(relicId, { limit: PAGE_SIZE }),
         getRelic(relicId),
         getRelicRaw(relicId)
       ]);
 
-      comments = commentsRes;
+      comments = commentsRes.comments;
+      totalComments = commentsRes.total;
       relicMetadata = relicRes.data;
       
       const blob = rawRes.data;
@@ -48,6 +53,19 @@
       showToast(error, "error");
     } finally {
       isLoading = false;
+    }
+  }
+
+  async function loadMore() {
+    if (loadingMore) return;
+    loadingMore = true;
+    try {
+      const res = await getCommentsPaginated(relicId, { limit: PAGE_SIZE, offset: comments.length });
+      comments = [...comments, ...res.comments];
+    } catch (err) {
+      showToast("Failed to load more comments", "error");
+    } finally {
+      loadingMore = false;
     }
   }
 
@@ -154,6 +172,9 @@
           </div>
         </h2>
         <div class="flex items-center gap-3">
+            {#if totalComments > 0}
+              <span class="text-xs text-gray-400 font-medium">{comments.length} of {totalComments}</span>
+            {/if}
             <button
               on:click={closeModal}
               class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
@@ -193,7 +214,7 @@
                 <div class="group/snippet border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white transition-all hover:border-gray-300">
                     <div class="bg-gray-50/50 px-6 py-2 border-b border-gray-100 flex items-center justify-between font-mono">
                         <div class="flex items-center gap-4">
-                            <button 
+                            <button
                                 on:click={() => navigateToLine(lineNum)}
                                 class="text-xs font-bold text-gray-500 hover:text-blue-600 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-200 transition-all flex items-center gap-2 group-hover/snippet:border-blue-200"
                                 title="Open in file at line {lineNum}"
@@ -228,6 +249,21 @@
                     </div>
                 </div>
             {/each}
+            {#if comments.length < totalComments}
+              <div class="flex justify-center pt-2">
+                <button
+                  on:click={loadMore}
+                  disabled={loadingMore}
+                  class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors focus:outline-none disabled:opacity-50"
+                >
+                  {#if loadingMore}
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+                  {:else}
+                    Load more ({totalComments - comments.length} remaining)
+                  {/if}
+                </button>
+              </div>
+            {/if}
           </div>
         {:else}
           <div class="text-center py-24 text-gray-500">

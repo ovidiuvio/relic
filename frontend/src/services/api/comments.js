@@ -1,7 +1,12 @@
 import api from './core'
 
-export async function getComments(relicId) {
-    const response = await api.get(`/relics/${relicId}/comments`)
+export async function getComments(relicId, params = {}) {
+    const response = await api.get(`/relics/${relicId}/comments`, { params })
+    return response.data.comments
+}
+
+export async function getCommentsPaginated(relicId, params = {}) {
+    const response = await api.get(`/relics/${relicId}/comments`, { params })
     return response.data
 }
 

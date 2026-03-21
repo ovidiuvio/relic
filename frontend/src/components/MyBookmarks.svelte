@@ -2,8 +2,7 @@
   import { onMount } from 'svelte'
   import { showToast } from '../stores/toastStore'
   import { getClientBookmarks, removeBookmark } from '../services/api'
-  import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils'
-  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils'
+  import { getDefaultItemsPerPage } from '../services/typeUtils'
   import RelicTable from './RelicTable.svelte'
 
   export let tagFilter = null
@@ -13,29 +12,53 @@
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 20
+  let total = 0
   let sortBy = 'date'
   let sortOrder = 'desc'
 
   let showConfirm = false
   let bookmarkToRemove = null
 
-  // Use shared filter utility
-  $: filteredByTag = filterRelics(bookmarks, searchTerm, getTypeLabel, tagFilter)
+  // Server-side pagination
+  $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage))
 
-  $: searchTerm, tagFilter, (currentPage = 1)
+  function goToPage(page) {
+    if (page >= 1 && page <= totalPages) loadBookmarks(page)
+  }
 
-  // Apply sorting
-  $: sortedBookmarks = sortData(filteredByTag, sortBy, sortOrder)
+  function handleSort(event) {
+    sortBy = event.detail.sortBy
+    sortOrder = event.detail.sortOrder
+    loadBookmarks(1)
+  }
 
-  // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(sortedBookmarks, itemsPerPage)
-  $: paginatedBookmarks = paginateData(sortedBookmarks, currentPage, itemsPerPage)
+  let bookmarksReady = false
+  let searchTimer
+  let prevTagFilter = tagFilter
 
-  async function loadBookmarks() {
+  $: if (bookmarksReady && searchTerm !== undefined) {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => loadBookmarks(1), 300)
+  }
+
+  $: if (bookmarksReady && tagFilter !== prevTagFilter) {
+    prevTagFilter = tagFilter
+    loadBookmarks(1)
+  }
+
+  async function loadBookmarks(page = 1) {
     try {
       loading = true
-      const response = await getClientBookmarks()
+      const response = await getClientBookmarks({
+        tag: tagFilter || undefined,
+        sort_by: sortBy === 'date' ? 'created_at' : sortBy,
+        sort_order: sortOrder,
+        limit: itemsPerPage,
+        offset: (page - 1) * itemsPerPage,
+      })
       bookmarks = response.data.bookmarks || []
+      total = response.data.total || 0
+      currentPage = page
     } catch (error) {
       console.error('Failed to load bookmarks:', error)
       showToast('Failed to load bookmarks', 'error')
@@ -57,8 +80,8 @@
     try {
       await removeBookmark(bookmarkToRemove.id)
       showToast('Bookmark removed', 'success')
-      // Reload the bookmarks list
-      await loadBookmarks()
+      const newPage = bookmarks.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+      await loadBookmarks(newPage)
     } catch (error) {
       console.error('Failed to remove bookmark:', error)
       showToast('Failed to remove bookmark', 'error')
@@ -67,27 +90,25 @@
     }
   }
 
-  function goToPage(page) {
-    currentPage = clampPage(page, totalPages)
-  }
-
-  onMount(() => {
+  onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
-    loadBookmarks()
+    await loadBookmarks(1)
+    bookmarksReady = true
   })
 </script>
 
 <div class="px-4 sm:px-0">
   <RelicTable
-    data={sortedBookmarks}
+    data={bookmarks}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
-    bind:sortBy
-    bind:sortOrder
+    {sortBy}
+    {sortOrder}
     {totalPages}
-    paginatedData={paginatedBookmarks}
+    total={total}
+    paginatedData={bookmarks}
     title="My Bookmarks"
     titleIcon="fa-bookmark"
     titleIconColor="text-amber-600"
@@ -105,6 +126,7 @@
     emptyAction="Bookmark relics you want to save for later!"
     tableId="my-bookmarks"
     onRemoveBookmark={handleRemoveBookmark}
+    on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
       window.history.pushState({}, "", "/my-bookmarks");

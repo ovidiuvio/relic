@@ -1,8 +1,10 @@
 """Utility functions."""
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Dict
 import hashlib
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 def generate_relic_id() -> str:
@@ -75,5 +77,51 @@ def is_expired(expires_at: Optional[datetime]) -> bool:
     if not expires_at:
         return False
     return datetime.utcnow() > expires_at
+
+
+def get_fork_counts(db: Session, relic_ids: List[str]) -> Dict[str, int]:
+    """
+    Count all descendants (direct + indirect) for each relic using a single
+    recursive CTE — mirrors GitHub's fork counter behaviour.
+
+    Returns a dict of {relic_id: total_descendant_count}.
+    """
+    if not relic_ids:
+        return {}
+    result = db.execute(
+        text("""
+            WITH RECURSIVE fork_tree AS (
+                SELECT fork_of AS root_id, id
+                FROM relic
+                WHERE fork_of = ANY(:ids)
+                UNION ALL
+                SELECT ft.root_id, r.id
+                FROM relic r
+                JOIN fork_tree ft ON r.fork_of = ft.id
+            )
+            SELECT root_id, COUNT(*) AS total
+            FROM fork_tree
+            GROUP BY root_id
+        """),
+        {"ids": relic_ids},
+    ).fetchall()
+    return {row[0]: row[1] for row in result}
+
+
+def get_fork_count(db: Session, relic_id: str) -> int:
+    """Count all descendants of a single relic using a recursive CTE."""
+    row = db.execute(
+        text("""
+            WITH RECURSIVE fork_tree AS (
+                SELECT id FROM relic WHERE fork_of = :relic_id
+                UNION ALL
+                SELECT r.id FROM relic r
+                JOIN fork_tree ft ON r.fork_of = ft.id
+            )
+            SELECT COUNT(*) FROM fork_tree
+        """),
+        {"relic_id": relic_id},
+    ).scalar()
+    return row or 0
 
 

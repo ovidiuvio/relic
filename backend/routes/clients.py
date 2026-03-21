@@ -1,6 +1,6 @@
 """Client registration and management endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 from datetime import datetime
 from typing import Optional
@@ -10,6 +10,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Comment
 from backend.schemas import ClientNameUpdate
 from backend.dependencies import get_client_key
+from backend.utils import get_fork_counts
 
 router = APIRouter(prefix="/api/v1/client")
 
@@ -73,10 +74,15 @@ async def register_client(request: Request, db: Session = Depends(get_db)):
 async def get_client_relics(
     request: Request,
     tag: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    limit: int = 25,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
     """
-    Get all relics owned by this client.
+    Get relics owned by this client with pagination.
 
     Requires valid X-Client-Key header.
     """
@@ -96,15 +102,35 @@ async def get_client_relics(
             return {
                 "client_id": client.id,
                 "relic_count": 0,
-                "relics": []
+                "relics": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
             }
 
-    relics = query.order_by(Relic.created_at.desc()).all()
+    if search:
+        term = f"%{search}%"
+        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+        query = query.filter(
+            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
+        ).distinct()
+
+    sort_map = {
+        "created_at": Relic.created_at,
+        "name": Relic.name,
+        "size": Relic.size_bytes,
+        "access_count": Relic.access_count,
+        "bookmark_count": Relic.bookmark_count,
+    }
+    sort_col = sort_map.get(sort_by, Relic.created_at)
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
+    total = query.count()
+    relics = query.order_by(order).offset(offset).limit(limit).all()
 
     # Fetch all counts in bulk (2 queries instead of N*2)
     relic_ids = [r.id for r in relics]
     comments_counts = {}
-    forks_counts = {}
 
     if relic_ids:
         comments_counts = {
@@ -113,16 +139,14 @@ async def get_client_relics(
                 Comment.relic_id.in_(relic_ids)
             ).group_by(Comment.relic_id).all()
         }
-        forks_counts = {
-            row[0]: row[1]
-            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
-                Relic.fork_of.in_(relic_ids)
-            ).group_by(Relic.fork_of).all()
-        }
+    forks_counts = get_fork_counts(db, relic_ids)
 
     return {
         "client_id": client.id,
-        "relic_count": len(relics),
+        "relic_count": total,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
         "relics": [
             {
                 "id": relic.id,

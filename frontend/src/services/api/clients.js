@@ -1,10 +1,6 @@
 import api from './core'
 
-export async function getClientRelics(tag = null) {
-    const params = {}
-    if (tag) {
-        params.tag = tag
-    }
+export async function getClientRelics(params = {}) {
     return api.get('/client/relics', { params })
 }
 

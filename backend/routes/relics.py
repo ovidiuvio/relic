@@ -1,8 +1,8 @@
 """Relic CRUD and content endpoints."""
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload, joinedload, contains_eager
+from sqlalchemy import func, or_
 from datetime import datetime
 from typing import Optional, List
 import logging
@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service
-from backend.utils import parse_expiry_string, is_expired, hash_password
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts
 from backend.dependencies import (
     get_client_key, get_or_create_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
@@ -177,12 +177,11 @@ async def get_relic(
     relic.access_count += 1
     db.commit()
 
-    # Calculate counts using SQL COUNT (efficient, single queries)
+    # Calculate counts
     comments_count = db.query(func.count(Comment.id)).filter(Comment.relic_id == relic_id).scalar()
-    forks_count = db.query(func.count(Relic.id)).filter(Relic.fork_of == relic_id).scalar()
     relic_response = RelicResponse.from_orm(relic)
     relic_response.comments_count = comments_count or 0
-    relic_response.forks_count = forks_count or 0
+    relic_response.forks_count = get_fork_count(db, relic_id)
     return relic_response
 
 @router.get("/{relic_id}")
@@ -319,58 +318,58 @@ async def fork_relic(
 
 
 @router.get("/api/v1/relics/{relic_id}/lineage")
-async def get_relic_lineage(relic_id: str, db: Session = Depends(get_db)):
-    """Get the fork lineage tree for a relic."""
+async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: Session = Depends(get_db)):
+    """Get the fork lineage tree for a relic. max_nodes=0 means unlimited."""
     current = db.query(Relic).filter(Relic.id == relic_id).first()
     if not current:
         raise HTTPException(status_code=404, detail="Relic not found")
-        
-    visited = set()
+
+    # Walk up to root — O(depth) queries, typically very shallow
+    visited_up = set()
     root_id = current.id
     current_relic = current
-    
-    while current_relic.fork_of and current_relic.fork_of not in visited:
-        visited.add(current_relic.fork_of)
+    while current_relic.fork_of and current_relic.fork_of not in visited_up:
+        visited_up.add(current_relic.fork_of)
         parent = db.query(Relic).filter(Relic.id == current_relic.fork_of).first()
         if not parent:
             break
         root_id = parent.id
         current_relic = parent
 
-    tree_nodes = {}
-    queue = [root_id]
-    visited_down = set([root_id])
-    
     root_relic_obj = db.query(Relic).filter(Relic.id == root_id).first()
     if not root_relic_obj:
-        return {"current_relic_id": relic_id, "root": None}
-        
-    tree_nodes[root_id] = {
-        "id": root_relic_obj.id,
-        "name": root_relic_obj.name,
-        "created_at": root_relic_obj.created_at,
-        "children": []
+        return {"current_relic_id": relic_id, "root": None, "total_nodes": 0, "truncated": False}
+
+    tree_nodes = {
+        root_id: {"id": root_relic_obj.id, "name": root_relic_obj.name, "created_at": root_relic_obj.created_at, "children": []}
     }
-    
-    while queue:
-        current_id = queue.pop(0)
-        children = db.query(Relic).filter(Relic.fork_of == current_id).all()
+
+    # Level-by-level BFS with batched IN queries — O(depth) queries regardless of tree size
+    current_level_ids = [root_id]
+    truncated = False
+
+    while current_level_ids:
+        children = db.query(Relic).filter(Relic.fork_of.in_(current_level_ids)).all()
+        next_level_ids = []
         for child in children:
-            if child.id not in visited_down:
-                visited_down.add(child.id)
-                queue.append(child.id)
-                child_data = {
-                    "id": child.id,
-                    "name": child.name,
-                    "created_at": child.created_at,
-                    "children": []
-                }
-                tree_nodes[child.id] = child_data
-                tree_nodes[current_id]["children"].append(child_data)
-                
+            if child.id in tree_nodes:
+                continue
+            if max_nodes > 0 and len(tree_nodes) >= max_nodes:
+                truncated = True
+                break
+            child_data = {"id": child.id, "name": child.name, "created_at": child.created_at, "children": []}
+            tree_nodes[child.id] = child_data
+            tree_nodes[child.fork_of]["children"].append(child_data)
+            next_level_ids.append(child.id)
+        if truncated:
+            break
+        current_level_ids = next_level_ids
+
     return {
         "current_relic_id": relic_id,
-        "root": tree_nodes[root_id]
+        "root": tree_nodes[root_id],
+        "total_nodes": len(tree_nodes),
+        "truncated": truncated,
     }
 
 
@@ -466,11 +465,13 @@ async def delete_relic(relic_id: str, request: Request, db: Session = Depends(ge
 
 @router.get("/api/v1/relics", response_model=RelicListResponse)
 async def list_relics(
-    limit: int = 200,
+    limit: int = 25,
+    offset: int = 0,
     tag: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """List the most recent public relics."""
+    """List the most recent public relics with pagination."""
     query = db.query(Relic).options(selectinload(Relic.tags)).filter(Relic.access_level == "public")
 
     if tag:
@@ -478,14 +479,20 @@ async def list_relics(
         if tag_obj:
             query = query.filter(Relic.tags.contains(tag_obj))
         else:
-            return {"relics": []}
+            return {"relics": [], "total": 0, "limit": limit, "offset": offset}
 
-    relics = query.order_by(Relic.created_at.desc()).limit(limit).all()
+    if search:
+        term = f"%{search}%"
+        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+        query = query.filter(
+            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
+        ).distinct()
 
-    # Fetch all counts in bulk (2 queries instead of N*2)
+    total = query.count()
+    relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()
+
     relic_ids = [r.id for r in relics]
     comments_counts = {}
-    forks_counts = {}
 
     if relic_ids:
         comments_counts = {
@@ -494,12 +501,7 @@ async def list_relics(
                 Comment.relic_id.in_(relic_ids)
             ).group_by(Comment.relic_id).all()
         }
-        forks_counts = {
-            row[0]: row[1]
-            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
-                Relic.fork_of.in_(relic_ids)
-            ).group_by(Relic.fork_of).all()
-        }
+    forks_counts = get_fork_counts(db, relic_ids)
 
     relic_responses = []
     for relic in relics:
@@ -508,35 +510,56 @@ async def list_relics(
         relic_response.forks_count = forks_counts.get(relic.id, 0)
         relic_responses.append(relic_response)
 
-    return {"relics": relic_responses}
+    return {"relics": relic_responses, "total": total, "limit": limit, "offset": offset}
 
 
-@router.get("/api/v1/relics/{relic_id}/access", response_model=List[RelicAccessEntry])
-async def get_relic_access(relic_id: str, request: Request, db: Session = Depends(get_db)):
+@router.get("/api/v1/relics/{relic_id}/access", response_model=dict)
+async def get_relic_access(
+    relic_id: str,
+    request: Request,
+    search: Optional[str] = None,
+    limit: int = 25,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
     """List clients with explicit access to a restricted relic. Owner/admin only."""
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    # ⚡ Bolt: Use joinedload to eagerly load the associated clients for each access list entry to prevent N+1 queries
-    relic = db.query(Relic).options(
-        selectinload(Relic.access_list).joinedload(RelicAccess.client)
-    ).filter(Relic.id == relic_id).first()
+    relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     if not check_ownership_or_admin(relic, client):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    result = []
-    for entry in relic.access_list:
-        allowed_client = entry.client
-        result.append(RelicAccessEntry(
-            public_id=allowed_client.public_id if allowed_client else None,
-            client_name=allowed_client.name if allowed_client else None,
-            created_at=entry.created_at
-        ))
-    return result
+    access_query = db.query(RelicAccess).join(RelicAccess.client).options(
+        contains_eager(RelicAccess.client)
+    ).filter(RelicAccess.relic_id == relic_id)
+
+    if search:
+        term = f"%{search}%"
+        access_query = access_query.filter(
+            or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
+        )
+
+    total = access_query.count()
+    entries = access_query.order_by(RelicAccess.created_at).offset(offset).limit(limit).all()
+
+    return {
+        "access": [
+            RelicAccessEntry(
+                public_id=e.client.public_id if e.client else None,
+                client_name=e.client.name if e.client else None,
+                created_at=e.created_at
+            )
+            for e in entries
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.post("/api/v1/relics/{relic_id}/access", response_model=RelicAccessEntry)

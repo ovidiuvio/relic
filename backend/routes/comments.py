@@ -1,7 +1,7 @@
 """Comment endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from backend.database import get_db
 from backend.models import Relic, ClientKey, Comment
@@ -51,23 +51,28 @@ async def create_comment(
     return response
 
 
-@router.get("/{relic_id}/comments", response_model=List[CommentResponse])
+@router.get("/{relic_id}/comments", response_model=dict)
 async def get_relic_comments(
     relic_id: str,
+    line_number: Optional[int] = None,
+    limit: int = 1000,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
-    """Get all comments for a relic."""
-    # Verify relic exists
+    """Get comments for a relic with pagination."""
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    # Join with ClientKey to get author names
-    results = db.query(Comment, ClientKey.name).outerjoin(
+    query = db.query(Comment, ClientKey.name).outerjoin(
         ClientKey, Comment.client_id == ClientKey.id
-    ).filter(
-        Comment.relic_id == relic_id
-    ).order_by(Comment.line_number, Comment.created_at).all()
+    ).filter(Comment.relic_id == relic_id)
+
+    if line_number is not None:
+        query = query.filter(Comment.line_number == line_number)
+
+    total = query.count()
+    results = query.order_by(Comment.line_number, Comment.created_at).offset(offset).limit(limit).all()
 
     comments = []
     for comment, author_name in results:
@@ -75,7 +80,7 @@ async def get_relic_comments(
         comment_resp.author_name = author_name
         comments.append(comment_resp)
 
-    return comments
+    return {"comments": comments, "total": total, "limit": limit, "offset": offset}
 
 
 @router.put("/{relic_id}/comments/{comment_id}", response_model=CommentResponse)

@@ -18,8 +18,21 @@
     let filter = 'all'; // all, my, shared, public
 
     let searchTerm = '';
-    let sortBy = 'created_at';
+    let sortBy = 'priority';
     let sortOrder = 'desc';
+
+    // Server-side pagination
+    let currentPage = 1;
+    let itemsPerPage = 25;
+    let total = 0;
+    $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+
+    function goToPage(page) {
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            loadSpaces(page);
+        }
+    }
 
     // Drop handling state
     let showDropModal = false;
@@ -33,41 +46,42 @@
     let confirmMessage = '';
     let confirmAction = null;
 
-    $: filteredSpaces = spaces.filter(space => {
-        // Apply category filter
-        let matchesFilter = true;
-        if (filter === 'my') matchesFilter = space.role === 'owner';
-        else if (filter === 'shared') matchesFilter = space.role && space.role !== 'owner';
-        else if (filter === 'public') matchesFilter = space.visibility === 'public';
-        
-        if (!matchesFilter) return false;
+    // Reload on filter/search/sort changes (after initial load)
+    let spacesReady = false;
+    let searchTimer;
+    let prevFilter = filter;
+    let prevSortBy = sortBy;
+    let prevSortOrder = sortOrder;
 
-        // Apply search term
-        if (!searchTerm.trim()) return true;
-        const term = searchTerm.toLowerCase();
-        return (
-            space.name.toLowerCase().includes(term) ||
-            space.id.toLowerCase().includes(term)
-        );
-    });
-
-    $: sortedSpaces = [...filteredSpaces].sort((a, b) => {
-        let valA = a[sortBy];
-        let valB = b[sortBy];
-        
-        if (sortBy === 'created_at') {
-            valA = new Date(valA).getTime();
-            valB = new Date(valB).getTime();
+    $: if (spacesReady && searchTerm !== undefined) {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadSpaces(1), 300);
+    }
+    $: if (spacesReady && (filter !== prevFilter || sortBy !== prevSortBy || sortOrder !== prevSortOrder)) {
+        if (filter !== prevFilter) {
+            sortBy = filter === 'all' ? 'priority' : 'created_at';
+            sortOrder = 'desc';
         }
+        prevFilter = filter;
+        prevSortBy = sortBy;
+        prevSortOrder = sortOrder;
+        loadSpaces(1);
+    }
 
-        if (sortOrder === 'asc') return valA > valB ? 1 : -1;
-        return valA < valB ? 1 : -1;
-    });
-
-    async function loadSpaces() {
+    async function loadSpaces(page = 1) {
         loading = true;
         try {
-            spaces = await spacesApi.list();
+            const data = await spacesApi.list({
+                category: filter !== 'all' ? filter : undefined,
+                search: searchTerm || undefined,
+                sort_by: sortBy,
+                sort_order: sortOrder,
+                limit: itemsPerPage,
+                offset: (page - 1) * itemsPerPage,
+            });
+            spaces = data.spaces;
+            total = data.total;
+            currentPage = page;
         } catch (error) {
             console.error("Failed to load spaces:", error);
             showToast("Failed to load spaces", "error");
@@ -84,15 +98,15 @@
 
         creating = true;
         try {
-            const space = await spacesApi.create({
+            await spacesApi.create({
                 name: newSpaceName.trim(),
                 visibility: newSpaceVisibility
             });
-            spaces = [space, ...spaces];
             showCreateModal = false;
             newSpaceName = '';
             newSpaceVisibility = 'public';
             showToast("Space created successfully", "success");
+            await loadSpaces(1);
         } catch (error) {
             console.error("Failed to create space:", error);
             showToast("Failed to create space", "error");
@@ -108,8 +122,9 @@
             showConfirm = false;
             try {
                 await spacesApi.delete(space.id);
-                spaces = spaces.filter(s => s.id !== space.id);
                 showToast("Space deleted", "success");
+                const newPage = spaces.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+                await loadSpaces(newPage);
             } catch (error) {
                 console.error("Failed to delete space:", error);
                 showToast("Failed to delete space", "error");
@@ -129,6 +144,7 @@
             sortBy = column;
             sortOrder = 'desc';
         }
+        // Reactive statement will pick this up via prevSortBy/prevSortOrder tracking
     }
 
     function copyToClipboard(text, message) {
@@ -166,11 +182,12 @@
 
     function handleUploadSuccess() {
         showDropModal = false;
-        loadSpaces(); // Refresh counts
+        loadSpaces(currentPage);
     }
 
-    onMount(() => {
-        loadSpaces();
+    onMount(async () => {
+        await loadSpaces(1);
+        spacesReady = true;
     });
 </script>
 
@@ -252,7 +269,7 @@
                 <i class="fas fa-spinner fa-spin text-blue-600 text-3xl"></i>
                 <p class="text-gray-500 mt-4">Loading spaces...</p>
             </div>
-        {:else if sortedSpaces.length === 0}
+        {:else if spaces.length === 0}
             <div class="p-16 text-center text-gray-500">
                 <i class="fas fa-layer-group text-5xl mb-4 opacity-20"></i>
                 <p class="text-lg font-medium text-gray-900">
@@ -273,30 +290,36 @@
                 <table class="w-full maas-table text-sm">
                     <thead>
                         <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('name')}>
+                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Name / ID</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
+                                    {#if filter !== 'all'}
+                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
+                                    {/if}
                                 </div>
                             </th>
                             <th class="px-4 py-3 text-left">Role / Visibility</th>
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('relic_count')}>
+                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Relics</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
+                                    {#if filter !== 'all'}
+                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
+                                    {/if}
                                 </div>
                             </th>
-                            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('created_at')}>
+                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
                                     <span>Created</span>
-                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
+                                    {#if filter !== 'all'}
+                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
+                                    {/if}
                                 </div>
                             </th>
                             <th class="px-4 py-3 text-right w-40">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {#each sortedSpaces as space (space.id)}
+                        {#each spaces as space (space.id)}
                             <tr 
                                 class="hover:bg-gray-50 transition-colors group cursor-pointer {dragOverSpaceId === space.id ? 'bg-blue-50 ring-2 ring-inset ring-blue-500 z-10' : ''}" 
                                 on:click={() => openSpace(space.id)}
@@ -395,6 +418,49 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination footer -->
+            {#if spaces.length > 0}
+                <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center gap-6">
+                    <div class="flex items-center gap-4">
+                        <span>{total} {total === 1 ? 'space' : 'spaces'}</span>
+                        <div class="flex items-center gap-2">
+                            <label for="spaces-per-page" class="text-gray-600">Per page:</label>
+                            <select
+                                id="spaces-per-page"
+                                bind:value={itemsPerPage}
+                                on:change={() => goToPage(1)}
+                                class="pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+                    </div>
+                    {#if totalPages > 1}
+                        <div class="flex items-center gap-2 whitespace-nowrap">
+                            <span class="text-gray-600">Page {currentPage} of {totalPages}</span>
+                            <div class="flex items-center gap-1">
+                                <button
+                                    on:click={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage <= 1}
+                                    class="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                                >
+                                    <i class="fas fa-chevron-left text-xs"></i>
+                                </button>
+                                <button
+                                    on:click={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage >= totalPages}
+                                    class="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                                >
+                                    <i class="fas fa-chevron-right text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         {/if}
     </div>
 </div>

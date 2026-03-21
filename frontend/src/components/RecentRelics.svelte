@@ -1,8 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { listRelics } from '../services/api';
-  import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
-  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
+  import { getDefaultItemsPerPage } from '../services/typeUtils';
   import { showToast } from '../stores/toastStore';
   import { getFilesFromDrop } from '../services/utils/fileProcessing';
   import RelicTable from './RelicTable.svelte';
@@ -15,6 +14,7 @@
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 25
+  let total = 0
   let sortBy = 'date'
   let sortOrder = 'desc'
 
@@ -23,27 +23,40 @@
   let droppedFiles = []
   let isDraggingOver = false
 
-  // Use shared filter utility
-  $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter)
-  
-  $: searchTerm, tagFilter, (currentPage = 1)
-  
-  // Apply sorting
-  $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder)
-
-  // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage)
-  $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage)
+  // Server-side pagination
+  $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage))
 
   function goToPage(page) {
-    currentPage = clampPage(page, totalPages)
+    if (page >= 1 && page <= totalPages) loadRelics(page)
   }
 
-  async function loadRelics() {
+  function handleSort(event) {
+    sortBy = event.detail.sortBy
+    sortOrder = event.detail.sortOrder
+    loadRelics(1)
+  }
+
+  let relicsReady = false
+  let searchTimer
+  let prevTagFilter = tagFilter
+
+  $: if (relicsReady && searchTerm !== undefined) {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => loadRelics(1), 300)
+  }
+
+  $: if (relicsReady && tagFilter !== prevTagFilter) {
+    prevTagFilter = tagFilter
+    loadRelics(1)
+  }
+
+  async function loadRelics(page = 1) {
     try {
       loading = true
-      const response = await listRelics(1000, tagFilter)
+      const response = await listRelics(itemsPerPage, (page - 1) * itemsPerPage, tagFilter, searchTerm || null)
       relics = response.data.relics || []
+      total = response.data.total || 0
+      currentPage = page
     } catch (error) {
       showToast('Failed to load recent relics', 'error')
       console.error('Error loading relics:', error)
@@ -65,7 +78,7 @@
   async function handleDrop(e) {
     e.preventDefault()
     isDraggingOver = false
-    
+
     const files = await getFilesFromDrop(e.dataTransfer)
     if (files.length > 0) {
       droppedFiles = files
@@ -75,16 +88,13 @@
 
   function handleUploadSuccess() {
     showDropModal = false
-    loadRelics()
-  }
-
-  $: if (tagFilter !== undefined) {
-    loadRelics()
+    loadRelics(1)
   }
 
   onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
-    await loadRelics()
+    await loadRelics(1)
+    relicsReady = true
   })
 </script>
 
@@ -106,15 +116,16 @@
     </div>
   {/if}
   <RelicTable
-    data={sortedRelics}
+    data={relics}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
-    bind:sortBy
-    bind:sortOrder
+    {sortBy}
+    {sortOrder}
     {totalPages}
-    paginatedData={paginatedRelics}
+    total={total}
+    paginatedData={relics}
     title="Recent Relics"
     titleIcon="fa-clock"
     titleIconColor="text-blue-600"
@@ -124,6 +135,7 @@
     emptyIcon="fa-inbox"
     tableId="recent-relics"
     showForkButton={false}
+    on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
       window.history.pushState({}, "", "/recent");

@@ -13,6 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
+from backend.utils import get_fork_counts
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -80,7 +81,6 @@ async def admin_list_all_relics(
     # Fetch all counts in bulk (2 queries instead of N*2)
     relic_ids = [r.id for r in relics]
     comments_counts = {}
-    forks_counts = {}
 
     if relic_ids:
         comments_counts = {
@@ -89,12 +89,7 @@ async def admin_list_all_relics(
                 Comment.relic_id.in_(relic_ids)
             ).group_by(Comment.relic_id).all()
         }
-        forks_counts = {
-            row[0]: row[1]
-            for row in db.query(Relic.fork_of, func.count(Relic.id)).filter(
-                Relic.fork_of.in_(relic_ids)
-            ).group_by(Relic.fork_of).all()
-        }
+    forks_counts = get_fork_counts(db, relic_ids)
 
     return {
         "total": total,

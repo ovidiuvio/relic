@@ -2,8 +2,7 @@
   import { onMount } from 'svelte';
   import { showToast } from '../stores/toastStore';
   import { getClientRelics, deleteRelic } from '../services/api';
-  import { getDefaultItemsPerPage, getTypeLabel } from '../services/typeUtils';
-  import { filterRelics, sortData, calculateTotalPages, paginateData, clampPage } from '../services/utils/paginationUtils';
+  import { getDefaultItemsPerPage } from '../services/typeUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
   import RelicDropModal from './RelicDropModal.svelte'
@@ -17,6 +16,7 @@
   let searchTerm = ''
   let currentPage = 1
   let itemsPerPage = 20
+  let total = 0
   let showEditModal = false
   let selectedRelic = null
   let sortBy = 'date'
@@ -33,23 +33,47 @@
   let confirmMessage = ''
   let confirmAction = null
 
-  // Use the shared filter utility
-  $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter)
+  // Server-side pagination
+  $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage))
 
-  $: searchTerm, tagFilter, (currentPage = 1)
+  function goToPage(page) {
+    if (page >= 1 && page <= totalPages) loadMyRelics(page)
+  }
 
-  // Apply sorting
-  $: sortedRelics = sortData(filteredRelics, sortBy, sortOrder)
+  function handleSort(event) {
+    sortBy = event.detail.sortBy
+    sortOrder = event.detail.sortOrder
+    loadMyRelics(1)
+  }
 
-  // Calculate pagination using shared utilities
-  $: totalPages = calculateTotalPages(sortedRelics, itemsPerPage)
-  $: paginatedRelics = paginateData(sortedRelics, currentPage, itemsPerPage)
+  let relicsReady = false
+  let searchTimer
+  let prevTagFilter = tagFilter
 
-  async function loadMyRelics() {
+  $: if (relicsReady && searchTerm !== undefined) {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => loadMyRelics(1), 300)
+  }
+
+  $: if (relicsReady && tagFilter !== prevTagFilter) {
+    prevTagFilter = tagFilter
+    loadMyRelics(1)
+  }
+
+  async function loadMyRelics(page = 1) {
     try {
       loading = true
-      const response = await getClientRelics(tagFilter)
+      const response = await getClientRelics({
+        tag: tagFilter || undefined,
+        search: searchTerm || undefined,
+        sort_by: sortBy === 'date' ? 'created_at' : sortBy,
+        sort_order: sortOrder,
+        limit: itemsPerPage,
+        offset: (page - 1) * itemsPerPage,
+      })
       relics = response.data.relics || []
+      total = response.data.total || 0
+      currentPage = page
     } catch (error) {
       console.error('Failed to load client relics:', error)
       showToast('Failed to load your relics', 'error')
@@ -57,10 +81,6 @@
     } finally {
       loading = false
     }
-  }
-
-  $: if (tagFilter !== undefined) {
-    loadMyRelics()
   }
 
   function handleEditRelic(relic) {
@@ -90,8 +110,8 @@
       try {
         await deleteRelic(relic.id)
         showToast(`"${relic.name || 'Untitled'}" deleted successfully`, 'success')
-        // Reload the relics list
-        await loadMyRelics()
+        const newPage = relics.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+        await loadMyRelics(newPage)
       } catch (error) {
         console.error('Failed to delete relic:', error)
         showToast(`Could not delete "${relic.name || 'Untitled'}": ${error.response?.data?.detail || "check your connection and try again"}`, 'error')
@@ -123,16 +143,13 @@
 
   function handleUploadSuccess() {
     showDropModal = false
-    loadMyRelics()
+    loadMyRelics(1)
   }
 
-  function goToPage(page) {
-    currentPage = clampPage(page, totalPages)
-  }
-
-  onMount(() => {
+  onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
-    loadMyRelics()
+    await loadMyRelics(1)
+    relicsReady = true
   })
 </script>
 
@@ -154,15 +171,16 @@
     </div>
   {/if}
   <RelicTable
-    data={sortedRelics}
+    data={relics}
     {loading}
     bind:searchTerm
     bind:currentPage
     bind:itemsPerPage
-    bind:sortBy
-    bind:sortOrder
+    {sortBy}
+    {sortOrder}
     {totalPages}
-    paginatedData={paginatedRelics}
+    total={total}
+    paginatedData={relics}
     title="My Relics"
     titleIcon="fa-user"
     titleIconColor="text-blue-600"
@@ -174,6 +192,7 @@
     tableId="my-relics"
     onEdit={handleEditRelic}
     onDelete={handleDeleteRelic}
+    on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
       window.history.pushState({}, "", "/my-relics");

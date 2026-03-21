@@ -9,18 +9,24 @@
   export let relicName = "";
 
   let bookmarkers = [];
+  let total = 0;
+  let currentPage = 1;
+  const limit = 25;
   let isLoading = false;
   let error = null;
 
-  async function fetchBookmarkers() {
+  $: totalPages = Math.max(1, Math.ceil(total / limit));
+
+  async function fetchBookmarkers(page = 1) {
     if (!relicId) return;
 
     isLoading = true;
     error = null;
     try {
-      bookmarkers = await getRelicBookmarkers(relicId);
-      // Sort by bookmarked_at descending
-      bookmarkers.sort((a, b) => new Date(b.bookmarked_at) - new Date(a.bookmarked_at));
+      const data = await getRelicBookmarkers(relicId, { limit, offset: (page - 1) * limit });
+      bookmarkers = data.bookmarkers;
+      total = data.total;
+      currentPage = page;
     } catch (err) {
       error = "Failed to load bookmarkers.";
       showToast(error, "error");
@@ -30,7 +36,7 @@
   }
 
   $: if (open && relicId) {
-    fetchBookmarkers();
+    fetchBookmarkers(1);
   }
 
   function closeModal() {
@@ -82,9 +88,9 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
-            {#if bookmarkers.length > 0}
+            {#if total > 0}
                 <div class="px-3 py-1 bg-amber-50/50 text-amber-600 rounded-full text-[9px] font-black border border-amber-100 uppercase tracking-widest shadow-inner leading-none">
-                    {bookmarkers.length} saved
+                    {total} saved
                 </div>
             {/if}
             <button
@@ -118,7 +124,7 @@
             <p class="text-sm text-gray-500 mb-8 max-w-[280px] mx-auto leading-relaxed font-medium">{error}</p>
             <button
                 class="px-10 py-3 bg-white text-gray-900 border border-gray-200 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm active:scale-95"
-                on:click={fetchBookmarkers}
+                on:click={() => fetchBookmarkers(1)}
             >
                 Refresh Data
             </button>
@@ -184,6 +190,25 @@
       <!-- Footer Area -->
       <div class="px-8 py-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center z-20 backdrop-blur-sm">
         <div class="flex items-center gap-3">
+          {#if totalPages > 1}
+            <button
+              on:click={() => fetchBookmarkers(currentPage - 1)}
+              disabled={currentPage <= 1 || isLoading}
+              class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-white border border-transparent hover:border-gray-200 transition-all disabled:opacity-30"
+            >
+              <i class="fas fa-chevron-left text-xs"></i>
+            </button>
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              on:click={() => fetchBookmarkers(currentPage + 1)}
+              disabled={currentPage >= totalPages || isLoading}
+              class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-white border border-transparent hover:border-gray-200 transition-all disabled:opacity-30"
+            >
+              <i class="fas fa-chevron-right text-xs"></i>
+            </button>
+          {:else}
             <div class="flex -space-x-2">
                 {#each bookmarkers.slice(0, 3) as user}
                     <div class="w-6 h-6 rounded-full border-2 border-white bg-amber-50 text-amber-600 flex items-center justify-center font-black text-[8px] shadow-sm">
@@ -192,6 +217,7 @@
                 {/each}
             </div>
             <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Collective Activity</span>
+          {/if}
         </div>
         <button
           type="button"

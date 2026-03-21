@@ -14,32 +14,53 @@
 
     // Access list state
     let accessList = []
+    let accessTotal = 0
+    let accessPage = 1
+    const accessLimit = 25
+    let accessSearch = ''
+    let searchTimer = null
     let loadingAccess = false
     let managingAccess = false
     let newPublicId = ''
     let accessFetched = false
 
+    $: accessTotalPages = Math.max(1, Math.ceil(accessTotal / accessLimit))
+
     $: if (open) {
         selectedLevel = relic.access_level || 'public'
         accessList = []
+        accessTotal = 0
+        accessPage = 1
+        accessSearch = ''
         accessFetched = false
     }
 
     $: if (selectedLevel === 'restricted' && !accessFetched && !loadingAccess) {
-        fetchAccess()
+        fetchAccess(1)
     }
 
-    async function fetchAccess() {
+    async function fetchAccess(page = accessPage) {
         loadingAccess = true
         accessFetched = true
         try {
-            const res = await getRelicAccess(relic.id)
-            accessList = res.data
+            const res = await getRelicAccess(relic.id, {
+                limit: accessLimit,
+                offset: (page - 1) * accessLimit,
+                search: accessSearch.trim() || undefined,
+            })
+            accessList = res.data.access || []
+            accessTotal = res.data.total || 0
+            accessPage = page
         } catch {
             showToast('Failed to load access list', 'error')
         } finally {
             loadingAccess = false
         }
+    }
+
+    function handleSearchInput() {
+        clearTimeout(searchTimer)
+        searchTimer = setTimeout(() => fetchAccess(1), 300)
     }
 
     async function save() {
@@ -62,10 +83,10 @@
         if (!publicId) return
         managingAccess = true
         try {
-            const res = await addRelicAccess(relic.id, publicId)
-            accessList = [...accessList, res.data]
+            await addRelicAccess(relic.id, publicId)
             newPublicId = ''
             showToast('Access granted', 'success')
+            await fetchAccess(1)
         } catch (err) {
             showToast(err.response?.data?.detail || 'Failed to add access', 'error')
         } finally {
@@ -76,8 +97,9 @@
     async function removeAccess(publicId) {
         try {
             await removeRelicAccess(relic.id, publicId)
-            accessList = accessList.filter(e => e.public_id !== publicId)
             showToast('Access removed', 'success')
+            const newPage = accessList.length === 1 && accessPage > 1 ? accessPage - 1 : accessPage
+            await fetchAccess(newPage)
         } catch {
             showToast('Failed to remove access', 'error')
         }
@@ -132,7 +154,7 @@
                 </button>
             </div>
 
-            <div class="p-6 space-y-5 overflow-auto">
+            <div class="p-6 space-y-5 overflow-auto max-h-[80vh]">
 
                 <!-- Visibility Picker -->
                 <div class="space-y-2">
@@ -161,10 +183,17 @@
                 <!-- Access List (only when Restricted) -->
                 {#if selectedLevel === 'restricted'}
                     <div class="space-y-3 pt-1 border-t border-gray-100">
-                        <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-users text-amber-500" aria-hidden="true"></i>
-                            Allowed Clients
-                        </h3>
+
+                        <!-- Section header with total count -->
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                <i class="fas fa-users text-amber-500" aria-hidden="true"></i>
+                                Allowed Clients
+                            </h3>
+                            {#if accessTotal > 0}
+                                <span class="text-xs text-gray-400">{accessTotal} {accessTotal === 1 ? 'user' : 'users'}</span>
+                            {/if}
+                        </div>
 
                         <!-- Add user row -->
                         <div class="flex gap-2">
@@ -189,15 +218,38 @@
                             </button>
                         </div>
 
+                        <!-- Search -->
+                        {#if accessTotal > accessLimit || accessSearch}
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" aria-hidden="true"></i>
+                                <input
+                                    type="text"
+                                    bind:value={accessSearch}
+                                    on:input={handleSearchInput}
+                                    placeholder="Filter by name or ID..."
+                                    class="maas-input w-full pl-8 py-1.5 text-sm bg-white"
+                                />
+                                {#if loadingAccess}
+                                    <i class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                {/if}
+                            </div>
+                        {/if}
+
                         <!-- List -->
-                        {#if loadingAccess}
+                        {#if loadingAccess && accessList.length === 0}
                             <div class="text-center py-6 text-gray-400 text-sm">
                                 <i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Loading...
                             </div>
                         {:else if accessList.length === 0}
                             <div class="text-center py-6 px-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                                 <i class="fas fa-user-lock text-gray-300 text-2xl mb-2" aria-hidden="true"></i>
-                                <p class="text-xs text-gray-500">No users added yet. Only you can view this relic.</p>
+                                <p class="text-xs text-gray-500">
+                                    {#if accessSearch}
+                                        No users match "{accessSearch}".
+                                    {:else}
+                                        No users added yet. Only you can view this relic.
+                                    {/if}
+                                </p>
                             </div>
                         {:else}
                             <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -234,6 +286,29 @@
                                     </tbody>
                                 </table>
                             </div>
+
+                            <!-- Pagination -->
+                            {#if accessTotalPages > 1}
+                                <div class="flex items-center justify-between pt-1">
+                                    <span class="text-xs text-gray-400">Page {accessPage} of {accessTotalPages}</span>
+                                    <div class="flex items-center gap-1">
+                                        <button
+                                            on:click={() => fetchAccess(accessPage - 1)}
+                                            disabled={accessPage <= 1 || loadingAccess}
+                                            class="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-30"
+                                        >
+                                            <i class="fas fa-chevron-left text-[10px]"></i>
+                                        </button>
+                                        <button
+                                            on:click={() => fetchAccess(accessPage + 1)}
+                                            disabled={accessPage >= accessTotalPages || loadingAccess}
+                                            class="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-30"
+                                        >
+                                            <i class="fas fa-chevron-right text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {/if}
                         {/if}
                     </div>
                 {/if}

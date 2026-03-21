@@ -130,6 +130,9 @@ class RelicResponse(BaseModel):
 class RelicListResponse(BaseModel):
     """Relic list response schema."""
     relics: List[RelicResponse]
+    total: int = 0
+    limit: Optional[int] = None
+    offset: Optional[int] = None
 
 
 

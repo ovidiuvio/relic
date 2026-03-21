@@ -20,6 +20,7 @@
   export let emptyMessage = 'No relics yet'
   export let emptyMessageWithSearch = 'No relics found'
   export let showItemsCount = true
+  export let total = null // When set, overrides data.length for item count display (server-side pagination)
   export let showHeader = true
   export let embedded = false
   export let emptyIcon = 'fa-inbox'
@@ -401,7 +402,8 @@
     <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center gap-6">
       <div class="flex items-center gap-4">
         {#if showItemsCount}
-          <span>{data.length} {data.length === 1 ? 'item' : 'items'}</span>
+          {@const count = total !== null ? total : data.length}
+          <span>{count} {count === 1 ? 'item' : 'items'}</span>
         {/if}
         {#if data.length > 0}
           <div class="flex items-center gap-2">
@@ -409,7 +411,7 @@
             <select
               id="items-per-page-{tableId}"
               bind:value={itemsPerPage}
-              on:change={() => { currentPage = 1 }}
+              on:change={() => goToPage(1)}
               class="pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
             >
               <option value={10}>10</option>

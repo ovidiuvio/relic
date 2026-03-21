@@ -40,11 +40,10 @@ export async function getRelic(relicId) {
     return api.get(`/relics/${relicId}`)
 }
 
-export async function listRelics(limit = 1000, tag = null) {
-    const params = { limit }
-    if (tag) {
-        params.tag = tag
-    }
+export async function listRelics(limit = 25, offset = 0, tag = null, search = null) {
+    const params = { limit, offset }
+    if (tag) params.tag = tag
+    if (search) params.search = search
     return api.get('/relics', { params })
 }
 
@@ -100,12 +99,12 @@ export async function getRelicRaw(relicId) {
     })
 }
 
-export async function getRelicLineage(relicId) {
-    return api.get(`/relics/${relicId}/lineage`);
+export async function getRelicLineage(relicId, params = {}) {
+    return api.get(`/relics/${relicId}/lineage`, { params });
 }
 
-export async function getRelicAccess(relicId) {
-    return api.get(`/relics/${relicId}/access`)
+export async function getRelicAccess(relicId, params = {}) {
+    return api.get(`/relics/${relicId}/access`, { params })
 }
 
 export async function addRelicAccess(relicId, publicId) {
