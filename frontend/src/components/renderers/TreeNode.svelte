@@ -84,7 +84,6 @@
       ? (value === null ? 'null' : String(value))
       : JSON.stringify(value, null, 2)
     const name = (key !== undefined ? String(key) : 'node') + (isLeaf ? '.txt' : '.json')
-
     triggerDownload(json, name, isLeaf ? 'text/plain' : 'application/json')
   }
 

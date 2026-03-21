@@ -196,7 +196,7 @@
 
   function downloadClientKey() {
     const clientKey = getOrCreateClientKey();
-    triggerDownload(clientKey, `relic-client-key-${clientKey.substring(0, 8)}.txt`, 'text/plain');
+    triggerDownload(clientKey, `relic-client-key-${clientKey.substring(0, 8)}.txt`, 'text/plain', 'Client key downloaded successfully');
     showKeyDropdown = false;
   }
 
