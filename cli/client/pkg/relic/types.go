@@ -62,10 +62,12 @@ type RelicMetadata struct {
 	ForkOf       string     `json:"fork_of,omitempty"`
 	CreatedAt    RelicTime  `json:"created_at"`
 	ExpiresAt    *RelicTime `json:"expires_at,omitempty"`
-	AccessCount  int        `json:"access_count"`
-	BookmarkCount int       `json:"bookmark_count"`
-	CanEdit      bool       `json:"can_edit"`
-	Tags         []Tag      `json:"tags,omitempty"`
+	AccessCount   int        `json:"access_count"`
+	BookmarkCount int        `json:"bookmark_count"`
+	CommentsCount int        `json:"comments_count"`
+	ForksCount    int        `json:"forks_count"`
+	CanEdit       bool       `json:"can_edit"`
+	Tags          []Tag      `json:"tags,omitempty"`
 }
 
 // Tag represents a tag associated with a relic

@@ -86,6 +86,7 @@ var fileTypes = []FileType{
 	// DATA & CONFIGURATION
 	// ============================================
 	{Syntax: "json", Label: "JSON", MIME: "application/json", Extensions: []string{"json", "jsonc", "json5"}, Category: "code"},
+	{Syntax: "relic-index", Label: "Relic Index", MIME: "application/x-relic-index", Extensions: []string{"rix"}, Category: "relicindex"},
 	{Syntax: "yaml", Label: "YAML", MIME: "application/x-yaml", Extensions: []string{"yaml", "yml"}, Category: "code"},
 	{Syntax: "xml", Label: "XML", MIME: "application/xml", Extensions: []string{"xml", "xsl", "xslt", "xsd", "dtd"}, Category: "code"},
 	{Syntax: "toml", Label: "TOML", MIME: "application/toml", Extensions: []string{"toml"}, Category: "code"},
