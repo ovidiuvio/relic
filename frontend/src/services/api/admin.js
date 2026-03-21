@@ -9,10 +9,12 @@ export async function getAdminStats() {
     return api.get('/admin/stats')
 }
 
-export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, clientId = null) {
+export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, clientId = null, search = null, tag = null) {
     const params = { limit, offset }
     if (accessLevel) params.access_level = accessLevel
     if (clientId) params.client_id = clientId
+    if (search) params.search = search
+    if (tag) params.tag = tag
     return api.get('/admin/relics', { params })
 }
 

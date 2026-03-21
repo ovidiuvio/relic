@@ -10,7 +10,7 @@ from typing import Optional
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment
+from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
 
@@ -38,13 +38,15 @@ async def admin_list_all_relics(
     offset: int = 0,
     access_level: Optional[str] = None,
     client_id: Optional[str] = None,
+    search: Optional[str] = None,
+    tag: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     [ADMIN] List all relics including private ones.
 
     Requires admin privileges.
-    Optional filters: access_level, client_id
+    Optional filters: access_level, client_id, search, tag
     """
     get_admin_client(request, db)  # Verify admin
 
@@ -55,6 +57,22 @@ async def admin_list_all_relics(
 
     if client_id:
         query = query.filter(Relic.client_id == client_id)
+
+    if search:
+        term = f"%{search}%"
+        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+        query = query.filter(
+            Relic.name.ilike(term) |
+            Relic.id.ilike(term) |
+            Relic.description.ilike(term) |
+            Relic.id.in_(tag_subquery)
+        )
+
+    if tag:
+        query = query.join(Relic.tags).filter(Tag.name.ilike(tag))
+
+    if search or tag:
+        query = query.distinct()
 
     total = query.count()
     relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()

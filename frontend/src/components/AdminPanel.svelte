@@ -26,7 +26,7 @@
         formatBytes,
         formatTimeAgo,
     } from "../services/typeUtils";
-    import { filterRelics } from "../services/utils/paginationUtils";
+
     import {
         shareRelic,
         copyRelicContent,
@@ -105,8 +105,7 @@
     let showDeleteRelicsConfirm = false;
     let confirmClientToDelete = null;
 
-    // Filter relics by search term and tag
-    $: filteredRelics = filterRelics(relics, searchTerm, getTypeLabel, tagFilter);
+    $: filteredRelics = relics;
 
     function formatDate(dateStr) {
         if (!dateStr) return "-";
@@ -146,6 +145,8 @@
                 offset,
                 accessLevel,
                 clientId,
+                searchTerm || null,
+                tagFilter || null,
             );
             relics = response.data.relics || [];
             relicsTotal = response.data.total || 0;
@@ -405,8 +406,24 @@
         loadReports();
     }
 
-    // Watch for filter changes
+    // Watch for filter/search changes
     $: if (relicsFilter && isAdmin) {
+        relicsPage = 1;
+        loadRelics();
+    }
+
+    let _searchDebounce;
+    $: if (searchTerm !== undefined && isAdmin) {
+        clearTimeout(_searchDebounce);
+        _searchDebounce = setTimeout(() => {
+            relicsPage = 1;
+            loadRelics();
+        }, 300);
+    }
+
+    let _prevTagFilter = null;
+    $: if (isAdmin && tagFilter !== _prevTagFilter) {
+        _prevTagFilter = tagFilter;
         relicsPage = 1;
         loadRelics();
     }
