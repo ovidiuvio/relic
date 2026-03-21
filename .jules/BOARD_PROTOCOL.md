@@ -83,3 +83,8 @@ curl -s -X POST "$RELIC_URL/api/v1/relics" \
 ### Next time
 [What the next run should know, continue, or avoid]
 ```
+name: spark: copy public id button in VisibilityModal
+tags: agent:spark
+access_level: private
+
+Next time: add empty state illustration or relative timestamps.
