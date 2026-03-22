@@ -54,11 +54,13 @@
 
     async function loadAll(term) {
         const PAGE = 25;
-        const [ownedRes, sharedPrivRes, pubRes] = await Promise.all([
+        const empty = { spaces: [], total: 0 };
+        const results = await Promise.allSettled([
             spacesApi.list({ category: 'my',     search: term || undefined, limit: PAGE }),
             spacesApi.list({ category: 'shared', search: term || undefined, visibility: 'private', limit: PAGE }),
             spacesApi.list({ category: 'public', search: term || undefined, limit: PAGE }),
         ]);
+        const [ownedRes, sharedPrivRes, pubRes] = results.map(r => r.status === 'fulfilled' ? r.value : empty);
         const owned      = (ownedRes.spaces   || []).filter(s => EDIT_ROLES.includes(s.role));
         const sharedPriv = (sharedPrivRes.spaces || []).filter(s => EDIT_ROLES.includes(s.role));
         const pub        = (pubRes.spaces      || []).filter(s => EDIT_ROLES.includes(s.role));
