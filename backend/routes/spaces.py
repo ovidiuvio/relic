@@ -12,7 +12,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term
 from backend.dependencies import get_space_role, check_space_access, get_space_relic_count
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -112,7 +112,7 @@ async def list_spaces(
 
     # Search
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         query = query.filter(or_(Space.name.ilike(term), Space.id.ilike(term)))
 
     # Sort
@@ -362,7 +362,7 @@ async def get_space_relics(
         query = query.join(Relic.tags, isouter=False).filter(Tag.name.ilike(tag)).distinct()
 
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
         query = query.filter(
             or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
@@ -518,7 +518,7 @@ async def get_space_access(
         .filter(SpaceAccess.space_id == space_id)
     )
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         access_query = access_query.filter(
             or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
         )

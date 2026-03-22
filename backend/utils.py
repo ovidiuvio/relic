@@ -81,6 +81,16 @@ def is_expired(expires_at: Optional[datetime]) -> bool:
 MAX_PAGE_LIMIT = 1000
 
 
+def like_escape(value: str) -> str:
+    """Escape LIKE wildcard characters so they match literally."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def like_term(value: str) -> str:
+    """Wrap a search value in % for ILIKE, with wildcards escaped."""
+    return f"%{like_escape(value)}%"
+
+
 def clamp_limit(limit: int, default: int = 25) -> int:
     """Clamp a pagination limit to [1, MAX_PAGE_LIMIT]."""
     if limit < 1:

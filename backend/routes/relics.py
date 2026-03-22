@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term
 from backend.dependencies import (
     get_client_key, get_or_create_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
@@ -484,7 +484,7 @@ async def list_relics(
             return {"relics": [], "total": 0, "limit": limit, "offset": offset}
 
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
         query = query.filter(
             or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
@@ -552,7 +552,7 @@ async def get_relic_access(
     ).filter(RelicAccess.relic_id == relic_id)
 
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         access_query = access_query.filter(
             or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
         )

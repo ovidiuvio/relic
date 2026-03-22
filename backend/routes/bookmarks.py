@@ -8,7 +8,7 @@ from typing import Optional
 from backend.database import get_db
 from backend.models import Relic, ClientBookmark, Comment, ClientKey, Tag
 from backend.dependencies import get_client_key
-from backend.utils import get_fork_counts, clamp_limit
+from backend.utils import get_fork_counts, clamp_limit, like_term
 
 router = APIRouter(prefix="/api/v1/bookmarks")
 
@@ -174,7 +174,7 @@ async def get_client_bookmarks(
             }
 
     if search:
-        term = f"%{search}%"
+        term = like_term(search)
         tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
         query = query.filter(
             or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
