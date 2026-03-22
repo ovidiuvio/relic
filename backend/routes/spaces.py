@@ -348,17 +348,21 @@ async def get_space_relics(
         space_relics.c.space_id == space_id
     ).filter(
         or_(Relic.expires_at.is_(None), Relic.expires_at > datetime.utcnow())
-    ).filter(
-        or_(
-            Relic.access_level == "public",
-            and_(Relic.access_level == "private", Relic.client_id == client_id),
-            and_(Relic.access_level == "private", is_admin),
-            and_(Relic.access_level == "private", client_id is not None),
-            and_(Relic.access_level == "restricted", Relic.client_id == client_id),
-            and_(Relic.access_level == "restricted", is_admin),
-            and_(Relic.access_level == "restricted", client_id is not None),
-        )
     )
+
+    if space.visibility == "public":
+        # Public spaces only show public relics
+        query = query.filter(Relic.access_level == "public")
+    else:
+        # Private spaces: public relics + private/restricted owned by viewer or admin
+        access_clauses = [Relic.access_level == "public"]
+        if is_admin:
+            access_clauses.append(Relic.access_level.in_(["private", "restricted"]))
+        elif client_id:
+            access_clauses.append(
+                and_(Relic.access_level.in_(["private", "restricted"]), Relic.client_id == client_id)
+            )
+        query = query.filter(or_(*access_clauses))
 
     if tag:
         tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
@@ -436,8 +440,11 @@ async def add_relic_to_space(
 
     # Must have access to relic (either public, owner, or admin)
     is_admin = client_id in settings.get_admin_client_ids()
-    if relic.access_level in ("private", "restricted") and relic.client_id != client_id and not is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized to access this relic")
+    if relic.access_level in ("private", "restricted"):
+        if space.visibility == "public":
+            raise HTTPException(status_code=400, detail="Cannot add private or restricted relics to a public space")
+        if relic.client_id != client_id and not is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to access this relic")
 
     if relic not in space.relics:
         space.relics.append(relic)
