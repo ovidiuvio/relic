@@ -353,16 +353,6 @@ async def get_space_relics(
     if space.visibility == "public":
         # Public spaces only show public relics
         query = query.filter(Relic.access_level == "public")
-    else:
-        # Private spaces: public relics + private/restricted owned by viewer or admin
-        access_clauses = [Relic.access_level == "public"]
-        if is_admin:
-            access_clauses.append(Relic.access_level.in_(["private", "restricted"]))
-        elif client_id:
-            access_clauses.append(
-                and_(Relic.access_level.in_(["private", "restricted"]), Relic.client_id == client_id)
-            )
-        query = query.filter(or_(*access_clauses))
 
     if tag:
         tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
