@@ -182,7 +182,7 @@
                             type="text"
                             bind:value={searchTerm}
                             on:input={handleSearchInput}
-                            placeholder="Search spaces by name..."
+                            placeholder="Search by name or ID..."
                             class="w-full pl-9 pr-8 py-2 text-sm maas-input"
                             autocomplete="off"
                         />
@@ -236,7 +236,7 @@
                 </div>
                 {#if totalAvailable && spaces.length > 0}
                     <p class="text-[11px] text-gray-400 mt-2 text-center">
-                        Showing {spaces.length} of {totalAvailable} spaces — use search to find more
+                        Showing {spaces.length} of {totalAvailable} — search by name or ID to find more
                     </p>
                 {/if}
             </div>
