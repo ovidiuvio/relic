@@ -8,7 +8,7 @@ from typing import Optional
 from backend.database import get_db
 from backend.models import Relic, ClientBookmark, Comment, ClientKey, Tag
 from backend.dependencies import get_client_key
-from backend.utils import get_fork_counts
+from backend.utils import get_fork_counts, clamp_limit
 
 router = APIRouter(prefix="/api/v1/bookmarks")
 
@@ -148,6 +148,7 @@ async def get_client_bookmarks(
     Returns list of bookmarked relics with bookmark metadata.
     sort_by: created_at (bookmarked date), name, size, access_count, bookmark_count
     """
+    limit = clamp_limit(limit)
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
@@ -242,6 +243,7 @@ async def get_relic_bookmarkers(
     Get list of clients who bookmarked a specific relic with pagination.
     Returns public_id and names, sorted by most recent first.
     """
+    limit = clamp_limit(limit)
     query = db.query(ClientKey, ClientBookmark).join(
         ClientBookmark, ClientBookmark.client_id == ClientKey.id
     ).filter(ClientBookmark.relic_id == relic_id)

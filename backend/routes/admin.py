@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
-from backend.utils import get_fork_counts
+from backend.utils import get_fork_counts, clamp_limit
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -49,6 +49,7 @@ async def admin_list_all_relics(
     Requires admin privileges.
     Optional filters: access_level, client_id, search, tag
     """
+    limit = clamp_limit(limit)
     get_admin_client(request, db)  # Verify admin
 
     query = db.query(Relic).options(selectinload(Relic.tags))
@@ -129,6 +130,7 @@ async def admin_list_clients(
 
     Requires admin privileges.
     """
+    limit = clamp_limit(limit)
     get_admin_client(request, db)
 
     total = db.query(ClientKey).count()
@@ -304,6 +306,7 @@ async def admin_list_backups(
 
     Requires admin privileges.
     """
+    limit = clamp_limit(limit)
     from backend.backup import list_all_backups
 
     get_admin_client(request, db)
@@ -497,6 +500,7 @@ async def admin_list_reports(
 
     Requires admin privileges.
     """
+    limit = clamp_limit(limit)
     get_admin_client(request, db)
 
     total = db.query(RelicReport).count()

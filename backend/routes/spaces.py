@@ -12,7 +12,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit
 from backend.dependencies import get_space_role, check_space_access, get_space_relic_count
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -69,6 +69,7 @@ async def list_spaces(
     category: all, my, shared, public
     sort_by: created_at, name, relic_count
     """
+    limit = clamp_limit(limit)
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id and client_id in settings.get_admin_client_ids()
 
@@ -328,6 +329,7 @@ async def get_space_relics(
     db: Session = Depends(get_db)
 ):
     """Get relics in a space with pagination."""
+    limit = clamp_limit(limit)
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id in settings.get_admin_client_ids() if client_id else False
 
@@ -489,6 +491,7 @@ async def get_space_access(
     db: Session = Depends(get_db)
 ):
     """Get the access list for a space with pagination and optional search."""
+    limit = clamp_limit(limit)
     client_id = request.headers.get("X-Client-Key")
 
     space = db.query(Space).filter(Space.id == space_id).first()

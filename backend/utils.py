@@ -78,6 +78,16 @@ def is_expired(expires_at: Optional[datetime]) -> bool:
     return datetime.utcnow() > expires_at
 
 
+MAX_PAGE_LIMIT = 1000
+
+
+def clamp_limit(limit: int, default: int = 25) -> int:
+    """Clamp a pagination limit to [1, MAX_PAGE_LIMIT]."""
+    if limit < 1:
+        return default
+    return min(limit, MAX_PAGE_LIMIT)
+
+
 def get_fork_counts(db: Session, relic_ids: List[str]) -> Dict[str, int]:
     """Count direct forks for each relic. Returns {relic_id: count}."""
     if not relic_ids:

@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit
 from backend.dependencies import (
     get_client_key, get_or_create_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
@@ -473,6 +473,7 @@ async def list_relics(
     db: Session = Depends(get_db)
 ):
     """List the most recent public relics with pagination."""
+    limit = clamp_limit(limit)
     query = db.query(Relic).options(selectinload(Relic.tags)).filter(Relic.access_level == "public")
 
     if tag:
@@ -534,6 +535,7 @@ async def get_relic_access(
     db: Session = Depends(get_db)
 ):
     """List clients with explicit access to a restricted relic. Owner/admin only."""
+    limit = clamp_limit(limit)
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")

@@ -7,6 +7,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Comment
 from backend.schemas import CommentCreate, CommentResponse, CommentUpdate
 from backend.dependencies import get_client_key, is_admin_client
+from backend.utils import clamp_limit
 
 router = APIRouter(prefix="/api/v1/relics")
 
@@ -60,6 +61,7 @@ async def get_relic_comments(
     db: Session = Depends(get_db)
 ):
     """Get comments for a relic with pagination."""
+    limit = clamp_limit(limit)
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")

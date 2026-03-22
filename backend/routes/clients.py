@@ -10,7 +10,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Comment
 from backend.schemas import ClientNameUpdate
 from backend.dependencies import get_client_key
-from backend.utils import get_fork_counts
+from backend.utils import get_fork_counts, clamp_limit
 
 router = APIRouter(prefix="/api/v1/client")
 
@@ -86,6 +86,7 @@ async def get_client_relics(
 
     Requires valid X-Client-Key header.
     """
+    limit = clamp_limit(limit)
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
