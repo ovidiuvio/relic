@@ -63,8 +63,10 @@
         const sharedPriv = (sharedPrivRes.spaces || []).filter(s => EDIT_ROLES.includes(s.role));
         const pub        = (pubRes.spaces      || []).filter(s => EDIT_ROLES.includes(s.role));
         const merged = mergeDeduped(owned, sharedPriv, pub);
-        const totalSum = (ownedRes.total || 0) + (sharedPrivRes.total || 0) + (pubRes.total || 0);
-        totalAvailable = totalSum > merged.length ? totalSum : null;
+        const anyTruncated = (ownedRes.total || 0) > PAGE
+            || (sharedPrivRes.total || 0) > PAGE
+            || (pubRes.total || 0) > PAGE;
+        totalAvailable = anyTruncated ? '>' + merged.length : null;
         return merged;
     }
 
@@ -236,7 +238,7 @@
                 </div>
                 {#if totalAvailable && spaces.length > 0}
                     <p class="text-[11px] text-gray-400 mt-2 text-center">
-                        Showing {spaces.length} of {totalAvailable} — search by name or ID to find more
+                        Showing {spaces.length} of {totalAvailable} spaces — search by name or ID to find more
                     </p>
                 {/if}
             </div>
