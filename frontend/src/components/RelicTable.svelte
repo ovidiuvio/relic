@@ -171,7 +171,7 @@
   </div>
 {/if}
 
-  {#if loading}
+  {#if loading && data.length === 0}
     <div class="p-8 text-center" role="status" aria-live="polite">
       <div class="inline-block">
         <i class="fas fa-spinner fa-spin text-[#772953] text-2xl" aria-hidden="true"></i>
@@ -189,7 +189,7 @@
       {/if}
     </div>
   {:else}
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto {loading ? 'opacity-60 pointer-events-none' : ''}">
       <table class="w-full maas-table text-sm">
         <thead>
           <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
@@ -436,9 +436,8 @@
 
       {#if totalPages > 1}
         <div class="flex items-center gap-2 whitespace-nowrap">
-          <span class="text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
+          {#if loading}<i class="fas fa-spinner fa-spin text-gray-400"></i>{/if}
+          <span class="text-gray-600">Page {currentPage} of {totalPages}</span>
           <button
             on:click={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}

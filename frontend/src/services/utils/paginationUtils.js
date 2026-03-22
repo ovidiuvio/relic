@@ -1,5 +1,3 @@
-import { writable, derived } from 'svelte/store'
-
 // Simple filter function for relics
 export function filterRelics(relics, searchTerm, getTypeLabel, tagFilter = null) {
   return relics.filter(relic => {
@@ -19,43 +17,6 @@ export function filterRelics(relics, searchTerm, getTypeLabel, tagFilter = null)
       (relic.tags && relic.tags.some(tag => (typeof tag === 'string' ? tag : tag.name).toLowerCase().includes(term)))
     )
   })
-}
-
-// Create reactive pagination functionality
-export function usePagination(filteredData, itemsPerPage, currentPage) {
-  const totalPages = derived([filteredData, itemsPerPage], ([$filteredData, $itemsPerPage]) => {
-    return Math.ceil($filteredData.length / $itemsPerPage)
-  })
-
-  const paginatedData = derived([filteredData, itemsPerPage, currentPage], ([$filteredData, $itemsPerPage, $currentPage]) => {
-    const start = ($currentPage - 1) * $itemsPerPage
-    const end = start + $itemsPerPage
-    return $filteredData.slice(start, end)
-  })
-
-  const goToPage = (page, maxPage) => {
-    currentPage.set(Math.max(1, Math.min(page, maxPage)))
-  }
-
-  return {
-    totalPages,
-    paginatedData,
-    goToPage
-  }
-}
-
-// Create a simple pagination store
-export function createPaginationStore(initialPage = 1) {
-  const { subscribe, set, update } = writable(initialPage)
-
-  return {
-    subscribe,
-    set,
-    reset: () => set(1),
-    next: (maxPage) => update(n => Math.min(n + 1, maxPage)),
-    prev: () => update(n => Math.max(1, n - 1)),
-    goTo: (page, maxPage) => set(Math.max(1, Math.min(page, maxPage)))
-  }
 }
 
 // Simple pagination utilities for plain values (non-store)
@@ -104,12 +65,4 @@ export function sortData(data, sortBy, sortOrder) {
     if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
     return 0
   })
-}
-
-export function debounce(fn, delay) {
-  let timer
-  return (...args) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), delay)
-  }
 }

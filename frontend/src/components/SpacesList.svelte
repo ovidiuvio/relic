@@ -264,7 +264,7 @@
             </button>
         </div>
 
-        {#if loading}
+        {#if loading && spaces.length === 0}
             <div class="p-12 text-center">
                 <i class="fas fa-spinner fa-spin text-blue-600 text-3xl"></i>
                 <p class="text-gray-500 mt-4">Loading spaces...</p>
@@ -286,7 +286,7 @@
                 {/if}
             </div>
         {:else}
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto {loading ? 'opacity-60 pointer-events-none' : ''}">
                 <table class="w-full maas-table text-sm">
                     <thead>
                         <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
@@ -440,6 +440,7 @@
                     </div>
                     {#if totalPages > 1}
                         <div class="flex items-center gap-2 whitespace-nowrap">
+                            {#if loading}<i class="fas fa-spinner fa-spin text-gray-400"></i>{/if}
                             <span class="text-gray-600">Page {currentPage} of {totalPages}</span>
                             <div class="flex items-center gap-1">
                                 <button
