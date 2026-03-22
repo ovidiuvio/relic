@@ -46,7 +46,6 @@
     let confirmMessage = '';
     let confirmAction = null;
 
-    // Reload on filter/search/sort changes (after initial load)
     let spacesReady = false;
     let searchTimer;
     let prevFilter = filter;

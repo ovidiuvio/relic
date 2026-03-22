@@ -3,6 +3,7 @@
   import { showToast } from '../stores/toastStore'
   import { getClientBookmarks, removeBookmark } from '../services/api'
   import { getDefaultItemsPerPage } from '../services/typeUtils'
+  import { createReloader } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
 
   export let tagFilter = null
@@ -32,19 +33,10 @@
     loadBookmarks(1)
   }
 
-  let bookmarksReady = false
-  let searchTimer
-  let prevTagFilter = tagFilter
+  const reloader = createReloader()
 
-  $: if (bookmarksReady && searchTerm !== undefined) {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => loadBookmarks(1), 300)
-  }
-
-  $: if (bookmarksReady && tagFilter !== prevTagFilter) {
-    prevTagFilter = tagFilter
-    loadBookmarks(1)
-  }
+  $: if (searchTerm !== undefined) reloader.debounce(() => loadBookmarks(1))
+  $: if (reloader.tagChanged(tagFilter)) loadBookmarks(1)
 
   async function loadBookmarks(page = 1) {
     try {
@@ -94,7 +86,7 @@
   onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
     await loadBookmarks(1)
-    bookmarksReady = true
+    reloader.setReady()
   })
 </script>
 

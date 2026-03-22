@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { listRelics } from '../services/api';
   import { getDefaultItemsPerPage } from '../services/typeUtils';
+  import { createReloader } from '../services/utils/paginationUtils';
   import { showToast } from '../stores/toastStore';
   import { getFilesFromDrop } from '../services/utils/fileProcessing';
   import RelicTable from './RelicTable.svelte';
@@ -36,19 +37,10 @@
     loadRelics(1)
   }
 
-  let relicsReady = false
-  let searchTimer
-  let prevTagFilter = tagFilter
+  const reloader = createReloader()
 
-  $: if (relicsReady && searchTerm !== undefined) {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => loadRelics(1), 300)
-  }
-
-  $: if (relicsReady && tagFilter !== prevTagFilter) {
-    prevTagFilter = tagFilter
-    loadRelics(1)
-  }
+  $: if (searchTerm !== undefined) reloader.debounce(() => loadRelics(1))
+  $: if (reloader.tagChanged(tagFilter)) loadRelics(1)
 
   async function loadRelics(page = 1) {
     try {
@@ -94,7 +86,7 @@
   onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
     await loadRelics(1)
-    relicsReady = true
+    reloader.setReady()
   })
 </script>
 

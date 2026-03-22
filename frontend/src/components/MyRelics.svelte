@@ -3,6 +3,7 @@
   import { showToast } from '../stores/toastStore';
   import { getClientRelics, deleteRelic } from '../services/api';
   import { getDefaultItemsPerPage } from '../services/typeUtils';
+  import { createReloader } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
   import EditRelicModal from './EditRelicModal.svelte';
   import RelicDropModal from './RelicDropModal.svelte'
@@ -46,19 +47,10 @@
     loadMyRelics(1)
   }
 
-  let relicsReady = false
-  let searchTimer
-  let prevTagFilter = tagFilter
+  const reloader = createReloader()
 
-  $: if (relicsReady && searchTerm !== undefined) {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => loadMyRelics(1), 300)
-  }
-
-  $: if (relicsReady && tagFilter !== prevTagFilter) {
-    prevTagFilter = tagFilter
-    loadMyRelics(1)
-  }
+  $: if (searchTerm !== undefined) reloader.debounce(() => loadMyRelics(1))
+  $: if (reloader.tagChanged(tagFilter)) loadMyRelics(1)
 
   async function loadMyRelics(page = 1) {
     try {
@@ -149,7 +141,7 @@
   onMount(async () => {
     itemsPerPage = getDefaultItemsPerPage()
     await loadMyRelics(1)
-    relicsReady = true
+    reloader.setReady()
   })
 </script>
 

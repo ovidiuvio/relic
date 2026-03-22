@@ -3,6 +3,7 @@
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
     import { getTypeLabel, getDefaultItemsPerPage } from '../services/typeUtils';
+    import { createReloader } from '../services/utils/paginationUtils';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
     import RelicTable from './RelicTable.svelte';
     import RelicDropModal from './RelicDropModal.svelte';
@@ -81,20 +82,10 @@
         loadRelics(1);
     }
 
-    // Reload on search/tagFilter changes, but only after initial load
-    let spaceReady = false;
-    let searchTimer;
-    let prevTagFilter = tagFilter;
+    const reloader = createReloader();
 
-    $: if (spaceReady && searchTerm !== undefined) {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => loadRelics(1), 300);
-    }
-
-    $: if (spaceReady && tagFilter !== prevTagFilter) {
-        prevTagFilter = tagFilter;
-        loadRelics(1);
-    }
+    $: if (searchTerm !== undefined) reloader.debounce(() => loadRelics(1));
+    $: if (reloader.tagChanged(tagFilter)) loadRelics(1);
 
     $: if (spaceId) {
         loadSpace();
@@ -102,12 +93,12 @@
 
     async function loadSpace() {
         loading = true;
-        spaceReady = false;
+        reloader.reset();
         errorStatus = null;
         try {
             space = await spacesApi.get(spaceId);
             await loadRelics(1);
-            spaceReady = true;
+            reloader.setReady();
         } catch (error) {
             console.error("Failed to load space:", error);
             errorStatus = error.response?.status || 'unknown';

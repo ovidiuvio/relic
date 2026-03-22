@@ -1,3 +1,34 @@
+/**
+ * Creates a debounced reloader for server-side paginated lists.
+ *
+ * Usage in Svelte components:
+ *   const reloader = createReloader()
+ *   $: if (searchTerm !== undefined) reloader.debounce(() => load(1))
+ *   $: if (reloader.tagChanged(tagFilter)) load(1)
+ *   onMount(async () => { await load(1); reloader.setReady() })
+ */
+export function createReloader(delay = 300) {
+  let _timer
+  let _ready = false
+  let _prevTag
+
+  return {
+    setReady() { _ready = true },
+    reset() { _ready = false; clearTimeout(_timer) },
+    clear() { clearTimeout(_timer) },
+    debounce(fn) {
+      if (!_ready) return
+      clearTimeout(_timer)
+      _timer = setTimeout(fn, delay)
+    },
+    tagChanged(tag) {
+      if (tag === _prevTag) return false
+      _prevTag = tag
+      return _ready
+    }
+  }
+}
+
 // Simple filter function for relics
 export function filterRelics(relics, searchTerm, getTypeLabel, tagFilter = null) {
   return relics.filter(relic => {
