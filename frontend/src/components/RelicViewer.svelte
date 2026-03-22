@@ -247,10 +247,14 @@
   $: isTreeSupported = TREE_LANGS.has(effectiveLang)
   $: isFormattable = effectiveLang === 'json'
 
+  let _commentGen = 0;
+
   async function loadComments(id) {
     const LIMIT = 1000;
+    const gen = ++_commentGen;
     try {
       const first = await getCommentsPaginated(id, { limit: LIMIT });
+      if (gen !== _commentGen) return;
       comments = first.comments;
       if (first.total > LIMIT) {
         // Load remaining pages asynchronously without blocking the UI
@@ -259,6 +263,7 @@
           while (offset < first.total) {
             try {
               const page = await getCommentsPaginated(id, { limit: LIMIT, offset });
+              if (gen !== _commentGen) return;
               comments = [...comments, ...page.comments];
               offset += LIMIT;
             } catch {
