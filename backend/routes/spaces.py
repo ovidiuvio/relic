@@ -77,7 +77,7 @@ async def list_spaces(
     query = db.query(Space).options(selectinload(Space.access_list))
 
     access_sq = (
-        db.query(SpaceAccess.space_id).filter(SpaceAccess.client_id == client_id).subquery()
+        db.query(SpaceAccess.space_id).filter(SpaceAccess.client_id == client_id).scalar_subquery()
     ) if client_id else None
 
     # Apply visibility filter at SQL level
@@ -87,7 +87,7 @@ async def list_spaces(
                 or_(
                     Space.visibility == "public",
                     Space.owner_client_id == client_id,
-                    Space.id.in_(access_sq.select())
+                    Space.id.in_(access_sq)
                 )
             )
         else:
@@ -103,9 +103,9 @@ async def list_spaces(
     elif category == "shared" and client_id:
         shared_sq = db.query(SpaceAccess.space_id).filter(
             SpaceAccess.client_id == client_id
-        ).subquery()
+        ).scalar_subquery()
         query = query.filter(
-            Space.id.in_(shared_sq.select()),
+            Space.id.in_(shared_sq),
             Space.owner_client_id != client_id
         )
     elif category == "public":
@@ -122,7 +122,7 @@ async def list_spaces(
     if sort_by == "priority" and access_sq is not None:
         priority_expr = case(
             (Space.owner_client_id == client_id, 1),
-            (and_(Space.id.in_(access_sq.select()), Space.visibility == "private"), 2),
+            (and_(Space.id.in_(access_sq), Space.visibility == "private"), 2),
             else_=3
         )
         spaces = query.order_by(priority_expr, Space.created_at.desc()).offset(offset).limit(limit).all()

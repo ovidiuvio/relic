@@ -96,7 +96,7 @@ def apply_relic_search(query, search: str, db: Session):
     from backend.models import Relic, Tag
     from sqlalchemy import or_
     term = like_term(search)
-    tag_sq = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+    tag_sq = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).scalar_subquery()
     return query.filter(
         or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_sq))
     ).distinct()
