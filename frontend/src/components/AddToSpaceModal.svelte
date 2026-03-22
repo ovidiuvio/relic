@@ -17,6 +17,7 @@
     ];
 
     let spaces = [];
+    let totalAvailable = null; // total matching spaces (across all categories or in single category)
     let loading = false;
     let adding = false;
     let selectedSpaceId = '';
@@ -52,20 +53,27 @@
     }
 
     async function loadAll(term) {
+        const PAGE = 25;
         const [ownedRes, sharedPrivRes, pubRes] = await Promise.all([
-            spacesApi.list({ category: 'my',     search: term || undefined, limit: 25 }),
-            spacesApi.list({ category: 'shared', search: term || undefined, visibility: 'private', limit: 25 }),
-            spacesApi.list({ category: 'public', search: term || undefined, limit: 25 }),
+            spacesApi.list({ category: 'my',     search: term || undefined, limit: PAGE }),
+            spacesApi.list({ category: 'shared', search: term || undefined, visibility: 'private', limit: PAGE }),
+            spacesApi.list({ category: 'public', search: term || undefined, limit: PAGE }),
         ]);
         const owned      = (ownedRes.spaces   || []).filter(s => EDIT_ROLES.includes(s.role));
         const sharedPriv = (sharedPrivRes.spaces || []).filter(s => EDIT_ROLES.includes(s.role));
         const pub        = (pubRes.spaces      || []).filter(s => EDIT_ROLES.includes(s.role));
-        return mergeDeduped(owned, sharedPriv, pub);
+        const merged = mergeDeduped(owned, sharedPriv, pub);
+        const totalSum = (ownedRes.total || 0) + (sharedPrivRes.total || 0) + (pubRes.total || 0);
+        totalAvailable = totalSum > merged.length ? totalSum : null;
+        return merged;
     }
 
     async function loadCategory(category, term) {
-        const data = await spacesApi.list({ category, search: term || undefined, limit: 50 });
-        return (data.spaces || []).filter(s => EDIT_ROLES.includes(s.role));
+        const PAGE = 50;
+        const data = await spacesApi.list({ category, search: term || undefined, limit: PAGE });
+        const filtered = (data.spaces || []).filter(s => EDIT_ROLES.includes(s.role));
+        totalAvailable = (data.total || 0) > filtered.length ? data.total : null;
+        return filtered;
     }
 
     async function reload() {
@@ -103,6 +111,7 @@
         initialized = false;
         searchTerm = '';
         spaces = [];
+        totalAvailable = null;
         selectedSpaceId = '';
         activeFilter = 'all';
         clearTimeout(searchTimer);
@@ -225,6 +234,11 @@
                         </div>
                     {/if}
                 </div>
+                {#if totalAvailable && spaces.length > 0}
+                    <p class="text-[11px] text-gray-400 mt-2 text-center">
+                        Showing {spaces.length} of {totalAvailable} spaces — use search to find more
+                    </p>
+                {/if}
             </div>
 
             <!-- Footer -->
