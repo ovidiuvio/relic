@@ -19,7 +19,7 @@
   let forkName = "";
   let forkContent = "";
   let forkLanguage = "auto";
-  let forkAccessLevel = "public";
+  let forkAccessLevel = relic?.access_level || "public";
   let forkExpiration = "never";
   let forkTags = "";
   let isLoading = false;
@@ -144,7 +144,7 @@
     forkName = "";
     forkContent = "";
     forkLanguage = "auto";
-    forkAccessLevel = "public";
+    forkAccessLevel = relic?.access_level || "public";
     forkExpiration = "never";
     forkTags = "";
     editorContent = "";

@@ -50,12 +50,12 @@ export async function fastForkRelic(relic) {
     const blob = await response.data
     const file = new File([blob], relic.name || `${relic.id}.txt`, { type: relic.content_type || 'text/plain' })
 
-    // Create fork with default settings (public, never expires, same name)
+    // Create fork with same settings (preserve access level, never expires, same name)
     const forkResponse = await forkRelic(
       relic.id,
       file,
       relic.name || null, // Keep the same name, let API handle null case
-      'public',
+      relic.access_level || 'public',
       'never',
       relic.tags ? relic.tags.map(t => typeof t === 'string' ? t : t.name) : []
     )

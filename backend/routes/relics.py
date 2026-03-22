@@ -313,7 +313,7 @@ async def fork_relic(
             size_bytes=len(content),
             s3_key=s3_key,
             fork_of=relic_id,
-            access_level=access_level or ("private" if original.access_level == "restricted" else original.access_level),
+            access_level=access_level or original.access_level,
             expires_at=expires_at
         )
 
