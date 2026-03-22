@@ -69,7 +69,7 @@ async def list_spaces(
     category: all, my, shared, public
     sort_by: created_at, name, relic_count
     """
-    limit = clamp_limit(limit)
+    limit = clamp_limit(limit, default=50)
     offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id and client_id in settings.get_admin_client_ids()
