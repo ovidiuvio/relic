@@ -349,20 +349,19 @@ async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: Session = D
     truncated = False
 
     while current_level_ids:
-        children = db.query(Relic).filter(Relic.fork_of.in_(current_level_ids)).all()
+        children = [
+            c for c in db.query(Relic).filter(Relic.fork_of.in_(current_level_ids)).all()
+            if c.id not in tree_nodes
+        ]
+        if max_nodes > 0 and len(tree_nodes) + len(children) > max_nodes:
+            truncated = True
+            break
         next_level_ids = []
         for child in children:
-            if child.id in tree_nodes:
-                continue
-            if max_nodes > 0 and len(tree_nodes) >= max_nodes:
-                truncated = True
-                break
             child_data = {"id": child.id, "name": child.name, "created_at": child.created_at, "children": []}
             tree_nodes[child.id] = child_data
             tree_nodes[child.fork_of]["children"].append(child_data)
             next_level_ids.append(child.id)
-        if truncated:
-            break
         current_level_ids = next_level_ids
 
     return {
