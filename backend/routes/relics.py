@@ -319,7 +319,8 @@ async def fork_relic(
 
 @router.get("/api/v1/relics/{relic_id}/lineage")
 async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: Session = Depends(get_db)):
-    """Get the fork lineage tree for a relic. max_nodes=0 means unlimited."""
+    """Get the fork lineage tree for a relic."""
+    max_nodes = min(max(max_nodes, 1), 5000)
     current = db.query(Relic).filter(Relic.id == relic_id).first()
     if not current:
         raise HTTPException(status_code=404, detail="Relic not found")

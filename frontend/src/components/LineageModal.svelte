@@ -24,11 +24,11 @@
   async function fetchLineage(maxNodes = 200) {
     if (!relicId) return;
 
-    const loadingAll_ = maxNodes === 0;
+    const loadingAll_ = maxNodes > 200;
     if (loadingAll_) loadingAll = true; else isLoading = true;
     error = null;
     try {
-      const params = maxNodes > 0 ? { max_nodes: maxNodes } : {};
+      const params = { max_nodes: maxNodes };
       const response = await getRelicLineage(relicId, params);
       lineageData = response.data;
       truncated = response.data.truncated || false;
@@ -180,7 +180,7 @@
                 Showing first {totalNodes} nodes. This fork tree is very large.
               </div>
               <button
-                on:click={() => fetchLineage(0)}
+                on:click={() => fetchLineage(5000)}
                 disabled={loadingAll}
                 class="whitespace-nowrap px-3 py-1 rounded-md bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-800 text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
