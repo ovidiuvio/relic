@@ -45,23 +45,28 @@
     }
   }
 
-  function buildNodeMap(node, map = {}) {
-    if (!node) return map;
-    map[node.id] = node;
-    for (const child of node.children ?? []) buildNodeMap(child, map);
+  function buildNodeMap(root) {
+    const map = {};
+    if (!root) return map;
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop();
+      map[node.id] = node;
+      for (const child of node.children ?? []) stack.push(child);
+    }
     return map;
   }
 
   // DFS walk from a given root node, respecting collapsedIds.
   // Returns flat array of { node, depth }.
-  function flattenTree(rootNode) {
+  function flattenTree(rootNode, collapsed) {
     if (!rootNode) return [];
     const result = [];
     const stack = [{ node: rootNode, depth: 0 }];
     while (stack.length) {
       const { node, depth } = stack.pop();
       result.push({ node, depth });
-      if (!collapsedIds.has(node.id) && node.children?.length) {
+      if (!collapsed.has(node.id) && node.children?.length) {
         // Push in reverse so left-most child is processed first
         for (let i = node.children.length - 1; i >= 0; i--) {
           stack.push({ node: node.children[i], depth: depth + 1 });
@@ -72,7 +77,7 @@
   }
 
   $: viewRootNode = nodeMap[viewRootId] ?? lineageData?.root ?? null;
-  $: flatNodes = flattenTree(viewRootNode);
+  $: flatNodes = flattenTree(viewRootNode, collapsedIds);
   $: realRootId = lineageData?.root?.id ?? null;
   $: isRebased = viewRootId && viewRootId !== realRootId;
 
