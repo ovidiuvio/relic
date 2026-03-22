@@ -220,17 +220,25 @@
 
                         <!-- Search -->
                         {#if accessTotal > accessLimit || accessSearch}
-                            <div class="relative">
+                            <div class="relative group">
                                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" aria-hidden="true"></i>
                                 <input
                                     type="text"
                                     bind:value={accessSearch}
                                     on:input={handleSearchInput}
                                     placeholder="Filter by name or ID..."
-                                    class="maas-input w-full pl-8 py-1.5 text-sm bg-white"
+                                    class="maas-input w-full pl-8 pr-8 py-1.5 text-sm bg-white"
                                 />
                                 {#if loadingAccess}
                                     <i class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                {:else if accessSearch}
+                                    <button
+                                        on:click={() => { accessSearch = ''; fetchAccess(1); }}
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                        title="Clear search" aria-label="Clear search"
+                                    >
+                                        <i class="fas fa-times-circle text-xs"></i>
+                                    </button>
                                 {/if}
                             </div>
                         {/if}
