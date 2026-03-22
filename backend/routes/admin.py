@@ -10,7 +10,7 @@ from typing import Optional
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag
+from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag, Space
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
@@ -201,7 +201,7 @@ async def admin_delete_client(
     Args:
         delete_relics: If True, also delete all relics owned by this client
     """
-    get_admin_client(request, db)
+    admin = get_admin_client(request, db)
 
     client = db.query(ClientKey).filter(ClientKey.id == client_id).first()
     if not client:
@@ -231,6 +231,14 @@ async def admin_delete_client(
 
     # Delete bookmarks
     db.query(ClientBookmark).filter(ClientBookmark.client_id == client_id).delete()
+
+    # Transfer space ownership to the admin performing the deletion
+    db.query(Space).filter(Space.owner_client_id == client_id).update(
+        {Space.owner_client_id: admin.id}
+    )
+
+    # Disassociate comments from client
+    db.query(Comment).filter(Comment.client_id == client_id).update({Comment.client_id: None})
 
     # Delete client
     db.delete(client)
