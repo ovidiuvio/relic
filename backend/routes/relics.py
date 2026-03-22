@@ -186,7 +186,7 @@ async def get_relic(
 
 @router.get("/{relic_id}")
 @router.get("/{relic_id}/raw")
-async def get_relic_raw(relic_id: str, request: Request, db: Session = Depends(get_db)):
+async def get_relic_raw(relic_id: str, request: Request, password: Optional[str] = None, db: Session = Depends(get_db)):
     """Get raw relic content."""
     relic = db.query(Relic).options(selectinload(Relic.access_list)).filter(Relic.id == relic_id).first()
 
@@ -195,6 +195,13 @@ async def get_relic_raw(relic_id: str, request: Request, db: Session = Depends(g
 
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
+
+    # Check password protection
+    if relic.password_hash:
+        if not password:
+            raise HTTPException(status_code=403, detail="This relic requires a password")
+        if hash_password(password) != relic.password_hash:
+            raise HTTPException(status_code=403, detail="Invalid password")
 
     # Enforce restricted access
     if relic.access_level == "restricted":
@@ -233,7 +240,7 @@ async def fork_relic(
     Fork a relic (create new independent lineage).
 
     Creates a new relic with fork_of pointing to the original.
-    Public endpoint - anyone can fork. Fork belongs to forking client if key provided.
+    Fork belongs to forking client if key provided.
     """
     # Normalize tags input
     if tags and len(tags) == 1 and ',' in tags[0]:
@@ -243,13 +250,31 @@ async def fork_relic(
     if access_level and access_level not in ['public', 'private', 'restricted']:
         raise HTTPException(status_code=400, detail="Invalid access_level. Must be 'public', 'private', or 'restricted'")
 
-    # Get client (optional - fork is public)
+    # Get client (optional)
     client = get_or_create_client_key(request, db)
 
-    original = db.query(Relic).filter(Relic.id == relic_id).first()
+    original = db.query(Relic).options(selectinload(Relic.access_list)).filter(Relic.id == relic_id).first()
 
     if not original:
         raise HTTPException(status_code=404, detail="Relic not found")
+
+    if is_expired(original.expires_at):
+        raise HTTPException(status_code=410, detail="Relic has expired")
+
+    # Check password protection
+    if original.password_hash:
+        password = request.headers.get("X-Relic-Password")
+        if not password:
+            raise HTTPException(status_code=403, detail="This relic requires a password")
+        if hash_password(password) != original.password_hash:
+            raise HTTPException(status_code=403, detail="Invalid password")
+
+    # Enforce restricted access
+    if original.access_level == "restricted":
+        if not check_ownership_or_admin(original, client, require_auth=False):
+            allowed_ids = {a.client_id for a in original.access_list}
+            if not client or client.id not in allowed_ids:
+                raise HTTPException(status_code=403, detail="Access restricted")
 
     try:
         # If no new content provided, fork with same content
