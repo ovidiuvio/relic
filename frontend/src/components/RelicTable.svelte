@@ -249,7 +249,7 @@
                     {/if}
                     {#if relic.bookmark_count}
                       {@const cls = counterClass(relic.bookmark_count)}
-                      {@const bold = counterLevel(relic.bookmark_count, 'bookmarks') !== null}
+                      {@const bold = counterLevel(relic.bookmark_count) !== null}
                       <button
                         class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Bookmarkers"
@@ -261,7 +261,7 @@
                     {/if}
                     {#if relic.comments_count}
                       {@const cls = counterClass(relic.comments_count)}
-                      {@const bold = counterLevel(relic.comments_count, 'comments') !== null}
+                      {@const bold = counterLevel(relic.comments_count) !== null}
                       <button
                         class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Comments Summary"
@@ -273,7 +273,7 @@
                     {/if}
                     {#if relic.forks_count}
                       {@const cls = counterClass(relic.forks_count)}
-                      {@const bold = counterLevel(relic.forks_count, 'forks') !== null}
+                      {@const bold = counterLevel(relic.forks_count) !== null}
                       <button
                         class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Lineage"
