@@ -9,7 +9,7 @@
     deleteRelic,
     updateRelic,
     checkAdminStatus,
-    getComments, getCommentsPaginated,
+    getCommentsPaginated,
     createComment,
     updateComment,
     deleteComment,
