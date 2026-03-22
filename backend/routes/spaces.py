@@ -70,6 +70,7 @@ async def list_spaces(
     sort_by: created_at, name, relic_count
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id and client_id in settings.get_admin_client_ids()
 
@@ -330,6 +331,7 @@ async def get_space_relics(
 ):
     """Get relics in a space with pagination."""
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
     is_admin = client_id in settings.get_admin_client_ids() if client_id else False
 
@@ -480,6 +482,7 @@ async def get_space_access(
 ):
     """Get the access list for a space with pagination and optional search."""
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
 
     space = db.query(Space).filter(Space.id == space_id).first()

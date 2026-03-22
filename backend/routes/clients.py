@@ -87,6 +87,7 @@ async def get_client_relics(
     Requires valid X-Client-Key header.
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")

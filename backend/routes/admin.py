@@ -50,6 +50,7 @@ async def admin_list_all_relics(
     Optional filters: access_level, client_id, search, tag
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     get_admin_client(request, db)  # Verify admin
 
     query = db.query(Relic).options(selectinload(Relic.tags))
@@ -121,6 +122,7 @@ async def admin_list_clients(
     Requires admin privileges.
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     get_admin_client(request, db)
 
     total = db.query(ClientKey).count()
@@ -297,6 +299,7 @@ async def admin_list_backups(
     Requires admin privileges.
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     from backend.backup import list_all_backups
 
     get_admin_client(request, db)
@@ -491,6 +494,7 @@ async def admin_list_reports(
     Requires admin privileges.
     """
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     get_admin_client(request, db)
 
     total = db.query(RelicReport).count()
