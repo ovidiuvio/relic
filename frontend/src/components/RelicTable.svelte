@@ -158,15 +158,24 @@
         </div>
       {/if}
     </div>
-    <div class="relative flex-1 max-w-md ml-4">
+    <div class="relative flex-1 max-w-md ml-4 group">
       <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
       <input
         type="text"
         bind:value={searchTerm}
         placeholder="Filter by name, type, or id..."
         aria-label="Search relics"
-        class="w-full pl-9 pr-3 py-1.5 text-sm maas-input"
+        class="w-full pl-9 pr-9 py-1.5 text-sm maas-input"
       />
+      {#if searchTerm}
+        <button
+          on:click={() => searchTerm = ''}
+          class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+          title="Clear search" aria-label="Clear search"
+        >
+          <i class="fas fa-times-circle"></i>
+        </button>
+      {/if}
     </div>
   </div>
 {/if}

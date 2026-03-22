@@ -197,12 +197,24 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <!-- Search -->
-        <input
-          type="text"
-          bind:value={filterText}
-          placeholder="Search all columns..."
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div class="relative group">
+          <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input
+            type="text"
+            bind:value={filterText}
+            placeholder="Search all columns..."
+            class="pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-64"
+          />
+          {#if filterText}
+            <button
+              on:click={() => filterText = ''}
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+              title="Clear search" aria-label="Clear search"
+            >
+              <i class="fas fa-times-circle text-xs"></i>
+            </button>
+          {/if}
+        </div>
 
         <!-- Page Size Selector -->
         <select

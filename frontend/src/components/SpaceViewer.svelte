@@ -459,14 +459,23 @@
 
                 <div class="flex items-center gap-4 flex-shrink-0 ml-4">
                     <!-- Search within Space -->
-                    <div class="relative w-64 md:w-80 lg:w-96">
+                    <div class="relative w-64 md:w-80 lg:w-96 group">
                         <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input
                             type="text"
                             bind:value={searchTerm}
                             placeholder="Find in space..."
-                            class="w-full pl-9 pr-3 py-1.5 text-sm maas-input bg-white"
+                            class="w-full pl-9 pr-9 py-1.5 text-sm maas-input bg-white"
                         />
+                        {#if searchTerm}
+                            <button
+                                on:click={() => searchTerm = ''}
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                title="Clear search" aria-label="Clear search"
+                            >
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        {/if}
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -861,17 +870,25 @@
                     </div>
 
                     {#if accessTotal > accessLimit || accessSearch}
-                        <div class="relative">
+                        <div class="relative group">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                             <input
                                 type="text"
                                 bind:value={accessSearch}
                                 on:input={handleAccessSearch}
                                 placeholder="Filter by name or ID..."
-                                class="maas-input w-full pl-8 py-1.5 text-sm bg-white"
+                                class="maas-input w-full pl-8 pr-8 py-1.5 text-sm bg-white"
                             />
                             {#if loadingAccess}
                                 <i class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            {:else if accessSearch}
+                                <button
+                                    on:click={() => { accessSearch = ''; loadAccessList(1); }}
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                    title="Clear search" aria-label="Clear search"
+                                >
+                                    <i class="fas fa-times-circle text-xs"></i>
+                                </button>
                             {/if}
                         </div>
                     {/if}

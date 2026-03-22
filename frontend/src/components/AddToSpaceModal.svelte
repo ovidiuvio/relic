@@ -180,18 +180,26 @@
             <!-- Body -->
             <div class="p-6 pb-4 flex flex-col min-h-0 bg-white">
                 <div>
-                    <div class="relative mb-3 flex-shrink-0">
+                    <div class="relative mb-3 flex-shrink-0 group">
                         <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input
                             type="text"
                             bind:value={searchTerm}
                             on:input={handleSearchInput}
                             placeholder="Search by name or ID..."
-                            class="w-full pl-9 pr-8 py-2 text-sm maas-input"
+                            class="w-full pl-9 pr-9 py-2 text-sm maas-input"
                             autocomplete="off"
                         />
                         {#if loading}
                             <i class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        {:else if searchTerm}
+                            <button
+                                on:click={() => { searchTerm = ''; reload(); }}
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                title="Clear search" aria-label="Clear search"
+                            >
+                                <i class="fas fa-times-circle"></i>
+                            </button>
                         {/if}
                     </div>
                 </div>
