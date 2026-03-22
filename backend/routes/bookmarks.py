@@ -134,6 +134,7 @@ async def check_bookmark(
 async def get_client_bookmarks(
     request: Request,
     tag: Optional[str] = None,
+    search: Optional[str] = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
     limit: int = 25,
@@ -170,6 +171,13 @@ async def get_client_bookmarks(
                 "limit": limit,
                 "offset": offset,
             }
+
+    if search:
+        term = f"%{search}%"
+        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+        query = query.filter(
+            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
+        ).distinct()
 
     sort_map = {
         "created_at": ClientBookmark.created_at,

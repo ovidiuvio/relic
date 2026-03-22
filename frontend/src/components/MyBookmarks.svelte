@@ -51,6 +51,7 @@
       loading = true
       const response = await getClientBookmarks({
         tag: tagFilter || undefined,
+        search: searchTerm || undefined,
         sort_by: sortBy === 'date' ? 'created_at' : sortBy,
         sort_order: sortOrder,
         limit: itemsPerPage,
