@@ -22,6 +22,7 @@
     // Access management state
     let accessList = [];
     let accessTotal = 0;
+    let ownerRow = null;
     let accessPage = 1;
     const accessLimit = 25;
     let accessSearch = '';
@@ -151,6 +152,7 @@
                 offset: (page - 1) * accessLimit,
                 search: accessSearch.trim() || undefined,
             });
+            ownerRow = accessData.owner || null;
             accessList = accessData.access || [];
             accessTotal = accessData.total || 0;
             accessPage = page;
@@ -856,8 +858,9 @@
                             <i class="fas fa-list-ul text-blue-500"></i>
                             Current Access List
                         </h3>
-                        {#if accessTotal > 0}
-                            <span class="text-xs text-gray-400">{accessTotal} {accessTotal === 1 ? 'user' : 'users'}</span>
+                        {#if accessTotal > 0 || ownerRow}
+                            {@const totalWithOwner = (ownerRow ? 1 : 0) + accessTotal}
+                            <span class="text-xs text-gray-400">{totalWithOwner} {totalWithOwner === 1 ? 'user' : 'users'}</span>
                         {/if}
                     </div>
 
@@ -906,6 +909,27 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
+                                    {#if ownerRow}
+                                        <tr class="hover:bg-gray-50/50 transition-colors">
+                                            <td class="px-5 py-3.5 whitespace-nowrap">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
+                                                        <i class="fas fa-user text-xs"></i>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{ownerRow.client_name || 'Anonymous User'}</div>
+                                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{ownerRow.public_id || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-5 py-3.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
+                                                    <i class="fas fa-crown mr-1.5 scale-90"></i> Owner
+                                                </span>
+                                            </td>
+                                            <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
+                                        </tr>
+                                    {/if}
                                     {#each accessList as access}
                                         <tr class="hover:bg-gray-50/50 transition-colors group">
                                             <td class="px-5 py-3.5 whitespace-nowrap">
@@ -920,11 +944,7 @@
                                                 </div>
                                             </td>
                                             <td class="px-5 py-3.5 whitespace-nowrap">
-                                                {#if access.role === 'owner'}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200">
-                                                        <i class="fas fa-crown mr-1.5 scale-90"></i> Owner
-                                                    </span>
-                                                {:else if access.role === 'admin'}
+                                                {#if access.role === 'admin'}
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
                                                         <i class="fas fa-shield-alt mr-1.5 scale-90"></i> Admin
                                                     </span>
@@ -939,7 +959,7 @@
                                                 {/if}
                                             </td>
                                             <td class="px-5 py-3.5 whitespace-nowrap text-right">
-                                                {#if isOwner && access.role !== 'owner'}
+                                                {#if isOwner}
                                                     <button
                                                         on:click={() => removeAccess(access.id)}
                                                         class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
