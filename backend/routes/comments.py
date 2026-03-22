@@ -61,7 +61,7 @@ async def get_relic_comments(
     db: Session = Depends(get_db)
 ):
     """Get comments for a relic with pagination."""
-    limit = clamp_limit(limit)
+    limit = clamp_limit(limit, default=1000)
     offset = max(0, offset)
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:

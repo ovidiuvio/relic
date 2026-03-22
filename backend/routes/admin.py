@@ -49,7 +49,7 @@ async def admin_list_all_relics(
     Requires admin privileges.
     Optional filters: access_level, client_id, search, tag
     """
-    limit = clamp_limit(limit)
+    limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
     get_admin_client(request, db)  # Verify admin
 
@@ -121,7 +121,7 @@ async def admin_list_clients(
 
     Requires admin privileges.
     """
-    limit = clamp_limit(limit)
+    limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
     get_admin_client(request, db)
 
@@ -493,7 +493,7 @@ async def admin_list_reports(
 
     Requires admin privileges.
     """
-    limit = clamp_limit(limit)
+    limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
     get_admin_client(request, db)
 
