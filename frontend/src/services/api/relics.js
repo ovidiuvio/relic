@@ -40,12 +40,7 @@ export async function getRelic(relicId) {
     return api.get(`/relics/${relicId}`)
 }
 
-export async function listRelics(limit = 25, offset = 0, tag = null, search = null, sortBy = null, sortOrder = null) {
-    const params = { limit, offset }
-    if (tag) params.tag = tag
-    if (search) params.search = search
-    if (sortBy) params.sort_by = sortBy
-    if (sortOrder) params.sort_order = sortOrder
+export async function listRelics(params = {}) {
     return api.get('/relics', { params })
 }
 

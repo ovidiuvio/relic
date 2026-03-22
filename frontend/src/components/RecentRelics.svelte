@@ -45,7 +45,14 @@
   async function loadRelics(page = 1) {
     try {
       loading = true
-      const response = await listRelics(itemsPerPage, (page - 1) * itemsPerPage, tagFilter, searchTerm || null, sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy, sortOrder)
+      const response = await listRelics({
+        limit: itemsPerPage,
+        offset: (page - 1) * itemsPerPage,
+        tag: tagFilter || undefined,
+        search: searchTerm || undefined,
+        sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
+        sort_order: sortOrder,
+      })
       relics = response.data.relics || []
       total = response.data.total || 0
       currentPage = page
