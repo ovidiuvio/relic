@@ -165,12 +165,12 @@ class ClientBookmark(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
-    relic_id = Column(String(32), ForeignKey('relic.id'), nullable=False, index=True)
+    relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
     client = relationship("ClientKey", backref="bookmarks")
-    relic = relationship("Relic", backref="bookmarked_by")
+    relic = relationship("Relic", backref=backref("bookmarked_by", passive_deletes=True))
 
     # Unique constraint to prevent duplicate bookmarks
     __table_args__ = (
@@ -183,15 +183,15 @@ class RelicReport(Base):
     __tablename__ = "relic_report"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    relic_id = Column(String(32), ForeignKey('relic.id'), nullable=False, index=True)
+    relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
     reason = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Optional: track reporter if authenticated (not strictly required by spec but good practice)
     # reporter_id = Column(String, ForeignKey('client_key.id'), nullable=True)
 
-        # Relationships
-    relic = relationship("Relic", backref="reports")
+    # Relationships
+    relic = relationship("Relic", backref=backref("reports", passive_deletes=True))
 
 
 class Comment(Base):
@@ -199,7 +199,7 @@ class Comment(Base):
     __tablename__ = "comment"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    relic_id = Column(String(32), ForeignKey('relic.id'), nullable=False, index=True)
+    relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(32), ForeignKey('client_key.id'), nullable=True)
     line_number = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
@@ -207,6 +207,6 @@ class Comment(Base):
     parent_id = Column(String, ForeignKey('comment.id'), nullable=True)
 
     # Relationships
-    relic = relationship("Relic", backref="comments")
+    relic = relationship("Relic", backref=backref("comments", passive_deletes=True))
     client = relationship("ClientKey", backref="comments")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id]), cascade="all, delete-orphan")
