@@ -128,7 +128,7 @@
                 offset: (page - 1) * itemsPerPage,
                 search: searchTerm || undefined,
                 tag: tagFilter || undefined,
-                sort_by: sortBy === 'date' ? 'created_at' : sortBy,
+                sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
                 sort_order: sortOrder,
             });
             relics = data.relics;
