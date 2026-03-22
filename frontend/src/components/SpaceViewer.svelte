@@ -112,6 +112,7 @@
     });
 
     async function loadRelics(page = 1) {
+        const gen = reloader.gen();
         loadingRelics = true;
         try {
             const data = await spacesApi.getRelics(spaceId, {
@@ -122,10 +123,12 @@
                 sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
                 sort_order: sortOrder,
             });
+            if (reloader.stale(gen)) return;
             relics = data.relics;
             total = data.total;
             currentPage = page;
         } catch (error) {
+            if (reloader.stale(gen)) return;
             console.error("Failed to load space relics:", error);
             showToast("Failed to load relics", "error");
         } finally {

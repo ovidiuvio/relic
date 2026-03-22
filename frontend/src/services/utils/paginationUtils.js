@@ -11,21 +11,27 @@ export function createReloader(delay = 300) {
   let _timer
   let _ready = false
   let _prevTag
+  let _gen = 0
 
   return {
     setReady() { _ready = true },
-    reset() { _ready = false; clearTimeout(_timer) },
+    reset() { _ready = false; clearTimeout(_timer); _gen++ },
     clear() { clearTimeout(_timer) },
     debounce(fn) {
       if (!_ready) return
       clearTimeout(_timer)
+      _gen++
       _timer = setTimeout(fn, delay)
     },
     tagChanged(tag) {
       if (tag === _prevTag) return false
       _prevTag = tag
       return _ready
-    }
+    },
+    /** Call at the start of a load function to capture the current generation. */
+    gen() { return _gen },
+    /** Returns true if a newer request has been issued since `g` was captured. */
+    stale(g) { return g !== _gen }
   }
 }
 

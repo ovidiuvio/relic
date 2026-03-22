@@ -39,6 +39,7 @@
   $: if (reloader.tagChanged(tagFilter)) loadBookmarks(1)
 
   async function loadBookmarks(page = 1) {
+    const gen = reloader.gen()
     try {
       loading = true
       const response = await getClientBookmarks({
@@ -49,10 +50,12 @@
         limit: itemsPerPage,
         offset: (page - 1) * itemsPerPage,
       })
+      if (reloader.stale(gen)) return
       bookmarks = response.data.bookmarks || []
       total = response.data.total || 0
       currentPage = page
     } catch (error) {
+      if (reloader.stale(gen)) return
       console.error('Failed to load bookmarks:', error)
       showToast('Failed to load bookmarks', 'error')
       bookmarks = []

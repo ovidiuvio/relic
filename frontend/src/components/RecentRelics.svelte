@@ -43,6 +43,7 @@
   $: if (reloader.tagChanged(tagFilter)) loadRelics(1)
 
   async function loadRelics(page = 1) {
+    const gen = reloader.gen()
     try {
       loading = true
       const response = await listRelics({
@@ -53,10 +54,12 @@
         sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
         sort_order: sortOrder,
       })
+      if (reloader.stale(gen)) return
       relics = response.data.relics || []
       total = response.data.total || 0
       currentPage = page
     } catch (error) {
+      if (reloader.stale(gen)) return
       showToast('Failed to load recent relics', 'error')
       console.error('Error loading relics:', error)
     } finally {

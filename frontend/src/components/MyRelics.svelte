@@ -53,6 +53,7 @@
   $: if (reloader.tagChanged(tagFilter)) loadMyRelics(1)
 
   async function loadMyRelics(page = 1) {
+    const gen = reloader.gen()
     try {
       loading = true
       const response = await getClientRelics({
@@ -63,10 +64,12 @@
         limit: itemsPerPage,
         offset: (page - 1) * itemsPerPage,
       })
+      if (reloader.stale(gen)) return
       relics = response.data.relics || []
       total = response.data.total || 0
       currentPage = page
     } catch (error) {
+      if (reloader.stale(gen)) return
       console.error('Failed to load client relics:', error)
       showToast('Failed to load your relics', 'error')
       relics = []
