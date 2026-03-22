@@ -52,7 +52,7 @@
       const response = await getClientBookmarks({
         tag: tagFilter || undefined,
         search: searchTerm || undefined,
-        sort_by: sortBy === 'date' ? 'created_at' : sortBy,
+        sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
         sort_order: sortOrder,
         limit: itemsPerPage,
         offset: (page - 1) * itemsPerPage,
