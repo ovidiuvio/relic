@@ -94,6 +94,8 @@
     async function loadSpace() {
         loading = true;
         reloader.reset();
+        searchTerm = '';
+        tagFilter = null;
         errorStatus = null;
         try {
             space = await spacesApi.get(spaceId);

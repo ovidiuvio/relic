@@ -14,24 +14,28 @@
   const limit = 25;
   let isLoading = false;
   let error = null;
+  let _gen = 0;
 
   $: totalPages = Math.max(1, Math.ceil(total / limit));
 
   async function fetchBookmarkers(page = 1) {
     if (!relicId) return;
 
+    const gen = ++_gen;
     isLoading = true;
     error = null;
     try {
       const data = await getRelicBookmarkers(relicId, { limit, offset: (page - 1) * limit });
+      if (gen !== _gen) return;
       bookmarkers = data.bookmarkers;
       total = data.total;
       currentPage = page;
     } catch (err) {
+      if (gen !== _gen) return;
       error = "Failed to load bookmarkers.";
       showToast(error, "error");
     } finally {
-      isLoading = false;
+      if (gen === _gen) isLoading = false;
     }
   }
 

@@ -4,6 +4,7 @@
     import { showToast } from '../stores/toastStore';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
     import { formatTimeAgo } from '../services/typeUtils';
+    import { createReloader } from '../services/utils/paginationUtils';
     import RelicDropModal from './RelicDropModal.svelte';
     import ConfirmModal from './ConfirmModal.svelte';
 
@@ -46,16 +47,13 @@
     let confirmMessage = '';
     let confirmAction = null;
 
+    const reloader = createReloader();
     let spacesReady = false;
-    let searchTimer;
     let prevFilter = filter;
     let prevSortBy = sortBy;
     let prevSortOrder = sortOrder;
 
-    $: if (spacesReady && searchTerm !== undefined) {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => loadSpaces(1), 300);
-    }
+    $: if (searchTerm !== undefined) reloader.debounce(() => loadSpaces(1));
     $: if (spacesReady && (filter !== prevFilter || sortBy !== prevSortBy || sortOrder !== prevSortOrder)) {
         if (filter !== prevFilter) {
             sortBy = filter === 'all' ? 'priority' : 'created_at';
@@ -68,6 +66,7 @@
     }
 
     async function loadSpaces(page = 1) {
+        const gen = reloader.gen();
         loading = true;
         try {
             const data = await spacesApi.list({
@@ -78,10 +77,12 @@
                 limit: itemsPerPage,
                 offset: (page - 1) * itemsPerPage,
             });
+            if (reloader.stale(gen)) return;
             spaces = data.spaces;
             total = data.total;
             currentPage = page;
         } catch (error) {
+            if (reloader.stale(gen)) return;
             console.error("Failed to load spaces:", error);
             showToast("Failed to load spaces", "error");
         } finally {
@@ -187,6 +188,7 @@
     onMount(async () => {
         await loadSpaces(1);
         spacesReady = true;
+        reloader.setReady();
     });
 </script>
 
