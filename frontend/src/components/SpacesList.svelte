@@ -23,7 +23,7 @@
 
     // Server-side pagination
     let currentPage = 1;
-    let itemsPerPage = 25;
+    let itemsPerPage = 20;
     let total = 0;
     $: totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
@@ -433,7 +433,7 @@
                                 class="pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
                             >
                                 <option value={10}>10</option>
-                                <option value={25}>25</option>
+                                <option value={20}>20</option>
                                 <option value={50}>50</option>
                             </select>
                         </div>

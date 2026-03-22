@@ -525,7 +525,7 @@ async def get_space_access(
     access_total = access_query.count()
     access_entries = access_query.order_by(SpaceAccess.created_at).offset(offset).limit(limit).all()
 
-    result = [owner_row] + [
+    access_list = [
         {
             "id": access.id,
             "space_id": access.space_id,
@@ -538,8 +538,9 @@ async def get_space_access(
     ]
 
     return {
-        "access": result,
-        "total": 1 + access_total,
+        "owner": owner_row,
+        "access": access_list,
+        "total": access_total,
         "limit": limit,
         "offset": offset,
     }
