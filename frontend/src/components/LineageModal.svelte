@@ -11,6 +11,7 @@
   let error = null;
   let truncated = false;
   let totalNodes = 0;
+  let _gen = 0;
 
   // Map of id → node for fast lookup
   let nodeMap = {};
@@ -24,12 +25,14 @@
   async function fetchLineage(maxNodes = 200) {
     if (!relicId) return;
 
+    const gen = ++_gen;
     const loadingAll_ = maxNodes > 200;
     if (loadingAll_) loadingAll = true; else isLoading = true;
     error = null;
     try {
       const params = { max_nodes: maxNodes };
       const response = await getRelicLineage(relicId, params);
+      if (gen !== _gen) return;
       lineageData = response.data;
       truncated = response.data.truncated || false;
       totalNodes = response.data.total_nodes || 0;
@@ -37,11 +40,14 @@
       nodeMap = buildNodeMap(lineageData.root);
       viewRootId = lineageData.current_relic_id ?? lineageData.root?.id ?? null;
     } catch (err) {
+      if (gen !== _gen) return;
       error = "Failed to load fork lineage.";
       showToast(error, "error");
     } finally {
-      isLoading = false;
-      loadingAll = false;
+      if (gen === _gen) {
+        isLoading = false;
+        loadingAll = false;
+      }
     }
   }
 
