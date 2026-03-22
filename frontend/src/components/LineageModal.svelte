@@ -35,7 +35,7 @@
       totalNodes = response.data.total_nodes || 0;
       collapsedIds = new Set();
       nodeMap = buildNodeMap(lineageData.root);
-      viewRootId = lineageData.root?.id ?? null;
+      viewRootId = lineageData.current_relic_id ?? lineageData.root?.id ?? null;
     } catch (err) {
       error = "Failed to load fork lineage.";
       showToast(error, "error");
