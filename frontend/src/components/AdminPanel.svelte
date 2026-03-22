@@ -610,13 +610,15 @@
                     {/if}
                     <select
                         bind:value={relicsFilter}
-                        class="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                        class="px-3 pr-8 py-1.5 text-sm border border-gray-300 rounded bg-white"
                     >
-                        <option value="all">All</option>
+                        <option value="all">All Levels</option>
                         <option value="public">Public</option>
                         <option value="private">Private</option>
                         <option value="restricted">Restricted</option>
                     </select>
+
+
                     <div class="relative flex-1 max-w-md group">
                         <i
                             class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -874,11 +876,27 @@
                     <div
                         class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
                     >
-                        <span
-                            >{relicsTotal} relic{relicsTotal !== 1
-                                ? "s"
-                                : ""}</span
-                        >
+                        <div class="flex items-center gap-4">
+                            <span
+                                >{relicsTotal} relic{relicsTotal !== 1
+                                    ? "s"
+                                    : ""}</span
+                            >
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
+                                <span class="text-gray-400">Show:</span>
+                                <select
+                                    bind:value={relicsLimit}
+                                    on:change={() => { relicsPage = 1; loadRelics(); }}
+                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={250}>250</option>
+                                    <option value={500}>500</option>
+                                </select>
+                            </div>
+                        </div>
                         {#if relicsTotalPages > 1}
                             <div class="flex items-center gap-2">
                                 <span
@@ -1045,11 +1063,27 @@
                     <div
                         class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
                     >
-                        <span
-                            >{reportsTotal} report{reportsTotal !== 1
-                                ? "s"
-                                : ""}</span
-                        >
+                        <div class="flex items-center gap-4">
+                            <span
+                                >{reportsTotal} report{reportsTotal !== 1
+                                    ? "s"
+                                    : ""}</span
+                            >
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
+                                <span class="text-gray-400">Show:</span>
+                                <select
+                                    bind:value={reportsLimit}
+                                    on:change={() => { reportsPage = 1; loadReports(); }}
+                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={250}>250</option>
+                                    <option value={500}>500</option>
+                                </select>
+                            </div>
+                        </div>
                         {#if reportsTotalPages > 1}
                             <div class="flex items-center gap-2">
                                 <span
@@ -1247,11 +1281,27 @@
                     <div
                         class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
                     >
-                        <span
-                            >{clientsTotal} client{clientsTotal !== 1
-                                ? "s"
-                                : ""}</span
-                        >
+                        <div class="flex items-center gap-4">
+                            <span
+                                >{clientsTotal} client{clientsTotal !== 1
+                                    ? "s"
+                                    : ""}</span
+                            >
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
+                                <span class="text-gray-400">Show:</span>
+                                <select
+                                    bind:value={clientsLimit}
+                                    on:change={() => { clientsPage = 1; loadClients(); }}
+                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={250}>250</option>
+                                    <option value={500}>500</option>
+                                </select>
+                            </div>
+                        </div>
                         {#if clientsTotalPages > 1}
                             <div class="flex items-center gap-2">
                                 <span
@@ -1401,13 +1451,29 @@
                     <div
                         class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
                     >
-                        <span
-                            >{backupsTotal} backup{backupsTotal !== 1
-                                ? "s"
-                                : ""} • Total: {formatBytes(
-                                backupsTotalSize,
-                            )}</span
-                        >
+                        <div class="flex items-center gap-4">
+                            <span
+                                >{backupsTotal} backup{backupsTotal !== 1
+                                    ? "s"
+                                    : ""} • Total: {formatBytes(
+                                    backupsTotalSize,
+                                )}</span
+                            >
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
+                                <span class="text-gray-400">Show:</span>
+                                <select
+                                    bind:value={backupsLimit}
+                                    on:change={() => { backupsPage = 1; loadBackups(); }}
+                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={200}>200</option>
+                                    <option value={500}>500</option>
+                                </select>
+                            </div>
+                        </div>
                         {#if backupsTotalPages > 1}
                             <div class="flex items-center gap-2">
                                 <span
