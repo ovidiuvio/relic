@@ -19,12 +19,14 @@
   let isLoading = false;
   let loadingMore = false;
   let error = null;
+  let _gen = 0;
 
   const PAGE_SIZE = 1000;
 
   async function fetchAllData() {
     if (!relicId) return;
 
+    const gen = ++_gen;
     isLoading = true;
     error = null;
     try {
@@ -33,39 +35,44 @@
         getRelic(relicId),
         getRelicRaw(relicId)
       ]);
+      if (gen !== _gen) return;
 
       comments = commentsRes.comments;
       totalComments = commentsRes.total;
       relicMetadata = relicRes.data;
-      
+
       const blob = rawRes.data;
       rawContent = await blob.text();
-      
+
       // Process content to handle ANSI and other types
       processed = await processContent(rawContent, relicMetadata.type, relicMetadata.language_hint);
-      
+
       const displayContent = processed.preview || processed.text || rawContent;
       lines = displayContent.split('\n');
 
     } catch (err) {
+      if (gen !== _gen) return;
       console.error("[CommentsSummaryModal] Error fetching data:", err);
       error = "Failed to load discussion and code context.";
       showToast(error, "error");
     } finally {
-      isLoading = false;
+      if (gen === _gen) isLoading = false;
     }
   }
 
   async function loadMore() {
     if (loadingMore) return;
+    const gen = _gen;
     loadingMore = true;
     try {
       const res = await getCommentsPaginated(relicId, { limit: PAGE_SIZE, offset: comments.length });
+      if (gen !== _gen) return;
       comments = [...comments, ...res.comments];
     } catch (err) {
+      if (gen !== _gen) return;
       showToast("Failed to load more comments", "error");
     } finally {
-      loadingMore = false;
+      if (gen === _gen) loadingMore = false;
     }
   }
 
