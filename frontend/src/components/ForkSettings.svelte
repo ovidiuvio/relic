@@ -86,9 +86,11 @@
       >
         <option value="public">Public</option>
         <option value="private">Private</option>
+        <option value="restricted">Restricted</option>
       </select>
       <p class="text-xs text-gray-500 mt-1">
         {#if forkAccessLevel === "public"}Anyone can view this fork
+        {:else if forkAccessLevel === "restricted"}Only you and explicitly allowed users can access
         {:else}Private fork - only accessible via direct URL
         {/if}
       </p>
