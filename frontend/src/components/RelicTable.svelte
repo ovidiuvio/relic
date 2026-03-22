@@ -424,7 +424,7 @@
               id="items-per-page-{tableId}"
               bind:value={itemsPerPage}
               on:change={() => goToPage(1)}
-              class="pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
+              class="text-xs pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
