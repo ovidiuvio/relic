@@ -469,6 +469,8 @@ async def list_relics(
     offset: int = 0,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     db: Session = Depends(get_db)
 ):
     """List the most recent public relics with pagination."""
@@ -488,8 +490,18 @@ async def list_relics(
             or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
         ).distinct()
 
+    sort_map = {
+        "created_at": Relic.created_at,
+        "name": Relic.name,
+        "size": Relic.size_bytes,
+        "access_count": Relic.access_count,
+        "bookmark_count": Relic.bookmark_count,
+    }
+    sort_col = sort_map.get(sort_by, Relic.created_at)
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
     total = query.count()
-    relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()
+    relics = query.order_by(order).offset(offset).limit(limit).all()
 
     relic_ids = [r.id for r in relics]
     comments_counts = {}
