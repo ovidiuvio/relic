@@ -63,7 +63,7 @@
       showToast('Failed to load recent relics', 'error')
       console.error('Error loading relics:', error)
     } finally {
-      loading = false
+      if (!reloader.stale(gen)) loading = false
     }
   }
 

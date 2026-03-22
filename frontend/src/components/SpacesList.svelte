@@ -86,7 +86,7 @@
             console.error("Failed to load spaces:", error);
             showToast("Failed to load spaces", "error");
         } finally {
-            loading = false;
+            if (!reloader.stale(gen)) loading = false;
         }
     }
 

@@ -74,7 +74,7 @@
       showToast('Failed to load your relics', 'error')
       relics = []
     } finally {
-      loading = false
+      if (!reloader.stale(gen)) loading = false
     }
   }
 

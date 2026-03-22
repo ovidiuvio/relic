@@ -134,7 +134,7 @@
             console.error("Failed to load space relics:", error);
             showToast("Failed to load relics", "error");
         } finally {
-            loadingRelics = false;
+            if (!reloader.stale(gen)) loadingRelics = false;
         }
     }
 

@@ -60,7 +60,7 @@
       showToast('Failed to load bookmarks', 'error')
       bookmarks = []
     } finally {
-      loading = false
+      if (!reloader.stale(gen)) loading = false
     }
   }
 
