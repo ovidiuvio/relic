@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import (
     get_client_key, get_or_create_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
@@ -484,21 +484,9 @@ async def list_relics(
             return {"relics": [], "total": 0, "limit": limit, "offset": offset}
 
     if search:
-        term = like_term(search)
-        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
-        query = query.filter(
-            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
-        ).distinct()
+        query = apply_relic_search(query, search, db)
 
-    sort_map = {
-        "created_at": Relic.created_at,
-        "name": Relic.name,
-        "size": Relic.size_bytes,
-        "access_count": Relic.access_count,
-        "bookmark_count": Relic.bookmark_count,
-    }
-    sort_col = sort_map.get(sort_by, Relic.created_at)
-    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+    order = relic_sort_order(sort_by, sort_order)
 
     total = query.count()
     relics = query.order_by(order).offset(offset).limit(limit).all()

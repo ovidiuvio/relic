@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
-from backend.utils import get_fork_counts, clamp_limit, like_term
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -61,20 +61,10 @@ async def admin_list_all_relics(
         query = query.filter(Relic.client_id == client_id)
 
     if search:
-        term = like_term(search)
-        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
-        query = query.filter(
-            Relic.name.ilike(term) |
-            Relic.id.ilike(term) |
-            Relic.description.ilike(term) |
-            Relic.id.in_(tag_subquery)
-        )
+        query = apply_relic_search(query, search, db)
 
     if tag:
-        query = query.join(Relic.tags).filter(Tag.name.ilike(tag))
-
-    if search or tag:
-        query = query.distinct()
+        query = query.join(Relic.tags).filter(Tag.name.ilike(tag)).distinct()
 
     total = query.count()
     relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()

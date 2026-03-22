@@ -12,7 +12,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import get_space_role, check_space_access, get_space_relic_count
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -362,21 +362,9 @@ async def get_space_relics(
         query = query.join(Relic.tags, isouter=False).filter(Tag.name.ilike(tag)).distinct()
 
     if search:
-        term = like_term(search)
-        tag_subquery = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
-        query = query.filter(
-            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_subquery))
-        ).distinct()
+        query = apply_relic_search(query, search, db)
 
-    sort_map = {
-        "created_at": Relic.created_at,
-        "name": Relic.name,
-        "size": Relic.size_bytes,
-        "access_count": Relic.access_count,
-        "bookmark_count": Relic.bookmark_count,
-    }
-    sort_col = sort_map.get(sort_by, Relic.created_at)
-    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+    order = relic_sort_order(sort_by, sort_order)
 
     total = query.count()
     relics = query.order_by(order).offset(offset).limit(limit).all()

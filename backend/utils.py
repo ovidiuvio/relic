@@ -91,6 +91,37 @@ def like_term(value: str) -> str:
     return f"%{like_escape(value)}%"
 
 
+def apply_relic_search(query, search: str, db: Session):
+    """Filter a Relic query by search term across name, id, description, and tags."""
+    from backend.models import Relic, Tag
+    from sqlalchemy import or_
+    term = like_term(search)
+    tag_sq = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).subquery()
+    return query.filter(
+        or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_sq))
+    ).distinct()
+
+
+def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None):
+    """Return a SQLAlchemy order clause for common relic sort options.
+
+    overrides: dict mapping sort key names to alternative columns,
+    e.g. {"created_at": ClientBookmark.created_at} for bookmarks.
+    """
+    from backend.models import Relic
+    sort_map = {
+        "created_at": Relic.created_at,
+        "name": Relic.name,
+        "size": Relic.size_bytes,
+        "access_count": Relic.access_count,
+        "bookmark_count": Relic.bookmark_count,
+    }
+    if overrides:
+        sort_map.update(overrides)
+    sort_col = sort_map.get(sort_by, sort_map["created_at"])
+    return sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
+
 def clamp_limit(limit: int, default: int = 25) -> int:
     """Clamp a pagination limit to [1, MAX_PAGE_LIMIT]."""
     if limit < 1:
