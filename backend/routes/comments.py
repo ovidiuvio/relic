@@ -62,6 +62,7 @@ async def get_relic_comments(
 ):
     """Get comments for a relic with pagination."""
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     relic = db.query(Relic).filter(Relic.id == relic_id).first()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")

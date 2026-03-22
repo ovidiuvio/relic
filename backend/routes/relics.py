@@ -474,6 +474,7 @@ async def list_relics(
 ):
     """List the most recent public relics with pagination."""
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     query = db.query(Relic).options(selectinload(Relic.tags)).filter(Relic.access_level == "public")
 
     if tag:
@@ -524,6 +525,7 @@ async def get_relic_access(
 ):
     """List clients with explicit access to a restricted relic. Owner/admin only."""
     limit = clamp_limit(limit)
+    offset = max(0, offset)
     client = get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
