@@ -65,7 +65,11 @@ async def admin_list_all_relics(
         query = apply_relic_search(query, search, db)
 
     if tag:
-        query = query.join(Relic.tags).filter(Tag.name.ilike(tag)).distinct()
+        tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
+        if tag_obj:
+            query = query.filter(Relic.tags.contains(tag_obj))
+        else:
+            query = query.filter(False)
 
     total = query.count()
     relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()
