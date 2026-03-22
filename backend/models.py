@@ -13,8 +13,8 @@ Base = declarative_base()
 relic_tags = Table(
     'relic_tags',
     Base.metadata,
-    Column('relic_id', String, ForeignKey('relic.id')),
-    Column('tag_id', String, ForeignKey('tag.id'))
+    Column('relic_id', String, ForeignKey('relic.id', ondelete="CASCADE")),
+    Column('tag_id', String, ForeignKey('tag.id', ondelete="CASCADE"))
 )
 
 
