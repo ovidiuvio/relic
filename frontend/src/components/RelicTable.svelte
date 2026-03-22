@@ -82,20 +82,28 @@
     dispatch('sort', { sortBy, sortOrder })
   }
 
-  // Calculate averages for "above average" highlighting
-  $: avgStats = data.length > 0 ? {
-    views: data.reduce((sum, r) => sum + (r.access_count || 0), 0) / data.length,
-    bookmarks: data.reduce((sum, r) => sum + (r.bookmark_count || 0), 0) / data.length,
-    comments: data.reduce((sum, r) => sum + (r.comments_count || 0), 0) / data.length,
-    forks: data.reduce((sum, r) => sum + (r.forks_count || 0), 0) / data.length
-  } : { views: 0, bookmarks: 0, comments: 0, forks: 0 };
+  // Fixed thresholds — same scale as Monaco's comment glyph coloring.
+  // Views are scaled up since access counts are naturally higher.
+  // Returns 'high' | 'medium' | 'low' | null
+  function counterLevel(value, isViews = false) {
+    if (!value || value <= 0) return null
+    if (isViews) {
+      if (value >= 100) return 'high'
+      if (value >= 50)  return 'medium'
+      if (value >= 10)  return 'low'
+      return null
+    }
+    if (value >= 10) return 'high'
+    if (value >= 5)  return 'medium'
+    if (value >= 2)  return 'low'
+    return null
+  }
 
-  // Determine if a value is "way above average" (e.g., 2x average and above a minimum floor)
-  function isAboveAverage(value, type) {
-    if (!value || value <= 0) return false;
-    const avg = avgStats[type];
-    const floors = { views: 10, bookmarks: 3, comments: 2, forks: 2 };
-    return value > Math.max(avg * 2, floors[type]);
+  const LEVEL_CLASS = { high: 'text-red-500/70', medium: 'text-orange-400/80', low: 'text-blue-500/70' }
+
+  function counterClass(value, isViews = false) {
+    const level = counterLevel(value, isViews)
+    return level ? LEVEL_CLASS[level] : 'text-gray-400/60'
   }
 
   // Modal states
@@ -230,45 +238,49 @@
                   </a>
 
                   <!-- Views, Bookmarks, Comments & Forks as small inline badges (Top Row) -->
-                  <div class="flex items-center gap-2.5 ml-4 text-[10.5px] text-gray-400/60 whitespace-nowrap mt-[1px]">
+                  <div class="flex items-center gap-2.5 ml-4 text-[10.5px] whitespace-nowrap mt-[1px]">
                     {#if relic.access_count}
-                      {@const highlight = isAboveAverage(relic.access_count, 'views')}
-                      <span class="flex items-center gap-0.5 {highlight ? 'text-blue-600/90' : ''}" title="Views">
-                        <i class="fas fa-eye text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
-                        <span class="{highlight ? 'font-semibold' : ''}">{relic.access_count}</span>
+                      {@const cls = counterClass(relic.access_count, true)}
+                      {@const bold = counterLevel(relic.access_count, true) !== null}
+                      <span class="flex items-center gap-0.5 {cls}" title="Views">
+                        <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
+                        <span class="{bold ? 'font-semibold' : ''}">{relic.access_count}</span>
                       </span>
                     {/if}
                     {#if relic.bookmark_count}
-                      {@const highlight = isAboveAverage(relic.bookmark_count, 'bookmarks')}
+                      {@const cls = counterClass(relic.bookmark_count)}
+                      {@const bold = counterLevel(relic.bookmark_count, 'bookmarks') !== null}
                       <button
-                        class="flex items-center gap-0.5 {highlight ? 'text-amber-600/90' : 'text-gray-400/60 hover:text-amber-500/80'} transition-all hover:scale-105 active:scale-95"
+                        class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Bookmarkers"
                         on:click|stopPropagation={() => openBookmarkers(relic)}
                       >
-                        <i class="fas fa-bookmark text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
-                        <span class="{highlight ? 'font-semibold' : ''}">{relic.bookmark_count}</span>
+                        <i class="fas fa-bookmark text-[9px] translate-y-[0.5px]"></i>
+                        <span class="{bold ? 'font-semibold' : ''}">{relic.bookmark_count}</span>
                       </button>
                     {/if}
                     {#if relic.comments_count}
-                      {@const highlight = isAboveAverage(relic.comments_count, 'comments')}
+                      {@const cls = counterClass(relic.comments_count)}
+                      {@const bold = counterLevel(relic.comments_count, 'comments') !== null}
                       <button
-                        class="flex items-center gap-0.5 {highlight ? 'text-green-600/90' : 'text-gray-400/60 hover:text-green-500/80'} transition-all hover:scale-105 active:scale-95"
+                        class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Comments Summary"
                         on:click|stopPropagation={() => openComments(relic)}
                       >
-                        <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
-                        <span class="{highlight ? 'font-semibold' : ''}">{relic.comments_count}</span>
+                        <i class="fas fa-comment-alt text-[9px] translate-y-[0.5px]"></i>
+                        <span class="{bold ? 'font-semibold' : ''}">{relic.comments_count}</span>
                       </button>
                     {/if}
                     {#if relic.forks_count}
-                      {@const highlight = isAboveAverage(relic.forks_count, 'forks')}
+                      {@const cls = counterClass(relic.forks_count)}
+                      {@const bold = counterLevel(relic.forks_count, 'forks') !== null}
                       <button
-                        class="flex items-center gap-0.5 {highlight ? 'text-indigo-600/90' : 'text-gray-400/60 hover:text-indigo-500/80'} transition-all hover:scale-105 active:scale-95"
+                        class="flex items-center gap-0.5 {cls} hover:brightness-75 transition-all hover:scale-105 active:scale-95"
                         title="View Lineage"
                         on:click|stopPropagation={() => openLineage(relic)}
                       >
-                        <i class="fas fa-code-branch text-[9px] translate-y-[0.5px] {highlight ? 'opacity-100' : ''}"></i>
-                        <span class="{highlight ? 'font-semibold' : ''}">{relic.forks_count}</span>
+                        <i class="fas fa-code-branch text-[9px] translate-y-[0.5px]"></i>
+                        <span class="{bold ? 'font-semibold' : ''}">{relic.forks_count}</span>
                       </button>
                     {/if}
                   </div>

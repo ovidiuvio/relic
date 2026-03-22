@@ -1,8 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
   import { getRelicLineage } from '../services/api/relics';
   import { showToast } from '../stores/toastStore';
-  import LineageNode from './LineageNode.svelte';
 
   export let open = false;
   export let relicId = "";
@@ -13,6 +11,15 @@
   let error = null;
   let truncated = false;
   let totalNodes = 0;
+
+  // Map of id → node for fast lookup
+  let nodeMap = {};
+
+  // Collapsed node ids
+  let collapsedIds = new Set();
+
+  // The node id used as the display root (may differ from the real root)
+  let viewRootId = null;
 
   async function fetchLineage(maxNodes = 200) {
     if (!relicId) return;
@@ -26,6 +33,9 @@
       lineageData = response.data;
       truncated = response.data.truncated || false;
       totalNodes = response.data.total_nodes || 0;
+      collapsedIds = new Set();
+      nodeMap = buildNodeMap(lineageData.root);
+      viewRootId = lineageData.root?.id ?? null;
     } catch (err) {
       error = "Failed to load fork lineage.";
       showToast(error, "error");
@@ -33,6 +43,54 @@
       isLoading = false;
       loadingAll = false;
     }
+  }
+
+  function buildNodeMap(node, map = {}) {
+    if (!node) return map;
+    map[node.id] = node;
+    for (const child of node.children ?? []) buildNodeMap(child, map);
+    return map;
+  }
+
+  // DFS walk from a given root node, respecting collapsedIds.
+  // Returns flat array of { node, depth }.
+  function flattenTree(rootNode) {
+    if (!rootNode) return [];
+    const result = [];
+    const stack = [{ node: rootNode, depth: 0 }];
+    while (stack.length) {
+      const { node, depth } = stack.pop();
+      result.push({ node, depth });
+      if (!collapsedIds.has(node.id) && node.children?.length) {
+        // Push in reverse so left-most child is processed first
+        for (let i = node.children.length - 1; i >= 0; i--) {
+          stack.push({ node: node.children[i], depth: depth + 1 });
+        }
+      }
+    }
+    return result;
+  }
+
+  $: viewRootNode = nodeMap[viewRootId] ?? lineageData?.root ?? null;
+  $: flatNodes = flattenTree(viewRootNode);
+  $: realRootId = lineageData?.root?.id ?? null;
+  $: isRebased = viewRootId && viewRootId !== realRootId;
+
+  function toggleCollapse(id) {
+    const next = new Set(collapsedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    collapsedIds = next;
+  }
+
+  function rebase(id) {
+    viewRootId = id;
+    collapsedIds = new Set();
+  }
+
+  function resetRebase() {
+    viewRootId = realRootId;
+    collapsedIds = new Set();
   }
 
   $: if (open && relicId) {
@@ -44,16 +102,15 @@
   }
 
   function handleBackdropClick(e) {
-    if (e.target === e.currentTarget) {
-      closeModal();
-    }
+    if (e.target === e.currentTarget) closeModal();
   }
 
-  // Handle escape key
   function handleKeydown(e) {
-    if (e.key.toLowerCase() === 'escape' && open) {
-      closeModal();
-    }
+    if (e.key.toLowerCase() === 'escape' && open) closeModal();
+  }
+
+  function fmtDate(dt) {
+    return dt ? new Date(dt).toLocaleDateString() : '';
   }
 </script>
 
@@ -112,7 +169,7 @@
           </div>
         {:else if lineageData && lineageData.root}
           {#if truncated}
-            <div class="mb-4 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+            <div class="mb-3 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
               <div class="flex items-center gap-2">
                 <i class="fas fa-exclamation-triangle text-amber-500 flex-shrink-0"></i>
                 Showing first {totalNodes} nodes. This fork tree is very large.
@@ -130,12 +187,76 @@
               </button>
             </div>
           {/if}
-          <div class="bg-gray-50 rounded-lg p-6 border border-gray-200 shadow-inner">
-            <LineageNode
-              node={lineageData.root}
-              currentRelicId={lineageData.current_relic_id}
-              level={0}
-            />
+
+          {#if isRebased}
+            <div class="mb-3 flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-700">
+              <i class="fas fa-crosshairs text-teal-500 flex-shrink-0"></i>
+              <span class="flex-1">Viewing subtree rooted at <span class="font-mono font-semibold">{viewRootId.substring(0, 8)}</span></span>
+              <button
+                on:click={resetRebase}
+                class="whitespace-nowrap px-2.5 py-1 rounded-md bg-teal-100 hover:bg-teal-200 border border-teal-300 text-teal-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <i class="fas fa-arrow-up text-[10px]"></i> Back to root
+              </button>
+            </div>
+          {/if}
+
+          <div class="bg-gray-50 rounded-lg border border-gray-200 shadow-inner overflow-hidden">
+            {#each flatNodes as { node, depth }, i (node.id)}
+              {@const isCurrent = node.id === lineageData.current_relic_id}
+              {@const hasChildren = node.children?.length > 0}
+              {@const isCollapsed = collapsedIds.has(node.id)}
+              <div
+                class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 last:border-b-0 transition-colors {isCurrent ? 'bg-teal-50' : 'hover:bg-white'}"
+                style="padding-left: calc(0.75rem + {depth * 1.25}rem)"
+              >
+                <!-- Collapse toggle -->
+                <button
+                  on:click={() => toggleCollapse(node.id)}
+                  class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors {hasChildren ? '' : 'invisible'}"
+                  title={isCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  <i class="fas fa-chevron-{isCollapsed ? 'right' : 'down'} text-[10px]"></i>
+                </button>
+
+                <!-- Branch icon -->
+                <i class="fas fa-code-branch {isCurrent ? 'text-teal-500' : 'text-gray-300'} text-xs flex-shrink-0 {depth > 0 ? '' : 'rotate-90'}"></i>
+
+                <!-- Name + meta -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <a
+                      href="/{node.id}"
+                      class="text-sm font-medium truncate {isCurrent ? 'text-teal-700 pointer-events-none' : 'text-gray-800 hover:text-teal-600 hover:underline'}"
+                    >
+                      {node.name || 'Untitled'}
+                    </a>
+                    {#if isCurrent}
+                      <span class="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-700">Current</span>
+                    {/if}
+                    {#if hasChildren && isCollapsed}
+                      <span class="flex-shrink-0 text-[10px] text-gray-400">{node.children.length} fork{node.children.length !== 1 ? 's' : ''} hidden</span>
+                    {/if}
+                  </div>
+                  <div class="flex items-center text-[11px] text-gray-400 gap-1.5 mt-0.5">
+                    <span class="font-mono">{node.id.substring(0, 8)}</span>
+                    <span>&bull;</span>
+                    <span>{fmtDate(node.created_at)}</span>
+                  </div>
+                </div>
+
+                <!-- Rebase button -->
+                {#if !isCurrent || isRebased}
+                  <button
+                    on:click={() => rebase(node.id)}
+                    class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-teal-600 hover:bg-teal-50 border border-transparent hover:border-teal-200 transition-colors {viewRootId === node.id ? 'text-teal-600 bg-teal-50 border-teal-200' : ''}"
+                    title="View tree from this node"
+                  >
+                    <i class="fas fa-crosshairs text-xs"></i>
+                  </button>
+                {/if}
+              </div>
+            {/each}
           </div>
         {:else}
           <div class="text-center py-12 text-gray-500">

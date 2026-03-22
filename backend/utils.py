@@ -3,7 +3,6 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import hashlib
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 
@@ -80,48 +79,24 @@ def is_expired(expires_at: Optional[datetime]) -> bool:
 
 
 def get_fork_counts(db: Session, relic_ids: List[str]) -> Dict[str, int]:
-    """
-    Count all descendants (direct + indirect) for each relic using a single
-    recursive CTE — mirrors GitHub's fork counter behaviour.
-
-    Returns a dict of {relic_id: total_descendant_count}.
-    """
+    """Count direct forks for each relic. Returns {relic_id: count}."""
     if not relic_ids:
         return {}
-    result = db.execute(
-        text("""
-            WITH RECURSIVE fork_tree AS (
-                SELECT fork_of AS root_id, id
-                FROM relic
-                WHERE fork_of = ANY(:ids)
-                UNION ALL
-                SELECT ft.root_id, r.id
-                FROM relic r
-                JOIN fork_tree ft ON r.fork_of = ft.id
-            )
-            SELECT root_id, COUNT(*) AS total
-            FROM fork_tree
-            GROUP BY root_id
-        """),
-        {"ids": relic_ids},
-    ).fetchall()
-    return {row[0]: row[1] for row in result}
+    from backend.models import Relic
+    from sqlalchemy import func
+    rows = (
+        db.query(Relic.fork_of, func.count(Relic.id))
+        .filter(Relic.fork_of.in_(relic_ids))
+        .group_by(Relic.fork_of)
+        .all()
+    )
+    return {row[0]: row[1] for row in rows}
 
 
 def get_fork_count(db: Session, relic_id: str) -> int:
-    """Count all descendants of a single relic using a recursive CTE."""
-    row = db.execute(
-        text("""
-            WITH RECURSIVE fork_tree AS (
-                SELECT id FROM relic WHERE fork_of = :relic_id
-                UNION ALL
-                SELECT r.id FROM relic r
-                JOIN fork_tree ft ON r.fork_of = ft.id
-            )
-            SELECT COUNT(*) FROM fork_tree
-        """),
-        {"relic_id": relic_id},
-    ).scalar()
-    return row or 0
+    """Count direct forks of a single relic."""
+    from backend.models import Relic
+    from sqlalchemy import func
+    return db.query(func.count(Relic.id)).filter(Relic.fork_of == relic_id).scalar() or 0
 
 
