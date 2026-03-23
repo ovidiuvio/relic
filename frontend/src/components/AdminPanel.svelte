@@ -801,7 +801,7 @@
                                                 >
                                             {/if}
                                         </td>
-                                        <td class="text-gray-500 text-xs"
+                                        <td class="text-gray-500 text-xs" title="{formatDate(relic.created_at)}"
                                             >{formatTimeAgo(
                                                 relic.created_at,
                                             )}</td
@@ -1009,7 +1009,7 @@
                                         >
                                             {report.reason}
                                         </td>
-                                        <td class="text-xs text-gray-500">
+                                        <td class="text-xs text-gray-500" title="{formatDate(report.created_at)}">
                                             {formatTimeAgo(report.created_at)}
                                         </td>
                                         <td>
@@ -1246,7 +1246,7 @@
                                             {/if}
                                         </td>
                                         <td class="text-xs text-gray-500"
-                                            >{formatDate(client.created_at)}</td
+                                             title="{formatDate(client.created_at)}">{formatTimeAgo(client.created_at)}</td
                                         >
                                         <td>
                                             {#if !client.is_admin}
