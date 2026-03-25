@@ -1,6 +1,7 @@
 <script>
   import { getRelicLineage } from '../services/api/relics';
   import { showToast } from '../stores/toastStore';
+  import { formatDate } from '../services/typeUtils';
 
   export let open = false;
   export let relicId = "";
@@ -118,10 +119,6 @@
 
   function handleKeydown(e) {
     if (e.key.toLowerCase() === 'escape' && open) closeModal();
-  }
-
-  function fmtDate(dt) {
-    return dt ? new Date(dt).toLocaleDateString() : '';
   }
 </script>
 
@@ -252,7 +249,7 @@
                   <div class="flex items-center text-[11px] text-gray-400 gap-1.5 mt-0.5">
                     <span class="font-mono">{node.id.substring(0, 8)}</span>
                     <span>&bull;</span>
-                    <span>{fmtDate(node.created_at)}</span>
+                    <span>{formatDate(node.created_at)}</span>
                   </div>
                 </div>
 

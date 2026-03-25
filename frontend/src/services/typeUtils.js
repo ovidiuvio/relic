@@ -1,8 +1,8 @@
 import { FILE_TYPES } from './data/fileTypes'
-import { formatBytes, formatTimeAgo } from './utils/formatting'
+import { formatDate, formatBytes, formatTimeAgo } from './utils/formatting'
 
 // Re-export helpers
-export { formatBytes, formatTimeAgo }
+export { formatDate, formatBytes, formatTimeAgo }
 
 // Fallback for unknown types
 const UNKNOWN_TYPE = {
