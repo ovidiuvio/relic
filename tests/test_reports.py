@@ -62,12 +62,13 @@ def test_admin_list_reports(client, db):
     from backend.config import settings
     
     # Register a client
-    client_key_response = client.post("/api/v1/client/register")
-    client_key = client_key_response.headers["X-Client-Key"]
+    import uuid
+    client_key = uuid.uuid4().hex
+    client_key_response = client.post("/api/v1/client/register", headers={"X-Client-Key": client_key})
     
     # Patch settings
     original_admins = settings.ADMIN_CLIENT_IDS
-    settings.ADMIN_CLIENT_IDS = [client_key]
+    settings.ADMIN_CLIENT_IDS = f"{client_key}"
     
     try:
         # List reports
@@ -103,10 +104,11 @@ def test_admin_delete_report(client):
     
     # Setup admin
     from backend.config import settings
-    client_key_response = client.post("/api/v1/client/register")
-    client_key = client_key_response.headers["X-Client-Key"]
+    import uuid
+    client_key = uuid.uuid4().hex
+    client_key_response = client.post("/api/v1/client/register", headers={"X-Client-Key": client_key})
     original_admins = settings.ADMIN_CLIENT_IDS
-    settings.ADMIN_CLIENT_IDS = [client_key]
+    settings.ADMIN_CLIENT_IDS = f"{client_key}"
     
     try:
         # Get report ID

@@ -32,7 +32,8 @@ def test_create_and_get_comment(client):
     # Get comments
     response = client.get(f"/api/v1/relics/{relic_id}/comments")
     assert response.status_code == 200
-    comments = response.json()
+    data = response.json()
+    comments = data["comments"]
     assert len(comments) == 1
     assert comments[0]["id"] == comment_id
 
@@ -43,4 +44,4 @@ def test_create_and_get_comment(client):
     # Verify deletion
     response = client.get(f"/api/v1/relics/{relic_id}/comments")
     assert response.status_code == 200
-    assert len(response.json()) == 0
+    assert len(response.json()["comments"]) == 0
