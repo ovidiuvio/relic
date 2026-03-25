@@ -5,6 +5,7 @@
   import { getDefaultItemsPerPage } from '../services/typeUtils'
   import { createReloader } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
+  import ConfirmModal from './ConfirmModal.svelte'
 
   export let tagFilter = null
 
@@ -132,14 +133,11 @@
   />
 </div>
 
-{#if showConfirm}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-      <p class="text-sm text-gray-700 mb-6">Remove bookmark for "{bookmarkToRemove?.name || 'Untitled'}"?</p>
-      <div class="flex justify-end gap-3">
-        <button class="maas-btn-secondary" on:click={() => { showConfirm = false; bookmarkToRemove = null; }}>Cancel</button>
-        <button class="maas-btn-primary" on:click={executeRemoveBookmark}>Remove</button>
-      </div>
-    </div>
-  </div>
-{/if}
+<ConfirmModal
+  show={showConfirm}
+  title="Remove Bookmark"
+  message={`Remove bookmark for "${bookmarkToRemove?.name || 'Untitled'}"?`}
+  confirmLabel="Remove"
+  on:confirm={executeRemoveBookmark}
+  on:cancel={() => { showConfirm = false; bookmarkToRemove = null; }}
+/>
