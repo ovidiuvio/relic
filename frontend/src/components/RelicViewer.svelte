@@ -324,11 +324,8 @@
     processed = null;
     showSource = false;
 
-    console.log("[RelicViewer] Loading relic:", id);
     try {
-      console.log("[RelicViewer] Fetching relic metadata...");
       const relicResponse = await getRelic(id);
-      console.log("[RelicViewer] Relic metadata received:", relicResponse.data);
       relic = relicResponse.data;
 
       // Fetch lineage to determine if we should show the lineage button
@@ -344,17 +341,14 @@
       }
 
       // Fetch and process raw content
-      console.log("[RelicViewer] Fetching raw content...");
       const rawResponse = await getRelicRaw(id);
       const content = await rawResponse.data.arrayBuffer();
-      console.log("[RelicViewer] Raw content received, processing...");
 
       processed = await processContent(
         new Uint8Array(content),
         relic.content_type,
         relic.language_hint,
       );
-      console.log("[RelicViewer] Content processed:", processed);
 
       // Check bookmark status
       await checkBookmarkStatus(id);
@@ -362,7 +356,6 @@
       // Load comments
       await loadComments(id);
 
-      console.log("[RelicViewer] Relic loaded successfully");
     } catch (error) {
       console.error("[RelicViewer] Error loading relic:", error);
       errorStatus = error.response?.status || 'unknown';
@@ -379,32 +372,20 @@
     isArchiveFile = false;
     archiveContext = null;
 
-    console.log(
-      "[RelicViewer] Loading file from archive:",
-      archiveId,
-      filepath,
-    );
     try {
       // Load the archive relic metadata
-      console.log("[RelicViewer] Fetching archive metadata...");
       const archiveResponse = await getRelic(archiveId);
       const archiveRelic = archiveResponse.data;
 
       // Fetch and process the archive
-      console.log("[RelicViewer] Fetching archive content...");
       const rawResponse = await getRelicRaw(archiveId);
       const content = await rawResponse.data.arrayBuffer();
 
-      console.log("[RelicViewer] Processing archive...");
       const archive = await processArchive(
         new Uint8Array(content),
         archiveRelic.content_type,
       );
 
-      console.log(
-        "[RelicViewer] Archive processed, extracting file:",
-        filepath,
-      );
 
       // Extract the specific file
       const fileContent = await archive.extractFile(filepath);
@@ -415,7 +396,6 @@
         throw new Error("File not found in archive");
       }
 
-      console.log("[RelicViewer] File extracted, processing content...");
 
       // Process the extracted file content
       processed = await processContent(
@@ -448,7 +428,6 @@
         fileName: fileMetadata.name,
       };
 
-      console.log("[RelicViewer] Archive file loaded successfully");
     } catch (error) {
       console.error("[RelicViewer] Error loading archive file:", error);
       showToast("Failed to load file from archive: " + error.message, "error");
