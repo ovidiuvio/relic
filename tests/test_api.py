@@ -53,6 +53,7 @@ def test_get_nonexistent_relic(client):
     """Test getting a relic that doesn't exist."""
     response = client.get("/api/v1/relics/nonexistent")
     assert response.status_code == 404
+    assert "detail" in response.json()
 
 
 @pytest.mark.unit
@@ -162,6 +163,7 @@ def test_delete_relic(client, created_relic):
     )
 
     assert delete_response.status_code == 200
+    assert delete_response.json()["message"] == "Relic deleted successfully"
 
     # Verify relic is deleted (should be 404)
     get_response = client.get(f"/api/v1/relics/{relic_id}")
