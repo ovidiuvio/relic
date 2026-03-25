@@ -1,5 +1,10 @@
 // Formatting utilities
 
+export function formatDate(dateStr) {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleString();
+}
+
 export function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 Bytes'
     const k = 1024

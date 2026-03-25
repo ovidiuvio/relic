@@ -25,6 +25,7 @@
         getTypeIconColor,
         formatBytes,
         formatTimeAgo,
+        formatDate,
     } from "../services/typeUtils";
 
     import {
@@ -106,11 +107,6 @@
     let confirmClientToDelete = null;
 
     $: filteredRelics = relics;
-
-    function formatDate(dateStr) {
-        if (!dateStr) return "-";
-        return new Date(dateStr).toLocaleString();
-    }
 
     async function checkAdmin() {
         try {
