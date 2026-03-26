@@ -672,12 +672,13 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                >
-                                    <th>Title / ID</th><th>Tags</th><th>Owner</th><th
-                                        >Created</th
-                                    ><th>Size</th><th class="w-40">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Title / ID</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Tags</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Owner</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Created</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Size</th>
+                                    <th class="px-4 py-2.5 text-center border-none w-40">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -873,21 +874,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{relicsTotal} relic{relicsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{relicsTotal}</span> relic{relicsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={relicsLimit}
                                     on:change={() => { relicsPage = 1; loadRelics(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -898,36 +895,18 @@
                             </div>
                         </div>
                         {#if relicsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {relicsPage} of {relicsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {relicsPage} of {relicsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        relicsPage = Math.max(
-                                            1,
-                                            relicsPage - 1,
-                                        );
-                                        loadRelics();
-                                    }}
+                                    on:click={() => { relicsPage = Math.max(1, relicsPage - 1); loadRelics(); }}
                                     disabled={relicsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        relicsPage = Math.min(
-                                            relicsTotalPages,
-                                            relicsPage + 1,
-                                        );
-                                        loadRelics();
-                                    }}
+                                    on:click={() => { relicsPage = Math.min(relicsTotalPages, relicsPage + 1); loadRelics(); }}
                                     disabled={relicsPage === relicsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -953,14 +932,12 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                >
-                                    <th>Relic</th>
-                                    <th>Owner</th>
-                                    <th>Reason</th>
-                                    <th>Reported</th>
-                                    <th class="w-32">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Relic</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Owner</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Reason</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Reported</th>
+                                    <th class="px-4 py-2.5 text-center border-none w-32">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1060,21 +1037,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{reportsTotal} report{reportsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{reportsTotal}</span> report{reportsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={reportsLimit}
                                     on:change={() => { reportsPage = 1; loadReports(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1085,36 +1058,18 @@
                             </div>
                         </div>
                         {#if reportsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {reportsPage} of {reportsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {reportsPage} of {reportsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        reportsPage = Math.max(
-                                            1,
-                                            reportsPage - 1,
-                                        );
-                                        loadReports();
-                                    }}
+                                    on:click={() => { reportsPage = Math.max(1, reportsPage - 1); loadReports(); }}
                                     disabled={reportsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    <i class="fas fa-chevron-left text-xs"></i>
-                                </button>
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        reportsPage = Math.min(
-                                            reportsTotalPages,
-                                            reportsPage + 1,
-                                        );
-                                        loadReports();
-                                    }}
+                                    on:click={() => { reportsPage = Math.min(reportsTotalPages, reportsPage + 1); loadReports(); }}
                                     disabled={reportsPage === reportsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    <i class="fas fa-chevron-right text-xs"></i>
-                                </button>
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -1138,15 +1093,13 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200"
-                                >
-                                    <th>Client / Name</th>
-                                    <th>Public Key</th>
-                                    <th>Relics</th>
-                                    <th>Role</th>
-                                    <th>Created</th>
-                                    <th class="w-24">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Client / Name</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Public Key</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Relics</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Role</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Created</th>
+                                    <th class="px-4 py-2.5 text-center border-none w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1278,21 +1231,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{clientsTotal} client{clientsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{clientsTotal}</span> client{clientsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={clientsLimit}
                                     on:change={() => { clientsPage = 1; loadClients(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1303,36 +1252,18 @@
                             </div>
                         </div>
                         {#if clientsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {clientsPage} of {clientsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {clientsPage} of {clientsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        clientsPage = Math.max(
-                                            1,
-                                            clientsPage - 1,
-                                        );
-                                        loadClients();
-                                    }}
+                                    on:click={() => { clientsPage = Math.max(1, clientsPage - 1); loadClients(); }}
                                     disabled={clientsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        clientsPage = Math.min(
-                                            clientsTotalPages,
-                                            clientsPage + 1,
-                                        );
-                                        loadClients();
-                                    }}
+                                    on:click={() => { clientsPage = Math.min(clientsTotalPages, clientsPage + 1); loadClients(); }}
                                     disabled={clientsPage === clientsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -1388,14 +1319,14 @@
                 {:else}
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
-                            <thead
-                                ><tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                    ><th>Backup</th><th>Timestamp</th><th
-                                        >Size</th
-                                    ><th class="w-32">Actions</th></tr
-                                ></thead
-                            >
+                            <thead>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Backup</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Timestamp</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Size</th>
+                                    <th class="px-4 py-2.5 text-center border-none w-32">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 {#each backups as backup}
                                     <tr class="hover:bg-gray-50">
@@ -1448,23 +1379,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{backupsTotal} backup{backupsTotal !== 1
-                                    ? "s"
-                                    : ""} • Total: {formatBytes(
-                                    backupsTotalSize,
-                                )}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{backupsTotal}</span> backup{backupsTotal !== 1 ? "s" : ""} • Total: {formatBytes(backupsTotalSize)}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={backupsLimit}
                                     on:change={() => { backupsPage = 1; loadBackups(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1475,36 +1400,18 @@
                             </div>
                         </div>
                         {#if backupsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {backupsPage} of {backupsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {backupsPage} of {backupsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        backupsPage = Math.max(
-                                            1,
-                                            backupsPage - 1,
-                                        );
-                                        loadBackups();
-                                    }}
+                                    on:click={() => { backupsPage = Math.max(1, backupsPage - 1); loadBackups(); }}
                                     disabled={backupsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        backupsPage = Math.min(
-                                            backupsTotalPages,
-                                            backupsPage + 1,
-                                        );
-                                        loadBackups();
-                                    }}
+                                    on:click={() => { backupsPage = Math.min(backupsTotalPages, backupsPage + 1); loadBackups(); }}
                                     disabled={backupsPage === backupsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>

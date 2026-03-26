@@ -913,12 +913,12 @@
                         </div>
                     {:else}
                         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                            <table class="min-w-full divide-y divide-gray-100">
-                                <thead class="bg-gray-50/80">
-                                    <tr>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">User Details</th>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest w-32">Role</th>
-                                        <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-widest w-24">Actions</th>
+                            <table class="min-w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="px-5 py-2.5 text-left border-none">User Details</th>
+                                        <th class="px-5 py-2.5 text-left border-none w-32">Role</th>
+                                        <th class="px-5 py-2.5 text-right border-none w-24">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
@@ -1014,7 +1014,7 @@
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-end">
+            <div class="px-6 py-4 bg-gray-50 border-t border-[#ddd] flex justify-end">
                 <button
                     on:click={() => showAccessModal = false}
                     class="maas-btn-secondary px-8 font-semibold shadow-sm"
