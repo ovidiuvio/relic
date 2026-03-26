@@ -900,12 +900,12 @@
                                 <button
                                     on:click={() => { relicsPage = Math.max(1, relicsPage - 1); loadRelics(); }}
                                     disabled={relicsPage === 1}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
                                     on:click={() => { relicsPage = Math.min(relicsTotalPages, relicsPage + 1); loadRelics(); }}
                                     disabled={relicsPage === relicsTotalPages}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
@@ -1063,12 +1063,12 @@
                                 <button
                                     on:click={() => { reportsPage = Math.max(1, reportsPage - 1); loadReports(); }}
                                     disabled={reportsPage === 1}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
                                     on:click={() => { reportsPage = Math.min(reportsTotalPages, reportsPage + 1); loadReports(); }}
                                     disabled={reportsPage === reportsTotalPages}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
@@ -1257,12 +1257,12 @@
                                 <button
                                     on:click={() => { clientsPage = Math.max(1, clientsPage - 1); loadClients(); }}
                                     disabled={clientsPage === 1}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
                                     on:click={() => { clientsPage = Math.min(clientsTotalPages, clientsPage + 1); loadClients(); }}
                                     disabled={clientsPage === clientsTotalPages}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
@@ -1405,12 +1405,12 @@
                                 <button
                                     on:click={() => { backupsPage = Math.max(1, backupsPage - 1); loadBackups(); }}
                                     disabled={backupsPage === 1}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
                                     on:click={() => { backupsPage = Math.min(backupsTotalPages, backupsPage + 1); loadBackups(); }}
                                     disabled={backupsPage === backupsTotalPages}
-                                    class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}

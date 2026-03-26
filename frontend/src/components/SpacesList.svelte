@@ -465,7 +465,7 @@
                             <button
                                 on:click={() => goToPage(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 title="Previous page" aria-label="Previous page"
                             >
                                 <i class="fas fa-chevron-left text-[11px]"></i>
@@ -487,7 +487,7 @@
                             <button
                                 on:click={() => goToPage(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                class="p-1 rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 title="Next page" aria-label="Next page"
                             >
                                 <i class="fas fa-chevron-right text-[11px]"></i>
