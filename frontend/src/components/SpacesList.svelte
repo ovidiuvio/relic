@@ -336,14 +336,14 @@
                                 on:dragleave={handleDragLeave}
                                 on:drop={(e) => handleDrop(e, space)}
                             >
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-3">
                                         <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
-                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-sm"></i>
+                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-[13px]"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="font-medium text-[#0066cc] hover:underline truncate" title={space.name}>{space.name}</div>
-                                            <div class="flex items-center gap-1 text-xs text-gray-400 font-mono mt-0.5">
+                                            <div class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight" title={space.name}>{space.name}</div>
+                                            <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono mt-0.5 leading-tight">
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
@@ -356,7 +356,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-2">
                                         {#if space.role === 'owner'}
                                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
@@ -377,16 +377,16 @@
                                         {/if}
                                     </div>
                                 </td>
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-1.5 text-gray-500 text-xs">
                                         <i class="fas fa-file-alt text-gray-300"></i>
                                         <span class="font-medium">{space.relic_count}</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-4 text-gray-500 text-xs">
+                                <td class="px-4 text-gray-500 text-xs">
                                     {formatTimeAgo(space.created_at)}
                                 </td>
-                                <td class="px-4 py-4 text-right">
+                                <td class="px-4 text-right">
                                     <div class="flex justify-end gap-1">
                                         {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
                                             <button

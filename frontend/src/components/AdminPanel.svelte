@@ -690,19 +690,19 @@
                                             >
                                                 {#if relic.access_level === "private"}
                                                     <i
-                                                        class="fas fa-lock text-xs"
+                                                        class="fas fa-lock text-[13px]"
                                                         style="color: #76306c;"
                                                         title="Private"
                                                     ></i>
                                                 {:else if relic.access_level === "restricted"}
                                                     <i
-                                                        class="fas fa-user-lock text-xs"
+                                                        class="fas fa-user-lock text-[13px]"
                                                         style="color: #b45309;"
                                                         title="Restricted"
                                                     ></i>
                                                 {:else}
                                                     <i
-                                                        class="fas fa-globe text-xs"
+                                                        class="fas fa-globe text-[13px]"
                                                         style="color: #217db1;"
                                                         title="Public"
                                                     ></i>
@@ -712,14 +712,14 @@
                                                         relic.content_type,
                                                     )} {getTypeIconColor(
                                                         relic.content_type,
-                                                    )} text-sm"
+                                                    )} text-[13px]"
                                                     title={getTypeLabel(
                                                         relic.content_type,
                                                     )}
                                                 ></i>
                                                 <a
                                                     href="/{relic.id}"
-                                                    class="font-medium text-[#0066cc] hover:underline truncate"
+                                                    class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight"
                                                     >{relic.name ||
                                                         "Untitled"}</a
                                                 >
@@ -752,10 +752,10 @@
                                                 </div>
                                             </div>
                                             <div
-                                                class="flex items-center group gap-1 mt-1"
+                                                class="flex items-center group gap-1 mt-0.5 leading-tight"
                                             >
                                                 <span
-                                                    class="text-xs text-gray-400 font-mono"
+                                                    class="text-[11px] text-gray-400 font-mono"
                                                     >{relic.id}</span
                                                 >
                                                 <button

@@ -442,7 +442,7 @@
                                 {/if}
                             </div>
                         </div>
-                        <div class="flex items-center gap-3 text-xs text-gray-500 font-mono">
+                        <div class="flex items-center gap-3 text-[11px] text-gray-500 font-mono">
                             <span class="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{spaceId}</span>
                             <span class="text-gray-300">•</span>
                             <span class="flex items-center gap-1.5">

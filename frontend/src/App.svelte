@@ -526,7 +526,7 @@
   }
 
   :global(.maas-table td) {
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 1rem;
     border-bottom: 1px solid #dfdcd9;
     vertical-align: middle;
   }
