@@ -149,4 +149,4 @@ async def delete_comment(
 
     db.delete(comment)
     db.commit()
-    return {"status": "deleted"}
+    return {"message": "Comment deleted successfully"}
