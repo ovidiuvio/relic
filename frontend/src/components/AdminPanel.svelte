@@ -38,7 +38,7 @@
 
     let isAdmin = false;
     let loading = true;
-    let activeTab = "relics";
+    let activeTab = "stats";
 
     // Stats
     let stats = {
@@ -470,61 +470,6 @@
             </p>
         </div>
     {:else}
-        <!-- Stats Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-archive text-[#772953] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.total_relics}
-                        </p>
-                        <p class="text-xs text-gray-500">Total Relics</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-users text-[#0E8420] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.total_clients}
-                        </p>
-                        <p class="text-xs text-gray-500">Users</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-database text-[#E95420] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {formatBytes(stats.total_size_bytes)}
-                        </p>
-                        <p class="text-xs text-gray-500">Storage</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.admin_count}
-                        </p>
-                        <p class="text-xs text-gray-500">Admins</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Tabs -->
         <div class="bg-white shadow-sm rounded-lg border border-gray-200">
@@ -532,6 +477,15 @@
                 class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
             >
                 <div class="flex items-center gap-6">
+                    <button
+                        on:click={() => (activeTab = "stats")}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'stats'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </button>
                     <button
                         on:click={() => (activeTab = "relics")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
@@ -585,6 +539,58 @@
                     <i class="fas fa-sync-alt mr-1"></i>Refresh
                 </button>
             </div>
+
+            <!-- Overview Tab -->
+            {#if activeTab === "stats"}
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-archive text-[#772953] text-xl"></i>
+                                <div>
+                                    <p class="text-2xl font-semibold text-gray-900">
+                                        {stats.total_relics}
+                                    </p>
+                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Relics</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-users text-[#0E8420] text-xl"></i>
+                                <div>
+                                    <p class="text-2xl font-semibold text-gray-900">
+                                        {stats.total_clients}
+                                    </p>
+                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Users</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-database text-[#E95420] text-xl"></i>
+                                <div>
+                                    <p class="text-2xl font-semibold text-gray-900">
+                                        {formatBytes(stats.total_size_bytes)}
+                                    </p>
+                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Storage</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
+                                <div>
+                                    <p class="text-2xl font-semibold text-gray-900">
+                                        {stats.admin_count}
+                                    </p>
+                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Admins</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {/if}
 
             <!-- Relics Tab -->
             {#if activeTab === "relics"}
