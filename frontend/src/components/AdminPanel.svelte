@@ -683,7 +683,7 @@
                             </thead>
                             <tbody>
                                 {#each filteredRelics as relic (relic.id)}
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-50 group">
                                         <td>
                                             <div
                                                 class="flex items-center gap-1.5"
@@ -814,7 +814,7 @@
                                         >
                                         <td class="text-right">
                                             <div
-                                                class="flex items-center justify-end gap-1"
+                                                class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200"
                                             >
                                                 <button
                                                     on:click|stopPropagation={() =>
@@ -1346,7 +1346,7 @@
                                             )}</td
                                         >
                                         <td class="text-right">
-                                            <div class="flex items-center justify-end gap-1">
+                                            <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                                                 <button
                                                     on:click={() =>
                                                         downloadAdminBackup(

@@ -226,7 +226,7 @@
         </thead>
         <tbody>
           {#each paginatedData as relic (relic.id)}
-            <tr class="hover:bg-gray-50 cursor-pointer">
+            <tr class="hover:bg-gray-50 cursor-pointer group">
               <td>
                 <div class="flex items-center gap-1.5">
                   <!-- Status indicators -->
@@ -330,7 +330,7 @@
                 {formatBytes(relic.size_bytes || 0)}
               </td>
               <td class="text-right">
-                <div class="flex items-center justify-end gap-1">
+                <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                   {#if onRemoveBookmark}
                     <button
                       on:click|stopPropagation={() => onRemoveBookmark(relic)}

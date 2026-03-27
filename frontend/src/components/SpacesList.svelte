@@ -387,7 +387,7 @@
                                     {formatTimeAgo(space.created_at)}
                                 </td>
                                 <td class="px-4 text-right">
-                                    <div class="flex justify-end gap-1">
+                                    <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                                         {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
                                             <button
                                                 on:click|stopPropagation={() => dispatch('navigate', { path: 'new?space=' + space.id })}
