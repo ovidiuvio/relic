@@ -132,7 +132,7 @@
   }
 </script>
 
-<div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200'}">
+<div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden'}">
   {#if showHeader}
     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center gap-3">

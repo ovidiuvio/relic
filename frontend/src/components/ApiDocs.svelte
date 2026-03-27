@@ -3,7 +3,7 @@
 </script>
 
 <div class="px-4 sm:px-0">
-  <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+  <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-900 flex items-center">
         <i class="fas fa-code text-blue-600 mr-2"></i>
