@@ -404,8 +404,8 @@
                             {#if tagFilter}
                                 <div class="flex items-center animate-fade-in">
                                     <div class="h-4 w-[1px] bg-gray-300 mx-1"></div>
-                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm ml-1">
-                                        <i class="fas fa-tag text-[9px] opacity-70"></i>
+                                    <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm ml-1">
+                                        <i class="fas fa-tag text-[10px] opacity-70"></i>
                                         <span>{tagFilter}</span>
                                         <button
                                           on:click|stopPropagation={() => dispatch('clear-tag-filter')}

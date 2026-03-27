@@ -144,8 +144,8 @@
       {#if tagFilter}
         <div class="flex items-center animate-fade-in">
           <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
-          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
-            <i class="fas fa-tag text-[9px] opacity-70"></i>
+          <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm">
+            <i class="fas fa-tag text-[10px] opacity-70"></i>
             <span>{tagFilter}</span>
             <button
               on:click|stopPropagation={clearTagFilter}
@@ -208,7 +208,7 @@
                 <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
-            <th class="px-4 py-2.5 text-left border-none">Tags</th>
+            
             <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('date')}>
               <div class="flex items-center gap-1.5">
                 <span class={sortBy === 'date' ? 'text-[#772953]' : ''}>{getDateColumnHeader()}</span>
@@ -221,7 +221,7 @@
                 <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
-            <th class="px-4 py-2.5 text-center border-none">{columnHeaders.actions}</th>
+            <th class="px-4 py-2.5 text-right border-none">{columnHeaders.actions}</th>
           </tr>
         </thead>
         <tbody>
@@ -307,30 +307,30 @@
                     </button>
                   </div>
                 </div>
-              </td>
-              <td class="px-4">
+
                 {#if relic.tags && relic.tags.length > 0}
-                  <div class="flex items-center flex-wrap gap-1">
+                  <div class="flex items-center flex-wrap gap-1 mt-1">
                     {#each relic.tags as tag}
                       <button
                         on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
-                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                        class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
                       >
-                        <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
+                        <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
                         {typeof tag === 'string' ? tag : tag.name}
                       </button>
                     {/each}
                   </div>
                 {/if}
               </td>
+
               <td class="text-gray-500 text-xs">
                 {formatTimeAgo(getDateField(relic))}
               </td>
               <td class="text-gray-500 text-xs">
                 {formatBytes(relic.size_bytes || 0)}
               </td>
-              <td>
-                <div class="flex items-center gap-1">
+              <td class="text-right">
+                <div class="flex items-center justify-end gap-1">
                   {#if onRemoveBookmark}
                     <button
                       on:click|stopPropagation={() => onRemoveBookmark(relic)}

@@ -332,7 +332,7 @@
     }
 
     function handleDeleteClient(client) {
-        confirmTitle = 'Delete Client';
+        confirmTitle = 'Delete User';
         confirmMessage = `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`;
         confirmClientToDelete = client;
         confirmAction = () => {
@@ -348,7 +348,7 @@
 
         try {
             await deleteClient(confirmClientToDelete.id, deleteRelicsChoice);
-            showToast("Client deleted", "success");
+            showToast("User deleted", "success");
             await loadClients();
             await loadStats();
         } catch (error) {
@@ -494,7 +494,7 @@
                         <p class="text-2xl font-semibold text-gray-900">
                             {stats.total_clients}
                         </p>
-                        <p class="text-xs text-gray-500">Clients</p>
+                        <p class="text-xs text-gray-500">Users</p>
                     </div>
                 </div>
             </div>
@@ -548,7 +548,7 @@
                             ? 'border-[#E95420] text-[#E95420]'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
-                        <i class="fas fa-users mr-2"></i>Clients
+                        <i class="fas fa-users mr-2"></i>Users
                     </button>
                     <button
                         on:click={() => (activeTab = "reports")}
@@ -597,7 +597,7 @@
                         >
                             <i class="fas fa-user text-purple-600"></i>
                             <span class="text-purple-800 font-mono"
-                                >{selectedClient.id}</span
+                                >{selectedClient.public_id || selectedClient.id}</span
                             >
                             <button
                                 on:click={clearClientFilter}
@@ -642,7 +642,7 @@
                     {#if tagFilter}
                         <div class="flex items-center">
                             <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
-                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
+                            <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm">
                                 <i class="fas fa-tag text-[9px] opacity-70"></i>
                                 <span>{tagFilter}</span>
                                 <button
@@ -674,11 +674,11 @@
                             <thead>
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
                                     <th class="px-4 py-2.5 text-left border-none">Title / ID</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Tags</th>
+
                                     <th class="px-4 py-2.5 text-left border-none">Owner</th>
                                     <th class="px-4 py-2.5 text-left border-none">Created</th>
                                     <th class="px-4 py-2.5 text-left border-none">Size</th>
-                                    <th class="px-4 py-2.5 text-center border-none w-40">Actions</th>
+                                    <th class="px-4 py-2.5 text-right border-none w-40">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -724,7 +724,7 @@
                                                         "Untitled"}</a
                                                 >
                                                 <!-- Views, Bookmarks, Comments & Forks (Top Row) -->
-                                                <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
+                                                <div class="flex items-center gap-2.5 ml-4 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
                                                     {#if relic.access_count}
                                                         <span class="flex items-center gap-0.5" title="Views">
                                                             <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
@@ -769,20 +769,22 @@
                                                     ></i>
                                                 </button>
                                             </div>
+
+                                            {#if relic.tags && relic.tags.length > 0}
+                                                <div class="flex items-center flex-wrap gap-1 mt-1">
+                                                    {#each relic.tags as tag}
+                                                        <button
+                                                            on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
+                                                            class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
+                                                        >
+                                                            <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
+                                                            {typeof tag === 'string' ? tag : tag.name}
+                                                        </button>
+                                                    {/each}
+                                                </div>
+                                            {/if}
                                         </td>
-                                        <td>
-                                            <div class="flex items-center flex-wrap gap-1">
-                                                {#each relic.tags || [] as tag}
-                                                    <button
-                                                        on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
-                                                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
-                                                    >
-                                                        <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
-                                                        {typeof tag === 'string' ? tag : tag.name}
-                                                    </button>
-                                                {/each}
-                                            </div>
-                                        </td>
+
                                         <td>
                                             {#if relic.client_id}
                                                 <button
@@ -793,7 +795,7 @@
                                                     class="text-xs font-mono text-purple-600 hover:text-purple-800 hover:underline"
                                                     title="View client's relics"
                                                 >
-                                                    {relic.client_id}
+                                                    {relic.client_public_id || 'anonymous'}
                                                 </button>
                                             {:else}
                                                 <span
@@ -810,9 +812,9 @@
                                         <td class="font-mono text-xs"
                                             >{formatBytes(relic.size_bytes)}</td
                                         >
-                                        <td>
+                                        <td class="text-right">
                                             <div
-                                                class="flex items-center gap-1"
+                                                class="flex items-center justify-end gap-1"
                                             >
                                                 <button
                                                     on:click|stopPropagation={() =>
@@ -971,7 +973,7 @@
                                                     >
                                                         {report.relic_owner_name || "Anonymous"}
                                                     </button>
-                                                    <span class="text-xs text-gray-400 font-mono">{report.relic_owner_id}</span>
+                                                    <span class="text-xs text-gray-400 font-mono">{report.relic_owner_public_id || 'anonymous'}</span>
                                                 </div>
                                             {:else}
                                                 <span
@@ -989,9 +991,9 @@
                                         <td class="text-xs text-gray-500">
                                             {formatTimeAgo(report.created_at)}
                                         </td>
-                                        <td>
+                                        <td class="text-right">
                                             <div
-                                                class="flex items-center gap-1"
+                                                class="flex items-center justify-end gap-1"
                                             >
                                                 <button
                                                     on:click={() =>
@@ -1094,12 +1096,12 @@
                         <table class="w-full maas-table text-sm">
                             <thead>
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
-                                    <th class="px-4 py-2.5 text-left border-none">Client / Name</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Public Key</th>
+                                    <th class="px-4 py-2.5 text-left border-none">User / Name</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Private Key</th>
                                     <th class="px-4 py-2.5 text-left border-none">Relics</th>
                                     <th class="px-4 py-2.5 text-left border-none">Role</th>
                                     <th class="px-4 py-2.5 text-left border-none">Created</th>
-                                    <th class="px-4 py-2.5 text-center border-none w-24">Actions</th>
+                                    <th class="px-4 py-2.5 text-right border-none w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1107,56 +1109,56 @@
                                     <tr class="hover:bg-gray-50">
                                         <td>
                                             <div
-                                                class="flex items-center gap-1.5"
+                                                class="flex items-start gap-2.5 pt-1"
                                             >
                                                 <i
-                                                    class="fas fa-user-circle text-gray-400 text-sm"
+                                                    class="fas fa-user-circle text-gray-400 text-base mt-0.5"
                                                 ></i>
-                                                <span
-                                                    class="font-medium text-gray-900"
-                                                    >{client.name ||
-                                                        "Anonymous"}</span
-                                                >
+                                                <div class="flex flex-col">
+                                                    <span
+                                                        class="font-medium text-gray-900 leading-tight"
+                                                        >{client.name ||
+                                                            "Anonymous"}</span
+                                                    >
+                                                    <div class="flex items-center group/pid gap-1">
+                                                        <span class="text-[10px] text-gray-400 font-mono tracking-tighter"
+                                                            >{client.public_id || '-'}</span
+                                                        >
+                                                        {#if client.public_id}
+                                                            <button
+                                                                on:click|stopPropagation={() =>
+                                                                    copyToClipboard(
+                                                                        client.public_id,
+                                                                        "Public ID copied to clipboard!",
+                                                                    )}
+                                                                class="opacity-0 group-hover/pid:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
+                                                                title="Copy Public ID"
+                                                            >
+                                                                <i class="fas fa-copy text-[10px]"></i>
+                                                            </button>
+                                                        {/if}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div
-                                                class="flex items-center group gap-1 mt-1"
-                                            >
-                                                <span
-                                                    class="text-xs text-gray-400 font-mono"
-                                                    >{client.id}</span
-                                                >
-                                                <button
-                                                    on:click|stopPropagation={() =>
-                                                        copyToClipboard(
-                                                            client.id,
-                                                            "Client ID copied to clipboard!",
-                                                        )}
-                                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                    title="Copy Internal ID"
-                                                >
-                                                    <i
-                                                        class="fas fa-copy text-xs"
-                                                    ></i>
-                                                </button>
-                                            </div>
+
                                         </td>
                                         <td>
-                                            {#if client.public_id}
+                                            {#if client.id}
                                                 <div
                                                     class="flex items-center group gap-1"
                                                 >
                                                     <span
                                                         class="text-xs font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100"
-                                                        >{client.public_id}</span
+                                                        >{client.id}</span
                                                     >
                                                     <button
                                                         on:click|stopPropagation={() =>
                                                             copyToClipboard(
-                                                                client.public_id,
-                                                                "Public Key copied to clipboard!",
+                                                                client.id,
+                                                                "Private Key copied to clipboard!",
                                                             )}
                                                         class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                        title="Copy Public Key"
+                                                        title="Copy Private Key"
                                                     >
                                                         <i
                                                             class="fas fa-copy text-xs"
@@ -1201,30 +1203,23 @@
                                         <td class="text-xs text-gray-500"
                                             >{formatDate(client.created_at)}</td
                                         >
-                                        <td>
-                                            {#if !client.is_admin}
-                                                <button
-                                                    on:click={() =>
-                                                        handleDeleteClient(
-                                                            client,
-                                                        )}
-                                                    class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                                    title="Delete client"
-                                                >
-                                                    <i
-                                                        class="fas fa-trash text-xs"
-                                                    ></i>
-                                                </button>
-                                            {:else}
-                                                <span
-                                                    class="p-1.5 text-gray-300"
-                                                    title="Cannot delete admin"
-                                                >
-                                                    <i
-                                                        class="fas fa-trash text-xs"
-                                                    ></i>
-                                                </span>
-                                            {/if}
+                                        <td class="text-right">
+                                            <div class="flex justify-end pr-2">
+                                                {#if !client.is_admin}
+                                                    <button
+                                                        on:click={() =>
+                                                            handleDeleteClient(
+                                                                client,
+                                                            )}
+                                                        class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                        title="Delete User"
+                                                    >
+                                                        <i
+                                                            class="fas fa-trash text-xs"
+                                                        ></i>
+                                                    </button>
+                                                {/if}
+                                            </div>
                                         </td>
                                     </tr>
                                 {/each}
@@ -1350,8 +1345,8 @@
                                                 backup.size_bytes,
                                             )}</td
                                         >
-                                        <td>
-                                            <div class="flex items-center gap-1">
+                                        <td class="text-right">
+                                            <div class="flex items-center justify-end gap-1">
                                                 <button
                                                     on:click={() =>
                                                         downloadAdminBackup(

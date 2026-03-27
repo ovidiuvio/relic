@@ -53,7 +53,7 @@ async def admin_list_all_relics(
     offset = max(0, offset)
     get_admin_client(request, db)  # Verify admin
 
-    query = db.query(Relic).options(selectinload(Relic.tags))
+    query = db.query(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client))
 
     if access_level:
         query = query.filter(Relic.access_level == access_level)
@@ -97,6 +97,7 @@ async def admin_list_all_relics(
                 "id": r.id,
                 "name": r.name,
                 "client_id": r.client_id,
+                "client_public_id": r.owner_client.public_id if r.owner_client else None,
                 "content_type": r.content_type,
                 "size_bytes": r.size_bytes,
                 "access_level": r.access_level,
@@ -529,6 +530,7 @@ async def admin_list_reports(
             "created_at": r.created_at,
             "relic_name": relic.name if relic else "Unknown (Deleted)",
             "relic_owner_id": relic.client_id if relic else None,
+            "relic_owner_public_id": relic.owner_client.public_id if relic and relic.owner_client else None,
             "relic_owner_name": relic.owner_client.name if relic and relic.owner_client else "Anonymous"
         })
 

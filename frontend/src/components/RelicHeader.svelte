@@ -133,10 +133,38 @@
         {relic.bookmark_count || 0}
       </span>
     </div>
+
+    <!-- Tags Row -->
+    {#if relic.tags && relic.tags.length > 0}
+      <div class="flex flex-wrap gap-1 items-center mt-2">
+        {#each relic.tags as tag}
+          <div class="inline-flex items-center bg-gray-100 text-gray-500 border border-gray-200 rounded text-[10px] font-medium leading-[10px] overflow-hidden hover:bg-gray-200 transition-colors shadow-sm">
+            <button
+              on:click={() => dispatch('tag-click', tag.name || tag)}
+              class="flex items-center gap-1 px-[6px] py-[2px] h-full cursor-pointer focus:outline-none"
+              title="Filter by tag: {tag.name || tag}" aria-label="Filter by tag: {tag.name || tag}"
+            >
+              <i class="fas fa-tag text-xs opacity-70"></i>
+              <span>{tag.name || tag}</span>
+            </button>
+            
+            {#if relic.can_edit}
+              <button
+                on:click|stopPropagation={() => dispatch('remove-tag', tag.name || tag)}
+                class="px-[6px] h-full border-l border-gray-200 hover:bg-red-100 hover:text-red-700 transition-colors focus:outline-none"
+                title="Remove tag" aria-label="Remove tag"
+              >
+                <i class="fas fa-times text-[10px] opacity-70"></i>
+              </button>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <!-- Action Toolbar -->
-  <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+  <div class="flex items-center gap-2 flex-shrink-0 ml-auto self-start">
     {#if !isArchiveFile}
       <button
         on:click={() => dispatch("toggle-bookmark")}
