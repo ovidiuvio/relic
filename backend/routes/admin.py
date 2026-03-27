@@ -176,6 +176,14 @@ async def admin_get_stats(
     private_relics = db.query(func.count(Relic.id)).filter(
         Relic.access_level == "private"
     ).scalar() or 0
+    restricted_relics = db.query(func.count(Relic.id)).filter(
+        Relic.access_level == "restricted"
+    ).scalar() or 0
+
+    total_comments = db.query(func.count(Comment.id)).scalar() or 0
+    total_bookmarks = db.query(func.count(ClientBookmark.id)).scalar() or 0
+    total_reports = db.query(func.count(RelicReport.id)).scalar() or 0
+    total_spaces = db.query(func.count(Space.id)).scalar() or 0
 
     return {
         "total_relics": total_relics,
@@ -183,6 +191,11 @@ async def admin_get_stats(
         "total_size_bytes": total_size,
         "public_relics": public_relics,
         "private_relics": private_relics,
+        "restricted_relics": restricted_relics,
+        "total_comments": total_comments,
+        "total_bookmarks": total_bookmarks,
+        "total_reports": total_reports,
+        "total_spaces": total_spaces,
         "admin_count": len(settings.get_admin_client_ids())
     }
 

@@ -47,6 +47,11 @@
         total_size_bytes: 0,
         public_relics: 0,
         private_relics: 0,
+        restricted_relics: 0,
+        total_comments: 0,
+        total_bookmarks: 0,
+        total_reports: 0,
+        total_spaces: 0,
         admin_count: 0,
     };
 
@@ -543,51 +548,130 @@
             <!-- Overview Tab -->
             {#if activeTab === "stats"}
                 <div class="p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-archive text-[#772953] text-xl"></i>
-                                <div>
-                                    <p class="text-2xl font-semibold text-gray-900">
-                                        {stats.total_relics}
-                                    </p>
-                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Relics</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-users text-[#0E8420] text-xl"></i>
-                                <div>
-                                    <p class="text-2xl font-semibold text-gray-900">
-                                        {stats.total_clients}
-                                    </p>
-                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Users</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-database text-[#E95420] text-xl"></i>
-                                <div>
-                                    <p class="text-2xl font-semibold text-gray-900">
-                                        {formatBytes(stats.total_size_bytes)}
-                                    </p>
-                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Storage</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
-                                <div>
-                                    <p class="text-2xl font-semibold text-gray-900">
-                                        {stats.admin_count}
-                                    </p>
-                                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Admins</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="w-full maas-table text-sm">
+                            <thead>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-6 py-3 text-left border-none">Category</th>
+                                    <th class="px-6 py-3 text-left border-none">Metric</th>
+                                    <th class="px-6 py-3 text-left border-none">Value</th>
+                                    <th class="px-6 py-3 text-left border-none">Detailed Breakdown</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-archive text-[#772953] w-5 text-center"></i>
+                                            <span>Relics</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Total System Relics</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_relics}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-wrap gap-2 text-[11px] font-medium">
+                                            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
+                                                <i class="fas fa-globe"></i> {stats.public_relics} Public
+                                            </span>
+                                            <span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
+                                                <i class="fas fa-lock"></i> {stats.private_relics} Private
+                                            </span>
+                                            <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1">
+                                                <i class="fas fa-user-lock"></i> {stats.restricted_relics} Restricted
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-users text-[#0E8420] w-5 text-center"></i>
+                                            <span>Users</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Total Registered Users</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_clients}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2 text-[11px] font-medium">
+                                            <span class="px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
+                                                <i class="fas fa-shield-alt mr-1"></i> {stats.admin_count} Admins
+                                            </span>
+                                            <span class="text-gray-400 font-normal">
+                                                {stats.total_clients - stats.admin_count} standard users
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-layer-group text-[#217db1] w-5 text-center"></i>
+                                            <span>Spaces</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Collaborative Spaces</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_spaces}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-[11px] text-gray-400">Shared workspace environments</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-database text-[#E95420] w-5 text-center"></i>
+                                            <span>Storage</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Combined Data Footprint</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{formatBytes(stats.total_size_bytes)}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
+                                            <i class="fas fa-info-circle opacity-50"></i>
+                                            <span>Average relic size: <b>{formatBytes(stats.total_size_bytes / (stats.total_relics || 1))}</b></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-comments text-gray-400 w-5 text-center"></i>
+                                            <span>Interaction</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">User Engagement</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_comments + stats.total_bookmarks}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-4 text-[11px] font-medium">
+                                            <span class="flex items-center gap-1 text-gray-600">
+                                                <i class="fas fa-comment-alt text-gray-300"></i> {stats.total_comments} Comments
+                                            </span>
+                                            <span class="flex items-center gap-1 text-gray-600">
+                                                <i class="fas fa-bookmark text-gray-300"></i> {stats.total_bookmarks} Bookmarks
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-flag text-red-400 w-5 text-center"></i>
+                                            <span>Reports</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Pending Issues</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-red-600 text-base">{stats.total_reports}</td>
+                                    <td class="px-6 py-4">
+                                        {#if stats.total_reports > 0}
+                                            <span class="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 flex items-center gap-1 w-fit animate-pulse">
+                                                <i class="fas fa-exclamation-triangle"></i> Action Required
+                                            </span>
+                                        {:else}
+                                            <span class="text-[11px] text-gray-400">No pending reports</span>
+                                        {/if}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             {/if}
