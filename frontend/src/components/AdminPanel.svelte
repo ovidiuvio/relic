@@ -1351,8 +1351,8 @@
                                                 backup.size_bytes,
                                             )}</td
                                         >
-                                        <td class="text-right">
-                                            <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
+                                        <td class="px-4 py-2.5 text-right">
+                                            <div class="flex items-center justify-end gap-1">
                                                 <button
                                                     on:click={() =>
                                                         downloadAdminBackup(
