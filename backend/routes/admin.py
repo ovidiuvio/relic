@@ -165,6 +165,17 @@ async def admin_list_clients(
     total = query.count()
     clients = query.order_by(order).offset(offset).limit(limit).all()
 
+    # Compute actual relic counts from Relic table (cached counter can drift)
+    client_ids = [c.id for c in clients]
+    actual_relic_counts = {}
+    if client_ids:
+        actual_relic_counts = dict(
+            db.query(Relic.client_id, func.count(Relic.id))
+            .filter(Relic.client_id.in_(client_ids))
+            .group_by(Relic.client_id)
+            .all()
+        )
+
     admin_ids = settings.get_admin_client_ids()
 
     return {
@@ -177,7 +188,7 @@ async def admin_list_clients(
                 "public_id": c.public_id,
                 "name": c.name,
                 "created_at": c.created_at,
-                "relic_count": c.relic_count,
+                "relic_count": actual_relic_counts.get(c.id, 0),
                 "is_admin": c.id in admin_ids
             }
             for c in clients
