@@ -222,7 +222,7 @@
   <!-- Header with Navigation -->
   <header class="bg-[#772953] text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-6">
-      <div class="flex items-center justify-between h-16">
+      <div class="flex items-center justify-between h-14">
         <!-- Logo and Brand -->
         <div class="flex items-center gap-3">
           <button
@@ -250,50 +250,38 @@
         <nav class="hidden md:flex items-center space-x-1 ml-auto">
           <button
             on:click={() => handleNavigation("new")}
-            class="maas-nav-top {currentSection === 'new'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            class="maas-nav-top {currentSection === 'new' ? 'active' : ''}"
           >
             <i class="fas fa-plus mr-2"></i>New Relic
           </button>
           <button
             on:click={() => handleNavigation("recent")}
-            class="maas-nav-top {currentSection === 'recent'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            class="maas-nav-top {currentSection === 'recent' ? 'active' : ''}"
           >
             <i class="fas fa-clock mr-2"></i>Recent
           </button>
           <button
             on:click={() => handleNavigation("spaces")}
-            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view' ? 'active' : ''}"
           >
             <i class="fas fa-layer-group mr-2"></i>Spaces
           </button>
           <button
             on:click={() => handleNavigation("my-relics")}
-            class="maas-nav-top {currentSection === 'my-relics'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            class="maas-nav-top {currentSection === 'my-relics' ? 'active' : ''}"
           >
             <i class="fas fa-user mr-2"></i>My Relics
           </button>
           <button
             on:click={() => handleNavigation("my-bookmarks")}
-            class="maas-nav-top {currentSection === 'my-bookmarks'
-              ? 'active'
-              : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            class="maas-nav-top {currentSection === 'my-bookmarks' ? 'active' : ''}"
           >
             <i class="fas fa-bookmark mr-2"></i>Bookmarks
           </button>
           {#if isAdmin}
             <button
               on:click={() => handleNavigation("admin")}
-              class="maas-nav-top {currentSection === 'admin'
-                ? 'active'
-                : ''} px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+              class="maas-nav-top {currentSection === 'admin' ? 'active' : ''}"
             >
               <i class="fas fa-shield-alt mr-2"></i>Admin
             </button>
@@ -370,7 +358,7 @@
                 <div class="py-2">
                   <button
                     on:click={downloadClientKey}
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                    class="maas-dropdown-item w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
                   >
                     <i class="fas fa-download w-5 text-blue-600"></i>
                     <span>Download Key</span>
@@ -378,14 +366,14 @@
 
                   <button
                     on:click={copyClientKey}
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                    class="maas-dropdown-item w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
                   >
                     <i class="fas fa-copy w-5 text-green-600"></i>
                     <span>Copy to Clipboard</span>
                   </button>
 
                   <label
-                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
+                    class="maas-dropdown-item block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
                   >
                     <i class="fas fa-upload w-5 text-purple-600"></i>
                     <span>Import Key</span>
@@ -540,6 +528,12 @@
     color: rgba(255, 255, 255, 0.7);
     transition: all 0.2s;
     position: relative;
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
   }
 
   :global(.maas-nav-top:hover) {
