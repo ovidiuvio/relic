@@ -20,3 +20,9 @@ options:
   kubeconfig:
     updateDefaultKubeconfig: true
     switchCurrentContext: true
+  k3s:
+    extraArgs:
+      - arg: "--kubelet-arg=max-pods=250"
+        nodeFilters:
+          - "server:*"
+          - "agent:*"
