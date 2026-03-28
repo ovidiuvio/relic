@@ -76,6 +76,7 @@
     let clientsSortBy = 'created_at';
     let clientsSortOrder = 'desc';
     let clientsSearch = '';
+    let revealedKeys = new Set();
 
     // Config state
     let config = null;
@@ -1329,15 +1330,24 @@
                                         </td>
                                         <td>
                                             {#if client.id}
-                                                <div class="flex items-center group/key gap-1">
-                                                    <span class="text-xs font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">{client.id}</span>
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-xs font-mono text-gray-600">{revealedKeys.has(client.id) ? client.id : '•'.repeat(client.id.length)}</span>
                                                     <button
-                                                        on:click|stopPropagation={() => copyToClipboard(client.id, "Private Key copied to clipboard!")}
-                                                        class="opacity-0 group-hover/key:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                        title="Copy Private Key"
+                                                        on:click|stopPropagation={() => { if (revealedKeys.has(client.id)) { revealedKeys.delete(client.id); } else { revealedKeys.add(client.id); } revealedKeys = revealedKeys; }}
+                                                        class="text-gray-400 hover:text-gray-600 transition-colors"
+                                                        title={revealedKeys.has(client.id) ? 'Hide key' : 'Show key'}
                                                     >
-                                                        <i class="fas fa-copy text-xs"></i>
+                                                        <i class="fas {revealedKeys.has(client.id) ? 'fa-eye-slash' : 'fa-eye'} text-xs"></i>
                                                     </button>
+                                                    {#if revealedKeys.has(client.id)}
+                                                        <button
+                                                            on:click|stopPropagation={() => copyToClipboard(client.id, "Private Key copied to clipboard!")}
+                                                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                                                            title="Copy Private Key"
+                                                        >
+                                                            <i class="fas fa-copy text-xs"></i>
+                                                        </button>
+                                                    {/if}
                                                 </div>
                                             {:else}
                                                 <span class="text-gray-400 text-xs italic">not set</span>
