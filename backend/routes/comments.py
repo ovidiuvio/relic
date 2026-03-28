@@ -1,6 +1,7 @@
 """Comment endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from typing import List, Optional
 
 from backend.database import get_db
@@ -17,16 +18,17 @@ async def create_comment(
     relic_id: str,
     comment: CommentCreate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Create a comment on a relic."""
     # Verify relic exists
-    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    result = await db.execute(select(Relic).where(Relic.id == relic_id))
+    relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Get client key (optional but recommended)
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required to comment")
 
@@ -43,8 +45,8 @@ async def create_comment(
         parent_id=comment.parent_id
     )
     db.add(db_comment)
-    db.commit()
-    db.refresh(db_comment)
+    await db.commit()
+    await db.refresh(db_comment)
 
     # Add author name to response
     response = CommentResponse.from_orm(db_comment)
@@ -58,27 +60,33 @@ async def get_relic_comments(
     line_number: Optional[int] = None,
     limit: int = 1000,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get comments for a relic with pagination."""
     limit = clamp_limit(limit, default=1000)
     offset = max(0, offset)
-    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+
+    result = await db.execute(select(Relic).where(Relic.id == relic_id))
+    relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    query = db.query(Comment, ClientKey.name).outerjoin(
+    stmt = select(Comment, ClientKey.name).outerjoin(
         ClientKey, Comment.client_id == ClientKey.id
-    ).filter(Comment.relic_id == relic_id)
+    ).where(Comment.relic_id == relic_id)
 
     if line_number is not None:
-        query = query.filter(Comment.line_number == line_number)
+        stmt = stmt.where(Comment.line_number == line_number)
 
-    total = query.count()
-    results = query.order_by(Comment.line_number, Comment.created_at).offset(offset).limit(limit).all()
+    total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = total_result.scalar()
+
+    rows = (await db.execute(
+        stmt.order_by(Comment.line_number, Comment.created_at).offset(offset).limit(limit)
+    )).all()
 
     comments = []
-    for comment, author_name in results:
+    for comment, author_name in rows:
         comment_resp = CommentResponse.from_orm(comment)
         comment_resp.author_name = author_name
         comments.append(comment_resp)
@@ -92,17 +100,17 @@ async def update_comment(
     comment_id: str,
     comment_update: CommentUpdate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Update a comment (only by the author)."""
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    comment = db.query(Comment).filter(
-        Comment.id == comment_id,
-        Comment.relic_id == relic_id
-    ).first()
+    result = await db.execute(
+        select(Comment).where(Comment.id == comment_id, Comment.relic_id == relic_id)
+    )
+    comment = result.scalar_one_or_none()
 
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -112,8 +120,8 @@ async def update_comment(
         raise HTTPException(status_code=403, detail="Not authorized to edit this comment")
 
     comment.content = comment_update.content
-    db.commit()
-    db.refresh(comment)
+    await db.commit()
+    await db.refresh(comment)
 
     response = CommentResponse.from_orm(comment)
     response.author_name = client.name
@@ -125,17 +133,17 @@ async def delete_comment(
     relic_id: str,
     comment_id: str,
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Delete a comment (only by the author or admin)."""
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    comment = db.query(Comment).filter(
-        Comment.id == comment_id,
-        Comment.relic_id == relic_id
-    ).first()
+    result = await db.execute(
+        select(Comment).where(Comment.id == comment_id, Comment.relic_id == relic_id)
+    )
+    comment = result.scalar_one_or_none()
 
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -147,6 +155,6 @@ async def delete_comment(
     if not (is_owner or is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
 
-    db.delete(comment)
-    db.commit()
+    await db.delete(comment)
+    await db.commit()
     return {"status": "deleted"}

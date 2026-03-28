@@ -23,8 +23,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Set the database URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set the database URL from settings — always use sync psycopg2 driver for Alembic
+_sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+config.set_main_option("sqlalchemy.url", _sync_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
