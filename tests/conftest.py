@@ -8,6 +8,13 @@ BASE_URL = os.getenv("RELIC_BASE_URL", "http://localhost")
 ADMIN_KEY = os.getenv("RELIC_ADMIN_KEY", "09d85e5f91316a66233d97e1b5936399")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_admin_registered():
+    """Ensure the admin client key is registered. Idempotent — safe to run locally too."""
+    with httpx.Client(base_url=BASE_URL, timeout=15) as client:
+        client.post("/api/v1/client/register", headers={"X-Client-Key": ADMIN_KEY})
+
+
 @pytest.fixture
 def http():
     """httpx client against the live deployment."""
