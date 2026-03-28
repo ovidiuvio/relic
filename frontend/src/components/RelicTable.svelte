@@ -132,7 +132,7 @@
   }
 </script>
 
-<div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200'}">
+<div class="{embedded ? '' : 'bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden'}">
   {#if showHeader}
     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -144,8 +144,8 @@
       {#if tagFilter}
         <div class="flex items-center animate-fade-in">
           <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
-          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
-            <i class="fas fa-tag text-[9px] opacity-70"></i>
+          <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm">
+            <i class="fas fa-tag text-[10px] opacity-70"></i>
             <span>{tagFilter}</span>
             <button
               on:click|stopPropagation={clearTagFilter}
@@ -201,48 +201,48 @@
     <div class="overflow-x-auto {loading ? 'opacity-60 pointer-events-none' : ''}">
       <table class="w-full maas-table text-sm">
         <thead>
-          <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
-            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('title')}>
+          <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('title')}>
               <div class="flex items-center gap-1.5">
-                <span>{columnHeaders.title}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <span class={sortBy === 'title' ? 'text-[#772953]' : ''}>{columnHeaders.title}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'title' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'title' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
-            <th class="px-4 py-3 text-left">Tags</th>
-            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('date')}>
+            
+            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('date')}>
               <div class="flex items-center gap-1.5">
-                <span>{getDateColumnHeader()}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <span class={sortBy === 'date' ? 'text-[#772953]' : ''}>{getDateColumnHeader()}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'date' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'date' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
-            <th class="cursor-pointer hover:bg-gray-100 transition-colors group px-4 py-3 text-left select-none" on:click={() => handleSort('size')}>
+            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('size')}>
               <div class="flex items-center gap-1.5">
-                <span>{columnHeaders.size}</span>
-                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
+                <span class={sortBy === 'size' ? 'text-[#772953]' : ''}>{columnHeaders.size}</span>
+                <i class="fas fa-arrow-up sort-arrow {sortBy === 'size' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'size' && sortOrder === 'desc' ? 'desc' : ''}"></i>
               </div>
             </th>
-            <th class="px-4 py-3 text-left w-40">{columnHeaders.actions}</th>
+            <th class="px-4 py-2.5 text-right border-none">{columnHeaders.actions}</th>
           </tr>
         </thead>
         <tbody>
           {#each paginatedData as relic (relic.id)}
-            <tr class="hover:bg-gray-50 cursor-pointer">
+            <tr class="hover:bg-gray-50 cursor-pointer group">
               <td>
                 <div class="flex items-center gap-1.5">
                   <!-- Status indicators -->
                   {#if tableId !== 'recent-relics'}
                     <div class="flex items-center gap-0.5 flex-shrink-0">
                       {#if relic.access_level === 'private'}
-                        <i class="fas fa-lock text-xs translate-y-[1px]" style="color: #76306c;" title="Private - accessible only via URL"></i>
+                        <i class="fas fa-lock text-[13px] translate-y-[1px]" style="color: #76306c;" title="Private - accessible only via URL"></i>
                       {:else if relic.access_level === 'restricted'}
-                        <i class="fas fa-user-lock text-xs translate-y-[1px]" style="color: #b45309;" title="Restricted - allowlist only"></i>
+                        <i class="fas fa-user-lock text-[13px] translate-y-[1px]" style="color: #b45309;" title="Restricted - allowlist only"></i>
                       {:else if relic.access_level === 'public'}
-                        <i class="fas fa-globe text-xs translate-y-[1px]" style="color: #217db1;" title="Public - discoverable"></i>
+                        <i class="fas fa-globe text-[13px] translate-y-[1px]" style="color: #217db1;" title="Public - discoverable"></i>
                       {/if}
                     </div>
                   {/if}
-                  <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-sm flex-shrink-0 translate-y-[1px]" title={getTypeLabel(relic.content_type)}></i>
-                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate">
+                  <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-[13px] flex-shrink-0 translate-y-[1px]" title={getTypeLabel(relic.content_type)}></i>
+                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight">
                     {relic.name || 'Untitled'}
                   </a>
 
@@ -294,10 +294,10 @@
                     {/if}
                   </div>
                 </div>
-                <div class="flex items-center gap-1 mt-1">
+                <div class="flex items-center gap-1 mt-0.5 leading-tight">
                   <!-- Copy ID -->
                   <div class="flex items-center group gap-1">
-                    <span class="text-xs text-gray-400 font-mono">{relic.id}</span>
+                    <span class="text-[11px] text-gray-400 font-mono">{relic.id}</span>
                     <button
                       on:click|stopPropagation={() => copyToClipboard(relic.id, 'Relic ID copied to clipboard!')}
                       class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all duration-200 -mt-0.5"
@@ -307,30 +307,30 @@
                     </button>
                   </div>
                 </div>
-              </td>
-              <td class="px-4">
+
                 {#if relic.tags && relic.tags.length > 0}
-                  <div class="flex items-center flex-wrap gap-1">
+                  <div class="flex items-center flex-wrap gap-1 mt-1">
                     {#each relic.tags as tag}
                       <button
                         on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
-                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                        class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-[#666] hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
                       >
-                        <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
+                        <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
                         {typeof tag === 'string' ? tag : tag.name}
                       </button>
                     {/each}
                   </div>
                 {/if}
               </td>
+
               <td class="text-gray-500 text-xs">
                 {formatTimeAgo(getDateField(relic))}
               </td>
               <td class="text-gray-500 text-xs">
                 {formatBytes(relic.size_bytes || 0)}
               </td>
-              <td>
-                <div class="flex items-center gap-1">
+              <td class="text-right">
+                <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                   {#if onRemoveBookmark}
                     <button
                       on:click|stopPropagation={() => onRemoveBookmark(relic)}
@@ -420,20 +420,32 @@
       </table>
     </div>
 
-    <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center gap-6">
+    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
       <div class="flex items-center gap-4">
         {#if showItemsCount}
-          {@const count = total !== null ? total : data.length}
-          <span>{count} {count === 1 ? 'item' : 'items'}</span>
+          {@const totalCount = total !== null ? total : data.length}
+          <div class="text-[11px] text-[#999]">
+            Showing 
+            <span class="font-medium text-[#666]">
+              {(currentPage - 1) * itemsPerPage + 1}
+            </span>
+            –
+            <span class="font-medium text-[#666]">
+              {Math.min(currentPage * itemsPerPage, totalCount)}
+            </span> 
+            of 
+            <span class="font-medium text-[#666]">{totalCount}</span> relics
+          </div>
         {/if}
+        
         {#if data.length > 0}
-          <div class="flex items-center gap-2">
-            <label for="items-per-page-{tableId}" class="text-gray-600">Per page:</label>
+          <div class="flex items-center gap-2 text-[11px]">
+            <label for="items-per-page-{tableId}" class="text-[#999]">Per page:</label>
             <select
               id="items-per-page-{tableId}"
               bind:value={itemsPerPage}
               on:change={() => goToPage(1)}
-              class="text-xs pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
+              class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm text-[#666] bg-white hover:border-gray-400 cursor-pointer w-14 focus:outline-none"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -444,24 +456,38 @@
       </div>
 
       {#if totalPages > 1}
-        <div class="flex items-center gap-2 whitespace-nowrap">
-          {#if loading}<i class="fas fa-spinner fa-spin text-gray-400"></i>{/if}
-          <span class="text-gray-600">Page {currentPage} of {totalPages}</span>
+        <div class="flex items-center gap-0.5 whitespace-nowrap">
+          {#if loading}<i class="fas fa-spinner fa-spin text-gray-400 mr-2 text-[10px]"></i>{/if}
+          
           <button
             on:click={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
-            class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
+            class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
             title="Previous page" aria-label="Previous page"
           >
-            <i class="fas fa-chevron-left text-xs"></i>
+            <i class="fas fa-chevron-left text-[11px]"></i>
           </button>
+
+          {#each Array.from({ length: totalPages }, (_, i) => i + 1) as page}
+            {#if (totalPages <= 7) || (page === 1) || (page === totalPages) || (page >= currentPage - 2 && page <= currentPage + 2)}
+              <button
+                on:click={() => goToPage(page)}
+                class="min-w-[26px] h-[26px] rounded text-[11px] font-medium transition-colors {page === currentPage ? 'bg-[#772953] text-white shadow-sm' : 'text-[#555] hover:bg-[#e8e8e8]'}"
+              >
+                {page}
+              </button>
+            {:else if (page === 2 && currentPage > 4) || (page === totalPages - 1 && currentPage < totalPages - 3)}
+              <span class="text-[#bbb] px-1 text-[11px]">...</span>
+            {/if}
+          {/each}
+
           <button
             on:click={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            class="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-50 transition-colors"
+            class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
             title="Next page" aria-label="Next page"
           >
-            <i class="fas fa-chevron-right text-xs"></i>
+            <i class="fas fa-chevron-right text-[11px]"></i>
           </button>
         </div>
       {/if}

@@ -278,10 +278,10 @@
         bind:this={tableRef}
         class="w-full text-sm"
       >
-        <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-          <tr>
+        <thead>
+          <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd] sticky top-0 z-10">
             <!-- Row number column -->
-            <th class="px-4 py-2 text-left font-semibold text-gray-900 w-16 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
+            <th class="px-4 py-2.5 text-left font-semibold w-16 sticky left-0 bg-gray-50 z-10 border-r border-[#ddd] border-none">
               #
             </th>
 
@@ -293,7 +293,7 @@
               >
                 <div class="flex items-center justify-between">
                   <span class="truncate max-w-[200px]" title={col}>{col}</span>
-                  <span class="text-blue-600 text-xs ml-1">{getSortIcon(col)}</span>
+                  <span class="text-[#772953] text-[10px] ml-1">{getSortIcon(col)}</span>
                 </div>
               </th>
             {/each}
@@ -341,7 +341,7 @@
 
       <!-- Pagination Controls -->
       {#if totalPages > 1}
-        <div class="bg-gray-50 border-t border-gray-200 px-4 py-3">
+        <div class="bg-gray-50 border-t border-[#ddd] px-4 py-2.5">
           <div class="flex items-center justify-between">
             <div class="text-sm text-gray-700">
               Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)}
@@ -405,7 +405,7 @@
   </div>
 
   <!-- Status Bar -->
-  <div class="bg-gray-50 border-t border-gray-200 px-4 py-2">
+  <div class="bg-gray-50 border-t border-[#ddd] px-4 py-2.5">
     <div class="flex items-center justify-between text-xs text-gray-600">
       <div class="flex items-center gap-4">
         <span>

@@ -261,7 +261,14 @@
                             </div>
                         {:else}
                             <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                <table class="min-w-full divide-y divide-gray-100">
+                                <table class="min-w-full maas-table text-sm">
+                                    <thead>
+                                        <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                            <th class="px-4 py-2 text-left border-none">User Identity</th>
+                                            <th class="px-4 py-2 text-left border-none">Date Added</th>
+                                            <th class="px-4 py-2 text-right border-none w-24">Actions</th>
+                                        </tr>
+                                    </thead>
                                     <tbody class="divide-y divide-gray-50">
                                         {#each accessList as entry}
                                             <tr class="hover:bg-gray-50 transition-colors">
@@ -324,7 +331,7 @@
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
+            <div class="px-6 py-4 bg-gray-50 border-t border-[#ddd] flex justify-end gap-3">
                 <button on:click={close} class="maas-btn-secondary px-6">Cancel</button>
                 <button
                     on:click={save}

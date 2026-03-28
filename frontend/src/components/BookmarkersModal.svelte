@@ -136,10 +136,10 @@
         {:else if bookmarkers.length > 0}
           <div class="min-w-full inline-block align-middle">
             <table class="min-w-full maas-table text-sm border-spacing-0">
-                <thead class="bg-gray-50/40 border-b border-gray-100 sticky top-0 z-10 backdrop-blur-sm px-8">
-                    <tr class="text-gray-400 uppercase text-[9px] font-black tracking-[0.2em] text-left">
-                        <th class="px-8 py-4 font-black">User Identity</th>
-                        <th class="px-8 py-4 font-black text-right">Temporal Mark</th>
+                <thead>
+                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd] sticky top-0 z-10">
+                        <th class="px-8 py-2.5 font-semibold text-left border-none">User Identity</th>
+                        <th class="px-8 py-2.5 font-semibold text-right border-none">Temporal Mark</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 bg-white">
@@ -192,7 +192,7 @@
       </div>
 
       <!-- Footer Area -->
-      <div class="px-8 py-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center z-20 backdrop-blur-sm">
+      <div class="px-8 py-3 border-t border-[#ddd] bg-gray-50 flex justify-between items-center z-20">
         <div class="flex items-center gap-3">
           {#if totalPages > 1}
             <button

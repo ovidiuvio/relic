@@ -3,7 +3,7 @@
 </script>
 
 <div class="px-4 sm:px-0">
-  <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+  <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-900 flex items-center">
         <i class="fas fa-code text-blue-600 mr-2"></i>
@@ -39,20 +39,11 @@ curl -X POST http://localhost:8000/api/v1/relics \\
           </h3>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >Method</th
-                  >
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >Endpoint</th
-                  >
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >Description</th
-                  >
+              <thead>
+                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                  <th class="px-6 py-2.5 text-left border-none">Method</th>
+                  <th class="px-6 py-2.5 text-left border-none">Endpoint</th>
+                  <th class="px-6 py-2.5 text-left border-none">Description</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">

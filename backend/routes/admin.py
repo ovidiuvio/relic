@@ -41,6 +41,8 @@ async def admin_list_all_relics(
     client_id: Optional[str] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -53,7 +55,7 @@ async def admin_list_all_relics(
     offset = max(0, offset)
     get_admin_client(request, db)  # Verify admin
 
-    query = db.query(Relic).options(selectinload(Relic.tags))
+    query = db.query(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client))
 
     if access_level:
         query = query.filter(Relic.access_level == access_level)
@@ -71,8 +73,17 @@ async def admin_list_all_relics(
         else:
             query = query.filter(False)
 
+    sort_field_map = {
+        "created_at": Relic.created_at,
+        "size_bytes": Relic.size_bytes,
+        "name": Relic.name,
+        "access_count": Relic.access_count,
+    }
+    sort_col = sort_field_map.get(sort_by, Relic.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
     total = query.count()
-    relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()
+    relics = query.order_by(order).offset(offset).limit(limit).all()
 
     # Fetch all counts in bulk (2 queries instead of N*2)
     relic_ids = [r.id for r in relics]
@@ -97,6 +108,7 @@ async def admin_list_all_relics(
                 "id": r.id,
                 "name": r.name,
                 "client_id": r.client_id,
+                "client_public_id": r.owner_client.public_id if r.owner_client else None,
                 "content_type": r.content_type,
                 "size_bytes": r.size_bytes,
                 "access_level": r.access_level,
@@ -118,6 +130,9 @@ async def admin_list_clients(
     request: Request,
     limit: int = 100,
     offset: int = 0,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -129,10 +144,47 @@ async def admin_list_clients(
     offset = max(0, offset)
     get_admin_client(request, db)
 
-    total = db.query(ClientKey).count()
-    clients = db.query(ClientKey).order_by(
-        ClientKey.created_at.desc()
-    ).offset(offset).limit(limit).all()
+    query = db.query(ClientKey)
+
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            ClientKey.name.ilike(term) |
+            ClientKey.public_id.ilike(term) |
+            ClientKey.id.ilike(term)
+        )
+
+    actual_count_subq = (
+        db.query(Relic.client_id, func.count(Relic.id).label("cnt"))
+        .group_by(Relic.client_id)
+        .subquery()
+    )
+
+    if sort_by == "relic_count":
+        query = query.outerjoin(actual_count_subq, ClientKey.id == actual_count_subq.c.client_id)
+        sort_col = func.coalesce(actual_count_subq.c.cnt, 0)
+    else:
+        sort_field_map = {
+            "created_at": ClientKey.created_at,
+            "name": ClientKey.name,
+        }
+        sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
+
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
+    total = query.count()
+    clients = query.order_by(order).offset(offset).limit(limit).all()
+
+    # Compute actual relic counts from Relic table (cached counter can drift)
+    client_ids = [c.id for c in clients]
+    actual_relic_counts = {}
+    if client_ids:
+        actual_relic_counts = dict(
+            db.query(Relic.client_id, func.count(Relic.id))
+            .filter(Relic.client_id.in_(client_ids))
+            .group_by(Relic.client_id)
+            .all()
+        )
 
     admin_ids = settings.get_admin_client_ids()
 
@@ -146,7 +198,7 @@ async def admin_list_clients(
                 "public_id": c.public_id,
                 "name": c.name,
                 "created_at": c.created_at,
-                "relic_count": c.relic_count,
+                "relic_count": actual_relic_counts.get(c.id, 0),
                 "is_admin": c.id in admin_ids
             }
             for c in clients
@@ -175,6 +227,14 @@ async def admin_get_stats(
     private_relics = db.query(func.count(Relic.id)).filter(
         Relic.access_level == "private"
     ).scalar() or 0
+    restricted_relics = db.query(func.count(Relic.id)).filter(
+        Relic.access_level == "restricted"
+    ).scalar() or 0
+
+    total_comments = db.query(func.count(Comment.id)).scalar() or 0
+    total_bookmarks = db.query(func.count(ClientBookmark.id)).scalar() or 0
+    total_reports = db.query(func.count(RelicReport.id)).scalar() or 0
+    total_spaces = db.query(func.count(Space.id)).scalar() or 0
 
     return {
         "total_relics": total_relics,
@@ -182,6 +242,11 @@ async def admin_get_stats(
         "total_size_bytes": total_size,
         "public_relics": public_relics,
         "private_relics": private_relics,
+        "restricted_relics": restricted_relics,
+        "total_comments": total_comments,
+        "total_bookmarks": total_bookmarks,
+        "total_reports": total_reports,
+        "total_spaces": total_spaces,
         "admin_count": len(settings.get_admin_client_ids())
     }
 
@@ -498,6 +563,8 @@ async def admin_list_reports(
     request: Request,
     limit: int = 100,
     offset: int = 0,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -509,14 +576,19 @@ async def admin_list_reports(
     offset = max(0, offset)
     get_admin_client(request, db)
 
+    sort_field_map = {
+        "created_at": RelicReport.created_at,
+        "reason": RelicReport.reason,
+    }
+    sort_col = sort_field_map.get(sort_by, RelicReport.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
     total = db.query(RelicReport).count()
 
     # ⚡ Bolt: Use joinedload(RelicReport.relic) to prevent N+1 queries when accessing relic.name later
     reports = db.query(RelicReport).options(
         joinedload(RelicReport.relic).joinedload(Relic.owner_client)
-    ).order_by(
-        RelicReport.created_at.desc()
-    ).offset(offset).limit(limit).all()
+    ).order_by(order).offset(offset).limit(limit).all()
 
     # Enrich with relic names and owners
     report_responses = []
@@ -529,6 +601,7 @@ async def admin_list_reports(
             "created_at": r.created_at,
             "relic_name": relic.name if relic else "Unknown (Deleted)",
             "relic_owner_id": relic.client_id if relic else None,
+            "relic_owner_public_id": relic.owner_client.public_id if relic and relic.owner_client else None,
             "relic_owner_name": relic.owner_client.name if relic and relic.owner_client else "Anonymous"
         })
 

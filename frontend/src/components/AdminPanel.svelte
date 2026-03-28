@@ -38,7 +38,7 @@
 
     let isAdmin = false;
     let loading = true;
-    let activeTab = "relics";
+    let activeTab = "stats";
 
     // Stats
     let stats = {
@@ -47,6 +47,11 @@
         total_size_bytes: 0,
         public_relics: 0,
         private_relics: 0,
+        restricted_relics: 0,
+        total_comments: 0,
+        total_bookmarks: 0,
+        total_reports: 0,
+        total_spaces: 0,
         admin_count: 0,
     };
 
@@ -59,6 +64,8 @@
     let relicsFilter = "all";
     let searchTerm = "";
     let tagFilter = null;
+    let relicsSortBy = 'created_at';
+    let relicsSortOrder = 'desc';
 
     // Clients state
     let clients = [];
@@ -66,6 +73,10 @@
     let clientsTotal = 0;
     let clientsPage = 1;
     let clientsLimit = 25;
+    let clientsSortBy = 'created_at';
+    let clientsSortOrder = 'desc';
+    let clientsSearch = '';
+    let revealedKeys = new Set();
 
     // Config state
     let config = null;
@@ -93,6 +104,8 @@
     let reportsTotal = 0;
     let reportsPage = 1;
     let reportsLimit = 25;
+    let reportsSortBy = 'created_at';
+    let reportsSortOrder = 'desc';
 
     // Selected client for viewing their relics
     let selectedClient = null;
@@ -106,6 +119,39 @@
     let confirmClientToDelete = null;
 
     $: filteredRelics = relics;
+
+    function handleRelicsSort(column) {
+        if (relicsSortBy === column) {
+            relicsSortOrder = relicsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            relicsSortBy = column;
+            relicsSortOrder = 'desc';
+        }
+        relicsPage = 1;
+        loadRelics();
+    }
+
+    function handleClientsSort(column) {
+        if (clientsSortBy === column) {
+            clientsSortOrder = clientsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            clientsSortBy = column;
+            clientsSortOrder = 'desc';
+        }
+        clientsPage = 1;
+        loadClients();
+    }
+
+    function handleReportsSort(column) {
+        if (reportsSortBy === column) {
+            reportsSortOrder = reportsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            reportsSortBy = column;
+            reportsSortOrder = 'desc';
+        }
+        reportsPage = 1;
+        loadReports();
+    }
 
     function formatDate(dateStr) {
         if (!dateStr) return "-";
@@ -147,6 +193,8 @@
                 clientId,
                 searchTerm || null,
                 tagFilter || null,
+                relicsSortBy,
+                relicsSortOrder,
             );
             relics = response.data.relics || [];
             relicsTotal = response.data.total || 0;
@@ -163,7 +211,7 @@
         clientsLoading = true;
         try {
             const offset = (clientsPage - 1) * clientsLimit;
-            const response = await getAdminClients(clientsLimit, offset);
+            const response = await getAdminClients(clientsLimit, offset, clientsSortBy, clientsSortOrder, clientsSearch || null);
             clients = response.data.clients || [];
             clientsTotal = response.data.total || 0;
         } catch (error) {
@@ -210,7 +258,7 @@
         reportsLoading = true;
         try {
             const offset = (reportsPage - 1) * reportsLimit;
-            const response = await getAdminReports(reportsLimit, offset);
+            const response = await getAdminReports(reportsLimit, offset, reportsSortBy, reportsSortOrder);
             reports = response.data.reports || [];
             reportsTotal = response.data.total || 0;
         } catch (error) {
@@ -332,7 +380,7 @@
     }
 
     function handleDeleteClient(client) {
-        confirmTitle = 'Delete Client';
+        confirmTitle = 'Delete User';
         confirmMessage = `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`;
         confirmClientToDelete = client;
         confirmAction = () => {
@@ -348,7 +396,7 @@
 
         try {
             await deleteClient(confirmClientToDelete.id, deleteRelicsChoice);
-            showToast("Client deleted", "success");
+            showToast("User deleted", "success");
             await loadClients();
             await loadStats();
         } catch (error) {
@@ -421,6 +469,15 @@
         }, 300);
     }
 
+    let _clientsSearchDebounce;
+    $: if (clientsSearch !== undefined && isAdmin) {
+        clearTimeout(_clientsSearchDebounce);
+        _clientsSearchDebounce = setTimeout(() => {
+            clientsPage = 1;
+            loadClients();
+        }, 300);
+    }
+
     let _prevTagFilter = null;
     $: if (isAdmin && tagFilter !== _prevTagFilter) {
         _prevTagFilter = tagFilter;
@@ -470,68 +527,22 @@
             </p>
         </div>
     {:else}
-        <!-- Stats Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-archive text-[#772953] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.total_relics}
-                        </p>
-                        <p class="text-xs text-gray-500">Total Relics</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-users text-[#0E8420] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.total_clients}
-                        </p>
-                        <p class="text-xs text-gray-500">Clients</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-database text-[#E95420] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {formatBytes(stats.total_size_bytes)}
-                        </p>
-                        <p class="text-xs text-gray-500">Storage</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                class="bg-white shadow-sm rounded-lg border border-gray-200 p-4"
-            >
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-shield-alt text-[#772953] text-xl"></i>
-                    <div>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {stats.admin_count}
-                        </p>
-                        <p class="text-xs text-gray-500">Admins</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Tabs -->
-        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
             <div
                 class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
             >
                 <div class="flex items-center gap-6">
+                    <button
+                        on:click={() => (activeTab = "stats")}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'stats'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </button>
                     <button
                         on:click={() => (activeTab = "relics")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
@@ -548,7 +559,7 @@
                             ? 'border-[#E95420] text-[#E95420]'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
-                        <i class="fas fa-users mr-2"></i>Clients
+                        <i class="fas fa-users mr-2"></i>Users
                     </button>
                     <button
                         on:click={() => (activeTab = "reports")}
@@ -586,6 +597,137 @@
                 </button>
             </div>
 
+            <!-- Overview Tab -->
+            {#if activeTab === "stats"}
+                <div class="p-6">
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="w-full maas-table text-sm">
+                            <thead>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-6 py-3 text-left border-none">Category</th>
+                                    <th class="px-6 py-3 text-left border-none">Metric</th>
+                                    <th class="px-6 py-3 text-left border-none">Value</th>
+                                    <th class="px-6 py-3 text-left border-none">Detailed Breakdown</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-archive text-[#772953] w-5 text-center"></i>
+                                            <span>Relics</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Total System Relics</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_relics}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-wrap gap-2 text-[11px] font-medium">
+                                            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
+                                                <i class="fas fa-globe"></i> {stats.public_relics} Public
+                                            </span>
+                                            <span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
+                                                <i class="fas fa-lock"></i> {stats.private_relics} Private
+                                            </span>
+                                            <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1">
+                                                <i class="fas fa-user-lock"></i> {stats.restricted_relics} Restricted
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-users text-[#0E8420] w-5 text-center"></i>
+                                            <span>Users</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Total Registered Users</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_clients}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2 text-[11px] font-medium">
+                                            <span class="px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
+                                                <i class="fas fa-shield-alt mr-1"></i> {stats.admin_count} Admins
+                                            </span>
+                                            <span class="text-gray-400 font-normal">
+                                                {stats.total_clients - stats.admin_count} standard users
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-layer-group text-[#217db1] w-5 text-center"></i>
+                                            <span>Spaces</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Collaborative Spaces</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_spaces}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-[11px] text-gray-400">Shared workspace environments</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-database text-[#E95420] w-5 text-center"></i>
+                                            <span>Storage</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Combined Data Footprint</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{formatBytes(stats.total_size_bytes)}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
+                                            <i class="fas fa-info-circle opacity-50"></i>
+                                            <span>Average relic size: <b>{formatBytes(stats.total_size_bytes / (stats.total_relics || 1))}</b></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-comments text-gray-400 w-5 text-center"></i>
+                                            <span>Interaction</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">User Engagement</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_comments + stats.total_bookmarks}</td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-4 text-[11px] font-medium">
+                                            <span class="flex items-center gap-1 text-gray-600">
+                                                <i class="fas fa-comment-alt text-gray-300"></i> {stats.total_comments} Comments
+                                            </span>
+                                            <span class="flex items-center gap-1 text-gray-600">
+                                                <i class="fas fa-bookmark text-gray-300"></i> {stats.total_bookmarks} Bookmarks
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-gray-900">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-flag text-red-400 w-5 text-center"></i>
+                                            <span>Reports</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">Pending Issues</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-red-600 text-base">{stats.total_reports}</td>
+                                    <td class="px-6 py-4">
+                                        {#if stats.total_reports > 0}
+                                            <span class="text-[11px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 flex items-center gap-1 w-fit animate-pulse">
+                                                <i class="fas fa-exclamation-triangle"></i> Action Required
+                                            </span>
+                                        {:else}
+                                            <span class="text-[11px] text-gray-400">No pending reports</span>
+                                        {/if}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {/if}
+
             <!-- Relics Tab -->
             {#if activeTab === "relics"}
                 <div
@@ -597,7 +739,7 @@
                         >
                             <i class="fas fa-user text-purple-600"></i>
                             <span class="text-purple-800 font-mono"
-                                >{selectedClient.id}</span
+                                >{selectedClient.public_id || selectedClient.id}</span
                             >
                             <button
                                 on:click={clearClientFilter}
@@ -642,7 +784,7 @@
                     {#if tagFilter}
                         <div class="flex items-center">
                             <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
-                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm">
+                            <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm">
                                 <i class="fas fa-tag text-[9px] opacity-70"></i>
                                 <span>{tagFilter}</span>
                                 <button
@@ -672,36 +814,51 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                >
-                                    <th>Title / ID</th><th>Tags</th><th>Owner</th><th
-                                        >Created</th
-                                    ><th>Size</th><th class="w-40">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('name')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'name' ? 'text-[#772953]' : ''}>Title / ID</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'name' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-left border-none">Owner</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'created_at' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('size_bytes')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'size_bytes' ? 'text-[#772953]' : ''}>Size</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'size_bytes' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'size_bytes' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-right border-none w-40">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {#each filteredRelics as relic (relic.id)}
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-50 group">
                                         <td>
                                             <div
                                                 class="flex items-center gap-1.5"
                                             >
                                                 {#if relic.access_level === "private"}
                                                     <i
-                                                        class="fas fa-lock text-xs"
+                                                        class="fas fa-lock text-[13px]"
                                                         style="color: #76306c;"
                                                         title="Private"
                                                     ></i>
                                                 {:else if relic.access_level === "restricted"}
                                                     <i
-                                                        class="fas fa-user-lock text-xs"
+                                                        class="fas fa-user-lock text-[13px]"
                                                         style="color: #b45309;"
                                                         title="Restricted"
                                                     ></i>
                                                 {:else}
                                                     <i
-                                                        class="fas fa-globe text-xs"
+                                                        class="fas fa-globe text-[13px]"
                                                         style="color: #217db1;"
                                                         title="Public"
                                                     ></i>
@@ -711,19 +868,19 @@
                                                         relic.content_type,
                                                     )} {getTypeIconColor(
                                                         relic.content_type,
-                                                    )} text-sm"
+                                                    )} text-[13px]"
                                                     title={getTypeLabel(
                                                         relic.content_type,
                                                     )}
                                                 ></i>
                                                 <a
                                                     href="/{relic.id}"
-                                                    class="font-medium text-[#0066cc] hover:underline truncate"
+                                                    class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight"
                                                     >{relic.name ||
                                                         "Untitled"}</a
                                                 >
                                                 <!-- Views, Bookmarks, Comments & Forks (Top Row) -->
-                                                <div class="flex items-center gap-2 ml-3 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
+                                                <div class="flex items-center gap-2.5 ml-4 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
                                                     {#if relic.access_count}
                                                         <span class="flex items-center gap-0.5" title="Views">
                                                             <i class="fas fa-eye text-[9px] translate-y-[0.5px]"></i>
@@ -751,10 +908,10 @@
                                                 </div>
                                             </div>
                                             <div
-                                                class="flex items-center group gap-1 mt-1"
+                                                class="flex items-center group gap-1 mt-0.5 leading-tight"
                                             >
                                                 <span
-                                                    class="text-xs text-gray-400 font-mono"
+                                                    class="text-[11px] text-gray-400 font-mono"
                                                     >{relic.id}</span
                                                 >
                                                 <button
@@ -768,37 +925,44 @@
                                                     ></i>
                                                 </button>
                                             </div>
+
+                                            {#if relic.tags && relic.tags.length > 0}
+                                                <div class="flex items-center flex-wrap gap-1 mt-1">
+                                                    {#each relic.tags as tag}
+                                                        <button
+                                                            on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
+                                                            class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-[#666] hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
+                                                        >
+                                                            <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
+                                                            {typeof tag === 'string' ? tag : tag.name}
+                                                        </button>
+                                                    {/each}
+                                                </div>
+                                            {/if}
                                         </td>
-                                        <td>
-                                            <div class="flex items-center flex-wrap gap-1">
-                                                {#each relic.tags || [] as tag}
-                                                    <button
-                                                        on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
-                                                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
-                                                    >
-                                                        <i class="fas fa-tag mr-1 text-[8px] opacity-60"></i>
-                                                        {typeof tag === 'string' ? tag : tag.name}
-                                                    </button>
-                                                {/each}
-                                            </div>
-                                        </td>
+
                                         <td>
                                             {#if relic.client_id}
-                                                <button
-                                                    on:click={() =>
-                                                        viewClientRelics({
-                                                            id: relic.client_id,
-                                                        })}
-                                                    class="text-xs font-mono text-purple-600 hover:text-purple-800 hover:underline"
-                                                    title="View client's relics"
-                                                >
-                                                    {relic.client_id}
-                                                </button>
+                                                <div class="flex items-center gap-1 group/owner">
+                                                    <button
+                                                        on:click={() => viewClientRelics({ id: relic.client_id, public_id: relic.client_public_id })}
+                                                        class="text-xs font-mono text-gray-500 hover:text-gray-800 hover:underline"
+                                                        title="View client's relics"
+                                                    >
+                                                        {relic.client_public_id || 'anonymous'}
+                                                    </button>
+                                                    {#if relic.client_public_id}
+                                                        <button
+                                                            on:click|stopPropagation={() => copyToClipboard(relic.client_public_id, 'Owner ID copied!')}
+                                                            class="opacity-0 group-hover/owner:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
+                                                            title="Copy owner ID"
+                                                        >
+                                                            <i class="fas fa-copy text-[10px]"></i>
+                                                        </button>
+                                                    {/if}
+                                                </div>
                                             {:else}
-                                                <span
-                                                    class="text-gray-400 text-xs"
-                                                    >anonymous</span
-                                                >
+                                                <span class="text-gray-400 text-xs">anonymous</span>
                                             {/if}
                                         </td>
                                         <td class="text-gray-500 text-xs"
@@ -809,9 +973,9 @@
                                         <td class="font-mono text-xs"
                                             >{formatBytes(relic.size_bytes)}</td
                                         >
-                                        <td>
+                                        <td class="text-right">
                                             <div
-                                                class="flex items-center gap-1"
+                                                class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200"
                                             >
                                                 <button
                                                     on:click|stopPropagation={() =>
@@ -873,21 +1037,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{relicsTotal} relic{relicsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{relicsTotal}</span> relic{relicsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={relicsLimit}
                                     on:change={() => { relicsPage = 1; loadRelics(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -898,36 +1058,18 @@
                             </div>
                         </div>
                         {#if relicsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {relicsPage} of {relicsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {relicsPage} of {relicsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        relicsPage = Math.max(
-                                            1,
-                                            relicsPage - 1,
-                                        );
-                                        loadRelics();
-                                    }}
+                                    on:click={() => { relicsPage = Math.max(1, relicsPage - 1); loadRelics(); }}
                                     disabled={relicsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        relicsPage = Math.min(
-                                            relicsTotalPages,
-                                            relicsPage + 1,
-                                        );
-                                        loadRelics();
-                                    }}
+                                    on:click={() => { relicsPage = Math.min(relicsTotalPages, relicsPage + 1); loadRelics(); }}
                                     disabled={relicsPage === relicsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -953,14 +1095,22 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                >
-                                    <th>Relic</th>
-                                    <th>Owner</th>
-                                    <th>Reason</th>
-                                    <th>Reported</th>
-                                    <th class="w-32">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Relic</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Owner</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleReportsSort('reason')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={reportsSortBy === 'reason' ? 'text-[#772953]' : ''}>Reason</span>
+                                            <i class="fas fa-arrow-up sort-arrow {reportsSortBy === 'reason' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {reportsSortBy === 'reason' && reportsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleReportsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={reportsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Reported</span>
+                                            <i class="fas fa-arrow-up sort-arrow {reportsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {reportsSortBy === 'created_at' && reportsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-center border-none w-32">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -988,13 +1138,14 @@
                                                         on:click={() =>
                                                             viewClientRelics({
                                                                 id: report.relic_owner_id,
+                                                                public_id: report.relic_owner_public_id,
                                                             })}
                                                         class="font-medium text-purple-600 hover:text-purple-800 hover:underline text-left leading-tight"
                                                         title="View client's relics"
                                                     >
                                                         {report.relic_owner_name || "Anonymous"}
                                                     </button>
-                                                    <span class="text-xs text-gray-400 font-mono">{report.relic_owner_id}</span>
+                                                    <span class="text-xs text-gray-400 font-mono">{report.relic_owner_public_id || 'anonymous'}</span>
                                                 </div>
                                             {:else}
                                                 <span
@@ -1012,9 +1163,9 @@
                                         <td class="text-xs text-gray-500">
                                             {formatTimeAgo(report.created_at)}
                                         </td>
-                                        <td>
+                                        <td class="text-right">
                                             <div
-                                                class="flex items-center gap-1"
+                                                class="flex items-center justify-end gap-1"
                                             >
                                                 <button
                                                     on:click={() =>
@@ -1060,21 +1211,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{reportsTotal} report{reportsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{reportsTotal}</span> report{reportsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={reportsLimit}
                                     on:change={() => { reportsPage = 1; loadReports(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1085,36 +1232,18 @@
                             </div>
                         </div>
                         {#if reportsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {reportsPage} of {reportsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {reportsPage} of {reportsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        reportsPage = Math.max(
-                                            1,
-                                            reportsPage - 1,
-                                        );
-                                        loadReports();
-                                    }}
+                                    on:click={() => { reportsPage = Math.max(1, reportsPage - 1); loadReports(); }}
                                     disabled={reportsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    <i class="fas fa-chevron-left text-xs"></i>
-                                </button>
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        reportsPage = Math.min(
-                                            reportsTotalPages,
-                                            reportsPage + 1,
-                                        );
-                                        loadReports();
-                                    }}
+                                    on:click={() => { reportsPage = Math.min(reportsTotalPages, reportsPage + 1); loadReports(); }}
                                     disabled={reportsPage === reportsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    <i class="fas fa-chevron-right text-xs"></i>
-                                </button>
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -1123,6 +1252,26 @@
 
             <!-- Clients Tab -->
             {#if activeTab === "clients"}
+                <div class="px-6 py-3 border-b border-gray-200 flex items-center gap-4 bg-gray-50">
+                    <div class="relative flex-1 max-w-md group">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input
+                            type="text"
+                            bind:value={clientsSearch}
+                            placeholder="Filter by name, public ID, or key..."
+                            class="w-full pl-9 pr-9 py-1.5 text-sm border border-gray-300 rounded"
+                        />
+                        {#if clientsSearch}
+                            <button
+                                on:click={() => clientsSearch = ''}
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                title="Clear search" aria-label="Clear search"
+                            >
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        {/if}
+                    </div>
+                </div>
                 {#if clientsLoading}
                     <div class="p-8 text-center">
                         <i
@@ -1138,161 +1287,126 @@
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
-                                <tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200"
-                                >
-                                    <th>Client / Name</th>
-                                    <th>Public Key</th>
-                                    <th>Relics</th>
-                                    <th>Role</th>
-                                    <th>Created</th>
-                                    <th class="w-24">Actions</th>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('name')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'name' ? 'text-[#772953]' : ''}>User / Name</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'name' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-left border-none">Private Key</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('relic_count')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'relic_count' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-left border-none">Role</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'created_at' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-2.5 text-right border-none w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {#each clients as client (client.id)}
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-50 group">
                                         <td>
-                                            <div
-                                                class="flex items-center gap-1.5"
-                                            >
-                                                <i
-                                                    class="fas fa-user-circle text-gray-400 text-sm"
-                                                ></i>
-                                                <span
-                                                    class="font-medium text-gray-900"
-                                                    >{client.name ||
-                                                        "Anonymous"}</span
-                                                >
-                                            </div>
-                                            <div
-                                                class="flex items-center group gap-1 mt-1"
-                                            >
-                                                <span
-                                                    class="text-xs text-gray-400 font-mono"
-                                                    >{client.id}</span
-                                                >
-                                                <button
-                                                    on:click|stopPropagation={() =>
-                                                        copyToClipboard(
-                                                            client.id,
-                                                            "Client ID copied to clipboard!",
-                                                        )}
-                                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                    title="Copy Internal ID"
-                                                >
-                                                    <i
-                                                        class="fas fa-copy text-xs"
-                                                    ></i>
-                                                </button>
+                                            <div class="flex items-center gap-2">
+                                                <i class="fas fa-user-circle text-gray-400 text-[13px]"></i>
+                                                <div>
+                                                    <div class="font-medium text-[13px] leading-tight text-gray-900">{client.name || "Anonymous"}</div>
+                                                    <div class="flex items-center gap-1 group/pid">
+                                                        <span class="text-[11px] text-gray-400 font-mono">{client.public_id || '-'}</span>
+                                                        {#if client.public_id}
+                                                            <button
+                                                                on:click|stopPropagation={() => copyToClipboard(client.public_id, "Public ID copied to clipboard!")}
+                                                                class="opacity-0 group-hover/pid:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
+                                                                title="Copy Public ID"
+                                                            >
+                                                                <i class="fas fa-copy text-[10px]"></i>
+                                                            </button>
+                                                        {/if}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td>
-                                            {#if client.public_id}
-                                                <div
-                                                    class="flex items-center group gap-1"
-                                                >
-                                                    <span
-                                                        class="text-xs font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100"
-                                                        >{client.public_id}</span
-                                                    >
+                                            {#if client.id}
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-xs font-mono text-gray-600">{revealedKeys.has(client.id) ? client.id : '•'.repeat(client.id.length)}</span>
                                                     <button
-                                                        on:click|stopPropagation={() =>
-                                                            copyToClipboard(
-                                                                client.public_id,
-                                                                "Public Key copied to clipboard!",
-                                                            )}
-                                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                        title="Copy Public Key"
+                                                        on:click|stopPropagation={() => { if (revealedKeys.has(client.id)) { revealedKeys.delete(client.id); } else { revealedKeys.add(client.id); } revealedKeys = revealedKeys; }}
+                                                        class="text-gray-400 hover:text-gray-600 transition-colors"
+                                                        title={revealedKeys.has(client.id) ? 'Hide key' : 'Show key'}
                                                     >
-                                                        <i
-                                                            class="fas fa-copy text-xs"
-                                                        ></i>
+                                                        <i class="fas {revealedKeys.has(client.id) ? 'fa-eye-slash' : 'fa-eye'} text-xs"></i>
                                                     </button>
+                                                    {#if revealedKeys.has(client.id)}
+                                                        <button
+                                                            on:click|stopPropagation={() => copyToClipboard(client.id, "Private Key copied to clipboard!")}
+                                                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                                                            title="Copy Private Key"
+                                                        >
+                                                            <i class="fas fa-copy text-xs"></i>
+                                                        </button>
+                                                    {/if}
                                                 </div>
                                             {:else}
-                                                <span
-                                                    class="text-gray-400 text-xs italic"
-                                                    >not set</span
-                                                >
+                                                <span class="text-gray-400 text-xs italic">not set</span>
                                             {/if}
                                         </td>
                                         <td>
                                             <button
-                                                on:click={() =>
-                                                    viewClientRelics(client)}
+                                                on:click={() => viewClientRelics(client)}
                                                 class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                                 title="View relics"
                                             >
-                                                <i class="fas fa-archive mr-1"
-                                                ></i>{client.relic_count} relics
+                                                <i class="fas fa-archive mr-1"></i>{client.relic_count} relics
                                             </button>
                                         </td>
                                         <td>
                                             {#if client.is_admin}
-                                                <span
-                                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                                    style="background-color: #f3e5f5; color: #772953;"
-                                                >
-                                                    <i
-                                                        class="fas fa-shield-alt mr-1"
-                                                    ></i>admin
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;">
+                                                    <i class="fas fa-shield-alt mr-1"></i>admin
                                                 </span>
                                             {:else}
-                                                <span
-                                                    class="text-gray-500 text-sm"
-                                                    >user</span
-                                                >
+                                                <span class="text-gray-500 text-xs">user</span>
                                             {/if}
                                         </td>
-                                        <td class="text-xs text-gray-500"
-                                            >{formatDate(client.created_at)}</td
-                                        >
-                                        <td>
-                                            {#if !client.is_admin}
-                                                <button
-                                                    on:click={() =>
-                                                        handleDeleteClient(
-                                                            client,
-                                                        )}
-                                                    class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                                    title="Delete client"
-                                                >
-                                                    <i
-                                                        class="fas fa-trash text-xs"
-                                                    ></i>
-                                                </button>
-                                            {:else}
-                                                <span
-                                                    class="p-1.5 text-gray-300"
-                                                    title="Cannot delete admin"
-                                                >
-                                                    <i
-                                                        class="fas fa-trash text-xs"
-                                                    ></i>
-                                                </span>
-                                            {/if}
+                                        <td class="text-gray-500 text-xs">{formatTimeAgo(client.created_at)}</td>
+                                        <td class="text-right">
+                                            <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
+                                                {#if !client.is_admin}
+                                                    <button
+                                                        on:click={() => handleDeleteClient(client)}
+                                                        class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                        title="Delete User"
+                                                    >
+                                                        <i class="fas fa-trash text-xs"></i>
+                                                    </button>
+                                                {/if}
+                                            </div>
                                         </td>
                                     </tr>
                                 {/each}
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{clientsTotal} client{clientsTotal !== 1
-                                    ? "s"
-                                    : ""}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{clientsTotal}</span> client{clientsTotal !== 1 ? "s" : ""}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={clientsLimit}
                                     on:change={() => { clientsPage = 1; loadClients(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1303,36 +1417,18 @@
                             </div>
                         </div>
                         {#if clientsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {clientsPage} of {clientsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {clientsPage} of {clientsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        clientsPage = Math.max(
-                                            1,
-                                            clientsPage - 1,
-                                        );
-                                        loadClients();
-                                    }}
+                                    on:click={() => { clientsPage = Math.max(1, clientsPage - 1); loadClients(); }}
                                     disabled={clientsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        clientsPage = Math.min(
-                                            clientsTotalPages,
-                                            clientsPage + 1,
-                                        );
-                                        loadClients();
-                                    }}
+                                    on:click={() => { clientsPage = Math.min(clientsTotalPages, clientsPage + 1); loadClients(); }}
                                     disabled={clientsPage === clientsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -1388,14 +1484,14 @@
                 {:else}
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
-                            <thead
-                                ><tr
-                                    class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50"
-                                    ><th>Backup</th><th>Timestamp</th><th
-                                        >Size</th
-                                    ><th class="w-32">Actions</th></tr
-                                ></thead
-                            >
+                            <thead>
+                                <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                    <th class="px-4 py-2.5 text-left border-none">Backup</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Timestamp</th>
+                                    <th class="px-4 py-2.5 text-left border-none">Size</th>
+                                    <th class="px-4 py-2.5 text-center border-none w-32">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 {#each backups as backup}
                                     <tr class="hover:bg-gray-50">
@@ -1419,8 +1515,8 @@
                                                 backup.size_bytes,
                                             )}</td
                                         >
-                                        <td>
-                                            <div class="flex items-center gap-1">
+                                        <td class="px-4 py-2.5 text-right">
+                                            <div class="flex items-center justify-end gap-1">
                                                 <button
                                                     on:click={() =>
                                                         downloadAdminBackup(
@@ -1448,23 +1544,17 @@
                             </tbody>
                         </table>
                     </div>
-                    <div
-                        class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center"
-                    >
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
-                            <span
-                                >{backupsTotal} backup{backupsTotal !== 1
-                                    ? "s"
-                                    : ""} • Total: {formatBytes(
-                                    backupsTotalSize,
-                                )}</span
-                            >
-                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4">
-                                <span class="text-gray-400">Show:</span>
+                            <div class="text-[11px] text-[#999]">
+                                <span class="font-medium text-[#666]">{backupsTotal}</span> backup{backupsTotal !== 1 ? "s" : ""} • Total: {formatBytes(backupsTotalSize)}
+                            </div>
+                            <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                <span class="text-[#999]">Show:</span>
                                 <select
                                     bind:value={backupsLimit}
                                     on:change={() => { backupsPage = 1; loadBackups(); }}
-                                    class="text-[10px] pl-2 pr-6 py-0.5 border border-gray-300 rounded bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1475,36 +1565,18 @@
                             </div>
                         </div>
                         {#if backupsTotalPages > 1}
-                            <div class="flex items-center gap-2">
-                                <span
-                                    >Page {backupsPage} of {backupsTotalPages}</span
-                                >
+                            <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                <span class="text-[11px] text-[#999] mr-2">Page {backupsPage} of {backupsTotalPages}</span>
                                 <button
-                                    on:click={() => {
-                                        backupsPage = Math.max(
-                                            1,
-                                            backupsPage - 1,
-                                        );
-                                        loadBackups();
-                                    }}
+                                    on:click={() => { backupsPage = Math.max(1, backupsPage - 1); loadBackups(); }}
                                     disabled={backupsPage === 1}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-left text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => {
-                                        backupsPage = Math.min(
-                                            backupsTotalPages,
-                                            backupsPage + 1,
-                                        );
-                                        loadBackups();
-                                    }}
+                                    on:click={() => { backupsPage = Math.min(backupsTotalPages, backupsPage + 1); loadBackups(); }}
                                     disabled={backupsPage === backupsTotalPages}
-                                    class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                                    ><i class="fas fa-chevron-right text-xs"
-                                    ></i></button
-                                >
+                                    class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
                         {/if}
                     </div>
@@ -1760,3 +1832,15 @@
         </div>
     </div>
 {/if}
+
+
+<style>
+    .sort-arrow {
+        font-size: 9px;
+        transition: all 0.2s ease;
+    }
+
+    .sort-arrow.desc {
+        transform: rotate(180deg);
+    }
+</style>

@@ -19,7 +19,7 @@
     let filter = 'all'; // all, my, shared, public
 
     let searchTerm = '';
-    let sortBy = 'priority';
+    let sortBy = 'created_at';
     let sortOrder = 'desc';
 
     // Server-side pagination
@@ -56,7 +56,7 @@
     $: if (searchTerm !== undefined) reloader.debounce(() => loadSpaces(1));
     $: if (spacesReady && (filter !== prevFilter || sortBy !== prevSortBy || sortOrder !== prevSortOrder)) {
         if (filter !== prevFilter) {
-            sortBy = filter === 'all' ? 'priority' : 'created_at';
+            sortBy = 'created_at';
             sortOrder = 'desc';
         }
         prevFilter = filter;
@@ -298,33 +298,27 @@
             <div class="overflow-x-auto {loading ? 'opacity-60 pointer-events-none' : ''}">
                 <table class="w-full maas-table text-sm">
                     <thead>
-                        <tr class="text-gray-500 uppercase text-xs tracking-wider bg-gray-50 border-b border-gray-200">
-                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('name')}>
+                        <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
-                                    <span>Name / ID</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <span class={sortBy === 'name' ? 'text-[#772953]' : ''}>Name / ID</span>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'name' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="px-4 py-3 text-left">Role / Visibility</th>
-                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('relic_count')}>
+                            <th class="px-4 py-2.5 text-left border-none">Role / Visibility</th>
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
-                                    <span>Relics</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <span class={sortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'relic_count' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="{filter !== 'all' ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors group px-4 py-3 text-left select-none" on:click={() => filter !== 'all' && handleSort('created_at')}>
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
-                                    <span>Created</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-blue-600' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <span class={sortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'created_at' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="px-4 py-3 text-right w-40">Actions</th>
+                            <th class="px-4 py-2.5 text-right w-40 border-none">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -336,14 +330,14 @@
                                 on:dragleave={handleDragLeave}
                                 on:drop={(e) => handleDrop(e, space)}
                             >
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-3">
                                         <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
-                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-sm"></i>
+                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-[13px]"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="font-medium text-[#0066cc] hover:underline truncate" title={space.name}>{space.name}</div>
-                                            <div class="flex items-center gap-1 text-xs text-gray-400 font-mono mt-0.5">
+                                            <div class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight" title={space.name}>{space.name}</div>
+                                            <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono mt-0.5 leading-tight">
                                                 <span>{space.id}</span>
                                                 <button 
                                                     on:click|stopPropagation={() => copyToClipboard(space.id, 'Space ID copied!')}
@@ -356,7 +350,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-2">
                                         {#if space.role === 'owner'}
                                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
@@ -377,17 +371,17 @@
                                         {/if}
                                     </div>
                                 </td>
-                                <td class="px-4 py-4">
+                                <td class="px-4">
                                     <div class="flex items-center gap-1.5 text-gray-500 text-xs">
                                         <i class="fas fa-file-alt text-gray-300"></i>
                                         <span class="font-medium">{space.relic_count}</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-4 text-gray-500 text-xs">
+                                <td class="px-4 text-gray-500 text-xs">
                                     {formatTimeAgo(space.created_at)}
                                 </td>
-                                <td class="px-4 py-4 text-right">
-                                    <div class="flex justify-end gap-1">
+                                <td class="px-4 text-right">
+                                    <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                                         {#if space.role === 'owner' || space.role === 'admin' || space.role === 'editor'}
                                             <button
                                                 on:click|stopPropagation={() => dispatch('navigate', { path: 'new?space=' + space.id })}
@@ -430,16 +424,27 @@
 
             <!-- Pagination footer -->
             {#if spaces.length > 0}
-                <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center gap-6">
-                    <div class="flex items-center gap-4">
-                        <span>{total} {total === 1 ? 'space' : 'spaces'}</span>
-                        <div class="flex items-center gap-2">
-                            <label for="spaces-per-page" class="text-gray-600">Per page:</label>
+                <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="text-[11px] text-[#999]">
+                            Showing 
+                            <span class="font-medium text-[#666]">
+                                {(currentPage - 1) * itemsPerPage + 1}
+                            </span>
+                            –
+                            <span class="font-medium text-[#666]">
+                                {Math.min(currentPage * itemsPerPage, total)}
+                            </span> 
+                            of 
+                            <span class="font-medium text-[#666]">{total}</span> spaces
+                        </div>
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <label for="spaces-per-page" class="text-[#999]">Per page:</label>
                             <select
                                 id="spaces-per-page"
                                 bind:value={itemsPerPage}
                                 on:change={() => goToPage(1)}
-                                class="text-xs pl-3 pr-8 py-1 border border-gray-300 rounded text-gray-700 bg-white hover:border-gray-400 cursor-pointer w-16"
+                                class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm text-[#666] bg-white hover:border-gray-400 cursor-pointer w-14 focus:outline-none"
                             >
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>
@@ -448,25 +453,39 @@
                         </div>
                     </div>
                     {#if totalPages > 1}
-                        <div class="flex items-center gap-2 whitespace-nowrap">
-                            {#if loading}<i class="fas fa-spinner fa-spin text-gray-400"></i>{/if}
-                            <span class="text-gray-600">Page {currentPage} of {totalPages}</span>
-                            <div class="flex items-center gap-1">
-                                <button
-                                    on:click={() => goToPage(currentPage - 1)}
-                                    disabled={currentPage <= 1}
-                                    class="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                                >
-                                    <i class="fas fa-chevron-left text-xs"></i>
-                                </button>
-                                <button
-                                    on:click={() => goToPage(currentPage + 1)}
-                                    disabled={currentPage >= totalPages}
-                                    class="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                                >
-                                    <i class="fas fa-chevron-right text-xs"></i>
-                                </button>
-                            </div>
+                        <div class="flex items-center gap-0.5 whitespace-nowrap">
+                            {#if loading}<i class="fas fa-spinner fa-spin text-gray-400 mr-2 text-[10px]"></i>{/if}
+                            
+                            <button
+                                on:click={() => goToPage(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                title="Previous page" aria-label="Previous page"
+                            >
+                                <i class="fas fa-chevron-left text-[11px]"></i>
+                            </button>
+
+                            {#each Array.from({ length: totalPages }, (_, i) => i + 1) as page}
+                                {#if (totalPages <= 7) || (page === 1) || (page === totalPages) || (page >= currentPage - 2 && page <= currentPage + 2)}
+                                    <button
+                                        on:click={() => goToPage(page)}
+                                        class="min-w-[26px] h-[26px] rounded text-[11px] font-medium transition-colors {page === currentPage ? 'bg-[#772953] text-white shadow-sm' : 'text-[#555] hover:bg-[#e8e8e8]'}"
+                                    >
+                                        {page}
+                                    </button>
+                                {:else if (page === 2 && currentPage > 4) || (page === totalPages - 1 && currentPage < totalPages - 3)}
+                                    <span class="text-[#bbb] px-1 text-[11px]">...</span>
+                                {/if}
+                            {/each}
+
+                            <button
+                                on:click={() => goToPage(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                title="Next page" aria-label="Next page"
+                            >
+                                <i class="fas fa-chevron-right text-[11px]"></i>
+                            </button>
                         </div>
                     {/if}
                 </div>

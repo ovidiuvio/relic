@@ -637,6 +637,8 @@
         on:fork={handleFork}
         on:delete={handleDelete}
         on:update={handleRelicUpdate}
+        on:tag-click
+        on:remove-tag={handleRemoveTag}
       />
 
       <RelicStatusBar

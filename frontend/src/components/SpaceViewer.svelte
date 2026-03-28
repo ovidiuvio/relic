@@ -404,8 +404,8 @@
                             {#if tagFilter}
                                 <div class="flex items-center animate-fade-in">
                                     <div class="h-4 w-[1px] bg-gray-300 mx-1"></div>
-                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] shadow-sm ml-1">
-                                        <i class="fas fa-tag text-[9px] opacity-70"></i>
+                                    <div class="inline-flex items-center gap-1.5 px-[6px] py-[2px] rounded text-[10px] font-medium bg-[#fdf2f8] text-[#772953] border border-[#fbcfe8] leading-[10px] shadow-sm ml-1">
+                                        <i class="fas fa-tag text-[10px] opacity-70"></i>
                                         <span>{tagFilter}</span>
                                         <button
                                           on:click|stopPropagation={() => dispatch('clear-tag-filter')}
@@ -442,7 +442,7 @@
                                 {/if}
                             </div>
                         </div>
-                        <div class="flex items-center gap-3 text-xs text-gray-500 font-mono">
+                        <div class="flex items-center gap-3 text-[11px] text-gray-500 font-mono">
                             <span class="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{spaceId}</span>
                             <span class="text-gray-300">•</span>
                             <span class="flex items-center gap-1.5">
@@ -913,12 +913,12 @@
                         </div>
                     {:else}
                         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                            <table class="min-w-full divide-y divide-gray-100">
-                                <thead class="bg-gray-50/80">
-                                    <tr>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">User Details</th>
-                                        <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest w-32">Role</th>
-                                        <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-widest w-24">Actions</th>
+                            <table class="min-w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="px-5 py-2.5 text-left border-none">User Details</th>
+                                        <th class="px-5 py-2.5 text-left border-none w-32">Role</th>
+                                        <th class="px-5 py-2.5 text-right border-none w-24">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
@@ -1014,7 +1014,7 @@
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-end">
+            <div class="px-6 py-4 bg-gray-50 border-t border-[#ddd] flex justify-end">
                 <button
                     on:click={() => showAccessModal = false}
                     class="maas-btn-secondary px-8 font-semibold shadow-sm"

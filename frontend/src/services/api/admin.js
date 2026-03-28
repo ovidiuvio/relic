@@ -9,8 +9,8 @@ export async function getAdminStats() {
     return api.get('/admin/stats')
 }
 
-export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, clientId = null, search = null, tag = null) {
-    const params = { limit, offset }
+export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, clientId = null, search = null, tag = null, sortBy = 'created_at', sortOrder = 'desc') {
+    const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
     if (accessLevel) params.access_level = accessLevel
     if (clientId) params.client_id = clientId
     if (search) params.search = search
@@ -18,8 +18,10 @@ export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null
     return api.get('/admin/relics', { params })
 }
 
-export async function getAdminClients(limit = 100, offset = 0) {
-    return api.get('/admin/clients', { params: { limit, offset } })
+export async function getAdminClients(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search = null) {
+    const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
+    if (search) params.search = search
+    return api.get('/admin/clients', { params })
 }
 
 export async function deleteClient(clientId, deleteRelics = false) {
@@ -66,8 +68,8 @@ export async function submitReport(relicId, reason) {
     return api.post('/reports', { relic_id: relicId, reason })
 }
 
-export async function getAdminReports(limit = 100, offset = 0) {
-    return api.get('/admin/reports', { params: { limit, offset } })
+export async function getAdminReports(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc') {
+    return api.get('/admin/reports', { params: { limit, offset, sort_by: sortBy, sort_order: sortOrder } })
 }
 
 export async function deleteReport(reportId) {
