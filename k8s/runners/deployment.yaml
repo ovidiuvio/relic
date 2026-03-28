@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-runner
+  namespace: runners
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-runner
+  template:
+    metadata:
+      labels:
+        app: github-runner
+    spec:
+      serviceAccountName: github-runner
+      containers:
+        - name: runner
+          image: myoung34/github-runner:latest
+          env:
+            - name: REPO_URL
+              value: "https://github.com/ovidiuvio/relic"
+            - name: ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: runner-secret
+                  key: GITHUB_TOKEN
+            - name: RUNNER_NAME
+              value: "k3d-relic-runner"
+            - name: LABELS
+              value: "k3d,self-hosted,linux"
+            - name: RUNNER_WORKDIR
+              value: /tmp/runner
+            - name: DISABLE_AUTO_UPDATE
+              value: "1"
+            # Cloudflare credentials for tunnel management (curl-based, no cloudflared CLI needed)
+            - name: CLOUDFLARE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-secrets
+                  key: CLOUDFLARE_API_TOKEN
+            - name: CLOUDFLARE_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-secrets
+                  key: CLOUDFLARE_ACCOUNT_ID
+            - name: CLOUDFLARE_ZONE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-secrets
+                  key: CLOUDFLARE_ZONE_ID
+          volumeMounts:
+            - name: runner-work
+              mountPath: /tmp/runner
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 250m
+            limits:
+              memory: 4Gi
+              cpu: 2000m
+      volumes:
+        - name: runner-work
+          emptyDir: {}

@@ -76,3 +76,14 @@ htmlcov/
 
 # MinIO
 minio_data/
+
+# Kubernetes / k3d
+k8s/.cluster-secrets.env
+k8s/overlays/*/secrets/app-secrets.yaml
+k8s/overlays/*/secrets/env.sh
+# Dynamic env overlays (pr-*, demo-*, or any ad-hoc name) are generated at runtime
+k8s/overlays/pr-*/
+k8s/overlays/demo-*/
+k8s/shared/cloudflared/secret.yaml
+# Per-env cloudflared token is created at provision time, not committed
+k8s/runners/secret.yaml

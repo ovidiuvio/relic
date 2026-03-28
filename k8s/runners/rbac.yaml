@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-runner
+  namespace: runners
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: relic-ci-role
+rules:
+  # Manage relic-* namespaces and their contents
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec", "services", "secrets", "configmaps", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["traefik.containo.us", "traefik.io"]
+    resources: ["ingressroutes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Restart cloudflared in shared namespace
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+    resourceNames: ["cloudflared"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: relic-ci-binding
+subjects:
+  - kind: ServiceAccount
+    name: github-runner
+    namespace: runners
+roleRef:
+  kind: ClusterRole
+  name: relic-ci-role
+  apiGroup: rbac.authorization.k8s.io

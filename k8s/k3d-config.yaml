@@ -1,0 +1,22 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: relic
+servers: 1
+agents: 2
+ports:
+  # Traefik HTTP — cloudflared connects to localhost:8080
+  - port: "8080:80"
+    nodeFilters: [loadbalancer]
+  # Traefik HTTPS (reserved for future TLS termination)
+  - port: "8443:443"
+    nodeFilters: [loadbalancer]
+registries:
+  create:
+    name: relic-registry.localhost
+    host: 0.0.0.0
+    hostPort: "5001"
+options:
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true

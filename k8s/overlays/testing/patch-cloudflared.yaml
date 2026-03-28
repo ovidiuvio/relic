@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+data:
+  config.yaml: |
+    ingress:
+      - hostname: testing.DOMAIN_PLACEHOLDER
+        service: http://frontend:80
+      - service: http_status:404
