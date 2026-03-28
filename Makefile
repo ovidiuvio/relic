@@ -27,6 +27,9 @@ help:
 	@echo "  make dev-shell-backend  - Open shell in backend container"
 	@echo "  make dev-shell-frontend - Open shell in frontend container"
 	@echo "  make dev-test           - Run tests in backend container"
+	@echo "  make ui-test            - Run Playwright tests on host"
+	@echo "  make ui-test-ui         - Open Playwright UI (Headed)"
+	@echo "  make ui-test-install    - Install browser binaries on host"
 	@echo ""
 	@echo "Database & Maintenance:"
 	@echo "  make db-init            - Initialize database"
@@ -149,6 +152,16 @@ dev-shell-frontend:
 # Run tests in backend container
 dev-test:
 	docker compose -f $(COMPOSE_DEV) exec backend pytest -v
+
+# Run UI tests on host (against docker containers)
+ui-test:
+	cd frontend && npm run test:e2e
+
+ui-test-ui:
+	cd frontend && npm run test:ui
+
+ui-test-install:
+	cd frontend && npx playwright install --with-deps chromium
 
 # ===== Database Commands =====
 

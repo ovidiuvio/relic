@@ -1,0 +1,66 @@
+name: UI E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ui-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start stack (excluding s3-sync)
+        run: |
+          # Start stack explicitly so we can test against it
+          docker compose -f docker-compose.dev.yml up -d --build \
+            nginx backend frontend postgres minio
+        env:
+          GIT_HASH: ${{ github.sha }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright Browsers
+        run: cd frontend && npx playwright install --with-deps chromium
+
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend..."
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost/api/v1/version > /dev/null 2>&1; then
+              echo "Backend ready after $((i * 3))s"
+              exit 0
+            fi
+            echo "  attempt $i/90, retrying in 3s..."
+            sleep 3
+          done
+          echo "Backend did not become ready in time"
+          docker compose -f docker-compose.dev.yml logs
+          exit 1
+
+      - name: Run Playwright tests
+        run: cd frontend && npx playwright test
+        env:
+          # Used by playwright config in CI to hit docker nginx
+          CI: true
+
+      - name: Upload Playwright Test Results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/test-results/
+          retention-days: 14
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs --tail=100
