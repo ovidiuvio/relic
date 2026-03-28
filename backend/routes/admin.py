@@ -130,6 +130,7 @@ async def admin_list_clients(
     request: Request,
     limit: int = 100,
     offset: int = 0,
+    search: Optional[str] = None,
     sort_by: Optional[str] = "created_at",
     sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
@@ -143,6 +144,16 @@ async def admin_list_clients(
     offset = max(0, offset)
     get_admin_client(request, db)
 
+    query = db.query(ClientKey)
+
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            ClientKey.name.ilike(term) |
+            ClientKey.public_id.ilike(term) |
+            ClientKey.id.ilike(term)
+        )
+
     sort_field_map = {
         "created_at": ClientKey.created_at,
         "relic_count": ClientKey.relic_count,
@@ -151,8 +162,8 @@ async def admin_list_clients(
     sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
     order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
 
-    total = db.query(ClientKey).count()
-    clients = db.query(ClientKey).order_by(order).offset(offset).limit(limit).all()
+    total = query.count()
+    clients = query.order_by(order).offset(offset).limit(limit).all()
 
     admin_ids = settings.get_admin_client_ids()
 

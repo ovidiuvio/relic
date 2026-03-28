@@ -75,6 +75,7 @@
     let clientsLimit = 25;
     let clientsSortBy = 'created_at';
     let clientsSortOrder = 'desc';
+    let clientsSearch = '';
 
     // Config state
     let config = null;
@@ -209,7 +210,7 @@
         clientsLoading = true;
         try {
             const offset = (clientsPage - 1) * clientsLimit;
-            const response = await getAdminClients(clientsLimit, offset, clientsSortBy, clientsSortOrder);
+            const response = await getAdminClients(clientsLimit, offset, clientsSortBy, clientsSortOrder, clientsSearch || null);
             clients = response.data.clients || [];
             clientsTotal = response.data.total || 0;
         } catch (error) {
@@ -464,6 +465,15 @@
         _searchDebounce = setTimeout(() => {
             relicsPage = 1;
             loadRelics();
+        }, 300);
+    }
+
+    let _clientsSearchDebounce;
+    $: if (clientsSearch !== undefined && isAdmin) {
+        clearTimeout(_clientsSearchDebounce);
+        _clientsSearchDebounce = setTimeout(() => {
+            clientsPage = 1;
+            loadClients();
         }, 300);
     }
 
@@ -1235,6 +1245,26 @@
 
             <!-- Clients Tab -->
             {#if activeTab === "clients"}
+                <div class="px-6 py-3 border-b border-gray-200 flex items-center gap-4 bg-gray-50">
+                    <div class="relative flex-1 max-w-md group">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input
+                            type="text"
+                            bind:value={clientsSearch}
+                            placeholder="Filter by name, public ID, or key..."
+                            class="w-full pl-9 pr-9 py-1.5 text-sm border border-gray-300 rounded"
+                        />
+                        {#if clientsSearch}
+                            <button
+                                on:click={() => clientsSearch = ''}
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                                title="Clear search" aria-label="Clear search"
+                            >
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        {/if}
+                    </div>
+                </div>
                 {#if clientsLoading}
                     <div class="p-8 text-center">
                         <i
@@ -1276,31 +1306,17 @@
                             </thead>
                             <tbody>
                                 {#each clients as client (client.id)}
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-50 group">
                                         <td>
-                                            <div
-                                                class="flex items-start gap-2.5 pt-1"
-                                            >
-                                                <i
-                                                    class="fas fa-user-circle text-gray-400 text-base mt-0.5"
-                                                ></i>
-                                                <div class="flex flex-col">
-                                                    <span
-                                                        class="font-medium text-gray-900 leading-tight"
-                                                        >{client.name ||
-                                                            "Anonymous"}</span
-                                                    >
-                                                    <div class="flex items-center group/pid gap-1">
-                                                        <span class="text-[10px] text-gray-400 font-mono tracking-tighter"
-                                                            >{client.public_id || '-'}</span
-                                                        >
+                                            <div class="flex items-center gap-2">
+                                                <i class="fas fa-user-circle text-gray-400 text-[13px]"></i>
+                                                <div>
+                                                    <div class="font-medium text-[13px] leading-tight text-gray-900">{client.name || "Anonymous"}</div>
+                                                    <div class="flex items-center gap-1 group/pid">
+                                                        <span class="text-[11px] text-gray-400 font-mono">{client.public_id || '-'}</span>
                                                         {#if client.public_id}
                                                             <button
-                                                                on:click|stopPropagation={() =>
-                                                                    copyToClipboard(
-                                                                        client.public_id,
-                                                                        "Public ID copied to clipboard!",
-                                                                    )}
+                                                                on:click|stopPropagation={() => copyToClipboard(client.public_id, "Public ID copied to clipboard!")}
                                                                 class="opacity-0 group-hover/pid:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
                                                                 title="Copy Public ID"
                                                             >
@@ -1310,83 +1326,51 @@
                                                     </div>
                                                 </div>
                                             </div>
-
                                         </td>
                                         <td>
                                             {#if client.id}
-                                                <div
-                                                    class="flex items-center group gap-1"
-                                                >
-                                                    <span
-                                                        class="text-xs font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100"
-                                                        >{client.id}</span
-                                                    >
+                                                <div class="flex items-center group/key gap-1">
+                                                    <span class="text-xs font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">{client.id}</span>
                                                     <button
-                                                        on:click|stopPropagation={() =>
-                                                            copyToClipboard(
-                                                                client.id,
-                                                                "Private Key copied to clipboard!",
-                                                            )}
-                                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
+                                                        on:click|stopPropagation={() => copyToClipboard(client.id, "Private Key copied to clipboard!")}
+                                                        class="opacity-0 group-hover/key:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
                                                         title="Copy Private Key"
                                                     >
-                                                        <i
-                                                            class="fas fa-copy text-xs"
-                                                        ></i>
+                                                        <i class="fas fa-copy text-xs"></i>
                                                     </button>
                                                 </div>
                                             {:else}
-                                                <span
-                                                    class="text-gray-400 text-xs italic"
-                                                    >not set</span
-                                                >
+                                                <span class="text-gray-400 text-xs italic">not set</span>
                                             {/if}
                                         </td>
                                         <td>
                                             <button
-                                                on:click={() =>
-                                                    viewClientRelics(client)}
+                                                on:click={() => viewClientRelics(client)}
                                                 class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                                 title="View relics"
                                             >
-                                                <i class="fas fa-archive mr-1"
-                                                ></i>{client.relic_count} relics
+                                                <i class="fas fa-archive mr-1"></i>{client.relic_count} relics
                                             </button>
                                         </td>
                                         <td>
                                             {#if client.is_admin}
-                                                <span
-                                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                                    style="background-color: #f3e5f5; color: #772953;"
-                                                >
-                                                    <i
-                                                        class="fas fa-shield-alt mr-1"
-                                                    ></i>admin
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;">
+                                                    <i class="fas fa-shield-alt mr-1"></i>admin
                                                 </span>
                                             {:else}
-                                                <span
-                                                    class="text-gray-500 text-sm"
-                                                    >user</span
-                                                >
+                                                <span class="text-gray-500 text-xs">user</span>
                                             {/if}
                                         </td>
-                                        <td class="text-xs text-gray-500"
-                                            >{formatDate(client.created_at)}</td
-                                        >
+                                        <td class="text-gray-500 text-xs">{formatTimeAgo(client.created_at)}</td>
                                         <td class="text-right">
-                                            <div class="flex justify-end pr-2">
+                                            <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
                                                 {#if !client.is_admin}
                                                     <button
-                                                        on:click={() =>
-                                                            handleDeleteClient(
-                                                                client,
-                                                            )}
+                                                        on:click={() => handleDeleteClient(client)}
                                                         class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                                                         title="Delete User"
                                                     >
-                                                        <i
-                                                            class="fas fa-trash text-xs"
-                                                        ></i>
+                                                        <i class="fas fa-trash text-xs"></i>
                                                     </button>
                                                 {/if}
                                             </div>

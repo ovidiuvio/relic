@@ -18,8 +18,10 @@ export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null
     return api.get('/admin/relics', { params })
 }
 
-export async function getAdminClients(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc') {
-    return api.get('/admin/clients', { params: { limit, offset, sort_by: sortBy, sort_order: sortOrder } })
+export async function getAdminClients(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search = null) {
+    const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
+    if (search) params.search = search
+    return api.get('/admin/clients', { params })
 }
 
 export async function deleteClient(clientId, deleteRelics = false) {
