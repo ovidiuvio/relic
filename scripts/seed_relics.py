@@ -1,43 +1,19 @@
 #!/usr/bin/env python3
 """
 Seed script: creates a test space and populates it with N sample relics.
+Optimized version using asyncio and httpx for higher throughput.
 
 Usage:
     python3 scripts/seed_relics.py --client-key YOUR_KEY [--count 500] [--url http://localhost] [--space-id EXISTING_ID]
-
-Get your client key from the browser console:
-    localStorage.getItem('relic_client_key')
 """
 import argparse
 import random
 import sys
 import uuid
-import requests
 import time
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# ---------------------------------------------------------------------------
-# Sessions management
-# ---------------------------------------------------------------------------
-
-thread_local = threading.local()
-
-def get_session():
-    """Get or create a requests.Session for the current thread."""
-    if not hasattr(thread_local, "session"):
-        # One session per thread means we can use a small connection pool
-        # but many sessions across the process means many actual connections.
-        session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=1,
-            pool_maxsize=1,
-            max_retries=3
-        )
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-        thread_local.session = session
-    return thread_local.session
+import asyncio
+import httpx
+from datetime import datetime
 
 # ---------------------------------------------------------------------------
 # Content generators
@@ -351,7 +327,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 LOG_FILE="/var/log/relic-{action}.log"
 
-log()  {{ echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }}
+log()  {{ echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee a "$LOG_FILE"; }}
 die()  {{ log "ERROR: $*"; exit 1; }}
 info() {{ log "INFO: $*"; }}
 
@@ -515,34 +491,37 @@ EXT_MAP = {
 # API helpers
 # ---------------------------------------------------------------------------
 
-def create_relic(session, base_url, client_key, content, content_type, language_hint, name, tags, access_level, space_id=None):
+async def create_relic_async(client, base_url, client_key, content, content_type, language_hint, name, tags, access_level, space_id=None):
     ext = EXT_MAP.get(content_type, ".txt")
     filename = name.replace(" ", "_") + ext
+    
     files = {"file": (filename, content.encode(), content_type)}
-    fields = [
-        ("name", name),
-        ("access_level", access_level),
-    ]
+    data = {
+        "name": name,
+        "access_level": access_level,
+    }
     if language_hint:
-        fields.append(("language_hint", language_hint))
-    for tag in tags:
-        fields.append(("tags", tag))
+        data["language_hint"] = language_hint
+    
+    # httpx handles multiple values for same key in data for tags if passed as list
+    data["tags"] = tags
     
     if space_id:
-        fields.append(("space_id", space_id))
+        data["space_id"] = space_id
 
-    r = session.post(
+    r = await client.post(
         f"{base_url}/api/v1/relics",
-        data=fields,
+        data=data,
         files=files,
         headers={"X-Client-Key": client_key},
+        timeout=30.0
     )
     r.raise_for_status()
     return r.json()["id"]
 
 
-def create_space(session, base_url, client_key, name):
-    r = session.post(
+async def create_space_async(client, base_url, client_key, name):
+    r = await client.post(
         f"{base_url}/api/v1/spaces",
         json={"name": name, "visibility": "public"},
         headers={"X-Client-Key": client_key},
@@ -551,40 +530,30 @@ def create_space(session, base_url, client_key, name):
     return r.json()["id"]
 
 
-def add_to_space(session, base_url, client_key, space_id, relic_id):
-    r = session.post(
-        f"{base_url}/api/v1/spaces/{space_id}/relics",
-        params={"relic_id": relic_id},
-        headers={"X-Client-Key": client_key},
-    )
-    r.raise_for_status()
-
-
 # ---------------------------------------------------------------------------
-# Main
+# Task
 # ---------------------------------------------------------------------------
 
-def seed_one_relic(args, space_id):
-    session = get_session()
-    _, content_type, language_hint, gen_fn = random.choice(GENERATORS)
-    tags = list(random.choice(TAGS_POOL))
-    if random.random() < 0.3:
-        tags = list(set(tags + random.choice(TAGS_POOL)))
-    name = rname()
-    content = gen_fn()
+async def seed_one_relic_task(client, args, space_id, semaphore):
+    async with semaphore:
+        _, content_type, language_hint, gen_fn = random.choice(GENERATORS)
+        tags = list(random.choice(TAGS_POOL))
+        if random.random() < 0.3:
+            tags = list(set(tags + random.choice(TAGS_POOL)))
+        name = rname()
+        content = gen_fn()
 
-    relic_id = create_relic(
-        session, args.url, args.client_key,
-        content, content_type, language_hint,
-        name, tags, args.access_level,
-        space_id=space_id
-    )
-    return relic_id
+        return await create_relic_async(
+            client, args.url, args.client_key,
+            content, content_type, language_hint,
+            name, tags, args.access_level,
+            space_id=space_id
+        )
 
 
-def main():
+async def main_async():
     parser = argparse.ArgumentParser(
-        description="Seed sample relics into a Relic space",
+        description="Seed sample relics into a Relic space (Optimized)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -600,46 +569,60 @@ def main():
                         help="Name for the new space (default: 'Seed Test Space')")
     parser.add_argument("--access-level", default="public", choices=["public", "private"],
                         help="Access level for created relics (default: public)")
-    parser.add_argument("--workers", type=int, default=10,
-                        help="Number of parallel workers (default: 10)")
+    parser.add_argument("--workers", type=int, default=20,
+                        help="Number of concurrent requests (default: 20)")
     args = parser.parse_args()
 
     start_time = time.time()
     
-    # Use a main session for setup
-    main_session = get_session()
-
-    if args.space_id:
+    # Use limits to ensure we don't open too many connections but reuse them effectively
+    limits = httpx.Limits(max_connections=args.workers, max_keepalive_connections=args.workers)
+    
+    async with httpx.AsyncClient(limits=limits) as client:
         space_id = args.space_id
-        print(f"Using existing space: {space_id}")
-    else:
-        space_id = create_space(main_session, args.url, args.client_key, args.space_name)
-        print(f"Created space '{args.space_name}': {space_id}")
+        if space_id:
+            print(f"Using space: {space_id}")
+        else:
+            print("No space ID provided. Relics will be created globally.")
 
-    print(f"Creating {args.count} relics using {args.workers} workers (session per worker)...")
-    ok = 0
-    fail = 0
-
-    with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = {executor.submit(seed_one_relic, args, space_id): i for i in range(args.count)}
+        print(f"Creating {args.count} relics with concurrency {args.workers} (async httpx)...")
         
-        for future in as_completed(futures):
-            try:
-                future.result()
-                ok += 1
-                if ok % 100 == 0 or ok == args.count:
-                    print(f"  {ok}/{args.count} completed")
-            except Exception as e:
-                fail += 1
-                print(f"  [FAIL] item: {e}", file=sys.stderr)
+        semaphore = asyncio.Semaphore(args.workers)
+        tasks = []
+        for _ in range(args.count):
+            tasks.append(seed_one_relic_task(client, args, space_id, semaphore))
+        
+        ok = 0
+        fail = 0
+        
+        # Process in chunks to show progress
+        chunk_size = 100
+        for i in range(0, len(tasks), chunk_size):
+            chunk = tasks[i:i+chunk_size]
+            results = await asyncio.gather(*chunk, return_exceptions=True)
+            for res in results:
+                if isinstance(res, Exception):
+                    fail += 1
+                    # print(f"  [FAIL] {res}", file=sys.stderr)
+                else:
+                    ok += 1
+            
+            print(f"  {min(i + chunk_size, args.count)}/{args.count} processed...")
 
     end_time = time.time()
     duration = end_time - start_time
 
     print(f"\nDone — {ok} created, {fail} failed.")
     print(f"Total time: {duration:.2f}s ({ok/duration:.2f} relics/sec)")
-    print(f"Space: {args.url}/spaces/{space_id}")
+
+    if space_id:
+        print(f"Space: {args.url}/spaces/{space_id}")
+    else:
+        print(f"View: {args.url}/recent")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        sys.exit(0)
