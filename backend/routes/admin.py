@@ -154,12 +154,22 @@ async def admin_list_clients(
             ClientKey.id.ilike(term)
         )
 
-    sort_field_map = {
-        "created_at": ClientKey.created_at,
-        "relic_count": ClientKey.relic_count,
-        "name": ClientKey.name,
-    }
-    sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
+    actual_count_subq = (
+        db.query(Relic.client_id, func.count(Relic.id).label("cnt"))
+        .group_by(Relic.client_id)
+        .subquery()
+    )
+
+    if sort_by == "relic_count":
+        query = query.outerjoin(actual_count_subq, ClientKey.id == actual_count_subq.c.client_id)
+        sort_col = func.coalesce(actual_count_subq.c.cnt, 0)
+    else:
+        sort_field_map = {
+            "created_at": ClientKey.created_at,
+            "name": ClientKey.name,
+        }
+        sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
+
     order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
 
     total = query.count()
