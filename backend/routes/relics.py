@@ -449,7 +449,9 @@ async def update_relic(
     if not client:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    result = await db.execute(select(Relic).where(Relic.id == relic_id))
+    result = await db.execute(
+        select(Relic).options(selectinload(Relic.tags)).where(Relic.id == relic_id)
+    )
     relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
