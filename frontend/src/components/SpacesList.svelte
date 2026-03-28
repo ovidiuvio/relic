@@ -19,7 +19,7 @@
     let filter = 'all'; // all, my, shared, public
 
     let searchTerm = '';
-    let sortBy = 'priority';
+    let sortBy = 'created_at';
     let sortOrder = 'desc';
 
     // Server-side pagination
@@ -56,7 +56,7 @@
     $: if (searchTerm !== undefined) reloader.debounce(() => loadSpaces(1));
     $: if (spacesReady && (filter !== prevFilter || sortBy !== prevSortBy || sortOrder !== prevSortOrder)) {
         if (filter !== prevFilter) {
-            sortBy = filter === 'all' ? 'priority' : 'created_at';
+            sortBy = 'created_at';
             sortOrder = 'desc';
         }
         prevFilter = filter;
@@ -299,29 +299,23 @@
                 <table class="w-full maas-table text-sm">
                     <thead>
                         <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
-                            <th class="{(filter !== 'all' ? 'cursor-pointer hover:bg-[#efefef]' : '')} group px-4 py-2.5 text-left select-none border-none transition-colors" on:click={() => filter !== 'all' && handleSort('name')}>
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('name')}>
                                 <div class="flex items-center gap-1.5">
                                     <span class={sortBy === 'name' ? 'text-[#772953]' : ''}>Name / ID</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'name' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'name' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-4 py-2.5 text-left border-none">Role / Visibility</th>
-                            <th class="{(filter !== 'all' ? 'cursor-pointer hover:bg-[#efefef]' : '')} group px-4 py-2.5 text-left select-none border-none transition-colors" on:click={() => filter !== 'all' && handleSort('relic_count')}>
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('relic_count')}>
                                 <div class="flex items-center gap-1.5">
                                     <span class={sortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'relic_count' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'relic_count' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
-                            <th class="{(filter !== 'all' ? 'cursor-pointer hover:bg-[#efefef]' : '')} group px-4 py-2.5 text-left select-none border-none transition-colors" on:click={() => filter !== 'all' && handleSort('created_at')}>
+                            <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleSort('created_at')}>
                                 <div class="flex items-center gap-1.5">
                                     <span class={sortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
-                                    {#if filter !== 'all'}
-                                        <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortOrder === 'desc' && sortBy === 'created_at' ? 'desc' : ''}"></i>
-                                    {/if}
+                                    <i class="fas fa-arrow-up sort-arrow {sortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {sortBy === 'created_at' && sortOrder === 'desc' ? 'desc' : ''}"></i>
                                 </div>
                             </th>
                             <th class="px-4 py-2.5 text-right w-40 border-none">Actions</th>
