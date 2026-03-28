@@ -947,6 +947,7 @@
                                                     on:click={() =>
                                                         viewClientRelics({
                                                             id: relic.client_id,
+                                                            public_id: relic.client_public_id,
                                                         })}
                                                     class="text-xs font-mono text-purple-600 hover:text-purple-800 hover:underline"
                                                     title="View client's relics"
@@ -1133,6 +1134,7 @@
                                                         on:click={() =>
                                                             viewClientRelics({
                                                                 id: report.relic_owner_id,
+                                                                public_id: report.relic_owner_public_id,
                                                             })}
                                                         class="font-medium text-purple-600 hover:text-purple-800 hover:underline text-left leading-tight"
                                                         title="View client's relics"
