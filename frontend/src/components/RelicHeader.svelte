@@ -138,7 +138,7 @@
     {#if relic.tags && relic.tags.length > 0}
       <div class="flex flex-wrap gap-1 items-center mt-2">
         {#each relic.tags as tag}
-          <div class="inline-flex items-center bg-gray-100 text-gray-500 border border-gray-200 rounded text-[10px] font-medium leading-[10px] overflow-hidden hover:bg-gray-200 transition-colors shadow-sm">
+          <div class="inline-flex items-center bg-gray-100 text-[#666] border border-gray-200 rounded text-[10px] font-medium leading-[10px] overflow-hidden hover:bg-gray-200 transition-colors shadow-sm">
             <button
               on:click={() => dispatch('tag-click', tag.name || tag)}
               class="flex items-center gap-1 px-[6px] py-[2px] h-full cursor-pointer focus:outline-none"

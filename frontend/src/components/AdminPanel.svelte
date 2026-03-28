@@ -931,7 +931,7 @@
                                                     {#each relic.tags as tag}
                                                         <button
                                                             on:click|stopPropagation={() => tagFilter = typeof tag === 'string' ? tag : tag.name}
-                                                            class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
+                                                            class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-[#666] hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
                                                         >
                                                             <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
                                                             {typeof tag === 'string' ? tag : tag.name}
