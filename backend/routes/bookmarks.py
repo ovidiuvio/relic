@@ -1,7 +1,8 @@
 """Bookmark endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 from typing import Optional
 
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/api/v1/bookmarks")
 async def add_bookmark(
     request: Request,
     relic_id: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Add a bookmark for the authenticated client.
@@ -25,25 +26,24 @@ async def add_bookmark(
     Requires valid X-Client-Key header.
     Returns bookmark details or error if already bookmarked.
     """
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
     # Verify relic exists and is not deleted
-    relic = db.query(Relic).filter(Relic.id == relic_id).first()
-    if not relic:
-        raise HTTPException(status_code=404, detail="Relic not found")
-
+    result = await db.execute(select(Relic).where(Relic.id == relic_id))
+    relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Check if already bookmarked
-    existing = db.query(ClientBookmark).filter(
-        ClientBookmark.client_id == client.id,
-        ClientBookmark.relic_id == relic_id
-    ).first()
-
-    if existing:
+    existing_result = await db.execute(
+        select(ClientBookmark).where(
+            ClientBookmark.client_id == client.id,
+            ClientBookmark.relic_id == relic_id
+        )
+    )
+    if existing_result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Relic already bookmarked")
 
     # Create bookmark
@@ -57,8 +57,8 @@ async def add_bookmark(
     relic.bookmark_count += 1
 
     db.add(bookmark)
-    db.commit()
-    db.refresh(bookmark)
+    await db.commit()
+    await db.refresh(bookmark)
 
     return {
         "id": bookmark.id,
@@ -72,32 +72,35 @@ async def add_bookmark(
 async def remove_bookmark(
     relic_id: str,
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Remove a bookmark for the authenticated client.
 
     Requires valid X-Client-Key header.
     """
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
     # Find bookmark
-    bookmark = db.query(ClientBookmark).filter(
-        ClientBookmark.client_id == client.id,
-        ClientBookmark.relic_id == relic_id
-    ).first()
-
+    result = await db.execute(
+        select(ClientBookmark).where(
+            ClientBookmark.client_id == client.id,
+            ClientBookmark.relic_id == relic_id
+        )
+    )
+    bookmark = result.scalar_one_or_none()
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
-    relic = db.query(Relic).filter(Relic.id == relic_id).first()
+    relic_result = await db.execute(select(Relic).where(Relic.id == relic_id))
+    relic = relic_result.scalar_one_or_none()
     if relic and relic.bookmark_count > 0:
         relic.bookmark_count -= 1
 
-    db.delete(bookmark)
-    db.commit()
+    await db.delete(bookmark)
+    await db.commit()
 
     return {"message": "Bookmark removed successfully"}
 
@@ -106,7 +109,7 @@ async def remove_bookmark(
 async def check_bookmark(
     relic_id: str,
     request: Request,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Check if a relic is bookmarked by the authenticated client.
@@ -114,14 +117,17 @@ async def check_bookmark(
     Requires valid X-Client-Key header.
     Returns bookmarked status.
     """
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
-    bookmark = db.query(ClientBookmark).filter(
-        ClientBookmark.client_id == client.id,
-        ClientBookmark.relic_id == relic_id
-    ).first()
+    result = await db.execute(
+        select(ClientBookmark).where(
+            ClientBookmark.client_id == client.id,
+            ClientBookmark.relic_id == relic_id
+        )
+    )
+    bookmark = result.scalar_one_or_none()
 
     return {
         "relic_id": relic_id,
@@ -139,7 +145,7 @@ async def get_client_bookmarks(
     sort_order: str = "desc",
     limit: int = 25,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get bookmarks for the authenticated client with pagination.
@@ -150,20 +156,21 @@ async def get_client_bookmarks(
     """
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
-    query = db.query(ClientBookmark, Relic).join(
+    stmt = select(ClientBookmark, Relic).join(
         Relic, ClientBookmark.relic_id == Relic.id
-    ).options(selectinload(Relic.tags)).filter(
+    ).options(selectinload(Relic.tags)).where(
         ClientBookmark.client_id == client.id
     )
 
     if tag:
-        tag_obj = db.query(Tag).filter(Tag.name == tag.strip().lower()).first()
+        tag_result = await db.execute(select(Tag).where(Tag.name == tag.strip().lower()))
+        tag_obj = tag_result.scalar_one_or_none()
         if tag_obj:
-            query = query.filter(Relic.tags.contains(tag_obj))
+            stmt = stmt.where(Relic.tags.contains(tag_obj))
         else:
             return {
                 "client_id": client.id,
@@ -175,24 +182,27 @@ async def get_client_bookmarks(
             }
 
     if search:
-        query = apply_relic_search(query, search, db)
+        stmt = apply_relic_search(stmt, search)
 
     order = relic_sort_order(sort_by, sort_order, {"created_at": ClientBookmark.created_at})
 
-    total = query.count()
-    bookmarks = query.order_by(order).offset(offset).limit(limit).all()
+    total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = total_result.scalar()
 
-    relic_ids = [relic.id for _, relic in bookmarks]
+    rows = (await db.execute(stmt.order_by(order).offset(offset).limit(limit))).all()
+
+    relic_ids = [relic.id for _, relic in rows]
     comments_counts = {}
 
     if relic_ids:
-        comments_counts = {
-            row[0]: row[1]
-            for row in db.query(Comment.relic_id, func.count(Comment.id)).filter(
-                Comment.relic_id.in_(relic_ids)
-            ).group_by(Comment.relic_id).all()
-        }
-    forks_counts = get_fork_counts(db, relic_ids)
+        comments_result = await db.execute(
+            select(Comment.relic_id, func.count(Comment.id))
+            .where(Comment.relic_id.in_(relic_ids))
+            .group_by(Comment.relic_id)
+        )
+        comments_counts = {row[0]: row[1] for row in comments_result.all()}
+
+    forks_counts = await get_fork_counts(db, relic_ids)
 
     return {
         "client_id": client.id,
@@ -216,7 +226,7 @@ async def get_client_bookmarks(
                 "bookmarked_at": bookmark.created_at,
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
             }
-            for bookmark, relic in bookmarks
+            for bookmark, relic in rows
         ]
     }
 
@@ -226,7 +236,7 @@ async def get_relic_bookmarkers(
     relic_id: str,
     limit: int = 25,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get list of clients who bookmarked a specific relic with pagination.
@@ -234,12 +244,17 @@ async def get_relic_bookmarkers(
     """
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    query = db.query(ClientKey, ClientBookmark).join(
-        ClientBookmark, ClientBookmark.client_id == ClientKey.id
-    ).filter(ClientBookmark.relic_id == relic_id)
 
-    total = query.count()
-    bookmarkers = query.order_by(ClientBookmark.created_at.desc()).offset(offset).limit(limit).all()
+    stmt = select(ClientKey, ClientBookmark).join(
+        ClientBookmark, ClientBookmark.client_id == ClientKey.id
+    ).where(ClientBookmark.relic_id == relic_id)
+
+    total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = total_result.scalar()
+
+    rows = (await db.execute(
+        stmt.order_by(ClientBookmark.created_at.desc()).offset(offset).limit(limit)
+    )).all()
 
     return {
         "total": total,
@@ -251,7 +266,6 @@ async def get_relic_bookmarkers(
                 "name": c.name or "Anonymous",
                 "bookmarked_at": b.created_at
             }
-            for c, b in bookmarkers
+            for c, b in rows
         ]
     }
-
