@@ -64,6 +64,8 @@
     let relicsFilter = "all";
     let searchTerm = "";
     let tagFilter = null;
+    let relicsSortBy = 'created_at';
+    let relicsSortOrder = 'desc';
 
     // Clients state
     let clients = [];
@@ -71,6 +73,8 @@
     let clientsTotal = 0;
     let clientsPage = 1;
     let clientsLimit = 25;
+    let clientsSortBy = 'created_at';
+    let clientsSortOrder = 'desc';
 
     // Config state
     let config = null;
@@ -98,6 +102,8 @@
     let reportsTotal = 0;
     let reportsPage = 1;
     let reportsLimit = 25;
+    let reportsSortBy = 'created_at';
+    let reportsSortOrder = 'desc';
 
     // Selected client for viewing their relics
     let selectedClient = null;
@@ -111,6 +117,39 @@
     let confirmClientToDelete = null;
 
     $: filteredRelics = relics;
+
+    function handleRelicsSort(column) {
+        if (relicsSortBy === column) {
+            relicsSortOrder = relicsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            relicsSortBy = column;
+            relicsSortOrder = 'desc';
+        }
+        relicsPage = 1;
+        loadRelics();
+    }
+
+    function handleClientsSort(column) {
+        if (clientsSortBy === column) {
+            clientsSortOrder = clientsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            clientsSortBy = column;
+            clientsSortOrder = 'desc';
+        }
+        clientsPage = 1;
+        loadClients();
+    }
+
+    function handleReportsSort(column) {
+        if (reportsSortBy === column) {
+            reportsSortOrder = reportsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            reportsSortBy = column;
+            reportsSortOrder = 'desc';
+        }
+        reportsPage = 1;
+        loadReports();
+    }
 
     function formatDate(dateStr) {
         if (!dateStr) return "-";
@@ -152,6 +191,8 @@
                 clientId,
                 searchTerm || null,
                 tagFilter || null,
+                relicsSortBy,
+                relicsSortOrder,
             );
             relics = response.data.relics || [];
             relicsTotal = response.data.total || 0;
@@ -168,7 +209,7 @@
         clientsLoading = true;
         try {
             const offset = (clientsPage - 1) * clientsLimit;
-            const response = await getAdminClients(clientsLimit, offset);
+            const response = await getAdminClients(clientsLimit, offset, clientsSortBy, clientsSortOrder);
             clients = response.data.clients || [];
             clientsTotal = response.data.total || 0;
         } catch (error) {
@@ -215,7 +256,7 @@
         reportsLoading = true;
         try {
             const offset = (reportsPage - 1) * reportsLimit;
-            const response = await getAdminReports(reportsLimit, offset);
+            const response = await getAdminReports(reportsLimit, offset, reportsSortBy, reportsSortOrder);
             reports = response.data.reports || [];
             reportsTotal = response.data.total || 0;
         } catch (error) {
@@ -763,11 +804,25 @@
                         <table class="w-full maas-table text-sm">
                             <thead>
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
-                                    <th class="px-4 py-2.5 text-left border-none">Title / ID</th>
-
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('name')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'name' ? 'text-[#772953]' : ''}>Title / ID</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'name' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-left border-none">Owner</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Created</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Size</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'created_at' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleRelicsSort('size_bytes')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={relicsSortBy === 'size_bytes' ? 'text-[#772953]' : ''}>Size</span>
+                                            <i class="fas fa-arrow-up sort-arrow {relicsSortBy === 'size_bytes' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {relicsSortBy === 'size_bytes' && relicsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-right border-none w-40">Actions</th>
                                 </tr>
                             </thead>
@@ -1027,8 +1082,18 @@
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
                                     <th class="px-4 py-2.5 text-left border-none">Relic</th>
                                     <th class="px-4 py-2.5 text-left border-none">Owner</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Reason</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Reported</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleReportsSort('reason')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={reportsSortBy === 'reason' ? 'text-[#772953]' : ''}>Reason</span>
+                                            <i class="fas fa-arrow-up sort-arrow {reportsSortBy === 'reason' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {reportsSortBy === 'reason' && reportsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleReportsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={reportsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Reported</span>
+                                            <i class="fas fa-arrow-up sort-arrow {reportsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {reportsSortBy === 'created_at' && reportsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-center border-none w-32">Actions</th>
                                 </tr>
                             </thead>
@@ -1186,11 +1251,26 @@
                         <table class="w-full maas-table text-sm">
                             <thead>
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
-                                    <th class="px-4 py-2.5 text-left border-none">User / Name</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('name')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'name' ? 'text-[#772953]' : ''}>User / Name</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'name' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-left border-none">Private Key</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Relics</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('relic_count')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'relic_count' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-left border-none">Role</th>
-                                    <th class="px-4 py-2.5 text-left border-none">Created</th>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('created_at')}>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class={clientsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'created_at' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-2.5 text-right border-none w-24">Actions</th>
                                 </tr>
                             </thead>
@@ -1752,3 +1832,15 @@
         </div>
     </div>
 {/if}
+
+
+<style>
+    .sort-arrow {
+        font-size: 9px;
+        transition: all 0.2s ease;
+    }
+
+    .sort-arrow.desc {
+        transform: rotate(180deg);
+    }
+</style>

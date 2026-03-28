@@ -41,6 +41,8 @@ async def admin_list_all_relics(
     client_id: Optional[str] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -71,8 +73,17 @@ async def admin_list_all_relics(
         else:
             query = query.filter(False)
 
+    sort_field_map = {
+        "created_at": Relic.created_at,
+        "size_bytes": Relic.size_bytes,
+        "name": Relic.name,
+        "access_count": Relic.access_count,
+    }
+    sort_col = sort_field_map.get(sort_by, Relic.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
     total = query.count()
-    relics = query.order_by(Relic.created_at.desc()).offset(offset).limit(limit).all()
+    relics = query.order_by(order).offset(offset).limit(limit).all()
 
     # Fetch all counts in bulk (2 queries instead of N*2)
     relic_ids = [r.id for r in relics]
@@ -119,6 +130,8 @@ async def admin_list_clients(
     request: Request,
     limit: int = 100,
     offset: int = 0,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -130,10 +143,16 @@ async def admin_list_clients(
     offset = max(0, offset)
     get_admin_client(request, db)
 
+    sort_field_map = {
+        "created_at": ClientKey.created_at,
+        "relic_count": ClientKey.relic_count,
+        "name": ClientKey.name,
+    }
+    sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
     total = db.query(ClientKey).count()
-    clients = db.query(ClientKey).order_by(
-        ClientKey.created_at.desc()
-    ).offset(offset).limit(limit).all()
+    clients = db.query(ClientKey).order_by(order).offset(offset).limit(limit).all()
 
     admin_ids = settings.get_admin_client_ids()
 
@@ -512,6 +531,8 @@ async def admin_list_reports(
     request: Request,
     limit: int = 100,
     offset: int = 0,
+    sort_by: Optional[str] = "created_at",
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db)
 ):
     """
@@ -523,14 +544,19 @@ async def admin_list_reports(
     offset = max(0, offset)
     get_admin_client(request, db)
 
+    sort_field_map = {
+        "created_at": RelicReport.created_at,
+        "reason": RelicReport.reason,
+    }
+    sort_col = sort_field_map.get(sort_by, RelicReport.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
     total = db.query(RelicReport).count()
 
     # ⚡ Bolt: Use joinedload(RelicReport.relic) to prevent N+1 queries when accessing relic.name later
     reports = db.query(RelicReport).options(
         joinedload(RelicReport.relic).joinedload(Relic.owner_client)
-    ).order_by(
-        RelicReport.created_at.desc()
-    ).offset(offset).limit(limit).all()
+    ).order_by(order).offset(offset).limit(limit).all()
 
     # Enrich with relic names and owners
     report_responses = []
