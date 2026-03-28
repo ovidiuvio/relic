@@ -19,33 +19,6 @@
   let isNameSaving = false;
   let appVersion = "loading...";
 
-  const ZOOM_KEY = 'relic_ui_zoom';
-  const ZOOM_MIN = 0.5;
-  const ZOOM_MAX = 3.0;
-  const ZOOM_STEP = 0.05;
-
-  function getAutoZoom() {
-    const w = window.innerWidth;
-    if (w <= 1280) return 0.6;
-    if (w <= 1440) return 0.7;
-    if (w <= 1680) return 0.8;
-    if (w <= 1920) return 0.9;
-    if (w <= 2560) return 1.0;
-    if (w <= 3200) return 1.10;
-    if (w <= 3840) return 1.4;
-    if (w <= 4800) return 1.6;
-    if (w <= 5760) return 1.8;
-    return 2.75;
-  }
-
-  const storedZoom = localStorage.getItem(ZOOM_KEY);
-  let uiZoom = storedZoom !== null ? parseFloat(storedZoom) : getAutoZoom();
-
-  function setZoom(z) {
-    uiZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, parseFloat(z.toFixed(2))));
-    localStorage.setItem(ZOOM_KEY, uiZoom);
-  }
-
   function updateRouting() {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
@@ -245,7 +218,7 @@
   />
 </svelte:head>
 
-<div class="min-h-screen flex flex-col font-ubuntu text-[#333333]" style="zoom: {uiZoom}">
+<div class="min-h-screen flex flex-col font-ubuntu text-[#333333]">
   <!-- Header with Navigation -->
   <header class="bg-[#772953] text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-6">
@@ -455,26 +428,6 @@
   <Toast />
 </div>
 
-<!-- Zoom control: rendered outside the zoomed container so it is never affected by zoom -->
-<div style="position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; display: flex; align-items: center; gap: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 9999px; padding: 3px 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12);">
-  <button
-    on:click={() => setZoom(uiZoom - ZOOM_STEP)}
-    disabled={uiZoom <= ZOOM_MIN}
-    style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:9999px; border:none; background:transparent; cursor:pointer; color:#6b7280; font-size:14px; line-height:1; padding:0;"
-    title="Zoom out"
-  >−</button>
-  <button
-    on:click={() => setZoom(getAutoZoom())}
-    style="font-size:11px; color:#6b7280; background:transparent; border:none; cursor:pointer; padding:0 2px; tabular-nums; min-width:32px; text-align:center;"
-    title="Reset zoom"
-  >{Math.round(uiZoom * 100)}%</button>
-  <button
-    on:click={() => setZoom(uiZoom + ZOOM_STEP)}
-    disabled={uiZoom >= ZOOM_MAX}
-    style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:9999px; border:none; background:transparent; cursor:pointer; color:#6b7280; font-size:14px; line-height:1; padding:0;"
-    title="Zoom in"
-  >+</button>
-</div>
 
 <style global>
   :global(body) {
