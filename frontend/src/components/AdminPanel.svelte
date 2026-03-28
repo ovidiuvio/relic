@@ -949,7 +949,7 @@
                                                             id: relic.client_id,
                                                             public_id: relic.client_public_id,
                                                         })}
-                                                    class="text-xs font-mono text-purple-600 hover:text-purple-800 hover:underline"
+                                                    class="text-xs font-mono text-gray-500 hover:text-gray-800 hover:underline"
                                                     title="View client's relics"
                                                 >
                                                     {relic.client_public_id || 'anonymous'}
