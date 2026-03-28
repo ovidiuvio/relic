@@ -1,110 +1,66 @@
-"""Pytest configuration and fixtures."""
+"""Integration test configuration — runs against the live deployment."""
+import os
+import uuid
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import httpx
 
-from backend.main import app
-from backend.database import Base, get_db
+BASE_URL = os.getenv("RELIC_BASE_URL", "http://localhost")
+ADMIN_KEY = os.getenv("RELIC_ADMIN_KEY", "09d85e5f91316a66233d97e1b5936399")
 
 
-# Use in-memory SQLite for tests
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture(scope="function")
-def db():
-    """Create a test database session."""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+@pytest.fixture
+def http():
+    """httpx client against the live deployment."""
+    with httpx.Client(
+        base_url=BASE_URL,
+        timeout=15,
+        follow_redirects=True,
+        headers={"User-Agent": "curl/7.68.0"},
+    ) as client:
+        yield client
 
 
-@pytest.fixture(scope="function")
-def client(db):
-    """Create a test client with test database."""
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            db.close()
+@pytest.fixture
+def admin_key():
+    return ADMIN_KEY
 
-    app.dependency_overrides[get_db] = override_get_db
 
-    # Mock storage service to avoid MinIO connection
-    with patch("backend.main.storage_service") as mock_main_storage, \
-         patch("backend.routes.relics.storage_service") as mock_storage, \
-         patch("backend.routes.admin.storage_service") as mock_admin_storage:
-        # Simple in-memory storage for tests
-        storage_data = {}
+@pytest.fixture
+def admin_headers():
+    return {"X-Client-Key": ADMIN_KEY}
 
-        async def mock_upload(key, data, content_type="application/octet-stream"):
-            storage_data[key] = data
-            return key
 
-        async def mock_download(key):
-            return storage_data.get(key, b"")
+@pytest.fixture
+def client_key():
+    """A fresh unique client key (not registered)."""
+    return uuid.uuid4().hex
 
-        async def mock_delete(key):
-            storage_data.pop(key, None)
 
-        async def mock_exists(key):
-            return key in storage_data
-
-        for mock in (mock_main_storage, mock_storage, mock_admin_storage):
-            mock.ensure_bucket = MagicMock()
-            mock.upload = AsyncMock(side_effect=mock_upload)
-            mock.download = AsyncMock(side_effect=mock_download)
-            mock.delete = AsyncMock(side_effect=mock_delete)
-            mock.exists = AsyncMock(side_effect=mock_exists)
-
-        with TestClient(app) as test_client:
-            yield test_client
-
-    app.dependency_overrides.clear()
+@pytest.fixture
+def registered_client(http):
+    """Register a fresh client. Returns (key, public_id)."""
+    key = uuid.uuid4().hex
+    resp = http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    return key, resp.json()["public_id"]
 
 
 @pytest.fixture
 def test_file_content():
-    """Sample file content for testing."""
     return b"Hello, World! This is a test relic."
 
 
 @pytest.fixture
-def test_file_dict(test_file_content):
-    """Sample file dict for testing."""
-    return {
-        "name": "test.txt",
-        "content_type": "text/plain",
-        "content": test_file_content
-    }
-
-@pytest.fixture
-def created_relic(client, test_file_content):
-    """Create a relic and return its ID, data, and client key."""
-    # Force client creation with a specific key
-    client_key = "test_client_key_123"
-    response = client.post(
+def created_relic(http, registered_client):
+    """Create a public relic. Cleans up after the test."""
+    key, _ = registered_client
+    resp = http.post(
         "/api/v1/relics",
-        headers={"x-client-key": client_key},
+        headers={"X-Client-Key": key},
         data={"name": "Test Relic", "access_level": "public"},
-        files={"file": ("test.txt", test_file_content, "text/plain")}
+        files={"file": ("test.txt", b"Hello, World! This is a test relic.", "text/plain")},
     )
-    assert response.status_code == 200
-    return {
-        "id": response.json()["id"],
-        "data": response.json(),
-        "client_key": response.headers.get("x-client-key") or client_key
-    }
+    assert resp.status_code == 200
+    relic_id = resp.json()["id"]
+    yield {"id": relic_id, "data": resp.json(), "client_key": key}
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})

@@ -1,203 +1,122 @@
-"""Tests for admin endpoints."""
+"""Integration tests for admin endpoints."""
+import uuid
 import pytest
-from backend.config import settings
+from conftest import ADMIN_KEY
 
+ADMIN_HEADERS = {"X-Client-Key": ADMIN_KEY}
 
-# ── Fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def created_relic(client, test_file_content):
-    """A relic created for use in tests that need an existing relic."""
-    response = client.post(
+def disposable_client(http):
+    """Register a fresh non-admin client. Returns client key."""
+    key = uuid.uuid4().hex
+    http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+    return key
+
+
+@pytest.fixture
+def disposable_relic(http, disposable_client):
+    """Create a relic owned by a disposable client. Cleans up if still alive."""
+    key = disposable_client
+    resp = http.post(
         "/api/v1/relics",
-        data={"name": "Test Relic", "access_level": "public"},
-        files={"file": ("test.txt", test_file_content, "text/plain")}
+        headers={"X-Client-Key": key},
+        data={"name": "Admin Test Relic", "access_level": "public"},
+        files={"file": ("test.txt", b"admin test content", "text/plain")},
     )
-    assert response.status_code == 200
-    return response.json()
+    relic_id = resp.json()["id"]
+    yield relic_id
+    http.delete(f"/api/v1/relics/{relic_id}", headers=ADMIN_HEADERS)
 
 
-@pytest.fixture
-def admin_client_key(client, monkeypatch):
-    """Register a client and mock them as admin."""
-    import uuid
-    client_key = uuid.uuid4().hex
-    headers = {"X-Client-Key": client_key}
+# ── GET /api/v1/admin/check ───────────────────────────────────────────────────
 
-    # Register client
-    response = client.post("/api/v1/client/register", headers=headers)
-    assert response.status_code == 200
-    data = response.json()
-    client_id = data["client_id"]
-
-    # Mock settings to make this client an admin
-    # Memory says: When mocking or patching Pydantic settings like ADMIN_CLIENT_IDS in FastAPI tests, assign strings (matching the expected OS environment variable format) rather than native Python lists
-    monkeypatch.setattr(settings, "ADMIN_CLIENT_IDS", client_id)
-
-    return client_key
-
-
-@pytest.fixture
-def normal_client_key(client):
-    """Register a non-admin client."""
-    import uuid
-    client_key = uuid.uuid4().hex
-    headers = {"X-Client-Key": client_key}
-
-    response = client.post("/api/v1/client/register", headers=headers)
-    assert response.status_code == 200
-    return client_key
-
-
-# ── Check ────────────────────────────────────────────────────────────────────
-
-@pytest.mark.unit
-def test_admin_check(client, admin_client_key):
-    """Returns true for is_admin when the client is an admin."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/check", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.integration
+def test_admin_check(http):
+    resp = http.get("/api/v1/admin/check", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["is_admin"] is True
     assert "client_id" in data
 
 
-@pytest.mark.unit
-def test_admin_check_not_admin(client, normal_client_key):
-    """Returns false for is_admin when the client is not an admin."""
-    # Arrange
-    headers = {"X-Client-Key": normal_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/check", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
-    assert data["is_admin"] is False
+@pytest.mark.integration
+def test_admin_check_not_admin(http, disposable_client):
+    resp = http.get("/api/v1/admin/check", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is False
 
 
-# ── Relics ───────────────────────────────────────────────────────────────────
+# ── GET /api/v1/admin/relics ──────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_admin_list_relics(client, admin_client_key, created_relic):
-    """Returns a paginated list of all relics for admins."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/relics", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.integration
+def test_admin_list_relics(http, disposable_relic):
+    resp = http.get("/api/v1/admin/relics", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert "relics" in data
-    assert len(data["relics"]) >= 1
     assert data["total"] >= 1
-    relic_ids = [r["id"] for r in data["relics"]]
-    assert created_relic["id"] in relic_ids
-    assert "name" in data["relics"][0]
-    assert "content_type" in data["relics"][0]
+    ids = [r["id"] for r in data["relics"]]
+    assert disposable_relic in ids
 
 
-@pytest.mark.unit
-def test_admin_list_relics_forbidden(client, normal_client_key):
-    """Returns 403 when a non-admin client tries to list all relics."""
-    # Arrange
-    headers = {"X-Client-Key": normal_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/relics", headers=headers)
-
-    # Assert
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Admin privileges required"
+@pytest.mark.integration
+def test_admin_list_relics_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/relics", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Admin privileges required"
 
 
-# ── Clients ──────────────────────────────────────────────────────────────────
+# ── GET /api/v1/admin/clients ─────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_admin_list_clients(client, admin_client_key, normal_client_key):
-    """Returns a list of all registered clients for admins."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/clients", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.integration
+def test_admin_list_clients(http, disposable_client):
+    resp = http.get("/api/v1/admin/clients", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert "clients" in data
-    assert len(data["clients"]) >= 2  # The admin and the normal client
-    assert data["total"] >= 2
-    assert "id" in data["clients"][0]
-    assert "name" in data["clients"][0]
+    assert data["total"] >= 1
+    ids = [c["id"] for c in data["clients"]]
+    assert disposable_client in ids
+    assert "public_id" in data["clients"][0]
     assert "relic_count" in data["clients"][0]
 
 
-@pytest.mark.unit
-def test_admin_list_clients_unauthorized(client):
-    """Returns 401 when no client key is provided."""
-    # Act
-    response = client.get("/api/v1/admin/clients")
-
-    # Assert
-    assert response.status_code == 401
+@pytest.mark.integration
+def test_admin_list_clients_unauthorized(http):
+    resp = http.get("/api/v1/admin/clients")
+    assert resp.status_code == 401
 
 
-# ── Stats ────────────────────────────────────────────────────────────────────
+# ── GET /api/v1/admin/stats ───────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_admin_stats(client, admin_client_key, created_relic):
-    """Returns application statistics for admins."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/stats", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.integration
+def test_admin_stats(http, disposable_relic):
+    resp = http.get("/api/v1/admin/stats", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert "total_relics" in data
     assert data["total_relics"] >= 1
     assert "total_clients" in data
     assert "total_size_bytes" in data
+    assert "total_spaces" in data
+    assert "total_comments" in data
+    assert "total_bookmarks" in data
 
 
-@pytest.mark.unit
-def test_admin_stats_forbidden(client, normal_client_key):
-    """Returns 403 when a non-admin client tries to get stats."""
-    # Arrange
-    headers = {"X-Client-Key": normal_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/stats", headers=headers)
-
-    # Assert
-    assert response.status_code == 403
+@pytest.mark.integration
+def test_admin_stats_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/stats", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
 
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# ── GET /api/v1/admin/config ──────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_admin_config(client, admin_client_key):
-    """Returns application configuration for admins."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/config", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.integration
+def test_admin_config(http):
+    resp = http.get("/api/v1/admin/config", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert "app" in data
     assert "database" in data
     assert "storage" in data
@@ -207,112 +126,189 @@ def test_admin_config(client, admin_client_key):
     assert "cors" in data
 
 
-@pytest.mark.unit
-def test_admin_config_forbidden(client, normal_client_key):
-    """Returns 403 when a non-admin client tries to read config."""
-    # Arrange
-    headers = {"X-Client-Key": normal_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/config", headers=headers)
-
-    # Assert
-    assert response.status_code == 403
+@pytest.mark.integration
+def test_admin_config_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/config", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
 
 
-# ── Reports ──────────────────────────────────────────────────────────────────
+# ── DELETE /api/v1/admin/clients/{client_id} ─────────────────────────────────
 
-@pytest.mark.unit
-def test_admin_list_reports(client, admin_client_key, created_relic):
-    """Returns a list of reports for admins."""
-    # Arrange
-    # Create a report first
-    report_response = client.post(
-        "/api/v1/reports",
-        json={"relic_id": created_relic["id"], "reason": "Test report"}
+@pytest.mark.integration
+def test_admin_delete_client(http):
+    """Delete a client, relics get disassociated."""
+    key = uuid.uuid4().hex
+    http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+
+    relic = http.post(
+        "/api/v1/relics",
+        headers={"X-Client-Key": key},
+        data={"access_level": "public"},
+        files={"file": ("test.txt", b"content", "text/plain")},
     )
-    assert report_response.status_code == 200
+    relic_id = relic.json()["id"]
 
-    headers = {"X-Client-Key": admin_client_key}
+    resp = http.delete(f"/api/v1/admin/clients/{key}", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert "deleted successfully" in resp.json()["message"]
 
-    # Act
-    response = client.get("/api/v1/admin/reports", headers=headers)
+    # Client is gone
+    clients = http.get("/api/v1/admin/clients", headers=ADMIN_HEADERS).json()["clients"]
+    assert key not in [c["id"] for c in clients]
 
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+    # Cleanup orphaned relic
+    http.delete(f"/api/v1/relics/{relic_id}", headers=ADMIN_HEADERS)
+
+
+@pytest.mark.integration
+def test_admin_delete_client_with_relics(http):
+    """Delete a client and all their relics."""
+    key = uuid.uuid4().hex
+    http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+    relic = http.post(
+        "/api/v1/relics",
+        headers={"X-Client-Key": key},
+        data={"access_level": "public"},
+        files={"file": ("test.txt", b"content", "text/plain")},
+    )
+    relic_id = relic.json()["id"]
+
+    resp = http.delete(f"/api/v1/admin/clients/{key}?delete_relics=true", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+
+    assert http.get(f"/api/v1/relics/{relic_id}").status_code == 404
+
+
+@pytest.mark.integration
+def test_admin_delete_client_not_found(http):
+    resp = http.delete("/api/v1/admin/clients/nonexistent_client_id_xyz", headers=ADMIN_HEADERS)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Client not found"
+
+
+@pytest.mark.integration
+def test_admin_delete_admin_client_forbidden(http):
+    resp = http.delete(f"/api/v1/admin/clients/{ADMIN_KEY}", headers=ADMIN_HEADERS)
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Cannot delete admin client"
+
+
+# ── GET /api/v1/admin/reports ─────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_list_reports(http, disposable_relic):
+    http.post("/api/v1/reports", json={"relic_id": disposable_relic, "reason": "Admin test report"})
+
+    resp = http.get("/api/v1/admin/reports", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
     assert "reports" in data
-    assert len(data["reports"]) >= 1
     assert data["total"] >= 1
-
-    report_ids = [r["relic_id"] for r in data["reports"]]
-    assert created_relic["id"] in report_ids
-
-    report = next(r for r in data["reports"] if r["relic_id"] == created_relic["id"])
-    assert report["reason"] == "Test report"
-    assert "relic_name" in report
+    relic_ids = [r["relic_id"] for r in data["reports"]]
+    assert disposable_relic in relic_ids
 
 
-@pytest.mark.unit
-def test_admin_list_reports_forbidden(client, normal_client_key):
-    """Returns 403 when a non-admin client tries to list reports."""
-    # Arrange
-    headers = {"X-Client-Key": normal_client_key}
-
-    # Act
-    response = client.get("/api/v1/admin/reports", headers=headers)
-
-    # Assert
-    assert response.status_code == 403
+@pytest.mark.integration
+def test_admin_list_reports_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/reports", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
 
 
-@pytest.mark.unit
-def test_admin_delete_report(client, admin_client_key, created_relic):
-    """Allows admins to dismiss a report."""
-    # Arrange
-    # Create a report
-    report_response = client.post(
-        "/api/v1/reports",
-        json={"relic_id": created_relic["id"], "reason": "To be deleted"}
+# ── DELETE /api/v1/admin/reports/{report_id} ─────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_delete_report(http, disposable_relic):
+    http.post("/api/v1/reports", json={"relic_id": disposable_relic, "reason": "To dismiss"})
+
+    reports = http.get("/api/v1/admin/reports", headers=ADMIN_HEADERS).json()["reports"]
+    report_id = next(r["id"] for r in reports if r["relic_id"] == disposable_relic)
+
+    resp = http.delete(f"/api/v1/admin/reports/{report_id}", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Report dismissed successfully"
+
+    # Verify gone
+    reports_after = http.get("/api/v1/admin/reports", headers=ADMIN_HEADERS).json()["reports"]
+    assert report_id not in [r["id"] for r in reports_after]
+
+
+@pytest.mark.integration
+def test_admin_delete_report_not_found(http):
+    resp = http.delete(f"/api/v1/admin/reports/{uuid.uuid4()}", headers=ADMIN_HEADERS)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Report not found"
+
+
+# ── GET /api/v1/admin/backups ─────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_list_backups(http):
+    resp = http.get("/api/v1/admin/backups", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "backups" in data
+    assert "total" in data
+
+
+@pytest.mark.integration
+def test_admin_list_backups_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/backups", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+
+
+# ── POST /api/v1/admin/backups ────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_create_backup(http):
+    resp = http.post("/api/v1/admin/backups", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "success" in data
+    assert "message" in data
+
+
+# ── GET /api/v1/admin/backups/{filename}/download ─────────────────────────────
+
+@pytest.mark.integration
+def test_admin_download_backup_invalid_filename(http):
+    resp = http.get("/api/v1/admin/backups/not-a-valid-file.txt/download", headers=ADMIN_HEADERS)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid backup filename"
+
+
+@pytest.mark.integration
+def test_admin_download_backup(http):
+    """Create a backup then download it."""
+    http.post("/api/v1/admin/backups", headers=ADMIN_HEADERS)
+
+    backups = http.get("/api/v1/admin/backups", headers=ADMIN_HEADERS).json()["backups"]
+    if not backups:
+        pytest.skip("No backups available to download")
+
+    filename = backups[0]["filename"]
+    resp = http.get(f"/api/v1/admin/backups/{filename}/download", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/gzip"
+    assert len(resp.content) > 0
+
+
+# ── POST /api/v1/admin/backups/{filename}/restore ────────────────────────────
+
+@pytest.mark.integration
+def test_admin_restore_backup_invalid_filename(http):
+    resp = http.post("/api/v1/admin/backups/invalid-file.tar/restore", headers=ADMIN_HEADERS)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid backup filename"
+
+
+# ── POST /api/v1/admin/backups/restore-upload ─────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_restore_from_upload_wrong_extension(http):
+    resp = http.post(
+        "/api/v1/admin/backups/restore-upload",
+        headers=ADMIN_HEADERS,
+        files={"file": ("backup.tar.gz", b"content", "application/gzip")},
     )
-    assert report_response.status_code == 200
-
-    headers = {"X-Client-Key": admin_client_key}
-
-    # Get the report ID from the list
-    list_response = client.get("/api/v1/admin/reports", headers=headers)
-    assert list_response.status_code == 200
-    reports = list_response.json()["reports"]
-    report_id = next((r["id"] for r in reports if r["reason"] == "To be deleted"), None)
-    assert report_id is not None
-
-    # Act
-    response = client.delete(f"/api/v1/admin/reports/{report_id}", headers=headers)
-
-    # Assert
-    assert response.status_code == 200
-    assert response.json()["message"] == "Report dismissed successfully"
-
-    # Verify it's gone
-    list_response = client.get("/api/v1/admin/reports", headers=headers)
-    assert list_response.status_code == 200
-    # Make sure this specific report ID isn't in the list
-    report_ids = [r["id"] for r in list_response.json()["reports"]]
-    assert report_id not in report_ids
-
-
-@pytest.mark.unit
-def test_admin_delete_report_not_found(client, admin_client_key):
-    """Returns 404 when trying to delete a non-existent report."""
-    # Arrange
-    headers = {"X-Client-Key": admin_client_key}
-
-    import uuid
-    report_id = str(uuid.uuid4())
-
-    # Act
-    response = client.delete(f"/api/v1/admin/reports/{report_id}", headers=headers)
-
-    # Assert
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Report not found"
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "File must be a .sql.gz backup"

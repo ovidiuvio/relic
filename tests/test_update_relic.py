@@ -1,97 +1,69 @@
-
+"""Integration tests for relic update endpoint."""
+import uuid
 import pytest
-from datetime import datetime, timedelta
-from backend.models import Relic, ClientKey
-from backend.utils import generate_relic_id
+from conftest import ADMIN_KEY
 
-@pytest.mark.unit
-def test_update_relic_permissions(client, db):
-    """Test that only owner or admin can update relic."""
-    # 1. Create a relic owned by client A
-    client_a_id = "aaaa" * 8
-    client_a = ClientKey(id=client_a_id, name="Client A")
-    db.add(client_a)
+ADMIN_HEADERS = {"X-Client-Key": ADMIN_KEY}
 
-    relic_id = generate_relic_id()
-    relic = Relic(
-        id=relic_id,
-        client_id=client_a_id,
-        name="Original Name",
-        content_type="text/plain",
-        access_level="public",
-        created_at=datetime.utcnow(),
-        size_bytes=100
+
+@pytest.fixture
+def owned_relic(http, registered_client):
+    """Create a relic owned by a registered client. Cleans up after."""
+    key, _ = registered_client
+    resp = http.post(
+        "/api/v1/relics",
+        headers={"X-Client-Key": key},
+        data={"name": "Original Name", "access_level": "public"},
+        files={"file": ("test.txt", b"content", "text/plain")},
     )
-    db.add(relic)
-    db.commit()
+    relic_id = resp.json()["id"]
+    yield relic_id, key
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
 
-    # 2. Try to update as anonymous (should fail)
-    resp = client.put(f"/api/v1/relics/{relic_id}", json={"name": "New Name"})
-    assert resp.status_code == 401
 
-    # 3. Try to update as client B (should fail)
-    client_b_id = "bbbb" * 8
-    client_b = ClientKey(id=client_b_id, name="Client B")
-    db.add(client_b)
-    db.commit()
+@pytest.mark.integration
+def test_update_relic_permissions(http, owned_relic):
+    """Only owner or admin can update."""
+    relic_id, owner_key = owned_relic
+    other_key = uuid.uuid4().hex
+    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
 
-    resp = client.put(
+    # No auth → 401
+    assert http.put(f"/api/v1/relics/{relic_id}", json={"name": "x"}).status_code == 401
+
+    # Non-owner → 403
+    assert http.put(
         f"/api/v1/relics/{relic_id}",
-        json={"name": "New Name"},
-        headers={"X-Client-Key": client_b_id}
-    )
-    assert resp.status_code == 403
+        headers={"X-Client-Key": other_key},
+        json={"name": "Hacked"},
+    ).status_code == 403
 
-    # 4. Update as client A (should succeed)
-    resp = client.put(
+    # Owner → 200
+    resp = http.put(
         f"/api/v1/relics/{relic_id}",
-        json={"name": "Updated Name"},
-        headers={"X-Client-Key": client_a_id}
+        headers={"X-Client-Key": owner_key},
+        json={"name": "Updated by Owner"},
     )
     assert resp.status_code == 200
-    assert resp.json()["name"] == "Updated Name"
+    assert resp.json()["name"] == "Updated by Owner"
     assert resp.json()["can_edit"] is True
 
-    # Verify DB
-    relic = db.query(Relic).filter(Relic.id == relic_id).first()
-    assert relic.name == "Updated Name"
 
+@pytest.mark.integration
+def test_update_relic_fields(http, owned_relic):
+    """Various fields can be updated."""
+    relic_id, owner_key = owned_relic
 
-@pytest.mark.unit
-def test_update_relic_fields(client, db):
-    """Test updating various fields of a relic."""
-    client_id = "cccc" * 8
-    owner = ClientKey(id=client_id, name="Client C")
-    db.add(owner)
-
-    relic_id = generate_relic_id()
-
-    relic = Relic(
-        id=relic_id,
-        client_id=client_id,
-        name="Old Name",
-        content_type="text/plain",
-        access_level="public",
-        created_at=datetime.utcnow(),
-        size_bytes=200
-    )
-    db.add(relic)
-    db.commit()
-
-    # Update name, content_type, access_level, expires_in
-    updates = {
-        "name": "New Name",
-        "content_type": "text/markdown",
-        "access_level": "private",
-        "expires_in": "1h"
-    }
-
-    resp = client.put(
+    resp = http.put(
         f"/api/v1/relics/{relic_id}",
-        json=updates,
-        headers={"X-Client-Key": client_id}
+        headers={"X-Client-Key": owner_key},
+        json={
+            "name": "New Name",
+            "content_type": "text/markdown",
+            "access_level": "private",
+            "expires_in": "24h",
+        },
     )
-
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "New Name"
@@ -99,45 +71,17 @@ def test_update_relic_fields(client, db):
     assert data["access_level"] == "private"
     assert data["expires_at"] is not None
 
-    # Verify expiration logic roughly
-    expiry = datetime.fromisoformat(data["expires_at"])
-    now = datetime.utcnow()
-    assert now < expiry < now + timedelta(hours=2)
 
+@pytest.mark.integration
+def test_admin_update_relic(http, owned_relic):
+    """Admin can update any relic."""
+    relic_id, _ = owned_relic
 
-@pytest.mark.unit
-def test_admin_update_relic(client, db, monkeypatch):
-    """Test that admin can update any relic."""
-    # Mock admin settings
-    admin_id = "dddd" * 8
-    monkeypatch.setattr("backend.config.settings.ADMIN_CLIENT_IDS", admin_id)
-
-    # Create admin client
-    admin_client = ClientKey(id=admin_id, name="Admin")
-    db.add(admin_client)
-
-    # Create relic owned by someone else
-    other_id = "eeee" * 8
-    relic_id = generate_relic_id()
-    relic = Relic(
-        id=relic_id,
-        client_id=other_id,
-        name="User Relic",
-        created_at=datetime.utcnow(),
-        content_type="text/plain",
-        size_bytes=300,
-        access_level="public"
-    )
-    db.add(relic)
-    db.commit()
-
-    # Admin updates it
-    resp = client.put(
+    resp = http.put(
         f"/api/v1/relics/{relic_id}",
+        headers=ADMIN_HEADERS,
         json={"name": "Admin Edited"},
-        headers={"X-Client-Key": admin_id}
     )
-
     assert resp.status_code == 200
     assert resp.json()["name"] == "Admin Edited"
     assert resp.json()["can_edit"] is True

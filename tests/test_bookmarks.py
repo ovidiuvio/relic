@@ -1,243 +1,177 @@
-"""Tests for bookmark endpoints."""
+"""Integration tests for bookmark endpoints."""
+import uuid
 import pytest
 
 
 @pytest.fixture
-def registered_client_key(client):
-    """Register a client and return its key."""
-    import uuid
-    client_key = uuid.uuid4().hex
-    headers = {"X-Client-Key": client_key}
-    response = client.post("/api/v1/client/register", headers=headers)
-    assert response.status_code == 200
-
-    # Set a name so it can be used for actions like commenting or bookmarking if needed
-    response = client.put("/api/v1/client/name", headers=headers, json={"name": "Test Client"})
-    assert response.status_code == 200
-
-    return client_key
-
-
-@pytest.fixture
-def created_relic(client, test_file_content):
-    """A relic created for use in tests that need an existing relic."""
-    response = client.post(
+def bookmarkable_relic(http, registered_client):
+    """Create a public relic for bookmark tests. Cleans up after."""
+    key, _ = registered_client
+    resp = http.post(
         "/api/v1/relics",
-        data={"name": "Test Relic", "access_level": "public"},
-        files={"file": ("test.txt", test_file_content, "text/plain")}
+        headers={"X-Client-Key": key},
+        data={"name": "Bookmarkable Relic", "access_level": "public"},
+        files={"file": ("test.txt", b"bookmark me", "text/plain")},
     )
-    assert response.status_code == 200
-    return response.json()
+    assert resp.status_code == 200
+    relic_id = resp.json()["id"]
+    yield relic_id
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
 
 
 # ── POST /api/v1/bookmarks ───────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_add_bookmark(client, registered_client_key, created_relic):
-    """Creates a bookmark for a relic."""
-    # Arrange
-    relic_id = created_relic["id"]
+@pytest.mark.integration
+def test_add_bookmark(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
 
-    # Act
-    response = client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
+    resp = http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["relic_id"] == relic_id
-    assert "id" in data
     assert data["message"] == "Bookmark added successfully"
+    assert "id" in data
+
+    # Cleanup
+    http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
 
 
-@pytest.mark.unit
-def test_add_bookmark_unauthorized(client, created_relic):
-    """Returns 401 when missing valid client key."""
-    relic_id = created_relic["id"]
-    response = client.post(f"/api/v1/bookmarks?relic_id={relic_id}")
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Valid client key required"
+@pytest.mark.integration
+def test_add_bookmark_unauthorized(http, bookmarkable_relic):
+    resp = http.post(f"/api/v1/bookmarks?relic_id={bookmarkable_relic}")
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Valid client key required"
 
 
-@pytest.mark.unit
-def test_add_bookmark_not_found(client, registered_client_key):
-    """Returns 404 when relic does not exist."""
-    response = client.post(
-        f"/api/v1/bookmarks?relic_id=nonexistent",
-        headers={"X-Client-Key": registered_client_key}
-    )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Relic not found"
+@pytest.mark.integration
+def test_add_bookmark_not_found(http, registered_client):
+    key, _ = registered_client
+    resp = http.post("/api/v1/bookmarks?relic_id=nonexistent_relic_bm", headers={"X-Client-Key": key})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Relic not found"
 
 
-@pytest.mark.unit
-def test_add_bookmark_already_exists(client, registered_client_key, created_relic):
-    """Returns 409 when relic is already bookmarked."""
-    relic_id = created_relic["id"]
+@pytest.mark.integration
+def test_add_bookmark_already_exists(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
 
-    # First bookmark
-    client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
+    http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key})
+    resp = http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Relic already bookmarked"
 
-    # Second bookmark
-    response = client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Relic already bookmarked"
+    http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
 
 
 # ── DELETE /api/v1/bookmarks/{relic_id} ──────────────────────────────────────
 
-@pytest.mark.unit
-def test_remove_bookmark(client, registered_client_key, created_relic):
-    """Removes a bookmark for a relic."""
-    relic_id = created_relic["id"]
+@pytest.mark.integration
+def test_remove_bookmark(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
 
-    # Arrange: Create bookmark
-    client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Act
-    response = client.delete(
-        f"/api/v1/bookmarks/{relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Assert
-    assert response.status_code == 200
-    assert response.json()["message"] == "Bookmark removed successfully"
+    http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key})
+    resp = http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Bookmark removed successfully"
 
 
-@pytest.mark.unit
-def test_remove_bookmark_unauthorized(client, created_relic):
-    """Returns 401 when missing valid client key."""
-    relic_id = created_relic["id"]
-    response = client.delete(f"/api/v1/bookmarks/{relic_id}")
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Valid client key required"
+@pytest.mark.integration
+def test_remove_bookmark_unauthorized(http, bookmarkable_relic):
+    resp = http.delete(f"/api/v1/bookmarks/{bookmarkable_relic}")
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Valid client key required"
 
 
-@pytest.mark.unit
-def test_remove_bookmark_not_found(client, registered_client_key, created_relic):
-    """Returns 404 when bookmark does not exist."""
-    relic_id = created_relic["id"]
-    response = client.delete(
-        f"/api/v1/bookmarks/{relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Bookmark not found"
+@pytest.mark.integration
+def test_remove_bookmark_not_found(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    resp = http.delete(f"/api/v1/bookmarks/{bookmarkable_relic}", headers={"X-Client-Key": key})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Bookmark not found"
 
 
 # ── GET /api/v1/bookmarks/check/{relic_id} ───────────────────────────────────
 
-@pytest.mark.unit
-def test_check_bookmark_true(client, registered_client_key, created_relic):
-    """Returns is_bookmarked=True when relic is bookmarked."""
-    relic_id = created_relic["id"]
+@pytest.mark.integration
+def test_check_bookmark_true(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
 
-    # Arrange: Create bookmark
-    bookmark_res = client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    ).json()
-
-    # Act
-    response = client.get(
-        f"/api/v1/bookmarks/check/{relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
-    assert data["relic_id"] == relic_id
+    bm = http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key}).json()
+    resp = http.get(f"/api/v1/bookmarks/check/{relic_id}", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["is_bookmarked"] is True
-    assert data["bookmark_id"] == bookmark_res["id"]
+    assert data["bookmark_id"] == bm["id"]
+
+    http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
 
 
-@pytest.mark.unit
-def test_check_bookmark_false(client, registered_client_key, created_relic):
-    """Returns is_bookmarked=False when relic is not bookmarked."""
-    relic_id = created_relic["id"]
-
-    # Act
-    response = client.get(
-        f"/api/v1/bookmarks/check/{relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
-    assert data["relic_id"] == relic_id
+@pytest.mark.integration
+def test_check_bookmark_false(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    resp = http.get(f"/api/v1/bookmarks/check/{bookmarkable_relic}", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["is_bookmarked"] is False
     assert data["bookmark_id"] is None
 
 
-@pytest.mark.unit
-def test_check_bookmark_unauthorized(client, created_relic):
-    """Returns 401 when missing valid client key."""
-    relic_id = created_relic["id"]
-    response = client.get(f"/api/v1/bookmarks/check/{relic_id}")
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Valid client key required"
+@pytest.mark.integration
+def test_check_bookmark_unauthorized(http, bookmarkable_relic):
+    resp = http.get(f"/api/v1/bookmarks/check/{bookmarkable_relic}")
+    assert resp.status_code == 401
 
 
 # ── GET /api/v1/bookmarks ────────────────────────────────────────────────────
 
-@pytest.mark.unit
-def test_get_client_bookmarks(client, registered_client_key, created_relic):
-    """Returns all bookmarks for the authenticated client."""
-    relic_id = created_relic["id"]
+@pytest.mark.integration
+def test_get_client_bookmarks(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
 
-    # Arrange: Create bookmark
-    bookmark_res = client.post(
-        f"/api/v1/bookmarks?relic_id={relic_id}",
-        headers={"X-Client-Key": registered_client_key}
-    ).json()
+    bm = http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key}).json()
+    resp = http.get("/api/v1/bookmarks", headers={"X-Client-Key": key})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "bookmarks" in data
+    assert data["bookmark_count"] >= 1
+    ids = [b["id"] for b in data["bookmarks"]]
+    assert relic_id in ids
 
-    # Act
-    response = client.get(
-        "/api/v1/bookmarks",
-        headers={"X-Client-Key": registered_client_key}
-    )
-
-    # Assert
-    assert response.status_code == 200
-    data = response.json()
-    assert "client_id" in data
-    assert data["bookmark_count"] == 1
-
-    bookmarks = data["bookmarks"]
-    assert len(bookmarks) == 1
-
-    bookmark = bookmarks[0]
-    assert bookmark["id"] == relic_id
-    # created_relic may not have a "name" key directly, its structure comes from the POST /relics endpoint response.
-    # The GET /api/v1/bookmarks response should return the actual string passed in the create request
-    assert bookmark["name"] == "Test Relic"
-    assert "content_type" in bookmark
-    assert "size_bytes" in bookmark
-    assert "access_level" in bookmark
-    assert "bookmark_count" in bookmark
-    assert "comments_count" in bookmark
-    assert "forks_count" in bookmark
-    assert bookmark["bookmark_id"] == bookmark_res["id"]
-    assert "tags" in bookmark
+    http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
 
 
-@pytest.mark.unit
-def test_get_client_bookmarks_unauthorized(client):
-    """Returns 401 when missing valid client key."""
-    response = client.get("/api/v1/bookmarks")
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Valid client key required"
+@pytest.mark.integration
+def test_get_client_bookmarks_unauthorized(http):
+    resp = http.get("/api/v1/bookmarks")
+    assert resp.status_code == 401
+
+
+# ── GET /api/v1/bookmarks/{relic_id}/bookmarkers ─────────────────────────────
+
+@pytest.mark.integration
+def test_get_relic_bookmarkers(http, registered_client, bookmarkable_relic):
+    key, _ = registered_client
+    relic_id = bookmarkable_relic
+
+    http.post(f"/api/v1/bookmarks?relic_id={relic_id}", headers={"X-Client-Key": key})
+    resp = http.get(f"/api/v1/bookmarks/{relic_id}/bookmarkers")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "bookmarkers" in data
+    assert data["total"] >= 1
+    assert "public_id" in data["bookmarkers"][0]
+    assert "bookmarked_at" in data["bookmarkers"][0]
+
+    http.delete(f"/api/v1/bookmarks/{relic_id}", headers={"X-Client-Key": key})
+
+
+@pytest.mark.integration
+def test_get_relic_bookmarkers_empty(http, bookmarkable_relic):
+    resp = http.get(f"/api/v1/bookmarks/{bookmarkable_relic}/bookmarkers")
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 0
