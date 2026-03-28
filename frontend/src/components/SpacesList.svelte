@@ -430,7 +430,7 @@
 
             <!-- Pagination footer -->
             {#if spaces.length > 0}
-                <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <div class="text-[11px] text-[#999]">
                             Showing 

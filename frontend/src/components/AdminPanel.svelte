@@ -966,7 +966,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
                             <div class="text-[11px] text-[#999]">
                                 <span class="font-medium text-[#666]">{relicsTotal}</span> relic{relicsTotal !== 1 ? "s" : ""}
@@ -1129,7 +1129,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
                             <div class="text-[11px] text-[#999]">
                                 <span class="font-medium text-[#666]">{reportsTotal}</span> report{reportsTotal !== 1 ? "s" : ""}
@@ -1316,7 +1316,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
                             <div class="text-[11px] text-[#999]">
                                 <span class="font-medium text-[#666]">{clientsTotal}</span> client{clientsTotal !== 1 ? "s" : ""}
@@ -1464,7 +1464,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="px-4 py-2.5 border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                    <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
                             <div class="text-[11px] text-[#999]">
                                 <span class="font-medium text-[#666]">{backupsTotal}</span> backup{backupsTotal !== 1 ? "s" : ""} • Total: {formatBytes(backupsTotalSize)}

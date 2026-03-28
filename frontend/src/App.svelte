@@ -509,8 +509,8 @@
     color: #111;
     border-bottom: 1px solid #aea79f;
     text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
+    padding: 0.6rem 1rem;
+    font-size: 13px;
   }
 
   :global(.maas-table td) {
