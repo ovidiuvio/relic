@@ -1,0 +1,67 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start stack (excluding s3-sync)
+        run: |
+          docker compose -f docker-compose.dev.yml up -d --build \
+            nginx backend frontend postgres minio
+        env:
+          GIT_HASH: ${{ github.sha }}
+
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend..."
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost/api/v1/version > /dev/null 2>&1; then
+              echo "Backend ready after $((i * 3))s"
+              exit 0
+            fi
+            echo "  attempt $i/90, retrying in 3s..."
+            sleep 3
+          done
+          echo "Backend did not become ready in time"
+          docker compose -f docker-compose.dev.yml logs
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install httpx pytest pytest-asyncio
+
+      - name: Run integration tests
+        env:
+          RELIC_BASE_URL: http://localhost
+          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
+        run: |
+          python -m pytest tests/ --ignore=tests/test_utils.py \
+            --junit-xml=test-results/junit.xml
+
+      - name: Publish test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Integration Tests
+          path: test-results/junit.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs --tail=100
