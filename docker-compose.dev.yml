@@ -41,6 +41,7 @@ services:
       BACKUP_CLEANUP_ENABLED: "true"
       BACKUP_ON_STARTUP: "true"
       BACKUP_ON_SHUTDOWN: "true"
+      PROFILING_ENABLED: "true"
     volumes:
       - ./backend:/app/backend:z
       - ./requirements.txt:/app/requirements.txt:ro
@@ -49,7 +50,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2 --reload
     networks:
       - Relic
 
