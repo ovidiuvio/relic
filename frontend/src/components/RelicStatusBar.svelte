@@ -32,7 +32,7 @@
   }
 </script>
 
-<div class="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+<div class="px-4 py-1.5 bg-[#fafafa] border-b border-gray-200 flex items-center justify-between flex-wrap gap-2 min-h-[36px]">
   <!-- Status Badges -->
   <div class="flex flex-wrap gap-1.5 items-center">
     {#if archiveContext}
@@ -68,9 +68,11 @@
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
-        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
+        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #fce3eb; color: #76306c;"
         title={relic.can_edit ? 'Change visibility' : 'Private - accessible only via URL'}
+        role={relic.can_edit ? 'button' : undefined}
+        tabindex={relic.can_edit ? 0 : undefined}
       >
         <i class="fas fa-lock text-[10px]"></i>
         <span>Private</span>
@@ -80,9 +82,11 @@
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
-        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
+        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #fef3c7; color: #b45309;"
         title={relic.can_edit ? 'Change visibility / manage access' : 'Restricted - allowlist only'}
+        role={relic.can_edit ? 'button' : undefined}
+        tabindex={relic.can_edit ? 0 : undefined}
       >
         <i class="fas fa-user-lock text-[10px]"></i>
         <span>Restricted</span>
@@ -92,9 +96,11 @@
       <svelte:element
         this={relic.can_edit ? 'button' : 'span'}
         on:click={relic.can_edit ? () => (showVisibilityModal = true) : undefined}
-        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
+        class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium leading-none {relic.can_edit ? 'hover:brightness-95 cursor-pointer' : ''}"
         style="background-color: #e2f2fd; color: #217db1;"
         title={relic.can_edit ? 'Change visibility' : 'Public - discoverable'}
+        role={relic.can_edit ? 'button' : undefined}
+        tabindex={relic.can_edit ? 0 : undefined}
       >
         <i class="fas fa-globe text-[10px]"></i>
         <span>Public</span>
