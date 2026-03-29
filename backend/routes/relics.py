@@ -122,6 +122,9 @@ async def create_relic(
 
         return {
             "id": relic.id,
+            "name": relic.name,
+            "content_type": relic.content_type,
+            "language_hint": relic.language_hint,
             "url": f"/{relic.id}",
             "created_at": relic.created_at,
             "size_bytes": relic.size_bytes
@@ -334,6 +337,9 @@ async def fork_relic(
 
         return {
             "id": fork.id,
+            "name": fork.name,
+            "content_type": fork.content_type,
+            "language_hint": fork.language_hint,
             "url": f"/{fork.id}",
             "fork_of": fork.fork_of,
             "created_at": fork.created_at

@@ -9,6 +9,7 @@
     getSyntaxFromExtension,
     getAvailableSyntaxOptions,
     getFileTypeDefinition,
+    isBinaryType,
   } from "../services/typeUtils";
   import { formatBytes, formatTimeAgo } from "../services/utils/formatting";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
@@ -397,12 +398,26 @@
         }
 
         // If only one relic was created, redirect to it directly (classic behavior)
+        // BUT ONLY IF IT IS NOT BINARY/UNKNOWN
         if (createdRelics.length === 1 && errors.length === 0) {
+          const relic = createdRelics[0];
+          const isBinary = isBinaryType(relic.content_type);
+
           // If a draft was being edited, remove it
           if (currentDraftId) {
             deleteDraft(currentDraftId);
           }
-          window.location.href = `/${createdRelics[0].id}`;
+          
+          if (isBinary) {
+            // Summary view instead of redirect for binary/unknown
+            creationResult = { success: createdRelics, errors };
+            title = "";
+            content = "";
+            tags = "";
+            uploadedFiles = [];
+          } else {
+            window.location.href = `/${relic.id}`;
+          }
         } else {
           // Show summary view
           creationResult = { success: createdRelics, errors };
