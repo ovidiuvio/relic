@@ -17,7 +17,7 @@
 
   const syntaxOptions = getAvailableSyntaxOptions();
 
-  let activeTab = "upload"; // upload, cli, curl, api
+  let activeTab = "editor"; // editor, upload, cli, curl, api
   let title = "";
   let syntax = "auto";
   let syntaxValue = { value: "auto", label: "Auto-detect" };
@@ -73,6 +73,7 @@
     }
 
     uploadedFiles = [...uploadedFiles, ...newFiles];
+    activeTab = "upload"; // Auto-switch to files tab when files are added
 
     // If it's a single file and we don't have a title yet, suggest one
     if (uploadedFiles.length === 1 && !title) {
@@ -318,23 +319,72 @@
 <div class="mb-8">
   <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
     <div
-      class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
+      class="px-6 h-14 border-b border-gray-200 flex items-center justify-between"
     >
-      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-        {#if creationResult}
-          <i class="fas fa-check-circle text-green-600 mr-2"></i>
-          Relics Created Successfully
-        {:else}
-          <i class="fas fa-plus text-blue-600 mr-2"></i>
-          Create New Relic
+      <div class="flex items-center h-full">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center mr-8">
+          {#if creationResult}
+            <i class="fas fa-check-circle text-green-600 mr-2 text-base"></i>
+            Relics Created Successfully
+          {:else}
+            <i class="fas fa-plus text-blue-600 mr-2 text-base"></i>
+            Create New Relic
+          {/if}
+        </h2>
+ 
+        {#if !creationResult}
+          <!-- Tab Navigation -->
+          <nav class="flex -mb-px space-x-2 h-full">
+            <button
+              on:click={() => (activeTab = "editor")}
+              class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
+              'editor'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+            >
+              <i class="fas fa-edit mr-1.5 opacity-70"></i>
+              Editor
+            </button>
+            <button
+              on:click={() => (activeTab = "upload")}
+              class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
+              'upload'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+            >
+              <i class="fas fa-upload mr-1.5 opacity-70"></i>
+              Files
+            </button>
+            <button
+              on:click={() => (activeTab = "cli")}
+              class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
+              'cli'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+            >
+              <i class="fas fa-terminal mr-1.5 opacity-70"></i>
+              CLI
+            </button>
+            <button
+              on:click={() => (activeTab = "curl")}
+              class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
+              'curl'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+            >
+              <i class="fas fa-code mr-1.5 opacity-70"></i>
+              Curl
+            </button>
+          </nav>
         {/if}
-      </h2>
-      {#if !creationResult && activeTab === "upload"}
+      </div>
+
+      {#if !creationResult}
         <div class="flex items-center gap-4">
-          <div class="text-xs text-gray-500">
-            {#if uploadedFiles.length > 0}
+          <div class="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
+            {#if activeTab === "upload" && uploadedFiles.length > 0}
               {uploadedFiles.length} file(s) attached
-            {:else}
+            {:else if activeTab === "editor"}
               {content.length} characters
             {/if}
           </div>
@@ -342,43 +392,6 @@
       {/if}
     </div>
 
-    {#if !creationResult}
-      <!-- Tab Navigation -->
-      <div class="border-b border-gray-200">
-        <nav class="flex -mb-px px-6">
-          <button
-            on:click={() => (activeTab = "upload")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
-            'upload'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-          >
-            <i class="fas fa-upload mr-2"></i>
-            Upload
-          </button>
-          <button
-            on:click={() => (activeTab = "cli")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
-            'cli'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-          >
-            <i class="fas fa-terminal mr-2"></i>
-            CLI
-          </button>
-          <button
-            on:click={() => (activeTab = "curl")}
-            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab ===
-            'curl'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-          >
-            <i class="fas fa-code mr-2"></i>
-            Curl
-          </button>
-        </nav>
-      </div>
-    {/if}
 
     <div class="p-6">
       {#if creationResult}
@@ -453,174 +466,111 @@
             </button>
           </div>
         </div>
-      {:else if activeTab === "upload"}
+      {:else if activeTab === "upload" || activeTab === "editor"}
         <form on:submit={handleSubmit} class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label
-            for="title"
-            class="block text-sm font-medium text-gray-700 mb-1"
-            >Title</label
-          >
-          <input
-            type="text"
-            id="title"
-            bind:value={title}
-            placeholder="e.g. Nginx Configuration"
-            class="w-full px-3 py-2 text-sm maas-input"
-          />
-          <p class="text-xs text-gray-500 mt-1">
-            A descriptive name for this relic (used for text content)
-          </p>
-        </div>
-
-        <div>
-          <label
-            for="syntax"
-            class="block text-sm font-medium text-gray-700 mb-1">Type</label
-          >
-          <div class="w-full">
-            <Select
-              items={syntaxOptions}
-              bind:value={syntaxValue}
-              placeholder="Search or select language..."
-              searchable={true}
-              clearable={false}
-              showChevron={true}
-              --border="1px solid #AEA79F"
-              --border-radius="2px"
-              --border-focused="1px solid #E95420"
-              --border-hover="1px solid #AEA79F"
-              --padding="0.15rem 0.5rem"
-              --font-size="0.875rem"
-              --height="24px"
-              --item-padding="0.25rem 0.5rem"
-              --item-height="auto"
-              --item-line-height="1.25"
-              --background="white"
-              --list-background="#f3f4f5"
-              --list-border="1px solid #AEA79F"
-              --list-border-radius="6px"
-              --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
-              --input-color="rgb(17 24 39)"
-              --item-color="rgb(17 24 39)"
-              --item-hover-bg="#bcdff1"
-              --item-hover-color="rgb(17 24 39)"
-              --item-is-active-bg="#f3f4f5"
-              --item-is-active-color="rgb(17 24 39)"
-              --internal-padding="0"
-              --chevron-height="20px"
-              --chevron-width="20px"
-              --chevron-color="rgb(107, 114, 128)"
-            />
-          </div>
-          <p class="text-xs text-gray-500 mt-1">
-            Applies to text content only. Files are auto-detected.
-          </p>
-        </div>
-      </div>
-
-      <div>
-        <label
-          for="tags"
-          class="block text-sm font-medium text-gray-700 mb-1"
-          >Tags</label
-        >
-        <input
-          type="text"
-          id="tags"
-          bind:value={tags}
-          placeholder="e.g. config, nginx, production (comma separated)"
-          class="w-full px-3 py-2 text-sm maas-input"
-        />
-        <p class="text-xs text-gray-500 mt-1">
-          Optional tags to categorize this relic
-        </p>
-      </div>
-
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class={activeTab === 'editor' ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "w-full"}>
             <div>
-              <label
-                for="visibility"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Visibility</label
-              >
-              <select
-                id="visibility"
-                bind:value={visibility}
-                class="w-full px-3 py-2 text-sm maas-input bg-white"
-              >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-                <option value="restricted">Restricted</option>
-              </select>
+              <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                id="title"
+                bind:value={title}
+                placeholder={activeTab === 'editor' ? "e.g. Nginx Configuration" : "Archive name (optional)"}
+                class="w-full px-3 py-2 text-sm maas-input"
+              />
               <p class="text-xs text-gray-500 mt-1">
-                {#if visibility === "public"}Anyone can view this relic
-                {:else if visibility === "restricted"}Restricted - only allowed clients can access
-                {:else}Private relic - only accessible via direct URL
-                {/if}
+                {#if activeTab === 'editor'}A descriptive name for this relic{:else}Optional title for your archive{/if}
               </p>
             </div>
 
-            <div>
-              <label
-                for="expiry"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >Expires</label
-              >
-              <select
-                id="expiry"
-                bind:value={expiry}
-                class="w-full px-3 py-2 text-sm maas-input bg-white"
-              >
-                <option value="never">Never</option>
-                <option value="10m">10 Minutes</option>
-                <option value="1h">1 Hour</option>
-                <option value="12h">12 Hours</option>
-                <option value="24h">24 Hours</option>
-                <option value="3d">3 Days</option>
-                <option value="7d">7 Days</option>
-                <option value="30d">30 Days</option>
-                <option value="1y">1 Year</option>
-              </select>
-              <p class="text-xs text-gray-500 mt-1">
-                After expiry, the relic is permanently deleted and its URL stops working.
-              </p>
-            </div>
+            {#if activeTab === 'editor'}
+              <div>
+                <label for="syntax" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <div class="w-full">
+                  <Select
+                    items={syntaxOptions}
+                    bind:value={syntaxValue}
+                    placeholder="Search or select language..."
+                    searchable={true}
+                    clearable={false}
+                    showChevron={true}
+                    --border="1px solid #AEA79F"
+                    --border-radius="2px"
+                    --border-focused="1px solid #E95420"
+                    --border-hover="1px solid #AEA79F"
+                    --padding="0.15rem 0.5rem"
+                    --font-size="0.875rem"
+                    --height="24px"
+                    --item-padding="0.25rem 0.5rem"
+                    --item-height="auto"
+                    --item-line-height="1.25"
+                    --background="white"
+                    --list-background="#f3f4f5"
+                    --list-border="1px solid #AEA79F"
+                    --list-border-radius="6px"
+                    --list-shadow="0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                    --input-color="rgb(17 24 39)"
+                    --item-color="rgb(17 24 39)"
+                    --item-hover-bg="#bcdff1"
+                    --item-hover-color="rgb(17 24 39)"
+                    --item-is-active-bg="#f3f4f5"
+                    --item-is-active-color="rgb(17 24 39)"
+                    --internal-padding="0"
+                    --chevron-height="20px"
+                    --chevron-width="20px"
+                    --chevron-color="rgb(107, 114, 128)"
+                  />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Syntax highlighting for the editor</p>
+              </div>
+            {/if}
           </div>
 
-
-          <div>
-            <label
-              for="content"
-              class="block text-sm font-medium text-gray-700 mb-1"
-              >Content</label
+          {#if activeTab === 'editor'}
+            <div>
+              <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Content</label>
+              <div class="relative">
+                <textarea
+                  id="content"
+                  bind:value={content}
+                  on:dragover={handleDragOver}
+                  on:dragleave={handleDragLeave}
+                  on:drop={handleDrop}
+                  rows="24"
+                  class="w-full h-[600px] font-mono text-sm p-4 maas-input resize-y focus:shadow-none border border-[#dfdcd9] transition-colors"
+                  placeholder="// Paste your code here or drop files to switch to upload mode..."
+                ></textarea>
+              </div>
+            </div>
+          {:else}
+            <!-- Files Tab Content -->
+            <div 
+              class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer"
+              on:dragover={handleDragOver}
+              on:dragleave={handleDragLeave}
+              on:drop={handleDrop}
+              on:click={() => fileInput?.click()}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInput?.click()}
+              role="button"
+              tabindex="0"
             >
-            <div class="relative">
-              <textarea
-                id="content"
-                bind:value={content}
-                on:dragover={handleDragOver}
-                on:dragleave={handleDragLeave}
-                on:drop={handleDrop}
-                rows="16"
-                class="w-full h-64 font-mono text-sm p-4 maas-input resize-y focus:shadow-none border border-[#dfdcd9] transition-colors"
-                placeholder="// Paste your code here or drop files..."
-              ></textarea>
+              <input type="file" bind:this={fileInput} on:change={handleFileUpload} class="hidden" multiple />
+              <div class="mb-4">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+              </div>
+              <p class="text-lg font-medium text-gray-700">Click or drag files here to upload</p>
+              <p class="text-sm text-gray-500 mt-1">Add scripts, configs, logs, or any other files</p>
             </div>
 
             <!-- Uploaded Files List -->
             {#if uploadedFiles.length > 0}
-              <div class="mt-4 space-y-2">
+              <div class="mt-6 space-y-3">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-sm font-medium text-gray-700">
-                    Attached Files ({uploadedFiles.length})
+                  <h3 class="text-sm font-semibold text-gray-900">
+                    Selected Files ({uploadedFiles.length})
                   </h3>
                   {#if uploadedFiles.length > 1}
-                    <label
-                      class="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer select-none"
-                    >
+                    <label class="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         bind:checked={zipMultiple}
@@ -630,25 +580,18 @@
                     </label>
                   {/if}
                 </div>
-                <div
-                  class="bg-gray-50 rounded border border-gray-200 divide-y divide-gray-200 max-h-48 overflow-y-auto"
-                >
+                <div class="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200 max-h-64 overflow-y-auto shadow-inner">
                   {#each uploadedFiles as { file, id }}
-                    <div class="flex items-center justify-between p-2 text-sm">
+                    <div class="flex items-center justify-between p-3 text-sm hover:bg-white transition-colors">
                       <div class="flex items-center truncate">
-                        <i class="fas fa-file text-gray-400 mr-2"></i>
-                        <span
-                          class="font-medium text-gray-700 truncate max-w-xs"
-                          >{file.name}</span
-                        >
-                        <span class="text-gray-500 ml-2 text-xs"
-                          >({formatBytes(file.size)})</span
-                        >
+                        <i class="fas {file.type.includes('image') ? 'fa-file-image' : 'fa-file-alt'} text-gray-400 mr-3"></i>
+                        <span class="font-medium text-gray-700 truncate max-w-sm">{file.name}</span>
+                        <span class="text-gray-500 ml-2 text-xs">({formatBytes(file.size)})</span>
                       </div>
                       <button
                         type="button"
-                        on:click={() => removeFile(id)}
-                        class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                        on:click|stopPropagation={() => removeFile(id)}
+                        class="text-gray-400 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-all"
                         title="Remove file"
                       >
                         <i class="fas fa-times"></i>
@@ -658,52 +601,122 @@
                 </div>
               </div>
             {/if}
+          {/if}
 
-            <div class="flex items-center gap-4 text-sm text-gray-500 mt-2">
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  on:click={() => fileInput?.click()}
-                  class="maas-btn-secondary px-3 py-1 text-xs rounded font-medium"
-                >
-                  <i class="fas fa-upload mr-1"></i>
-                  Add Files
-                </button>
-                <input
-                  type="file"
-                  bind:this={fileInput}
-                  on:change={handleFileUpload}
-                  class="hidden"
-                  multiple
-                />
-              </div>
-              <span class="text-xs">or drag & drop files</span>
-            </div>
+          <!-- Common Tags Field -->
+          <div class="mt-6">
+            <label for="tags" class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+            <input
+              type="text"
+              id="tags"
+              bind:value={tags}
+              placeholder="e.g. config, nginx, production (comma separated)"
+              class="w-full px-3 py-2 text-sm maas-input"
+            />
+            <p class="text-xs text-gray-500 mt-1">Optional tags to categorize this relic</p>
           </div>
 
+          <!-- Actions Area -->
+          <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+            <div class="flex items-center gap-2">
+              <div class="flex p-[3px] bg-gray-100 border border-gray-200 rounded gap-0.5">
+                <button 
+                  type="button"
+                  on:click={() => visibility = 'public'}
+                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'public' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
+                  style={visibility === 'public' ? 'background-color: #e2f2fd; color: #217db1;' : ''}
+                  title="Anyone can view"
+                >
+                  <i class="fas fa-globe text-[10px]"></i>
+                  <span>PUBLIC</span>
+                </button>
+                <button 
+                  type="button"
+                  on:click={() => visibility = 'private'}
+                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'private' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
+                  style={visibility === 'private' ? 'background-color: #fce3eb; color: #76306c;' : ''}
+                  title="Direct URL only"
+                >
+                  <i class="fas fa-lock text-[10px]"></i>
+                  <span>PRIVATE</span>
+                </button>
+                <button 
+                  type="button"
+                  on:click={() => visibility = 'restricted'}
+                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'restricted' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
+                  style={visibility === 'restricted' ? 'background-color: #fef3c7; color: #b45309;' : ''}
+                  title="Restricted access"
+                >
+                  <i class="fas fa-user-lock text-[10px]"></i>
+                  <span>RESTRICTED</span>
+                </button>
+              </div>
+            </div>
 
-          <div class="flex justify-end pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={isLoading}
-              class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {#if isLoading}
-                <i class="fas fa-spinner fa-spin mr-1"></i>
-                {#if uploadedFiles.length > 1 && zipMultiple}
-                  Creating Zip Archive...
-                {:else}
-                  Creating {uploadedFiles.length + (content.trim() ? 1 : 0)} Relic(s)...
-                {/if}
-              {:else}
-                <i class="fas fa-plus mr-1"></i>
-                {#if uploadedFiles.length > 1 && zipMultiple}
-                  Create Zip Archive
-                {:else}
-                  Create Relic(s)
-                {/if}
+            <div class="flex items-center gap-3">
+              {#if activeTab === 'upload' && uploadedFiles.length > 0}
+                <button
+                  type="button"
+                  on:click={resetForm}
+                  class="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-2 uppercase tracking-tight"
+                >
+                  Clear All
+                </button>
               {/if}
-            </button>
+              
+              <div class="flex items-center bg-[#0e8420] rounded shadow-sm hover:shadow-md transition-all overflow-hidden border border-[#0a6b19] h-10">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  class="h-full px-5 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#0a6b19] transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {#if isLoading}
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Creating...</span>
+                  {:else}
+                    <i class="fas fa-plus text-[10px]"></i>
+                    <span class="tracking-tight">
+                      {#if activeTab === 'editor'}Create Relic{:else if uploadedFiles.length > 1 && zipMultiple}Create Archive{:else}Create Relic{/if}
+                    </span>
+                  {/if}
+                </button>
+                
+                <div class="w-[1px] h-6 bg-white/20"></div>
+
+                <div class="relative h-full group flex items-center">
+                  <select
+                    bind:value={expiry}
+                    class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none flex items-center [&::-webkit-outer-spin-button]:hidden [&::-webkit-calendar-picker-indicator]:hidden"
+                    style="background-image: none;"
+                    class:bg-[#0e8420]={expiry === 'never'}
+                    class:text-transparent={expiry === 'never'}
+                    class:hover:bg-[#0a6b19]={expiry === 'never'}
+                    class:text-[10px]={expiry === 'never'}
+                    class:px-1.5={expiry === 'never'}
+                    class:bg-orange-100={expiry !== 'never'}
+                    class:text-orange-700={expiry !== 'never'}
+                    class:hover:bg-orange-200={expiry !== 'never'}
+                    class:text-[11px]={expiry !== 'never'}
+                    class:px-3={expiry !== 'never'}
+                    class:pr-7={expiry !== 'never'}
+                    title="Set expiration"
+                  >
+                    <option value="never" class="text-gray-900">Never</option>
+                    <option value="10m" class="text-gray-900">10m</option>
+                    <option value="1h" class="text-gray-900">1h</option>
+                    <option value="12h" class="text-gray-900">12h</option>
+                    <option value="24h" class="text-gray-900">24h</option>
+                    <option value="3d" class="text-gray-900">3d</option>
+                    <option value="7d" class="text-gray-900">1w</option>
+                    <option value="30d" class="text-gray-900">1mo</option>
+                    <option value="1y" class="text-gray-900">1y</option>
+                  </select>
+                  <div class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}>
+                    <i class="fas fa-clock text-[10px]"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       {:else if activeTab === "cli"}
