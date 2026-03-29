@@ -117,7 +117,15 @@
     }
     return true;
   })();
-
+  
+  let showHeader = (() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("relic_editor_show_header");
+      return saved === "false" ? false : true;
+    }
+    return true;
+  })();
+  
   let fontSize = (() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("relic_editor_font_size");
@@ -210,6 +218,13 @@
     localStorage.setItem(
       "relic_editor_show_comments",
       showComments.toString(),
+    );
+  }
+
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem(
+      "relic_editor_show_header",
+      showHeader.toString(),
     );
   }
 
@@ -621,23 +636,25 @@
         ? 'rounded-none'
         : 'rounded-lg'}"
     >
-      <RelicHeader
-        {relic}
-        {relicId}
-        {isBookmarked}
-        {bookmarkLoading}
-        {checkingBookmark}
-        {forkLoading}
-        {isArchiveFile}
-        {isAdmin}
-        {deleteLoading}
-        on:toggle-bookmark={toggleBookmark}
-        on:fork={handleFork}
-        on:delete={handleDelete}
-        on:update={handleRelicUpdate}
-        on:tag-click
-        on:remove-tag={handleRemoveTag}
-      />
+      {#if showHeader}
+        <RelicHeader
+          {relic}
+          {relicId}
+          {isBookmarked}
+          {bookmarkLoading}
+          {checkingBookmark}
+          {forkLoading}
+          {isArchiveFile}
+          {isAdmin}
+          {deleteLoading}
+          on:toggle-bookmark={toggleBookmark}
+          on:fork={handleFork}
+          on:delete={handleDelete}
+          on:update={handleRelicUpdate}
+          on:tag-click
+          on:remove-tag={handleRemoveTag}
+        />
+      {/if}
 
       <RelicStatusBar
         {relic}
@@ -646,6 +663,7 @@
         {showSyntaxHighlighting}
         {showLineNumbers}
         {showComments}
+        {showHeader}
         {showSource}
         {pdfState}
         {fontSize}
@@ -654,6 +672,7 @@
           (showSyntaxHighlighting = !showSyntaxHighlighting)}
         on:toggle-linenumbers={() => (showLineNumbers = !showLineNumbers)}
         on:toggle-comments={() => (showComments = !showComments)}
+        on:toggle-header={() => (showHeader = !showHeader)}
         on:toggle-source={(e) => (showSource = e.detail)}
         on:update-font-size={(e) => (fontSize = e.detail)}
         on:toggle-dark-mode={() => (darkMode = !darkMode)}

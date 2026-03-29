@@ -21,6 +21,7 @@
   export let treePageSize = 100
   export let showLineFilter = false
   export let hasLineage = false
+  export let showHeader = true
 
   const dispatch = createEventDispatcher()
 
@@ -154,6 +155,14 @@
   <!-- View Controls -->
   <div class="flex items-center gap-2">
     <!-- Full-Width Toggle -->
+    <button
+      on:click={() => dispatch('toggle-header')}
+      class="px-2 py-1 rounded text-xs font-medium transition-colors {showHeader ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+      title={showHeader ? 'Hide header' : 'Show header'} aria-label={showHeader ? 'Hide header' : 'Show header'}
+    >
+      <i class="fas fa-window-maximize text-[10px]"></i>
+    </button>
+
     <button
       on:click={() => dispatch('toggle-fullwidth')}
       class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
