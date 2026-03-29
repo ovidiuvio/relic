@@ -1070,7 +1070,7 @@
                       class:text-[11px]={expiry !== 'never'}
                       class:px-3={expiry !== 'never'}
                       class:pr-7={expiry !== 'never'}
-                      title="Set expiration"
+                      title={expiry === 'never' ? "Expires: Never" : `Expires in: ${expiry}`}
                     >
                       <option value="never" class="text-gray-900">Never</option>
                       <option value="10m" class="text-gray-900">10m</option>
@@ -1082,7 +1082,10 @@
                       <option value="30d" class="text-gray-900">1mo</option>
                       <option value="1y" class="text-gray-900">1y</option>
                     </select>
-                    <div class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}>
+                    <div 
+                      class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}
+                      title={expiry === 'never' ? "Expires: Never" : `Expires in: ${expiry}`}
+                    >
                       <i class="fas fa-clock text-[10px]"></i>
                     </div>
                   </div>
