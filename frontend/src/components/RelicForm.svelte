@@ -768,6 +768,41 @@
             {/if}
           </div>
 
+          {#if activeTab === 'editor' && isFocusMode}
+            <div class="flex items-center justify-between gap-4 pb-2">
+              <div class="group relative flex-1 min-w-0 flex items-center">
+                <i class="fas fa-scroll text-[rgb(37,99,235)] text-xl mr-3 opacity-80"></i>
+                <div class="relative flex-1">
+                  <input
+                    type="text"
+                    bind:value={title}
+                    placeholder="Untiled Relic"
+                    class="w-full text-2xl font-bold text-gray-900 bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 truncate"
+                  />
+                  <div class="h-0.5 w-full bg-blue-500/0 group-focus-within:bg-blue-500/10 transition-colors"></div>
+                </div>
+              </div>
+
+              <!-- Prominent Create Button (Focus Mode) -->
+              <div class="flex items-center gap-2">
+                 <button
+                   type="submit"
+                   on:click|preventDefault={handleSubmit}
+                   disabled={isLoading}
+                   class="h-[36px] px-5 bg-[#0e8420] hover:bg-[#0a6b19] text-white rounded shadow-sm hover:shadow transition-all active:scale-[0.98] border border-[#0a6b19] flex items-center justify-center gap-2 text-sm font-bold"
+                 >
+                   {#if isLoading}
+                     <i class="fas fa-spinner fa-spin"></i>
+                     <span>Creating...</span>
+                   {:else}
+                     <i class="fas fa-plus text-[10px]"></i>
+                     <span>Create Relic</span>
+                   {/if}
+                 </button>
+              </div>
+            </div>
+          {/if}
+
           <!-- Metadata row (Visibility) Shared between Editor and Files -->
           {#if activeTab === 'editor' || activeTab === 'upload'}
             <div class="flex items-center justify-between mb-2">
@@ -881,40 +916,6 @@
 
           {#if activeTab === 'editor'}
             <div class="space-y-4">
-              {#if isFocusMode}
-                <div class="flex items-center justify-between gap-4 pb-2">
-                  <div class="group relative flex-1 min-w-0 flex items-center">
-                    <i class="fas fa-scroll text-gray-400 text-xl mr-3 opacity-60"></i>
-                    <div class="relative flex-1">
-                      <input
-                        type="text"
-                        bind:value={title}
-                        placeholder="Untiled Relic"
-                        class="w-full text-2xl font-bold text-gray-900 bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 truncate"
-                      />
-                      <div class="h-0.5 w-full bg-blue-500/0 group-focus-within:bg-blue-500/10 transition-colors"></div>
-                    </div>
-                  </div>
-
-                  <!-- Prominent Create Button (Focus Mode) -->
-                  <div class="flex items-center gap-2">
-                     <button
-                       type="submit"
-                       on:click|preventDefault={handleSubmit}
-                       disabled={isLoading}
-                       class="h-[36px] px-5 bg-[#0e8420] hover:bg-[#0a6b19] text-white rounded shadow-sm hover:shadow transition-all active:scale-[0.98] border border-[#0a6b19] flex items-center justify-center gap-2 text-sm font-bold"
-                     >
-                       {#if isLoading}
-                         <i class="fas fa-spinner fa-spin"></i>
-                         <span>Creating...</span>
-                       {:else}
-                         <i class="fas fa-plus text-[10px]"></i>
-                         <span>Create Relic</span>
-                       {/if}
-                     </button>
-                  </div>
-                </div>
-              {/if}
 
               <div 
                 id="editor-container"
