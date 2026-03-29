@@ -29,6 +29,7 @@
   export let ansiDecorations = [] // ANSI color decorations
   export let darkMode = true
   export let lineNumberOffset = 0 // Offset for line numbers in snippets
+  export let placeholder = ''
 
   let container
   let editor
@@ -55,6 +56,7 @@
   let commentEditorComponents = [] // Track Svelte components for cleanup
   let hoveredGlyphLine = null
   let currentClientId = null
+  let isFocused = false
 
   $: isDarkMode = darkMode
 
@@ -167,8 +169,17 @@
 
       // Listen for content changes
       editor.onDidChangeModelContent(() => {
-        dispatch('change', editor.getValue())
+        value = editor.getValue();
+        dispatch('change', value)
       })
+
+      editor.onDidFocusEditorText(() => {
+        isFocused = true;
+      });
+
+      editor.onDidBlurEditorText(() => {
+        isFocused = false;
+      });
 
       // Check for line number fragment on mount
       if (relicId) {
@@ -1219,15 +1230,44 @@
   }
 </script>
 
-{#if noWrapper}
-  <div bind:this={container} style="height: {height};" class="w-full monaco-editor-clickable-lines {isDarkMode ? 'relic-dark-mode' : ''}" />
-{:else}
-  <div class="shadow-sm rounded-lg border mb-6 overflow-hidden {isDarkMode ? 'bg-[#1e1e1e] border-[#333333] relic-dark-mode' : 'bg-white border-gray-200'}">
-    <div bind:this={container} style="height: {height};" class="w-full monaco-editor-clickable-lines {isDarkMode ? 'relic-dark-mode' : ''}" />
-  </div>
-{/if}
+<div class="monaco-wrapper-outer {noWrapper ? 'no-wrapper' : ''}" style="height: {height};">
+  {#if noWrapper}
+    <div bind:this={container} style="height: 100%;" class="w-full monaco-editor-clickable-lines {isDarkMode ? 'relic-dark-mode' : ''}" />
+  {:else}
+    <div class="shadow-sm rounded-lg border mb-6 overflow-hidden h-full {isDarkMode ? 'bg-[#1e1e1e] border-[#333333] relic-dark-mode' : 'bg-white border-gray-200'}">
+      <div bind:this={container} style="height: 100%;" class="w-full monaco-editor-clickable-lines {isDarkMode ? 'relic-dark-mode' : ''}" />
+    </div>
+  {/if}
+
+  {#if placeholder && !value && !isFocused}
+    <div 
+      class="monaco-placeholder" 
+      style="left: {showLineNumbers ? '64px' : '24px'}; top: 16px; font-size: {fontSize}px;"
+      on:click={() => editor?.focus()}
+    >
+      {placeholder}
+    </div>
+  {/if}
+</div>
 
 <style>
+  .monaco-wrapper-outer {
+    position: relative;
+    width: 100%;
+  }
+
+  .monaco-placeholder {
+    position: absolute;
+    color: #9ca3af;
+    pointer-events: none;
+    user-select: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: pre-wrap;
+    z-index: 5;
+    pointer-events: auto;
+    cursor: text;
+    line-height: 24px;
+  }
   /* Styles for highlighted lines */
   :global(.line-number-highlight) {
     background-color: #fef3e2 !important;

@@ -936,6 +936,7 @@
                   fontSize={fontSize}
                   darkMode={false}
                   showComments={false}
+                  placeholder="// Paste your code here or drop files to upload as a relic..."
                   on:change={(e) => content = e.detail}
                   noWrapper={true}
                 />
