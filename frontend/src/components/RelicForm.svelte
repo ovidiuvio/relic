@@ -1057,7 +1057,7 @@
                   <div class="relative h-full group flex items-center">
                     <select
                       bind:value={expiry}
-                      class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none flex items-center [&::-webkit-outer-spin-button]:hidden [&::-webkit-calendar-picker-indicator]:hidden"
+                      class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none text-center leading-[34px] py-0"
                       style="background-image: none;"
                       class:bg-[#0e8420]={expiry === 'never'}
                       class:text-transparent={expiry === 'never'}
@@ -1068,8 +1068,8 @@
                       class:text-orange-700={expiry !== 'never'}
                       class:hover:bg-orange-200={expiry !== 'never'}
                       class:text-[11px]={expiry !== 'never'}
-                      class:px-3={expiry !== 'never'}
-                      class:pr-7={expiry !== 'never'}
+                      class:pl-3={expiry !== 'never'}
+                      class:pr-8={expiry !== 'never'}
                       title={expiry === 'never' ? "Expires: Never" : `Expires in: ${expiry}`}
                     >
                       <option value="never" class="text-gray-900">Never</option>
@@ -1083,10 +1083,10 @@
                       <option value="1y" class="text-gray-900">1y</option>
                     </select>
                     <div 
-                      class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}
+                      class={`absolute top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry === 'never' ? 'left-0 right-0 justify-center' : 'right-2.5'} ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}
                       title={expiry === 'never' ? "Expires: Never" : `Expires in: ${expiry}`}
                     >
-                      <i class="fas fa-clock text-[10px]"></i>
+                      <i class="fas fa-clock text-[13px]"></i>
                     </div>
                   </div>
                 </div>
