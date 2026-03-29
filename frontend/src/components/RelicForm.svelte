@@ -919,7 +919,7 @@
 
               <div 
                 id="editor-container"
-                class="relative border border-[#dfdcd9] rounded-sm overflow-hidden group transition-all duration-200 resize-y {isFocusMode ? 'h-[calc(100vh-300px)] min-h-[400px]' : 'h-[600px] min-h-[200px]'} focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20"
+                class="relative border border-[#dfdcd9] rounded-sm overflow-hidden group transition-all duration-200 resize-y {isFocusMode ? 'h-[calc(100vh-300px)] min-h-[400px]' : 'h-[400px] min-h-[200px]'} focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20"
                 on:dragover={handleDragOver}
                 on:dragleave={handleDragLeave}
                 on:drop={handleDrop}
