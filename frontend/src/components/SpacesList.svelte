@@ -3,7 +3,7 @@
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
     import { getFilesFromDrop } from '../services/utils/fileProcessing';
-    import { formatTimeAgo } from '../services/typeUtils';
+    import { formatTimeAgo, getDefaultItemsPerPage } from '../services/typeUtils';
     import { createReloader } from '../services/utils/paginationUtils';
     import RelicDropModal from './RelicDropModal.svelte';
     import ConfirmModal from './ConfirmModal.svelte';
@@ -186,6 +186,7 @@
     }
 
     onMount(async () => {
+        itemsPerPage = getDefaultItemsPerPage();
         await loadSpaces(1);
         spacesReady = true;
         reloader.setReady();
@@ -447,8 +448,11 @@
                                 class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm text-[#666] bg-white hover:border-gray-400 cursor-pointer w-14 focus:outline-none"
                             >
                                 <option value={10}>10</option>
+                                <option value={15}>15</option>
                                 <option value={20}>20</option>
                                 <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={250}>250</option>
                             </select>
                         </div>
                     </div>

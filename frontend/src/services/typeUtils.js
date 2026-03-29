@@ -139,12 +139,22 @@ export function getAvailableSyntaxOptions() {
   ]
 }
 
-// Get default items per page based on screen size
+// Get default items per page so the table fits within the viewport.
+// Chrome breakdown (inside <main>): page top padding (24px) + table title/search bar (61px) +
+//   column headers (38px) + pagination bar (45px) + section bottom margin (32px) +
+//   page bottom padding (24px) = ~224px. Add nav header (56px) = 280px total.
+// ROW_HEIGHT is conservative at 62px to account for rows that include tag chips.
+// Result is rounded to the nearest standard page-size option.
+const PAGE_OPTIONS = [10, 15, 20, 50, 100, 250]
 export function getDefaultItemsPerPage() {
   if (typeof window === 'undefined') return 20
-  const width = window.innerWidth
-  if (width < 768) return 10      // Mobile
-  return 20                        // Tablet & Desktop
+  if (window.innerWidth < 768) return 10  // Mobile — width-constrained layout
+  const CHROME_HEIGHT = 280
+  const ROW_HEIGHT = 62
+  const exact = Math.max(PAGE_OPTIONS[0], Math.floor((window.innerHeight - CHROME_HEIGHT) / ROW_HEIGHT))
+  return PAGE_OPTIONS.reduce((prev, curr) =>
+    Math.abs(curr - exact) < Math.abs(prev - exact) ? curr : prev
+  )
 }
 
 // Check if content type is binary/non-editable

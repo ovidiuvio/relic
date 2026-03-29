@@ -448,8 +448,11 @@
               class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm text-[#666] bg-white hover:border-gray-400 cursor-pointer w-14 focus:outline-none"
             >
               <option value={10}>10</option>
+              <option value={15}>15</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={250}>250</option>
             </select>
           </div>
         {/if}

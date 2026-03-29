@@ -25,6 +25,7 @@
         getTypeIconColor,
         formatBytes,
         formatTimeAgo,
+        getDefaultItemsPerPage,
     } from "../services/typeUtils";
 
     import {
@@ -491,6 +492,11 @@
     $: reportsTotalPages = Math.ceil(reportsTotal / reportsLimit);
 
     onMount(async () => {
+        const perPage = getDefaultItemsPerPage();
+        relicsLimit = perPage;
+        clientsLimit = perPage;
+        backupsLimit = perPage;
+        reportsLimit = perPage;
         await checkAdmin();
         if (isAdmin) {
             await Promise.all([
@@ -1049,11 +1055,12 @@
                                     on:change={() => { relicsPage = 1; loadRelics(); }}
                                     class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
-                                    <option value={25}>25</option>
+                                    <option value={10}>10</option>
+                                    <option value={15}>15</option>
+                                    <option value={20}>20</option>
                                     <option value={50}>50</option>
                                     <option value={100}>100</option>
                                     <option value={250}>250</option>
-                                    <option value={500}>500</option>
                                 </select>
                             </div>
                         </div>
@@ -1223,11 +1230,12 @@
                                     on:change={() => { reportsPage = 1; loadReports(); }}
                                     class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
-                                    <option value={25}>25</option>
+                                    <option value={10}>10</option>
+                                    <option value={15}>15</option>
+                                    <option value={20}>20</option>
                                     <option value={50}>50</option>
                                     <option value={100}>100</option>
                                     <option value={250}>250</option>
-                                    <option value={500}>500</option>
                                 </select>
                             </div>
                         </div>
@@ -1408,11 +1416,12 @@
                                     on:change={() => { clientsPage = 1; loadClients(); }}
                                     class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
-                                    <option value={25}>25</option>
+                                    <option value={10}>10</option>
+                                    <option value={15}>15</option>
+                                    <option value={20}>20</option>
                                     <option value={50}>50</option>
                                     <option value={100}>100</option>
                                     <option value={250}>250</option>
-                                    <option value={500}>500</option>
                                 </select>
                             </div>
                         </div>
@@ -1556,11 +1565,12 @@
                                     on:change={() => { backupsPage = 1; loadBackups(); }}
                                     class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
-                                    <option value={25}>25</option>
+                                    <option value={10}>10</option>
+                                    <option value={15}>15</option>
+                                    <option value={20}>20</option>
                                     <option value={50}>50</option>
                                     <option value={100}>100</option>
-                                    <option value={200}>200</option>
-                                    <option value={500}>500</option>
+                                    <option value={250}>250</option>
                                 </select>
                             </div>
                         </div>
