@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
-from sqlalchemy import func, select, update, delete
+from sqlalchemy import func, case, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 from typing import Optional
@@ -227,36 +227,33 @@ async def admin_get_stats(
     """
     await get_admin_client(request, db)
 
-    async def count(model, *filters):
-        stmt = select(func.count(model.id))
-        if filters:
-            stmt = stmt.where(*filters)
-        result = await db.execute(stmt)
-        return result.scalar() or 0
-
-    total_relics = await count(Relic)
-    total_clients = await count(ClientKey)
-    total_size_result = await db.execute(select(func.sum(Relic.size_bytes)))
-    total_size = total_size_result.scalar() or 0
-    public_relics = await count(Relic, Relic.access_level == "public")
-    private_relics = await count(Relic, Relic.access_level == "private")
-    restricted_relics = await count(Relic, Relic.access_level == "restricted")
-    total_comments = await count(Comment)
-    total_bookmarks = await count(ClientBookmark)
-    total_reports = await count(RelicReport)
-    total_spaces = await count(Space)
+    # Consolidate stats queries into a single database query to reduce roundtrips (excluding initial admin check)
+    stmt = select(
+        func.count(Relic.id).label("total_relics"),
+        func.sum(Relic.size_bytes).label("total_size_bytes"),
+        func.sum(case((Relic.access_level == 'public', 1), else_=0)).label("public_relics"),
+        func.sum(case((Relic.access_level == 'private', 1), else_=0)).label("private_relics"),
+        func.sum(case((Relic.access_level == 'restricted', 1), else_=0)).label("restricted_relics"),
+        select(func.count(ClientKey.id)).scalar_subquery().label("total_clients"),
+        select(func.count(Comment.id)).scalar_subquery().label("total_comments"),
+        select(func.count(ClientBookmark.id)).scalar_subquery().label("total_bookmarks"),
+        select(func.count(RelicReport.id)).scalar_subquery().label("total_reports"),
+        select(func.count(Space.id)).scalar_subquery().label("total_spaces")
+    )
+    result = await db.execute(stmt)
+    stats = result.first()
 
     return {
-        "total_relics": total_relics,
-        "total_clients": total_clients,
-        "total_size_bytes": total_size,
-        "public_relics": public_relics,
-        "private_relics": private_relics,
-        "restricted_relics": restricted_relics,
-        "total_comments": total_comments,
-        "total_bookmarks": total_bookmarks,
-        "total_reports": total_reports,
-        "total_spaces": total_spaces,
+        "total_relics": stats.total_relics or 0,
+        "total_size_bytes": stats.total_size_bytes or 0,
+        "public_relics": stats.public_relics or 0,
+        "private_relics": stats.private_relics or 0,
+        "restricted_relics": stats.restricted_relics or 0,
+        "total_clients": stats.total_clients or 0,
+        "total_comments": stats.total_comments or 0,
+        "total_bookmarks": stats.total_bookmarks or 0,
+        "total_reports": stats.total_reports or 0,
+        "total_spaces": stats.total_spaces or 0,
         "admin_count": len(settings.get_admin_client_ids())
     }
 
