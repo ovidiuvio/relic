@@ -130,6 +130,8 @@
     return false;
   })();
 
+  let isFocusMode = false;
+
   let showSyntaxHighlighting = (() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("relic_form_syntax_highlighting");
@@ -463,6 +465,7 @@
 
 <div class="mb-8 {isFullWidth ? 'max-w-none' : ''}">
   <div class="bg-white shadow-sm border border-gray-200 overflow-hidden {isFullWidth ? 'rounded-none border-x-0' : 'rounded-lg'}">
+    {#if !isFocusMode}
     <div
       class="px-6 h-14 border-b border-gray-200 flex items-center justify-between"
     >
@@ -555,6 +558,7 @@
         </div>
       {/if}
     </div>
+    {/if}
 
 
     <div class="p-6">
@@ -704,26 +708,26 @@
             </div>
          </div>
       {:else if activeTab === "upload" || activeTab === "editor"}
-        <form on:submit={handleSubmit} class="space-y-6">
-          <div class={activeTab === 'editor' ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "w-full"}>
+        <form on:submit={handleSubmit} class="{isFocusMode ? 'space-y-2' : 'space-y-6'}">
+          <div class="{isFocusMode ? 'hidden' : (activeTab === 'editor' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'w-full')}">
             <div>
               <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
               <input
                 type="text"
                 id="title"
                 bind:value={title}
-                placeholder={activeTab === 'editor' ? "e.g. Nginx Configuration" : "Archive name (optional)"}
+                placeholder={activeTab === 'editor' ? "e.g. Nginx Configuration" : "Name (optional)"}
                 class="w-full px-3 py-2 text-sm maas-input"
               />
               <p class="text-xs text-gray-500 mt-1">
-                {#if activeTab === 'editor'}A descriptive name for this relic{:else}Optional title for your archive{/if}
+                {#if activeTab === 'editor'}A descriptive name for this relic{:else}Optional name for your relic{/if}
               </p>
             </div>
 
             {#if activeTab === 'editor'}
               <div>
                 <label for="syntax" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <div class="w-full">
+                <div class="w-full select-type-wrapper">
                   <Select
                     items={syntaxOptions}
                     bind:value={syntaxValue}
@@ -731,13 +735,14 @@
                     searchable={true}
                     clearable={false}
                     showChevron={true}
-                    --border="1px solid #AEA79F"
-                    --border-radius="2px"
+                    --border="1px solid #6b7280"
+                    --border-radius="0px"
                     --border-focused="1px solid #E95420"
                     --border-hover="1px solid #AEA79F"
                     --padding="0.15rem 0.5rem"
+                    --line-height="1.25"
                     --font-size="0.875rem"
-                    --height="24px"
+                    --height="26px"
                     --item-padding="0.25rem 0.5rem"
                     --item-height="auto"
                     --item-line-height="1.25"
@@ -763,80 +768,157 @@
             {/if}
           </div>
 
-          {#if activeTab === 'editor'}
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label for="content" class="block text-sm font-medium text-gray-700">Content</label>
+          <!-- Metadata row (Visibility) Shared between Editor and Files -->
+          {#if activeTab === 'editor' || activeTab === 'upload'}
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-3 align-middle min-h-[24px]">
+                {#if activeTab === 'editor'}
+                  <label for="content" class="block text-sm font-medium text-gray-700 {!isFocusMode ? '' : 'text-[10px] uppercase tracking-wider text-gray-400 font-bold'}">Content</label>
+                {:else}
+                  <label class="block text-sm font-medium text-gray-700">Visibility</label>
+                {/if}
                 
-                <div class="flex items-center gap-2">
-                  <!-- Full-width Toggle -->
-                  <button
-                    type="button"
-                    on:click={() => isFullWidth = !isFullWidth}
-                    class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                    title={isFullWidth ? "Normal width" : "Full width"}
+                <!-- Visibility Dropdown remains permanent -->
+                <div 
+                  class="flex items-center h-5 rounded px-2.5 transition-all shadow-sm ring-1 ring-black/5 relative group"
+                  style={visibility === 'public' ? 'background-color: #e2f2fd; color: #217db1;' : visibility === 'private' ? 'background-color: #fce3eb; color: #76306c;' : 'background-color: #fef3c7; color: #b45309;'}
+                >
+                  <i class="fas {visibility === 'public' ? 'fa-globe' : visibility === 'private' ? 'fa-lock' : 'fa-user-lock'} text-[9px] mr-1.5 opacity-80"></i>
+                  <select 
+                    bind:value={visibility}
+                    class="bg-transparent border-none p-0 text-[10px] font-bold h-auto focus:ring-0 uppercase cursor-pointer pr-4 relative z-10"
+                    style="color: inherit; -webkit-appearance: none !important; -moz-appearance: none !important; appearance: none !important; background: none !important;"
                   >
-                    <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
-                  </button>
-
-                  <!-- Editor Controls -->
-                  <div class="flex items-center gap-1 border-l border-gray-300 pl-2">
+                    <option value="public" class="text-gray-900">Public</option>
+                    <option value="private" class="text-gray-900">Private</option>
+                    <option value="restricted" class="text-gray-900">Restricted</option>
+                  </select>
+                  <i class="fas fa-caret-down text-[9px] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                </div>
+              </div>
+              
+              {#if activeTab === 'editor'}
+                <div class="flex items-center gap-2 ml-auto">
+                   <div class="flex items-center gap-2">
+                    <!-- Focus Mode Toggle -->
                     <button
                       type="button"
-                      on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
-                      class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                      title="Toggle syntax highlighting"
+                      on:click={() => (isFocusMode = !isFocusMode) }
+                      class="px-2 py-1 rounded text-xs font-medium transition-colors {isFocusMode ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                      title={isFocusMode ? "Exit Focus Mode" : "Focus Mode (Distraction-free)"}
                     >
-                      <i class="fas fa-palette text-xs"></i>
-                    </button>
-                    <button
-                      type="button"
-                      on:click={() => showLineNumbers = !showLineNumbers}
-                      class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
-                      title="Toggle line numbers"
-                    >
-                      <i class="fas fa-list-ol text-xs"></i>
+                      <i class="fas {isFocusMode ? 'fa-eye-slash' : 'fa-eye'}"></i>
                     </button>
 
-                    <!-- Font Size Combo Box -->
-                    <div class="flex items-center gap-2 border-l border-gray-300 pl-2 ml-1">
-                      <i class="fas fa-text-height text-xs text-gray-600"></i>
-                      <select
-                        value={fontSize.toString()}
-                        on:change={(e) => {
-                          const val = e.target.value
-                          if (val === 'custom') {
-                            const custom = prompt('Enter font size (8-72):', fontSize.toString())
-                            if (custom && !isNaN(parseInt(custom, 10))) {
-                              const num = parseInt(custom, 10)
-                              if (num >= 8 && num <= 72) {
-                                fontSize = num
-                              }
-                            }
-                          } else {
-                            fontSize = parseInt(val, 10)
-                          }
-                        }}
-                        class="pl-1.5 pr-0.5 py-1 rounded text-xs bg-white border border-gray-300 text-gray-700 cursor-pointer hover:border-gray-400"
-                        style="min-width: fit-content; width: auto;"
-                        title="Font size"
+                    <!-- Full-width Toggle -->
+                    <button
+                      type="button"
+                      on:click={() => isFullWidth = !isFullWidth}
+                      class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                      title={isFullWidth ? "Normal width" : "Full width"}
+                    >
+                      <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
+                    </button>
+
+                    <!-- Editor Controls -->
+                    <div class="flex items-center gap-1 border-l border-gray-300 pl-2">
+                      <button
+                        type="button"
+                        on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
+                        class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                        title="Toggle syntax highlighting"
                       >
-                        <option value="12">12</option>
-                        <option value="13">13</option>
-                        <option value="14">14</option>
-                        <option value="15">15</option>
-                        <option value="16">16</option>
-                        <option value="18">18</option>
-                        <option value="20">20</option>
-                        <option value="custom">Custom...</option>
-                      </select>
+                        <i class="fas fa-palette text-xs"></i>
+                      </button>
+                      <button
+                        type="button"
+                        on:click={() => showLineNumbers = !showLineNumbers}
+                        class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                        title="Toggle line numbers"
+                      >
+                        <i class="fas fa-list-ol text-xs"></i>
+                      </button>
+
+                      <!-- Font Size Combo Box -->
+                      <div class="flex items-center gap-2 border-l border-gray-300 pl-2 ml-1">
+                        <i class="fas fa-text-height text-xs text-gray-600"></i>
+                        <select
+                          value={fontSize.toString()}
+                          on:change={(e) => {
+                            const val = e.target.value
+                            if (val === 'custom') {
+                              const custom = prompt('Enter font size (8-72):', fontSize.toString())
+                              if (custom && !isNaN(parseInt(custom, 10))) {
+                                const num = parseInt(custom, 10)
+                                if (num >= 8 && num <= 72) {
+                                  fontSize = num
+                                }
+                              }
+                            } else {
+                              fontSize = parseInt(val, 10)
+                            }
+                          }}
+                          class="pl-1.5 pr-0.5 py-1 rounded text-xs bg-white border border-gray-300 text-gray-700 cursor-pointer hover:border-gray-400"
+                          style="min-width: fit-content; width: auto;"
+                          title="Font size"
+                        >
+                          <option value="12">12</option>
+                          <option value="13">13</option>
+                          <option value="14">14</option>
+                          <option value="15">15</option>
+                          <option value="16">16</option>
+                          <option value="18">18</option>
+                          <option value="20">20</option>
+                          <option value="custom">Custom...</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              {/if}
+            </div>
+          {/if}
+
+          {#if activeTab === 'editor'}
+            <div class="space-y-4">
+              {#if isFocusMode}
+                <div class="flex items-center justify-between gap-4 pb-2">
+                  <div class="group relative flex-1 min-w-0 flex items-center">
+                    <i class="fas fa-scroll text-gray-400 text-xl mr-3 opacity-60"></i>
+                    <div class="relative flex-1">
+                      <input
+                        type="text"
+                        bind:value={title}
+                        placeholder="Untiled Relic"
+                        class="w-full text-2xl font-bold text-gray-900 bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 truncate"
+                      />
+                      <div class="h-0.5 w-full bg-blue-500/0 group-focus-within:bg-blue-500/10 transition-colors"></div>
+                    </div>
+                  </div>
+
+                  <!-- Prominent Create Button (Focus Mode) -->
+                  <div class="flex items-center gap-2">
+                     <button
+                       type="submit"
+                       on:click|preventDefault={handleSubmit}
+                       disabled={isLoading}
+                       class="h-[36px] px-5 bg-[#0e8420] hover:bg-[#0a6b19] text-white rounded shadow-sm hover:shadow transition-all active:scale-[0.98] border border-[#0a6b19] flex items-center justify-center gap-2 text-sm font-bold"
+                     >
+                       {#if isLoading}
+                         <i class="fas fa-spinner fa-spin"></i>
+                         <span>Creating...</span>
+                       {:else}
+                         <i class="fas fa-plus text-[10px]"></i>
+                         <span>Create Relic</span>
+                       {/if}
+                     </button>
+                  </div>
+                </div>
+              {/if}
 
               <div 
-                class="relative border border-[#dfdcd9] rounded-sm overflow-hidden group transition-all duration-200 resize-y h-[600px] min-h-[200px] focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20"
+                id="editor-container"
+                class="relative border border-[#dfdcd9] rounded-sm overflow-hidden group transition-all duration-200 resize-y {isFocusMode ? 'h-[calc(100vh-300px)] min-h-[400px]' : 'h-[600px] min-h-[200px]'} focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20"
                 on:dragover={handleDragOver}
                 on:dragleave={handleDragLeave}
                 on:drop={handleDrop}
@@ -920,7 +1002,7 @@
           {/if}
 
           <!-- Common Tags Field -->
-          <div class="mt-6">
+          <div class="mt-6 {isFocusMode ? 'hidden' : ''}">
             <label for="tags" class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
             <input
               type="text"
@@ -933,107 +1015,79 @@
           </div>
 
           <!-- Actions Area -->
-          <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
-            <div class="flex items-center gap-2">
-              <div class="flex p-[3px] bg-gray-100 border border-gray-200 rounded gap-0.5">
-                <button 
-                  type="button"
-                  on:click={() => visibility = 'public'}
-                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'public' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
-                  style={visibility === 'public' ? 'background-color: #e2f2fd; color: #217db1;' : ''}
-                  title="Anyone can view"
-                >
-                  <i class="fas fa-globe text-[10px]"></i>
-                  <span>PUBLIC</span>
-                </button>
-                <button 
-                  type="button"
-                  on:click={() => visibility = 'private'}
-                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'private' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
-                  style={visibility === 'private' ? 'background-color: #fce3eb; color: #76306c;' : ''}
-                  title="Direct URL only"
-                >
-                  <i class="fas fa-lock text-[10px]"></i>
-                  <span>PRIVATE</span>
-                </button>
-                <button 
-                  type="button"
-                  on:click={() => visibility = 'restricted'}
-                  class="flex items-center gap-1.5 px-3 py-1 rounded-sm text-[10px] font-bold transition-all {visibility === 'restricted' ? 'shadow-sm opacity-100 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 opacity-60 hover:opacity-100'}"
-                  style={visibility === 'restricted' ? 'background-color: #fef3c7; color: #b45309;' : ''}
-                  title="Restricted access"
-                >
-                  <i class="fas fa-user-lock text-[10px]"></i>
-                  <span>RESTRICTED</span>
-                </button>
+          {#if !isFocusMode}
+            <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
+                </div>
               </div>
-            </div>
 
-            <div class="flex items-center gap-3">
-              {#if activeTab === 'upload' && uploadedFiles.length > 0}
-                <button
-                  type="button"
-                  on:click={resetForm}
-                  class="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-2 uppercase tracking-tight"
-                >
-                  Clear All
-                </button>
-              {/if}
-              
-              <div class="flex items-center bg-[#0e8420] rounded shadow-sm hover:shadow-md transition-all overflow-hidden border border-[#0a6b19] h-10">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  class="h-full px-5 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#0a6b19] transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  {#if isLoading}
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Creating...</span>
-                  {:else}
-                    <i class="fas fa-plus text-[10px]"></i>
-                    <span class="tracking-tight">
-                      {#if activeTab === 'editor'}Create Relic{:else if uploadedFiles.length > 1 && zipMultiple}Create Archive{:else}Create Relic{/if}
-                    </span>
-                  {/if}
-                </button>
-                
-                <div class="w-[1px] h-6 bg-white/20"></div>
-
-                <div class="relative h-full group flex items-center">
-                  <select
-                    bind:value={expiry}
-                    class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none flex items-center [&::-webkit-outer-spin-button]:hidden [&::-webkit-calendar-picker-indicator]:hidden"
-                    style="background-image: none;"
-                    class:bg-[#0e8420]={expiry === 'never'}
-                    class:text-transparent={expiry === 'never'}
-                    class:hover:bg-[#0a6b19]={expiry === 'never'}
-                    class:text-[10px]={expiry === 'never'}
-                    class:px-1.5={expiry === 'never'}
-                    class:bg-orange-100={expiry !== 'never'}
-                    class:text-orange-700={expiry !== 'never'}
-                    class:hover:bg-orange-200={expiry !== 'never'}
-                    class:text-[11px]={expiry !== 'never'}
-                    class:px-3={expiry !== 'never'}
-                    class:pr-7={expiry !== 'never'}
-                    title="Set expiration"
+              <div class="flex items-center gap-3">
+                {#if activeTab === 'upload' && uploadedFiles.length > 0}
+                  <button
+                    type="button"
+                    on:click={resetForm}
+                    class="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-2 uppercase tracking-tight"
                   >
-                    <option value="never" class="text-gray-900">Never</option>
-                    <option value="10m" class="text-gray-900">10m</option>
-                    <option value="1h" class="text-gray-900">1h</option>
-                    <option value="12h" class="text-gray-900">12h</option>
-                    <option value="24h" class="text-gray-900">24h</option>
-                    <option value="3d" class="text-gray-900">3d</option>
-                    <option value="7d" class="text-gray-900">1w</option>
-                    <option value="30d" class="text-gray-900">1mo</option>
-                    <option value="1y" class="text-gray-900">1y</option>
-                  </select>
-                  <div class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}>
-                    <i class="fas fa-clock text-[10px]"></i>
+                    Clear All
+                  </button>
+                {/if}
+                
+                <div class="flex items-center bg-[#0e8420] rounded shadow-sm hover:shadow-md transition-all overflow-hidden border border-[#0a6b19] h-[36px]">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    class="h-full px-5 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#0a6b19] transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {#if isLoading}
+                      <i class="fas fa-spinner fa-spin"></i>
+                      <span>Creating...</span>
+                    {:else}
+                      <i class="fas fa-plus text-[10px]"></i>
+                      <span class="tracking-tight">
+                        {#if activeTab === 'editor'}Create Relic{:else if uploadedFiles.length > 1 && zipMultiple}Create Archive{:else}Create Relic{/if}
+                      </span>
+                    {/if}
+                  </button>
+                  
+                  <div class="w-[1px] h-6 bg-white/20"></div>
+
+                  <div class="relative h-full group flex items-center">
+                    <select
+                      bind:value={expiry}
+                      class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none flex items-center [&::-webkit-outer-spin-button]:hidden [&::-webkit-calendar-picker-indicator]:hidden"
+                      style="background-image: none;"
+                      class:bg-[#0e8420]={expiry === 'never'}
+                      class:text-transparent={expiry === 'never'}
+                      class:hover:bg-[#0a6b19]={expiry === 'never'}
+                      class:text-[10px]={expiry === 'never'}
+                      class:px-1.5={expiry === 'never'}
+                      class:bg-orange-100={expiry !== 'never'}
+                      class:text-orange-700={expiry !== 'never'}
+                      class:hover:bg-orange-200={expiry !== 'never'}
+                      class:text-[11px]={expiry !== 'never'}
+                      class:px-3={expiry !== 'never'}
+                      class:pr-7={expiry !== 'never'}
+                      title="Set expiration"
+                    >
+                      <option value="never" class="text-gray-900">Never</option>
+                      <option value="10m" class="text-gray-900">10m</option>
+                      <option value="1h" class="text-gray-900">1h</option>
+                      <option value="12h" class="text-gray-900">12h</option>
+                      <option value="24h" class="text-gray-900">24h</option>
+                      <option value="3d" class="text-gray-900">3d</option>
+                      <option value="7d" class="text-gray-900">1w</option>
+                      <option value="30d" class="text-gray-900">1mo</option>
+                      <option value="1y" class="text-gray-900">1y</option>
+                    </select>
+                    <div class={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none transition-colors ${expiry !== 'never' ? 'text-orange-700 group-hover:text-orange-800' : 'text-white/70 group-hover:text-white'}`}>
+                      <i class="fas fa-clock text-[10px]"></i>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          {/if}
         </form>
       {:else if activeTab === "cli"}
         <!-- CLI Tab -->
@@ -1162,5 +1216,9 @@ relic config core.server {serverUrl}</pre>
 </div>
 
 <style>
-  /* Component-specific styles only - global svelte-select styles are in app.css */
+  /* Force exact height match with the Title maas-input (37.6px) */
+  .select-type-wrapper :global(.svelte-select) {
+    height: 37.6px !important;
+    min-height: 37.6px !important;
+  }
 </style>
