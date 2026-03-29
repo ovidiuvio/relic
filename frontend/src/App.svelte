@@ -218,7 +218,7 @@
   />
 </svelte:head>
 
-<div class="min-h-screen flex flex-col font-ubuntu text-[#333333]">
+<div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
   <!-- Header with Navigation -->
   <header class="bg-[#772953] text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-6">
