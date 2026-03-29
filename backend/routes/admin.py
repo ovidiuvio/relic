@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session, selectinload, joinedload
 from typing import Optional
 
@@ -218,19 +218,22 @@ async def admin_get_stats(
     """
     get_admin_client(request, db)
 
-    total_relics = db.query(func.count(Relic.id)).scalar() or 0
-    total_clients = db.query(func.count(ClientKey.id)).scalar() or 0
-    total_size = db.query(func.sum(Relic.size_bytes)).scalar() or 0
-    public_relics = db.query(func.count(Relic.id)).filter(
-        Relic.access_level == "public"
-    ).scalar() or 0
-    private_relics = db.query(func.count(Relic.id)).filter(
-        Relic.access_level == "private"
-    ).scalar() or 0
-    restricted_relics = db.query(func.count(Relic.id)).filter(
-        Relic.access_level == "restricted"
-    ).scalar() or 0
+    # Consolidate multiple Relic table queries into a single query to reduce database roundtrips
+    relic_stats = db.query(
+        func.count(Relic.id),
+        func.sum(Relic.size_bytes),
+        func.sum(case((Relic.access_level == 'public', 1), else_=0)),
+        func.sum(case((Relic.access_level == 'private', 1), else_=0)),
+        func.sum(case((Relic.access_level == 'restricted', 1), else_=0))
+    ).first()
 
+    total_relics = relic_stats[0] or 0
+    total_size = relic_stats[1] or 0
+    public_relics = relic_stats[2] or 0
+    private_relics = relic_stats[3] or 0
+    restricted_relics = relic_stats[4] or 0
+
+    total_clients = db.query(func.count(ClientKey.id)).scalar() or 0
     total_comments = db.query(func.count(Comment.id)).scalar() or 0
     total_bookmarks = db.query(func.count(ClientBookmark.id)).scalar() or 0
     total_reports = db.query(func.count(RelicReport.id)).scalar() or 0
