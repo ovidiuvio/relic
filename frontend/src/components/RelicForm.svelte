@@ -651,7 +651,7 @@
               </div>
 
               <div 
-                class="relative border border-[#dfdcd9] overflow-hidden group transition-colors resize-y h-[600px] min-h-[200px]"
+                class="relative border border-[#dfdcd9] rounded-sm overflow-hidden group transition-all duration-200 resize-y h-[600px] min-h-[200px] focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20"
                 on:dragover={handleDragOver}
                 on:dragleave={handleDragLeave}
                 on:drop={handleDrop}
