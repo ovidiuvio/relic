@@ -615,7 +615,7 @@
   <div
     class="{isFullWidth
       ? 'w-full px-0'
-      : 'max-w-7xl mx-auto px-4'} py-6 transition-all duration-300"
+      : 'max-w-7xl mx-auto px-4'} pb-6 transition-all duration-300"
   >
     <!-- Unified Container -->
     <div
