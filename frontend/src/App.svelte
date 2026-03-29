@@ -401,11 +401,11 @@
   </header>
 
   <!-- Main Content -->
-  <main class="flex-1 overflow-auto">
+  <main class="flex-1 overflow-auto flex flex-col">
     <div
-      class="{relicViewerFullWidth && currentSection === 'relic'
-        ? 'w-full'
-        : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300"
+      class="w-full {relicViewerFullWidth && currentSection === 'relic'
+        ? ''
+        : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{currentSection === 'relic' ? ' flex-1 flex flex-col min-h-0' : ''}"
     >
       {#if routeComponent}
         <svelte:component

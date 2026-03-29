@@ -16,9 +16,11 @@
 
   const dispatch = createEventDispatcher()
   const forwardEvent = createEventForwarder(dispatch)
+
+  let monacoHeight = 0
 </script>
 
-<div class="border-t border-gray-200">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if !showSource}
     <!-- Rendered Markdown - natural height -->
     <div class="p-6 prose prose-sm max-w-none">
@@ -26,11 +28,13 @@
     </div>
   {:else}
     <!-- Markdown Source Editor - fixed height for editor -->
+    <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+    {#if monacoHeight > 0}
     <MonacoEditor
       value={processed.preview || ''}
       language="markdown"
       readOnly={true}
-      height="calc(100vh - 300px)"
+      height="{monacoHeight}px"
       relicId={relicId}
       noWrapper={true}
       {showSyntaxHighlighting}
@@ -49,5 +53,7 @@
       on:deleteComment={forwardEvent}
       on:toggle-comments={forwardEvent}
     />
+    {/if}
+    </div>
   {/if}
 </div>

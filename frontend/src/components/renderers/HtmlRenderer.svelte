@@ -16,26 +16,34 @@
 
   const dispatch = createEventDispatcher()
   const forwardEvent = createEventForwarder(dispatch)
+
+  let monacoHeight = 0
+  let iframeHeight = 0
 </script>
 
-<div class="border-t border-gray-200">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if !showSource}
     <!-- HTML Preview Frame -->
-    <div style="height: calc(100vh - 300px);">
-      <iframe
-        srcdoc={processed.html}
-        class="w-full h-full border-0"
-        sandbox="allow-same-origin allow-scripts allow-forms"
-        title="HTML Content Preview"
-      ></iframe>
+    <div class="flex-1 min-h-0" bind:clientHeight={iframeHeight}>
+      {#if iframeHeight > 0}
+        <iframe
+          srcdoc={processed.html}
+          class="w-full border-0"
+          style="height: {iframeHeight}px;"
+          sandbox="allow-same-origin allow-scripts allow-forms"
+          title="HTML Content Preview"
+        ></iframe>
+      {/if}
     </div>
   {:else}
     <!-- HTML Source Editor -->
+    <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+    {#if monacoHeight > 0}
     <MonacoEditor
       value={processed.html || ''}
       language="html"
       readOnly={true}
-      height="calc(100vh - 300px)"
+      height="{monacoHeight}px"
       relicId={relicId}
       noWrapper={true}
       {showSyntaxHighlighting}
@@ -54,5 +62,7 @@
       on:deleteComment={forwardEvent}
       on:toggle-comments={forwardEvent}
     />
+    {/if}
+    </div>
   {/if}
 </div>

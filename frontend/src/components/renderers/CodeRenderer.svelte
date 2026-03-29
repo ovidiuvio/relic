@@ -20,6 +20,8 @@
   const dispatch = createEventDispatcher()
   const forwardEvent = createEventForwarder(dispatch)
 
+  let monacoHeight = 0
+
   $: language = (processed.type === 'code' || processed.type === 'diff') ? (processed.metadata?.language || 'plaintext') : 'plaintext'
 
   let beautifyRepaired = false
@@ -168,7 +170,7 @@
   $: totalLineCount = displayValue ? displayValue.split('\n').length : 0
 </script>
 
-<div class="border-t border-gray-200">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if beautify && beautifyRepaired}
     <div class="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-700 font-medium">
       <i class="fas fa-wrench text-[10px]"></i>
@@ -220,11 +222,13 @@
       </div>
     </div>
   {/if}
+  <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+  {#if monacoHeight > 0}
   <MonacoEditor
     value={filteredValue}
     {language}
     readOnly={true}
-    height="calc(100vh - 300px)"
+    height="{monacoHeight}px"
     relicId={relicId}
     noWrapper={true}
     {showSyntaxHighlighting}
@@ -244,6 +248,8 @@
     on:deleteComment={forwardEvent}
     on:toggle-comments={forwardEvent}
   />
+  {/if}
+  </div>
 </div>
 {#if processed.truncated}
   <div class="bg-blue-50 border-t border-gray-200 px-6 py-4 text-center text-sm text-blue-700 rounded-b-lg">

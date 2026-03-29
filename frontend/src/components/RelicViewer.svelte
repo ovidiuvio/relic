@@ -615,11 +615,11 @@
   <div
     class="{isFullWidth
       ? 'w-full px-0'
-      : 'max-w-7xl mx-auto px-4'} pb-6 transition-all duration-300"
+      : 'w-full max-w-7xl mx-auto px-4'} flex-1 flex flex-col min-h-0 transition-all duration-300"
   >
     <!-- Unified Container -->
     <div
-      class="bg-white shadow-sm border border-gray-200 overflow-hidden {isFullWidth
+      class="bg-white shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col {isFullWidth
         ? 'rounded-none'
         : 'rounded-lg'}"
     >
@@ -695,6 +695,7 @@
       {/if}
 
       <!-- Content -->
+      <div class="flex-1 overflow-auto flex flex-col min-h-0">
       {#if processed}
         {#if processed.type === "markdown"}
           <MarkdownRenderer
@@ -775,7 +776,7 @@
         {:else if processed.type === "image"}
           <ImageRenderer {processed} relicName={relic.name} />
         {:else if processed.type === "pdf"}
-          <div class="border-t border-gray-200">
+          <div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
             <PDFViewer
               bind:this={pdfViewerRef}
               pdfDocument={processed.pdfDocument}
@@ -844,6 +845,7 @@
           <p class="text-gray-600">Loading preview...</p>
         </div>
       {/if}
+      </div>
     </div>
   </div>
 {:else if errorStatus === 403}

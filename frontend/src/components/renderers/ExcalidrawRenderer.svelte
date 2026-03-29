@@ -5,6 +5,7 @@
 
   // Container ref for React rendering
   let viewContainer
+  let viewContainerHeight = 0
 
   // Dynamically load Excalidraw and React
   let ExcalidrawLib = null
@@ -28,9 +29,6 @@
       ExcalidrawLib = excalidrawModule.Excalidraw
 
       excalidrawLoading = false
-
-      // Initial render
-      renderExcalidraw()
     } catch (error) {
       console.error('[ExcalidrawRenderer] Failed to load Excalidraw:', error)
       excalidrawError = error.message
@@ -75,7 +73,7 @@
   }
 </script>
 
-<div class="border-t border-gray-200">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if excalidrawLoading}
     <div class="flex items-center justify-center p-12">
       <div class="text-center">
@@ -101,25 +99,10 @@
     </div>
   {:else}
     <!-- Excalidraw Viewer (read-only) -->
-    <div class="relative">
-      <!-- Excalidraw Viewer Container (React will render here) -->
-      <div style="height: calc(100vh - 300px);" bind:this={viewContainer}></div>
-
-      <!-- Metadata Footer -->
-      <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
-        <div class="flex items-center gap-4">
-          <span>
-            <i class="fas fa-shapes mr-1"></i>
-            {processed.metadata.elementCount} elements
-          </span>
-          {#if processed.metadata.version !== 'unknown'}
-            <span>
-              <i class="fas fa-code-branch mr-1"></i>
-              Version {processed.metadata.version}
-            </span>
-          {/if}
-        </div>
-      </div>
+    <div class="flex-1 min-h-0" bind:clientHeight={viewContainerHeight}>
+      {#if viewContainerHeight > 0}
+        <div bind:this={viewContainer} style="height: {viewContainerHeight}px; width: 100%;"></div>
+      {/if}
     </div>
   {/if}
 </div>

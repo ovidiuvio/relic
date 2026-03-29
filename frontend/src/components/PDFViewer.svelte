@@ -287,8 +287,8 @@
   <div
     bind:this={scrollContainer}
     on:scroll={handleScroll}
-    class="bg-gray-100 p-6 overflow-auto"
-    style="height: calc(100vh - 400px); min-height: 500px;"
+    class="bg-gray-100 p-6 overflow-auto flex-1 min-h-0"
+    style="min-height: 500px;"
   >
     <div class="flex flex-col items-center gap-4">
       {#if loading}

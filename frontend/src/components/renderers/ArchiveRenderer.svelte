@@ -274,10 +274,10 @@
   }
 </script>
 
-<div class="border-t border-gray-200">
-  <div bind:this={containerRef} class="flex divide-x divide-gray-200 relative" style="user-select: {isDragging ? 'none' : 'auto'}">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
+  <div bind:this={containerRef} class="flex divide-x divide-gray-200 relative flex-1 min-h-0 overflow-hidden" style="user-select: {isDragging ? 'none' : 'auto'}">
     <!-- File tree sidebar -->
-    <div class="bg-gray-50 max-h-[calc(100vh-300px)] overflow-y-auto flex-shrink-0" style="width: {sidebarWidth}px">
+    <div class="bg-gray-50 overflow-y-auto flex-shrink-0" style="width: {sidebarWidth}px">
       <!-- Archive metadata header -->
       <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
         <h3 class="text-sm font-semibold text-gray-900">Archive Contents</h3>
@@ -318,9 +318,9 @@
     </div>
 
     <!-- File preview area -->
-    <div class="flex-1 bg-white min-w-0">
+    <div class="flex-1 bg-white min-w-0 flex flex-col overflow-hidden">
       {#if !selectedFile}
-        <div class="flex items-center justify-center h-[calc(100vh-300px)] text-gray-500">
+        <div class="flex-1 flex items-center justify-center text-gray-500">
           <div class="text-center">
             <i class="fas fa-file-archive text-gray-300 text-6xl mb-4"></i>
             <p class="text-lg font-medium text-gray-600 mb-2">Select a file to preview</p>
@@ -328,7 +328,7 @@
           </div>
         </div>
       {:else if loading}
-        <div class="flex items-center justify-center h-[calc(100vh-300px)] text-gray-500">
+        <div class="flex-1 flex items-center justify-center text-gray-500">
           <div class="text-center">
             <i class="fas fa-spinner fa-spin text-blue-600 text-4xl mb-4"></i>
             <p class="text-sm text-gray-600">Extracting file...</p>
@@ -354,7 +354,7 @@
           </div>
         </div>
       {:else if previewedFile}
-        <div class="flex flex-col h-[calc(100vh-300px)]">
+        <div class="flex flex-col flex-1 min-h-0">
           <!-- File header -->
           <div class="border-b border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center gap-3 min-w-0">
@@ -444,7 +444,7 @@
           </div>
 
           <!-- File content -->
-          <div class="flex-1 overflow-auto">
+          <div class="flex-1 overflow-auto flex flex-col min-h-0">
             {#if (previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text') && isTreeSupported && treeViewMode === 'tree'}
               <TreeRenderer
                 bind:this={treeRendererRef}

@@ -155,7 +155,7 @@
   }
 </script>
 
-<div class="border-t border-gray-200 {darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}">
+<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0 {darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}">
   {#if parseError}
     <div class="p-4">
       <div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 mb-3">
@@ -199,8 +199,8 @@
       </div>
     </div>
     <div
-      class="overflow-auto p-4 {darkMode ? 'text-gray-300' : 'text-gray-800'}"
-      style="height: calc(100vh - 300px); font-size: {fontSize}px;"
+      class="overflow-auto p-4 flex-1 {darkMode ? 'text-gray-300' : 'text-gray-800'}"
+      style="font-size: {fontSize}px;"
     >
       <TreeNode value={parsedValue} depth={0} />
     </div>
