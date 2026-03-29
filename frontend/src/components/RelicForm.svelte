@@ -10,10 +10,10 @@
     getAvailableSyntaxOptions,
     getFileTypeDefinition,
   } from "../services/typeUtils";
-  import { formatBytes } from "../services/utils/formatting";
+  import { formatBytes, formatTimeAgo } from "../services/utils/formatting";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
   import MonacoEditor from "./MonacoEditor.svelte";
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
 
   const dispatch = createEventDispatcher();
 
@@ -34,6 +34,89 @@
   let uploadedFiles = []; // Array of { file, id }
   let creationResult = null; // { success: [], errors: [] }
   let zipMultiple = true; // Default to true for auto-zipping
+
+  // Drafts state
+  let drafts = [];
+  let currentDraftId = null;
+  let lastSavedAt = null;
+
+  function loadDrafts() {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem("relic_drafts");
+      drafts = saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load drafts", e);
+      drafts = [];
+    }
+  }
+
+  function saveCurrentAsDraft() {
+    if (typeof window === "undefined" || !content.trim()) return;
+
+    loadDrafts(); // Sync with other tabs if any
+    
+    const draftData = {
+      id: currentDraftId || Math.random().toString(36).substr(2, 9),
+      title: title || "Untitled Draft",
+      content,
+      syntax,
+      syntaxValue,
+      tags,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (!currentDraftId) {
+      currentDraftId = draftData.id;
+      drafts = [draftData, ...drafts];
+    } else {
+      drafts = drafts.map(d => d.id === currentDraftId ? draftData : d);
+    }
+    
+    // Sort by date (newest first)
+    drafts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    // Limit to 20 drafts
+    if (drafts.length > 20) drafts = drafts.slice(0, 20);
+
+    localStorage.setItem("relic_drafts", JSON.stringify(drafts));
+    lastSavedAt = new Date();
+  }
+
+  function deleteDraft(id) {
+    loadDrafts();
+    drafts = drafts.filter(d => d.id !== id);
+    localStorage.setItem("relic_drafts", JSON.stringify(drafts));
+    if (currentDraftId === id) {
+      currentDraftId = null;
+      lastSavedAt = null;
+    }
+    showToast("Draft deleted", "success");
+  }
+
+  function restoreDraft(draft) {
+    title = draft.title === "Untitled Draft" ? "" : draft.title;
+    content = draft.content;
+    syntax = draft.syntax;
+    syntaxValue = draft.syntaxValue;
+    tags = draft.tags;
+    currentDraftId = draft.id;
+    activeTab = "editor";
+    lastSavedAt = new Date(draft.updatedAt);
+    showToast("Draft restored", "success");
+  }
+
+  // Auto-save logic
+  let debounceTimer;
+  $: if (content || title || tags || syntax) {
+    clearTimeout(debounceTimer);
+    if (content.trim()) {
+      debounceTimer = setTimeout(saveCurrentAsDraft, 2000);
+    }
+  }
+
+  onMount(() => {
+    loadDrafts();
+  });
 
   // Get current server URL
   const serverUrl = window.location.origin;
@@ -102,6 +185,8 @@
     uploadedFiles = [];
     creationResult = null;
     zipMultiple = true;
+    currentDraftId = null;
+    lastSavedAt = null;
   }
 
   // Process uploaded/dropped files
@@ -311,10 +396,18 @@
 
         // If only one relic was created, redirect to it directly (classic behavior)
         if (createdRelics.length === 1 && errors.length === 0) {
+          // If a draft was being edited, remove it
+          if (currentDraftId) {
+            deleteDraft(currentDraftId);
+          }
           window.location.href = `/${createdRelics[0].id}`;
         } else {
           // Show summary view
           creationResult = { success: createdRelics, errors };
+          // If a draft was being edited, remove it
+          if (currentDraftId) {
+            deleteDraft(currentDraftId);
+          }
           // Clear form data but keep creationResult
           title = "";
           content = "";
@@ -397,6 +490,19 @@
               <i class="fas fa-edit mr-1.5 opacity-70"></i>
               Editor
             </button>
+            {#if drafts.length > 0}
+              <button
+                on:click={() => { loadDrafts(); activeTab = "drafts"; }}
+                class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
+                'drafts'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+              >
+                <i class="fas fa-history mr-1.5 opacity-70"></i>
+                Drafts
+                <span class="ml-1.5 px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded-full font-bold shadow-sm animate-pulse">{drafts.length}</span>
+              </button>
+            {/if}
             <button
               on:click={() => (activeTab = "upload")}
               class="px-3 h-full text-sm font-medium border-b-2 transition-colors {activeTab ===
@@ -438,6 +544,12 @@
               {uploadedFiles.length} file(s) attached
             {:else if activeTab === "editor"}
               {content.length} characters
+              {#if lastSavedAt}
+                <span class="ml-2 text-green-500 text-[9px] uppercase font-bold flex items-center gap-1">
+                  <i class="fas fa-check text-[8px]"></i>
+                  Saved {formatTimeAgo(lastSavedAt)}
+                </span>
+              {/if}
             {/if}
           </div>
         </div>
@@ -518,6 +630,79 @@
             </button>
           </div>
         </div>
+      {:else if activeTab === "drafts"}
+         <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-history text-gray-400"></i>
+                Saved Drafts
+              </h3>
+              <p class="text-xs text-gray-500">Local drafts are stored only in this browser</p>
+            </div>
+
+            {#if drafts.length === 0}
+              <div class="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <i class="fas fa-sticky-note text-3xl text-gray-300 mb-3"></i>
+                <p class="text-gray-500">No saved drafts yet.</p>
+                <button 
+                  on:click={() => activeTab = "editor"}
+                  class="mt-4 text-sm text-blue-600 hover:underline"
+                >
+                  Start writing something...
+                </button>
+              </div>
+            {:else}
+              <div class="space-y-2">
+                {#each drafts as draft}
+                  <div 
+                    on:click={() => restoreDraft(draft)}
+                    on:keydown={(e) => e.key === 'Enter' && restoreDraft(draft)}
+                    role="button"
+                    tabindex="0"
+                    class="group relative bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer flex items-start justify-between gap-4 min-h-[100px]"
+                  >
+                    <div class="flex items-start gap-4 flex-1 min-w-0">
+                      <div class="w-10 h-10 flex-shrink-0 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center text-sm mt-1">
+                         <i class="fas fa-file-alt"></i>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1">
+                          <h4 class="text-sm font-bold text-gray-900 truncate" title={draft.title}>
+                            {draft.title || 'Untitled Draft'}
+                          </h4>
+                          <span class="text-[10px] text-gray-400 font-normal flex-shrink-0 ml-4">
+                             {formatTimeAgo(new Date(draft.updatedAt))}
+                          </span>
+                        </div>
+                        <div class="text-[11px] text-gray-500 font-mono opacity-60 line-clamp-3 whitespace-pre-wrap leading-relaxed">
+                          {draft.content}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                       <button 
+                         on:click|stopPropagation={() => deleteDraft(draft.id)}
+                         class="text-gray-300 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                         title="Delete draft"
+                       >
+                         <i class="fas fa-trash-alt text-xs"></i>
+                       </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            <div class="flex justify-end pt-4">
+                <button
+                  on:click={() => activeTab = "editor"}
+                  class="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                >
+                  Back to Editor
+                </button>
+            </div>
+         </div>
       {:else if activeTab === "upload" || activeTab === "editor"}
         <form on:submit={handleSubmit} class="space-y-6">
           <div class={activeTab === 'editor' ? "grid grid-cols-1 md:grid-cols-2 gap-6" : "w-full"}>
