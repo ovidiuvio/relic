@@ -12,6 +12,10 @@
   } from "../services/typeUtils";
   import { formatBytes } from "../services/utils/formatting";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
+  import MonacoEditor from "./MonacoEditor.svelte";
+  import { createEventDispatcher } from "svelte";
+
+  const dispatch = createEventDispatcher();
 
   export let spaceId = null;
 
@@ -34,8 +38,56 @@
   // Get current server URL
   const serverUrl = window.location.origin;
 
+  // Editor preferences
+  let isFullWidth = (() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("relic_form_fullwidth");
+      return saved === "true";
+    }
+    return false;
+  })();
 
-  // Update syntax when syntaxValue changes
+  let showSyntaxHighlighting = (() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("relic_form_syntax_highlighting");
+      return saved === "false" ? false : true;
+    }
+    return true;
+  })();
+
+  let showLineNumbers = (() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("relic_form_line_numbers");
+      return saved === "false" ? false : true;
+    }
+    return true;
+  })();
+
+  let fontSize = (() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("relic_form_font_size");
+      return saved ? parseInt(saved, 10) : 13;
+    }
+    return 13;
+  })();
+
+  // Save editor preferences
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_form_fullwidth", isFullWidth.toString());
+  }
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_form_syntax_highlighting", showSyntaxHighlighting.toString());
+  }
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_form_line_numbers", showLineNumbers.toString());
+  }
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem("relic_form_font_size", fontSize.toString());
+  }
+
+  // Sync fullWidth to parent
+  $: dispatch("fullwidth-toggle", { isFullWidth });
+
   $: syntax = syntaxValue?.value || "auto";
 
   // Reset form to initial state
@@ -316,8 +368,8 @@
   }
 </script>
 
-<div class="mb-8">
-  <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+<div class="mb-8 {isFullWidth ? 'max-w-none' : ''}">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden {isFullWidth ? 'rounded-none border-x-0' : 'rounded-lg'}">
     <div
       class="px-6 h-14 border-b border-gray-200 flex items-center justify-between"
     >
@@ -528,18 +580,97 @@
 
           {#if activeTab === 'editor'}
             <div>
-              <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Content</label>
-              <div class="relative">
-                <textarea
-                  id="content"
-                  bind:value={content}
-                  on:dragover={handleDragOver}
-                  on:dragleave={handleDragLeave}
-                  on:drop={handleDrop}
-                  rows="24"
-                  class="w-full h-[600px] font-mono text-sm p-4 maas-input resize-y focus:shadow-none border border-[#dfdcd9] transition-colors"
-                  placeholder="// Paste your code here or drop files to switch to upload mode..."
-                ></textarea>
+              <div class="flex items-center justify-between mb-1">
+                <label for="content" class="block text-sm font-medium text-gray-700">Content</label>
+                
+                <div class="flex items-center gap-2">
+                  <!-- Full-width Toggle -->
+                  <button
+                    type="button"
+                    on:click={() => isFullWidth = !isFullWidth}
+                    class="px-2 py-1 rounded text-xs font-medium transition-colors {isFullWidth ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                    title={isFullWidth ? "Normal width" : "Full width"}
+                  >
+                    <i class="fas {isFullWidth ? 'fa-compress' : 'fa-expand'}"></i>
+                  </button>
+
+                  <!-- Editor Controls -->
+                  <div class="flex items-center gap-1 border-l border-gray-300 pl-2">
+                    <button
+                      type="button"
+                      on:click={() => showSyntaxHighlighting = !showSyntaxHighlighting}
+                      class="px-2 py-1 rounded text-xs font-medium transition-colors {showSyntaxHighlighting ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                      title="Toggle syntax highlighting"
+                    >
+                      <i class="fas fa-palette text-xs"></i>
+                    </button>
+                    <button
+                      type="button"
+                      on:click={() => showLineNumbers = !showLineNumbers}
+                      class="px-2 py-1 rounded text-xs font-medium transition-colors {showLineNumbers ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}"
+                      title="Toggle line numbers"
+                    >
+                      <i class="fas fa-list-ol text-xs"></i>
+                    </button>
+
+                    <!-- Font Size Combo Box -->
+                    <div class="flex items-center gap-2 border-l border-gray-300 pl-2 ml-1">
+                      <i class="fas fa-text-height text-xs text-gray-600"></i>
+                      <select
+                        value={fontSize.toString()}
+                        on:change={(e) => {
+                          const val = e.target.value
+                          if (val === 'custom') {
+                            const custom = prompt('Enter font size (8-72):', fontSize.toString())
+                            if (custom && !isNaN(parseInt(custom, 10))) {
+                              const num = parseInt(custom, 10)
+                              if (num >= 8 && num <= 72) {
+                                fontSize = num
+                              }
+                            }
+                          } else {
+                            fontSize = parseInt(val, 10)
+                          }
+                        }}
+                        class="pl-1.5 pr-0.5 py-1 rounded text-xs bg-white border border-gray-300 text-gray-700 cursor-pointer hover:border-gray-400"
+                        style="min-width: fit-content; width: auto;"
+                        title="Font size"
+                      >
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                        <option value="16">16</option>
+                        <option value="18">18</option>
+                        <option value="20">20</option>
+                        <option value="custom">Custom...</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                class="relative border border-[#dfdcd9] overflow-hidden group transition-colors resize-y h-[600px] min-h-[200px]"
+                on:dragover={handleDragOver}
+                on:dragleave={handleDragLeave}
+                on:drop={handleDrop}
+                role="region"
+                aria-label="Code editor"
+              >
+                <MonacoEditor
+                  value={content}
+                  language={syntax === 'auto' ? 'plaintext' : syntax}
+                  readOnly={false}
+                  height="100%"
+                  showSyntaxHighlighting={showSyntaxHighlighting}
+                  showLineNumbers={showLineNumbers}
+                  fontSize={fontSize}
+                  darkMode={false}
+                  showComments={false}
+                  on:change={(e) => content = e.detail}
+                  noWrapper={true}
+                />
               </div>
             </div>
           {:else}

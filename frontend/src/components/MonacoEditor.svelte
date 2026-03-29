@@ -150,8 +150,17 @@
         'editor.defaultColorDecorators': false,
         'editor.colorDecorators': false,
         'editor.formatOnPaste': false,
-        'editor.formatOnType': false
+        'editor.formatOnType': false,
+        stickyScroll: { enabled: false },
+        contextmenu: false
       })
+
+      // Set contenteditable to true on the editor's DOM node to enable 
+      // the browser's native context menu with functional Paste
+      const domNode = editor.getDomNode();
+      if (domNode) {
+          domNode.setAttribute('contenteditable', 'true');
+      }
 
       // Set up line number click handlers
       setupLineClickHandlers()
@@ -1129,7 +1138,7 @@
     }
   })
 
-  $: if (editor && value) {
+  $: if (editor && value !== undefined) {
     const currentValue = editor.getValue()
     if (currentValue !== value) {
       editor.setValue(value)

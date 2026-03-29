@@ -403,9 +403,9 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto flex flex-col">
     <div
-      class="w-full {relicViewerFullWidth && currentSection === 'relic'
+      class="w-full {relicViewerFullWidth && (currentSection === 'relic' || currentSection === 'new')
         ? ''
-        : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{currentSection === 'relic' ? ' flex-1 flex flex-col min-h-0' : ''}"
+        : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
     >
       {#if routeComponent}
         <svelte:component
