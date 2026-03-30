@@ -84,33 +84,27 @@ async def run_benchmarks(
     space_ids = await fetch_space_ids(base_url, client_key, space_count)
     print(f"   Found {len(relic_ids)} relics, {len(space_ids)} spaces")
 
-    if not relic_ids:
-        print("⚠️  No relics found. Some benchmarks will be skipped.")
-
-    # Initialize benchmarks
-    benchmarks = [
+    # Initialize benchmarks (skip those requiring data we don't have)
+    common = dict(iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)
+    benchmarks: list[tuple[str, Benchmark | None]] = [
         ("create", None),  # Create is handled separately
-        ("read", ReadBenchmark(relic_ids=relic_ids or ["placeholder"], iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)),
-        ("search", SearchBenchmark(iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)),
-        ("spaces", SpaceBenchmark(space_ids=space_ids, iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)),
-        ("social", SocialBenchmark(relic_ids=relic_ids or ["placeholder"], iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)),
-        ("mixed", MixedBenchmark(relic_ids=relic_ids or ["placeholder"], space_ids=space_ids, iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)),
+        ("search", SearchBenchmark(**common)),
+        ("spaces", SpaceBenchmark(space_ids=space_ids, **common)),
     ]
+    if relic_ids:
+        benchmarks += [
+            ("read", ReadBenchmark(relic_ids=relic_ids, **common)),
+            ("social", SocialBenchmark(relic_ids=relic_ids, **common)),
+            ("mixed", MixedBenchmark(relic_ids=relic_ids, space_ids=space_ids, **common)),
+        ]
+    else:
+        print("⚠️  Skipping read, social, mixed benchmarks: no relics available")
 
     results = {}
     start_time = time.perf_counter()
 
     for name, benchmark in benchmarks:
-        if name == "create":
-            # Skip create benchmark (handled by separate script)
-            continue
-
         if benchmark is None:
-            continue
-
-        # Check if benchmark has required IDs
-        if hasattr(benchmark, 'relic_ids') and not relic_ids:
-            print(f"\n⚠️  Skipping {name}: no relics available")
             continue
 
         try:

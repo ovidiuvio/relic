@@ -44,9 +44,7 @@ class SpaceBenchmark(Benchmark):
             url = f"{self.base_url}/api/v1/spaces?limit=25"
             response = await client.get(url, headers=headers)
 
-        if response.status_code == 200:
-            return True, 0, None
-        elif response.status_code == 404:
-            return True, 0, None  # Not found is acceptable
+        if response.status_code in (200, 404):
+            return True, None
         else:
-            return False, 0, f"Status {response.status_code}: {response.text[:100]}"
+            return False, f"Status {response.status_code}: {response.text[:100]}"

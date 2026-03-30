@@ -28,10 +28,7 @@ class ReadBenchmark(Benchmark):
         headers = {"X-Client-Key": self.client_key}
         response = await client.get(url, headers=headers)
 
-        if response.status_code == 200:
-            return True, 0, None
-        elif response.status_code in (404, 410):
-            # Relic expired or deleted, skip
-            return True, 0, None
+        if response.status_code in (200, 404, 410):
+            return True, None
         else:
-            return False, 0, f"Status {response.status_code}: {response.text[:100]}"
+            return False, f"Status {response.status_code}: {response.text[:100]}"

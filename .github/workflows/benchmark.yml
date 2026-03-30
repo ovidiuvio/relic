@@ -70,7 +70,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Seed relics for benchmarks
-        id: seed
         env:
           RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
         run: |
@@ -83,40 +82,20 @@ jobs:
             --access-level public
           echo "Seed complete"
 
-      - name: Run benchmark suite
-        id: benchmark
+      - name: Run create benchmark
         env:
           RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
         run: |
           ITERATIONS="${{ github.event.inputs.iterations || 5 }}"
           WORKERS="${{ github.event.inputs.workers || 5 }}"
-          OPERATIONS="${{ github.event.inputs.operations || 100 }}"
-          
-          mkdir -p benchmark-results
-          
-          python3 scripts/run_all_benchmarks.py \
-            --url http://localhost \
-            --client-key "$RELIC_ADMIN_KEY" \
-            --iterations "$ITERATIONS" \
-            --workers "$WORKERS" \
-            --operations "$OPERATIONS" \
-            --output benchmark-results/results.json \
-            --git-hash "$GITHUB_SHA"
 
-      - name: Run create benchmark (5 iterations)
-        env:
-          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
-        run: |
-          ITERATIONS="${{ github.event.inputs.iterations || 5 }}"
-          WORKERS="${{ github.event.inputs.workers || 5 }}"
-          
           mkdir -p benchmark-results/runs
-          
+
           echo "Running create benchmark: 1000 relics x $ITERATIONS iterations..."
-          
+
           for i in $(seq 1 $ITERATIONS); do
             echo "=== Create Run $i of $ITERATIONS ==="
-            
+
             python3 scripts/benchmark_relics.py \
               --count 1000 \
               --workers "$WORKERS" \
@@ -124,11 +103,11 @@ jobs:
               --client-key "$RELIC_ADMIN_KEY" \
               --output "benchmark-results/runs/create-run-${i}.json" \
               --git-hash "$GITHUB_SHA"
-            
+
             jq -r '.results.throughput_relics_per_sec' "benchmark-results/runs/create-run-${i}.json" >> /tmp/create_throughputs.txt
             jq -r '.results.latency_ms.p95' "benchmark-results/runs/create-run-${i}.json" >> /tmp/create_p95.txt
           done
-          
+
           # Calculate median
           median() {
             local arr=($(sort -n))
@@ -140,24 +119,43 @@ jobs:
               echo "${arr[$mid]}"
             fi
           }
-          
+
           CREATE_MEDIAN_THROUGHPUT=$(cat /tmp/create_throughputs.txt | median)
           CREATE_MEDIAN_P95=$(cat /tmp/create_p95.txt | median)
-          
+
           echo "Create Median Throughput: $CREATE_MEDIAN_THROUGHPUT relics/sec"
           echo "Create Median P95: ${CREATE_MEDIAN_P95}ms"
-          
-          # Add create results to combined JSON
-          jq --arg tp "$CREATE_MEDIAN_THROUGHPUT" --arg p95 "$CREATE_MEDIAN_P95" \
-            '.create = {
-              "name": "create",
-              "iterations": 5,
-              "median": {
-                "operations_per_second": ($tp | tonumber),
-                "latency_ms": {"p95": ($p95 | tonumber)}
-              }
-            }' benchmark-results/results.json > /tmp/results_tmp.json
-          mv /tmp/results_tmp.json benchmark-results/results.json
+
+          # Save create results as initial JSON for the suite step to merge into
+          mkdir -p benchmark-results
+          jq -n \
+            --argjson tp "$CREATE_MEDIAN_THROUGHPUT" \
+            --argjson p95 "$CREATE_MEDIAN_P95" \
+            --argjson iters "$ITERATIONS" \
+            '{create: {name: "create", iterations: $iters, median: {operations_per_second: $tp, latency_ms: {p95: $p95}}}}' \
+            > benchmark-results/results.json
+
+      - name: Run benchmark suite (read, search, spaces, social, mixed)
+        id: benchmark
+        env:
+          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
+        run: |
+          ITERATIONS="${{ github.event.inputs.iterations || 5 }}"
+          WORKERS="${{ github.event.inputs.workers || 5 }}"
+          OPERATIONS="${{ github.event.inputs.operations || 100 }}"
+
+          python3 scripts/run_all_benchmarks.py \
+            --url http://localhost \
+            --client-key "$RELIC_ADMIN_KEY" \
+            --iterations "$ITERATIONS" \
+            --workers "$WORKERS" \
+            --operations "$OPERATIONS" \
+            --output /tmp/suite_results.json \
+            --git-hash "$GITHUB_SHA"
+
+          # Merge suite results into the combined file (preserving create results)
+          jq -s '.[0] * .[1]' benchmark-results/results.json /tmp/suite_results.json > /tmp/merged.json
+          mv /tmp/merged.json benchmark-results/results.json
 
       - name: Generate summary
         run: |

@@ -65,11 +65,11 @@ class Benchmark(ABC):
         self,
         client: httpx.AsyncClient,
         operation_id: int
-    ) -> tuple[bool, float, Optional[str]]:
+    ) -> tuple[bool, Optional[str]]:
         """
         Run a single operation.
 
-        Returns: (success, latency_seconds, error_message)
+        Returns: (success, error_message)
         """
         pass
 
@@ -83,12 +83,20 @@ class Benchmark(ABC):
         async with semaphore:
             start = time.perf_counter()
             try:
-                success, latency, error = await self.run_operation(client, operation_id)
+                success, error = await self.run_operation(client, operation_id)
+                elapsed = time.perf_counter() - start
                 if not success:
-                    return False, time.perf_counter() - start, error
-                return True, time.perf_counter() - start, None
+                    return False, elapsed, error
+                return True, elapsed, None
             except Exception as e:
                 return False, time.perf_counter() - start, str(e)[:200]
+
+    @staticmethod
+    def _percentile(sorted_values: list[float], p: float) -> float:
+        """Calculate percentile using nearest-rank method."""
+        n = len(sorted_values)
+        idx = min(int(n * p), n - 1)
+        return sorted_values[idx]
 
     async def run_iteration(
         self,
@@ -104,6 +112,8 @@ class Benchmark(ABC):
         successes = 0
         failures = 0
         errors: list[dict[str, Any]] = []
+
+        wall_start = time.perf_counter()
 
         async with httpx.AsyncClient(limits=limits, timeout=30.0) as client:
             semaphore = asyncio.Semaphore(self.workers)
@@ -128,7 +138,7 @@ class Benchmark(ABC):
                         if error:
                             errors.append({"error": error})
 
-        duration = sum(latencies) if latencies else 0
+        wall_duration = time.perf_counter() - wall_start
         sorted_latencies = sorted(latencies) if latencies else [0]
 
         return BenchmarkResult(
@@ -137,16 +147,16 @@ class Benchmark(ABC):
             total_operations=self.operations,
             successful=successes,
             failed=failures,
-            duration_seconds=round(duration, 3),
-            operations_per_second=round(successes / duration, 2) if duration > 0 else 0,
+            duration_seconds=round(wall_duration, 3),
+            operations_per_second=round(successes / wall_duration, 2) if wall_duration > 0 else 0,
             latency_ms={
                 "min": round(min(sorted_latencies) * 1000, 2),
                 "max": round(max(sorted_latencies) * 1000, 2),
                 "avg": round(sum(sorted_latencies) / len(sorted_latencies) * 1000, 2),
-                "p50": round(sorted_latencies[len(sorted_latencies) // 2] * 1000, 2),
-                "p90": round(sorted_latencies[int(len(sorted_latencies) * 0.9)] * 1000, 2),
-                "p95": round(sorted_latencies[int(len(sorted_latencies) * 0.95)] * 1000, 2),
-                "p99": round(sorted_latencies[int(len(sorted_latencies) * 0.99)] * 1000, 2),
+                "p50": round(self._percentile(sorted_latencies, 0.50) * 1000, 2),
+                "p90": round(self._percentile(sorted_latencies, 0.90) * 1000, 2),
+                "p95": round(self._percentile(sorted_latencies, 0.95) * 1000, 2),
+                "p99": round(self._percentile(sorted_latencies, 0.99) * 1000, 2),
             },
             errors=errors[:10],
             metadata={
@@ -163,6 +173,8 @@ class Benchmark(ABC):
             result = await self.run_iteration(i)
             self.results.append(result)
             print(f"   Iteration {i}/{self.iterations}: {result.operations_per_second} ops/sec, {result.successful}/{result.total_operations} success")
+            if result.errors and i == 1:
+                print(f"   Sample error: {result.errors[0]['error']}")
         return self.results
 
     def get_median_result(self) -> dict[str, Any]:
