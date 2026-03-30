@@ -298,7 +298,7 @@ async def admin_delete_client(
             try:
                 await storage_service.delete(relic.s3_key)
             except Exception as e:
-                print(f"Failed to delete file from S3: {e}")
+                logger.error(f"Failed to delete file from S3: {e}")
             await db.delete(relic)
     else:
         # Just disassociate relics from client
