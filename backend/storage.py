@@ -1,30 +1,66 @@
-"""Storage service for S3/MinIO integration."""
-import io
-from minio import Minio
-from minio.error import S3Error
+"""Storage service for S3/MinIO integration using aiobotocore."""
+import logging
+from typing import Optional
+
+from aiobotocore.session import AioSession
+from botocore.exceptions import ClientError
+
 from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class StorageService:
-    """Service for storing and retrieving relic content."""
+    """Async service for storing and retrieving relic content via S3-compatible APIs."""
 
     def __init__(self):
-        """Initialize MinIO/S3 client."""
-        self.client = Minio(
-            endpoint=settings.S3_ENDPOINT_URL.replace("http://", "").replace("https://", ""),
-            access_key=settings.S3_ACCESS_KEY,
-            secret_key=settings.S3_SECRET_KEY,
-            secure="https" in settings.S3_ENDPOINT_URL
-        )
-        self.bucket_name = settings.S3_BUCKET_NAME
+        """Initialize storage service configuration. Call start() to create the async client."""
+        self.bucket_name: str = settings.S3_BUCKET_NAME
+        self._session: Optional[AioSession] = None
+        self._client = None
+        self._client_context = None
 
-    def ensure_bucket(self) -> None:
-        """Ensure bucket exists, create if not."""
+    async def start(self) -> None:
+        """Create the aiobotocore session and S3 client. Call during app startup."""
+        self._session = AioSession()
+        self._client_context = self._session.create_client(
+            's3',
+            endpoint_url=settings.S3_ENDPOINT_URL,
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET_KEY,
+            region_name=settings.S3_REGION,
+        )
+        self._client = await self._client_context.__aenter__()
+
+    async def close(self) -> None:
+        """Dispose the S3 client. Call during app shutdown."""
+        if self._client_context:
+            await self._client_context.__aexit__(None, None, None)
+            self._client_context = None
+            self._client = None
+
+    @property
+    def client(self):
+        """Access the underlying S3 client."""
+        if self._client is None:
+            raise RuntimeError("StorageService not started. Call await storage_service.start() first.")
+        return self._client
+
+    async def ensure_bucket(self) -> None:
+        """Ensure the target bucket exists, create if not."""
         try:
-            if not self.client.bucket_exists(bucket_name=self.bucket_name):
-                self.client.make_bucket(bucket_name=self.bucket_name)
-        except S3Error as e:
-            print(f"Error ensuring bucket exists: {e}")
+            await self.client.head_bucket(Bucket=self.bucket_name)
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                kwargs = {'Bucket': self.bucket_name}
+                if settings.S3_REGION != 'us-east-1':
+                    kwargs['CreateBucketConfiguration'] = {
+                        'LocationConstraint': settings.S3_REGION
+                    }
+                await self.client.create_bucket(**kwargs)
+            else:
+                logger.error(f"Error ensuring bucket exists: {e}")
+                raise
 
     async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
         """
@@ -39,16 +75,14 @@ class StorageService:
             S3 key
         """
         try:
-            data_stream = io.BytesIO(data)
-            self.client.put_object(
-                bucket_name=self.bucket_name,
-                object_name=key,
-                data=data_stream,
-                length=len(data),
-                content_type=content_type
+            await self.client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=data,
+                ContentType=content_type,
             )
             return key
-        except S3Error as e:
+        except ClientError as e:
             raise Exception(f"Failed to upload to S3: {e}")
 
     async def download(self, key: str) -> bytes:
@@ -62,37 +96,61 @@ class StorageService:
             Content as bytes
         """
         try:
-            response = self.client.get_object(
-                bucket_name=self.bucket_name,
-                object_name=key
+            response = await self.client.get_object(
+                Bucket=self.bucket_name,
+                Key=key,
             )
-            return response.read()
-        except S3Error as e:
+            async with response['Body'] as stream:
+                return await stream.read()
+        except ClientError as e:
             raise Exception(f"Failed to download from S3: {e}")
 
     async def delete(self, key: str) -> None:
         """Delete object from S3."""
         try:
-            self.client.remove_object(
-                bucket_name=self.bucket_name,
-                object_name=key
+            await self.client.delete_object(
+                Bucket=self.bucket_name,
+                Key=key,
             )
-        except S3Error as e:
+        except ClientError as e:
             raise Exception(f"Failed to delete from S3: {e}")
 
     async def exists(self, key: str) -> bool:
         """Check if object exists in S3."""
         try:
-            self.client.stat_object(
-                bucket_name=self.bucket_name,
-                object_name=key
+            await self.client.head_object(
+                Bucket=self.bucket_name,
+                Key=key,
             )
             return True
-        except S3Error as e:
-            if e.code == "NoSuchKey":
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
                 return False
             raise Exception(f"Error checking object: {e}")
 
+    async def list_objects(self, prefix: str = '', recursive: bool = True):
+        """
+        List objects under a prefix as an async generator.
 
-# Global storage service instance
+        Args:
+            prefix: S3 key prefix to filter by
+            recursive: If False, use delimiter to list only immediate children
+
+        Yields:
+            Dicts with keys: key, size, last_modified
+        """
+        paginator = self.client.get_paginator('list_objects_v2')
+        kwargs = {'Bucket': self.bucket_name, 'Prefix': prefix}
+        if not recursive:
+            kwargs['Delimiter'] = '/'
+        async for page in paginator.paginate(**kwargs):
+            for obj in page.get('Contents', []):
+                yield {
+                    'key': obj['Key'],
+                    'size': obj['Size'],
+                    'last_modified': obj['LastModified'],
+                }
+
+
+# Global storage service instance (client created lazily during startup)
 storage_service = StorageService()

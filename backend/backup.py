@@ -73,7 +73,7 @@ async def perform_backup(backup_type: str = 'scheduled') -> bool:
 
             # Compress with gzip
             logger.debug("Compressing backup...")
-            compressed = gzip.compress(stdout, compresslevel=9)
+            compressed = await asyncio.to_thread(gzip.compress, stdout, 9)
             compression_ratio = (1 - len(compressed) / len(stdout)) * 100 if len(stdout) > 0 else 0
 
             # Generate filename and upload to S3
@@ -436,25 +436,19 @@ async def list_all_backups() -> List[Dict]:
 
     try:
         # List objects in db/ folder
-        objects = storage_service.client.list_objects(
-            bucket_name=storage_service.bucket_name,
-            prefix='db/',
-            recursive=True
-        )
-
-        for obj in objects:
+        async for obj in storage_service.list_objects(prefix='db/'):
             try:
                 # Parse timestamp from filename
-                timestamp = parse_backup_timestamp(obj.object_name)
+                timestamp = parse_backup_timestamp(obj['key'])
                 backups.append({
-                    'key': obj.object_name,
+                    'key': obj['key'],
                     'timestamp': timestamp,
-                    'size': obj.size,
-                    'last_modified': obj.last_modified
+                    'size': obj['size'],
+                    'last_modified': obj['last_modified'],
                 })
             except ValueError:
                 # Skip files that don't match backup naming pattern
-                logger.debug(f"Skipping non-backup file: {obj.object_name}")
+                logger.debug(f"Skipping non-backup file: {obj['key']}")
 
         logger.debug(f"Found {len(backups)} backups in S3")
         return backups
