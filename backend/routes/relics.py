@@ -20,7 +20,6 @@ from backend.dependencies import (
     get_client_key, get_or_create_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
 )
-from backend.profiling import profile_endpoint, profile_step
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ router = APIRouter()
 
 
 @router.post("/api/v1/relics", response_model=dict)
-@profile_endpoint("create_relic")
 async def create_relic(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -81,8 +79,7 @@ async def create_relic(
 
         # Upload to storage
         s3_key = f"relics/{relic_id}"
-        with profile_step("s3_upload"):
-            await storage_service.upload(s3_key, content, content_type)
+        await storage_service.upload(s3_key, content, content_type)
 
         # Parse expiry
         expires_at = parse_expiry_string(expires_in)
@@ -122,8 +119,7 @@ async def create_relic(
                 await db.flush()
                 await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
 
-        with profile_step("db_commit"):
-            await db.commit()
+        await db.commit()
         await db.refresh(relic)
 
         return {
