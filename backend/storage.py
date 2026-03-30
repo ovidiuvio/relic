@@ -1,6 +1,6 @@
 """Storage service for S3/MinIO integration using aiobotocore."""
 import logging
-from typing import Optional, List, Dict
+from typing import Optional
 
 from aiobotocore.session import AioSession
 from botocore.exceptions import ClientError
@@ -128,30 +128,28 @@ class StorageService:
                 return False
             raise Exception(f"Error checking object: {e}")
 
-    async def list_objects(self, prefix: str = '', recursive: bool = True) -> List[Dict]:
+    async def list_objects(self, prefix: str = '', recursive: bool = True):
         """
-        List objects under a prefix.
+        List objects under a prefix as an async generator.
 
         Args:
             prefix: S3 key prefix to filter by
             recursive: If False, use delimiter to list only immediate children
 
-        Returns:
-            List of dicts with keys: key, size, last_modified
+        Yields:
+            Dicts with keys: key, size, last_modified
         """
-        objects = []
         paginator = self.client.get_paginator('list_objects_v2')
         kwargs = {'Bucket': self.bucket_name, 'Prefix': prefix}
         if not recursive:
             kwargs['Delimiter'] = '/'
         async for page in paginator.paginate(**kwargs):
             for obj in page.get('Contents', []):
-                objects.append({
+                yield {
                     'key': obj['Key'],
                     'size': obj['Size'],
                     'last_modified': obj['LastModified'],
-                })
-        return objects
+                }
 
 
 # Global storage service instance (client created lazily during startup)

@@ -436,9 +436,7 @@ async def list_all_backups() -> List[Dict]:
 
     try:
         # List objects in db/ folder
-        objects = await storage_service.list_objects(prefix='db/')
-
-        for obj in objects:
+        async for obj in storage_service.list_objects(prefix='db/'):
             try:
                 # Parse timestamp from filename
                 timestamp = parse_backup_timestamp(obj['key'])
