@@ -1,0 +1,123 @@
+name: Benchmark - Relic Creation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      relic_count:
+        description: 'Number of relics to create'
+        required: false
+        default: '1000'
+      workers:
+        description: 'Number of concurrent workers'
+        required: false
+        default: '5'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start stack
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build \
+            frontend backend postgres minio
+        env:
+          GIT_HASH: ${{ github.sha }}
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost/api/v1/version > /dev/null 2>&1; then
+              echo "Backend ready after $((i * 3))s"
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f docker-compose.prod.yml logs backend
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install httpx jq
+
+      - name: Run benchmark
+        id: benchmark
+        env:
+          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
+        run: |
+          COUNT="${{ github.event.inputs.relic_count || 1000 }}"
+          WORKERS="${{ github.event.inputs.workers || 5 }}"
+          
+          python3 scripts/benchmark_relics.py \
+            --count "$COUNT" \
+            --workers "$WORKERS" \
+            --url http://localhost \
+            --client-key "$RELIC_ADMIN_KEY" \
+            --output benchmark-results/results.json \
+            --git-hash "$GITHUB_SHA"
+          
+          # Extract metrics for summary
+          jq -r '.results.throughput_relics_per_sec' benchmark-results/results.json > /tmp/throughput.txt
+          jq -r '.results.success_rate' benchmark-results/results.json > /tmp/success_rate.txt
+          jq -r '.results.duration_seconds' benchmark-results/results.json > /tmp/duration.txt
+          jq -r '.results.latency_ms.p95' benchmark-results/results.json > /tmp/p95.txt
+
+      - name: Generate summary
+        run: |
+          THROUGHPUT=$(cat /tmp/throughput.txt)
+          SUCCESS_RATE=$(cat /tmp/success_rate.txt)
+          DURATION=$(cat /tmp/duration.txt)
+          P95=$(cat /tmp/p95.txt)
+          
+          cat << EOF
+          ## 🔬 Benchmark Results
+          
+          | Metric | Value |
+          |--------|-------|
+          | Relics | ${{ github.event.inputs.relic_count || 1000 }} |
+          | Workers | ${{ github.event.inputs.workers || 5 }} |
+          | Throughput | **${THROUGHPUT}** relics/sec |
+          | Success Rate | **${SUCCESS_RATE}%** |
+          | Duration | ${DURATION}s |
+          | P95 Latency | ${P95}ms |
+          
+          ### Latency Distribution
+          
+          $(jq -r '
+            "
+          | Percentile | Latency (ms) |
+          |------------|--------------|
+          | Min | \(.results.latency_ms.min) |
+          | P50 | \(.results.latency_ms.p50) |
+          | P90 | \(.results.latency_ms.p90) |
+          | P95 | \(.results.latency_ms.p95) |
+          | P99 | \(.results.latency_ms.p99) |
+          | Max | \(.results.latency_ms.max) |
+          "
+          ' benchmark-results/results.json)
+          
+          > Full results in artifact: `benchmark-results`
+          EOF
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ github.sha }}
+          path: benchmark-results/
+          retention-days: 90
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down
