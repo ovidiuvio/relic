@@ -13,7 +13,6 @@ import sys
 
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
@@ -83,47 +82,49 @@ def generate_plots(results: list[dict], output_dir: Path) -> None:
     
     # Generate plots for each benchmark type
     for bench_name, bench_results in benchmarks.items():
-        dates, throughputs, p95_latencies = [], [], []
-        
+        labels, throughputs, p95_latencies = [], [], []
+
         for r in bench_results:
             if "results" not in r or "metadata" not in r:
                 continue
             try:
-                ts = r["metadata"].get("timestamp", "")
-                if not ts:
+                git_hash = r["metadata"].get("git_hash", "")
+                if not git_hash or git_hash == "unknown":
                     continue
-                dates.append(datetime.fromisoformat(ts.replace("Z", "+00:00")))
+                labels.append(git_hash[:8])
                 throughputs.append(r["results"]["throughput_relics_per_sec"])
                 p95_latencies.append(r["results"]["latency_ms"]["p95"])
             except (KeyError, ValueError):
                 continue
-        
-        if not dates or len(dates) < 1:
+
+        if not labels:
             continue
-        
+
+        x = range(len(labels))
+
         # Create plot
         fig, axes = plt.subplots(2, 1, figsize=(12, 8))
         fig.suptitle(f"{bench_name.upper()} Benchmark Trends", fontsize=14, fontweight='bold')
-        
+
         # Throughput
         ax1 = axes[0]
-        ax1.plot(dates, throughputs, marker='o', linestyle='-', color='#2563eb', linewidth=2)
+        ax1.plot(x, throughputs, marker='o', linestyle='-', color='#2563eb', linewidth=2)
         ax1.set_ylabel("Throughput (ops/sec)")
         ax1.set_title(f"Throughput (avg: {sum(throughputs)/len(throughputs):.1f} ops/s)")
+        ax1.set_xticks(list(x))
+        ax1.set_xticklabels(labels, rotation=45, ha='right', fontfamily='monospace', fontsize=9)
         ax1.grid(True, alpha=0.3)
-        
+
         # P95 latency
         ax2 = axes[1]
-        ax2.plot(dates, p95_latencies, marker='^', linestyle='-', color='#dc2626', linewidth=2)
+        ax2.plot(x, p95_latencies, marker='^', linestyle='-', color='#dc2626', linewidth=2)
         ax2.set_ylabel("P95 Latency (ms)")
-        ax2.set_xlabel("Date")
+        ax2.set_xlabel("Commit")
         ax2.set_title(f"P95 Latency (avg: {sum(p95_latencies)/len(p95_latencies):.1f}ms)")
+        ax2.set_xticks(list(x))
+        ax2.set_xticklabels(labels, rotation=45, ha='right', fontfamily='monospace', fontsize=9)
         ax2.grid(True, alpha=0.3)
-        
-        for ax in axes:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
+
         plt.tight_layout()
         plt.savefig(output_dir / f"{bench_name}_trends.png", dpi=150, bbox_inches='tight')
         print(f"✅ Plot saved to: {output_dir / f'{bench_name}_trends.png'}")

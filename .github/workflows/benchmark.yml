@@ -194,13 +194,11 @@ jobs:
       - name: Generate trend plots
         run: |
           mkdir -p benchmark-history/
-          cp benchmark-results/results.json benchmark-history/
-          
+          cp benchmark-results/results.json "benchmark-history/results-${GITHUB_SHA::8}.json"
+
           python3 scripts/analyze_benchmarks.py \
             --input benchmark-history/ \
             --output benchmark-results/trends/
-          
-          cp -r benchmark-results/trends/ benchmark-history/trends/ 2>/dev/null || true
       
       - name: Display trend summary
         run: |
