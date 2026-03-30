@@ -109,7 +109,7 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                     >/:id/raw</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >Get raw content</td
+                    >Get raw relic content</td
                   >
                 </tr>
                 <tr>
@@ -136,6 +136,71 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
                     >Delete relic (hard delete)</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/:id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get raw relic content</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/lineage</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get relic lineage</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >GET</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Get relic access</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >POST</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Add relic access</td
+                  >
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                    >DELETE</td
+                  >
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
+                    >/api/v1/relics/:id/access/:public_id</td
+                  >
+                  <td class="px-6 py-4 text-sm text-gray-500"
+                    >Remove relic access</td
                   >
                 </tr>
               </tbody>
