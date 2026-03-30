@@ -179,6 +179,7 @@ def main():
 
     # Add metadata
     results["_metadata"] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "git_hash": args.git_hash or "unknown",
         "configuration": {
             "url": args.url,
