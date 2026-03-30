@@ -88,7 +88,7 @@ async def admin_list_all_relics(
     total = total_result.scalar()
 
     relics_result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
-    relics = relics_result.scalars().all()
+    relics = relics_result.unique().scalars().all()
 
     # Fetch all counts in bulk (2 queries instead of N*2)
     relic_ids = [r.id for r in relics]
@@ -602,7 +602,7 @@ async def admin_list_reports(
             joinedload(RelicReport.relic).joinedload(Relic.owner_client)
         ).order_by(order).offset(offset).limit(limit)
     )
-    reports = reports_result.scalars().all()
+    reports = reports_result.unique().scalars().all()
 
     # Enrich with relic names and owners
     report_responses = []
