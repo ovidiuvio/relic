@@ -30,19 +30,23 @@ def load_results(input_dir: Path) -> list[dict]:
                 # Handle new format with runs array and median
                 if "median" in data and "runs" in data:
                     # Use median values as the result
+                    latency_ms = data["median"].get("latency_ms")
+                    if latency_ms is None:
+                        # Fallback for older combined format
+                        latency_ms = {"p95": data["median"].get("p95_latency_ms", 0)}
                     results.append({
                         "metadata": data.get("metadata", {}),
                         "results": {
                             "throughput_relics_per_sec": data["median"]["throughput_relics_per_sec"],
                             "success_rate": data["median"]["success_rate"],
                             "duration_seconds": data["median"]["duration_seconds"],
-                            "latency_ms": data["median"].get("latency_ms", {"p95": data["median"]["p95_latency_ms"]})
+                            "latency_ms": latency_ms
                         }
                     })
-                else:
-                    # Legacy format
+                elif "results" in data:
+                    # Legacy format with results object
                     results.append(data)
-        except (json.JSONDecodeError, IOError) as e:
+        except (json.JSONDecodeError, IOError, KeyError) as e:
             print(f"⚠️  Could not load {f}: {e}")
     return results
 
