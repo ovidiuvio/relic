@@ -61,12 +61,24 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p benchmark-history/
-          if gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 10 --json databaseId,status --jq '[.[] | select(.status=="completed")] | first | .databaseId' > /tmp/last_run_id.txt 2>/dev/null; then
-            LAST_RUN_ID=$(cat /tmp/last_run_id.txt)
-            if [ -n "$LAST_RUN_ID" ]; then
-              gh run download "$LAST_RUN_ID" --name benchmark-history --dir benchmark-history/ 2>/dev/null || true
+          echo "🔍 Looking for previous successful benchmark runs..."
+          
+          # Get the last SUCCESSFUL run ID (not just completed - failed runs don't have history)
+          LAST_RUN_ID=$(gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 20 --json databaseId,status --jq '[.[] | select(.status=="completed" and .conclusion=="success")] | first | .databaseId' 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_RUN_ID" ]; then
+            echo "📥 Downloading benchmark history from successful run #$LAST_RUN_ID..."
+            if gh run download "$LAST_RUN_ID" --name benchmark-history --dir benchmark-history/ 2>/dev/null; then
+              echo "✅ Downloaded $(ls -1 benchmark-history/ | wc -l) previous benchmark files"
+            else
+              echo "⚠️  No benchmark-history artifact found in run #$LAST_RUN_ID"
             fi
+          else
+            echo "⚠️  No previous successful benchmark runs found"
           fi
+          
+          echo "📁 Current benchmark-history contents:"
+          ls -la benchmark-history/ || echo "(empty)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
