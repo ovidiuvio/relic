@@ -105,11 +105,9 @@ async def create_relic(
         if tag_objects:
             relic.tags = tag_objects
 
-        # Update client relic count atomically
+        # Update client relic count (flushed with commit)
         if client:
-            await db.execute(
-                update(ClientKey).where(ClientKey.id == client.id).values(relic_count=ClientKey.relic_count + 1)
-            )
+            client.relic_count += 1
 
         db.add(relic)
 
@@ -122,7 +120,6 @@ async def create_relic(
                 await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
 
         await db.commit()
-        await db.refresh(relic)
 
         return {
             "id": relic.id,
@@ -349,15 +346,12 @@ async def fork_relic(
         if tag_objects:
             fork.tags = tag_objects
 
-        # Update client relic count atomically
+        # Update client relic count (flushed with commit)
         if client:
-            await db.execute(
-                update(ClientKey).where(ClientKey.id == client.id).values(relic_count=ClientKey.relic_count + 1)
-            )
+            client.relic_count += 1
 
         db.add(fork)
         await db.commit()
-        await db.refresh(fork)
 
         return {
             "id": fork.id,
