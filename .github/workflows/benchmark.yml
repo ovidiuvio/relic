@@ -53,14 +53,18 @@ jobs:
         run: pip install httpx jq matplotlib
 
       - name: Download previous benchmarks
-        uses: dawiddown/action-download-artifact@v3
         continue-on-error: true
-        with:
-          workflow: benchmark.yml
-          branch: ${{ github.ref_name }}
-          name: benchmark-history
-          path: benchmark-history/
-          if_no_artifact_found: ignore
+        run: |
+          mkdir -p benchmark-history/
+          # Try to download latest artifact from previous runs
+          if gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 1 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId' > /tmp/last_run_id.txt 2>/dev/null; then
+            LAST_RUN_ID=$(cat /tmp/last_run_id.txt)
+            if [ -n "$LAST_RUN_ID" ]; then
+              gh run download "$LAST_RUN_ID" --name benchmark-history --dir benchmark-history/ 2>/dev/null || true
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run benchmark (5 iterations)
         id: benchmark
@@ -112,13 +116,29 @@ jobs:
           MEDIAN_THROUGHPUT=$(cat /tmp/throughputs.txt | median)
           MEDIAN_SUCCESS_RATE=$(cat /tmp/success_rates.txt | median)
           MEDIAN_DURATION=$(cat /tmp/durations.txt | median)
-          MEDIAN_P95=$(cat /tmp/p95s.txt | median)
+          
+          # Extract all latency metrics from each run
+          for i in $(seq 1 $RUNS); do
+            jq -r '.results.latency_ms.min' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_min.txt
+            jq -r '.results.latency_ms.p50' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p50.txt
+            jq -r '.results.latency_ms.p90' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p90.txt
+            jq -r '.results.latency_ms.p95' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p95.txt
+            jq -r '.results.latency_ms.p99' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p99.txt
+            jq -r '.results.latency_ms.max' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_max.txt
+          done
+          
+          MEDIAN_MIN=$(cat /tmp/lat_min.txt | median)
+          MEDIAN_P50=$(cat /tmp/lat_p50.txt | median)
+          MEDIAN_P90=$(cat /tmp/lat_p90.txt | median)
+          MEDIAN_P95=$(cat /tmp/lat_p95.txt | median)
+          MEDIAN_P99=$(cat /tmp/lat_p99.txt | median)
+          MEDIAN_MAX=$(cat /tmp/lat_max.txt | median)
           
           # Calculate min/max for reference
           MIN_THROUGHPUT=$(sort -n /tmp/throughputs.txt | head -1)
           MAX_THROUGHPUT=$(sort -n /tmp/throughputs.txt | tail -1)
-          MIN_P95=$(sort -n /tmp/p95s.txt | head -1)
-          MAX_P95=$(sort -n /tmp/p95s.txt | tail -1)
+          MIN_P95=$(sort -n /tmp/lat_p95.txt | head -1)
+          MAX_P95=$(sort -n /tmp/lat_p95.txt | tail -1)
           
           echo "Median throughput: $MEDIAN_THROUGHPUT relics/sec (range: $MIN_THROUGHPUT - $MAX_THROUGHPUT)"
           echo "Median success rate: $MEDIAN_SUCCESS_RATE%"
@@ -130,6 +150,11 @@ jobs:
           echo "$MEDIAN_SUCCESS_RATE" > /tmp/median_success_rate.txt
           echo "$MEDIAN_DURATION" > /tmp/median_duration.txt
           echo "$MEDIAN_P95" > /tmp/median_p95.txt
+          echo "$MEDIAN_MIN" > /tmp/median_min.txt
+          echo "$MEDIAN_P50" > /tmp/median_p50.txt
+          echo "$MEDIAN_P90" > /tmp/median_p90.txt
+          echo "$MEDIAN_P99" > /tmp/median_p99.txt
+          echo "$MEDIAN_MAX" > /tmp/median_max.txt
           
           # Create combined results file
           jq -n \
@@ -138,6 +163,11 @@ jobs:
             --arg median_success_rate "$MEDIAN_SUCCESS_RATE" \
             --arg median_duration "$MEDIAN_DURATION" \
             --arg median_p95 "$MEDIAN_P95" \
+            --arg median_min "$MEDIAN_MIN" \
+            --arg median_p50 "$MEDIAN_P50" \
+            --arg median_p90 "$MEDIAN_P90" \
+            --arg median_p99 "$MEDIAN_P99" \
+            --arg median_max "$MEDIAN_MAX" \
             --arg git_hash "$GITHUB_SHA" \
             '{
               runs: $runs,
@@ -145,7 +175,14 @@ jobs:
                 throughput_relics_per_sec: ($median_throughput | tonumber),
                 success_rate: ($median_success_rate | tonumber),
                 duration_seconds: ($median_duration | tonumber),
-                p95_latency_ms: ($median_p95 | tonumber)
+                latency_ms: {
+                  min: ($median_min | tonumber),
+                  p50: ($median_p50 | tonumber),
+                  p90: ($median_p90 | tonumber),
+                  p95: ($median_p95 | tonumber),
+                  p99: ($median_p99 | tonumber),
+                  max: ($median_max | tonumber)
+                }
               },
               metadata: {
                 git_hash: $git_hash,
@@ -160,15 +197,11 @@ jobs:
           MEDIAN_SUCCESS_RATE=$(cat /tmp/median_success_rate.txt)
           MEDIAN_DURATION=$(cat /tmp/median_duration.txt)
           MEDIAN_P95=$(cat /tmp/median_p95.txt)
-          
-          # Get latency details from median run (run 3)
-          RESULTS_FILE="benchmark-results/runs/run-3.json"
-          
-          MIN=$(jq -r '.results.latency_ms.min' "$RESULTS_FILE")
-          P50=$(jq -r '.results.latency_ms.p50' "$RESULTS_FILE")
-          P90=$(jq -r '.results.latency_ms.p90' "$RESULTS_FILE")
-          P99=$(jq -r '.results.latency_ms.p99' "$RESULTS_FILE")
-          MAX=$(jq -r '.results.latency_ms.max' "$RESULTS_FILE")
+          MEDIAN_MIN=$(cat /tmp/median_min.txt)
+          MEDIAN_P50=$(cat /tmp/median_p50.txt)
+          MEDIAN_P90=$(cat /tmp/median_p90.txt)
+          MEDIAN_P99=$(cat /tmp/median_p99.txt)
+          MEDIAN_MAX=$(cat /tmp/median_max.txt)
           
           echo "## 🔬 Benchmark Results (Median of 5 runs)"
           echo ""
@@ -182,16 +215,16 @@ jobs:
           echo "| **Median Duration** | ${MEDIAN_DURATION}s |"
           echo "| **Median P95 Latency** | ${MEDIAN_P95}ms |"
           echo ""
-          echo "### Latency Distribution (from median run)"
+          echo "### Latency Distribution (Median of 5 runs)"
           echo ""
           echo "| Percentile | Latency (ms) |"
           echo "|------------|--------------|"
-          echo "| Min | ${MIN} |"
-          echo "| P50 | ${P50} |"
-          echo "| P90 | ${P90} |"
+          echo "| Min | ${MEDIAN_MIN} |"
+          echo "| P50 | ${MEDIAN_P50} |"
+          echo "| P90 | ${MEDIAN_P90} |"
           echo "| P95 | ${MEDIAN_P95} |"
-          echo "| P99 | ${P99} |"
-          echo "| Max | ${MAX} |"
+          echo "| P99 | ${MEDIAN_P99} |"
+          echo "| Max | ${MEDIAN_MAX} |"
           echo ""
           echo "> Full results in artifact: \`benchmark-results\`"
 

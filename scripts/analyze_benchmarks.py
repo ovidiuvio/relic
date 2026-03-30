@@ -36,9 +36,7 @@ def load_results(input_dir: Path) -> list[dict]:
                             "throughput_relics_per_sec": data["median"]["throughput_relics_per_sec"],
                             "success_rate": data["median"]["success_rate"],
                             "duration_seconds": data["median"]["duration_seconds"],
-                            "latency_ms": {
-                                "p95": data["median"]["p95_latency_ms"]
-                            }
+                            "latency_ms": data["median"].get("latency_ms", {"p95": data["median"]["p95_latency_ms"]})
                         }
                     })
                 else:
@@ -64,7 +62,7 @@ def generate_plots(results: list[dict], output_dir: Path) -> None:
             throughputs.append(r["results"]["throughput_relics_per_sec"])
             success_rates.append(r["results"]["success_rate"])
             p95_latencies.append(r["results"]["latency_ms"]["p95"])
-        except (KeyError, ValueError):
+        except (KeyError, ValueError) as e:
             continue
     
     if not dates:
