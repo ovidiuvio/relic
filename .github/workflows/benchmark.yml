@@ -61,7 +61,7 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p benchmark-history/
-          if gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 1 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId' > /tmp/last_run_id.txt 2>/dev/null; then
+          if gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 10 --json databaseId,status --jq '[.[] | select(.status=="completed")] | first | .databaseId' > /tmp/last_run_id.txt 2>/dev/null; then
             LAST_RUN_ID=$(cat /tmp/last_run_id.txt)
             if [ -n "$LAST_RUN_ID" ]; then
               gh run download "$LAST_RUN_ID" --name benchmark-history --dir benchmark-history/ 2>/dev/null || true
