@@ -55,7 +55,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install httpx jq matplotlib
+        run: pip install httpx jq matplotlib plotly
 
       - name: Download previous benchmarks
         continue-on-error: true
