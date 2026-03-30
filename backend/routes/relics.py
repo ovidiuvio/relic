@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPExc
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import selectinload, joinedload, contains_eager
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from datetime import datetime
 from typing import Optional, List
@@ -105,9 +105,11 @@ async def create_relic(
         if tag_objects:
             relic.tags = tag_objects
 
-        # Update client relic count
+        # Update client relic count atomically
         if client:
-            client.relic_count += 1
+            await db.execute(
+                update(ClientKey).where(ClientKey.id == client.id).values(relic_count=ClientKey.relic_count + 1)
+            )
 
         db.add(relic)
 
@@ -184,8 +186,11 @@ async def get_relic(
                 raise HTTPException(status_code=403, detail="Access restricted")
     relic.can_edit = check_ownership_or_admin(relic, client, require_auth=False)
 
-    # Increment access count
-    relic.access_count += 1
+    # Increment access count atomically
+    await db.execute(
+        update(Relic).where(Relic.id == relic_id).values(access_count=Relic.access_count + 1)
+    )
+    relic.access_count = (relic.access_count or 0) + 1  # keep local object in sync
     await db.commit()
 
     # Calculate counts
@@ -344,9 +349,11 @@ async def fork_relic(
         if tag_objects:
             fork.tags = tag_objects
 
-        # Update client relic count if client exists
+        # Update client relic count atomically
         if client:
-            client.relic_count += 1
+            await db.execute(
+                update(ClientKey).where(ClientKey.id == client.id).values(relic_count=ClientKey.relic_count + 1)
+            )
 
         db.add(fork)
         await db.commit()
@@ -514,12 +521,13 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
     # Hard delete in database
     await db.delete(relic)
 
-    # Update owner's relic count (not admin's count if admin is deleting)
+    # Update owner's relic count atomically (not admin's count if admin is deleting)
     if relic_client_id:
-        owner_result = await db.execute(select(ClientKey).where(ClientKey.id == relic_client_id))
-        owner = owner_result.scalar_one_or_none()
-        if owner and owner.relic_count > 0:
-            owner.relic_count -= 1
+        await db.execute(
+            update(ClientKey)
+            .where(ClientKey.id == relic_client_id, ClientKey.relic_count > 0)
+            .values(relic_count=ClientKey.relic_count - 1)
+        )
 
     await db.commit()
 

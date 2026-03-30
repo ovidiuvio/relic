@@ -1,6 +1,6 @@
 """Bookmark endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
@@ -53,8 +53,10 @@ async def add_bookmark(
         created_at=datetime.utcnow()
     )
 
-    # Increment bookmark count
-    relic.bookmark_count += 1
+    # Increment bookmark count atomically
+    await db.execute(
+        update(Relic).where(Relic.id == relic_id).values(bookmark_count=Relic.bookmark_count + 1)
+    )
 
     db.add(bookmark)
     await db.commit()
@@ -94,10 +96,12 @@ async def remove_bookmark(
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
-    relic_result = await db.execute(select(Relic).where(Relic.id == relic_id))
-    relic = relic_result.scalar_one_or_none()
-    if relic and relic.bookmark_count > 0:
-        relic.bookmark_count -= 1
+    # Decrement bookmark count atomically
+    await db.execute(
+        update(Relic)
+        .where(Relic.id == relic_id, Relic.bookmark_count > 0)
+        .values(bookmark_count=Relic.bookmark_count - 1)
+    )
 
     await db.delete(bookmark)
     await db.commit()
