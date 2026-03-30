@@ -51,8 +51,7 @@ class StorageService:
         try:
             await self.client.head_bucket(Bucket=self.bucket_name)
         except ClientError as e:
-            error_code = int(e.response['Error']['Code'])
-            if error_code == 404:
+            if e.response['Error']['Code'] == '404':
                 kwargs = {'Bucket': self.bucket_name}
                 if settings.S3_REGION != 'us-east-1':
                     kwargs['CreateBucketConfiguration'] = {
