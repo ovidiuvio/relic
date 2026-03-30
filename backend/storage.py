@@ -60,6 +60,7 @@ class StorageService:
                 await self.client.create_bucket(**kwargs)
             else:
                 logger.error(f"Error ensuring bucket exists: {e}")
+                raise
 
     async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
         """
