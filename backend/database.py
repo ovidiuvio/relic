@@ -17,7 +17,13 @@ def _sync_url(url: str) -> str:
 
 
 # Async engine — used by all FastAPI request handlers
-async_engine = create_async_engine(_async_url(settings.DATABASE_URL), pool_pre_ping=True)
+async_engine = create_async_engine(
+    _async_url(settings.DATABASE_URL),
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_pre_ping=True
+)
 AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 # Sync engine — used only by init_db() and backup restore
