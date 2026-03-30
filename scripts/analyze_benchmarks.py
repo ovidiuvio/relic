@@ -26,7 +26,24 @@ def load_results(input_dir: Path) -> list[dict]:
     for f in sorted(input_dir.glob("*.json")):
         try:
             with open(f) as fp:
-                results.append(json.load(fp))
+                data = json.load(fp)
+                # Handle new format with runs array and median
+                if "median" in data and "runs" in data:
+                    # Use median values as the result
+                    results.append({
+                        "metadata": data.get("metadata", {}),
+                        "results": {
+                            "throughput_relics_per_sec": data["median"]["throughput_relics_per_sec"],
+                            "success_rate": data["median"]["success_rate"],
+                            "duration_seconds": data["median"]["duration_seconds"],
+                            "latency_ms": {
+                                "p95": data["median"]["p95_latency_ms"]
+                            }
+                        }
+                    })
+                else:
+                    # Legacy format
+                    results.append(data)
         except (json.JSONDecodeError, IOError) as e:
             print(f"⚠️  Could not load {f}: {e}")
     return results
@@ -129,6 +146,16 @@ See `benchmark_trends.png` for visual trends.
     with open(output_dir / "SUMMARY.md", 'w') as f:
         f.write(summary)
     print(f"✅ Summary saved to: {output_dir / 'SUMMARY.md'}")
+    
+    # Print summary to stdout for workflow logs
+    print("\n" + "=" * 50)
+    print("📈 TREND SUMMARY")
+    print("=" * 50)
+    print(f"   Total runs: {len(results)}")
+    print(f"   Throughput avg: {sum(throughputs)/len(throughputs):.2f} relics/sec")
+    print(f"   Success rate avg: {sum(success_rates)/len(success_rates):.2f}%")
+    print(f"   P95 latency avg: {sum(p95s)/len(p95s):.2f}ms")
+    print("=" * 50)
 
 
 def main():
