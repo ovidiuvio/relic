@@ -73,7 +73,7 @@ async def perform_backup(backup_type: str = 'scheduled') -> bool:
 
             # Compress with gzip
             logger.debug("Compressing backup...")
-            compressed = gzip.compress(stdout, compresslevel=9)
+            compressed = await asyncio.to_thread(gzip.compress, stdout, 9)
             compression_ratio = (1 - len(compressed) / len(stdout)) * 100 if len(stdout) > 0 else 0
 
             # Generate filename and upload to S3
