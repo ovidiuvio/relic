@@ -13,6 +13,7 @@
 
   let showKeyDropdown = false;
   let relicViewerFullWidth = false;
+  let relicFormFullWidth = false;
   let isAdmin = false;
   let clientName = "";
   let clientPublicId = "";
@@ -73,9 +74,13 @@
     }
 
     // Load full-width preference from localStorage
-    const saved = localStorage.getItem("relic_viewer_fullwidth");
-    if (saved !== null) {
-      relicViewerFullWidth = saved === "true";
+    const savedViewer = localStorage.getItem("relic_viewer_fullwidth");
+    if (savedViewer !== null) {
+      relicViewerFullWidth = savedViewer === "true";
+    }
+    const savedForm = localStorage.getItem("relic_form_fullwidth");
+    if (savedForm !== null) {
+      relicFormFullWidth = savedForm === "true";
     }
 
     // Initial routing already handled at top level
@@ -207,7 +212,11 @@
   }
 
   function handleFullWidthToggle(event) {
-    relicViewerFullWidth = event.detail.isFullWidth;
+    if (currentSection === 'relic') {
+        relicViewerFullWidth = event.detail.isFullWidth;
+    } else if (currentSection === 'new') {
+        relicFormFullWidth = event.detail.isFullWidth;
+    }
   }
 </script>
 
@@ -403,7 +412,7 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto flex flex-col">
     <div
-      class="w-full {relicViewerFullWidth && (currentSection === 'relic' || currentSection === 'new')
+      class="w-full {((currentSection === 'relic' && relicViewerFullWidth) || (currentSection === 'new' && relicFormFullWidth))
         ? ''
         : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
     >
