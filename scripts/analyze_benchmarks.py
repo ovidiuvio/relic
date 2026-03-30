@@ -348,16 +348,23 @@ def generate_html_report(results: list[dict], output_dir: Path) -> None:
             template='plotly_white'
         )
 
-        # Add commit annotations as vertical lines on hover
-        for i, (ts, git_hash) in enumerate(zip(timestamps, git_hashes)):
-            fig.add_vline(
-                x=ts,
-                line=dict(color='#9ca3af', width=1, dash='dot'),
-                opacity=0.3,
-                row='all',
-                annotation_text=git_hash if len(timestamps) <= 10 else None,
-                annotation_position='top' if i == 0 else 'bottom'
-            )
+        # Add commit annotations as vertical lines (only for small datasets to avoid clutter)
+        if len(timestamps) <= 10:
+            for i, (ts, git_hash) in enumerate(zip(timestamps, git_hashes)):
+                fig.add_vline(
+                    x=ts,
+                    line=dict(color='#9ca3af', width=1, dash='dot'),
+                    opacity=0.3,
+                    row=1, col=1,
+                    annotation_text=git_hash,
+                    annotation_position='top'
+                )
+                fig.add_vline(
+                    x=ts,
+                    line=dict(color='#9ca3af', width=1, dash='dot'),
+                    opacity=0.3,
+                    row=2, col=1,
+                )
 
         chart_html = fig.to_html(include_plotlyjs=False, full_html=False)
         html_parts.append(f'        <div class="chart-container">')
