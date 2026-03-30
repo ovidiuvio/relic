@@ -1,34 +1,34 @@
 """Shared dependencies and helper functions for route modules."""
 from fastapi import Request, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from datetime import datetime
 from typing import Optional, List
-
-from sqlalchemy import func
 
 from backend.config import settings
 from backend.models import Relic, ClientKey, Tag, Space, space_relics
 from backend.utils import generate_relic_id
 
 
-def get_client_key(request: Request, db: Session) -> Optional[ClientKey]:
+async def get_client_key(request: Request, db: AsyncSession) -> Optional[ClientKey]:
     """Extract and validate client key from request headers."""
     x_client_key = request.headers.get("X-Client-Key")
     if not x_client_key:
         return None
 
-    client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
-    return client
+    result = await db.execute(select(ClientKey).where(ClientKey.id == x_client_key))
+    return result.scalar_one_or_none()
 
 
-def get_or_create_client_key(request: Request, db: Session) -> Optional[ClientKey]:
+async def get_or_create_client_key(request: Request, db: AsyncSession) -> Optional[ClientKey]:
     """Get existing client or create new one if key provided."""
     x_client_key = request.headers.get("X-Client-Key")
     if not x_client_key:
         return None
 
-    # Try to get existing client
-    client = db.query(ClientKey).filter(ClientKey.id == x_client_key).first()
+    result = await db.execute(select(ClientKey).where(ClientKey.id == x_client_key))
+    client = result.scalar_one_or_none()
     if client:
         return client
 
@@ -38,7 +38,7 @@ def get_or_create_client_key(request: Request, db: Session) -> Optional[ClientKe
         created_at=datetime.utcnow()
     )
     db.add(client)
-    db.commit()
+    await db.commit()
     return client
 
 
@@ -53,13 +53,13 @@ def is_admin_client(client: Optional[ClientKey]) -> bool:
     return client.id in settings.get_admin_client_ids()
 
 
-def get_admin_client(request: Request, db: Session) -> ClientKey:
+async def get_admin_client(request: Request, db: AsyncSession) -> ClientKey:
     """
     Get client and verify admin privileges.
 
     Raises HTTPException if not authenticated or not admin.
     """
-    client = get_client_key(request, db)
+    client = await get_client_key(request, db)
     if not client:
         raise HTTPException(
             status_code=401,
@@ -109,7 +109,7 @@ def check_ownership_or_admin(
     return relic.client_id == client.id
 
 
-def process_tags(db: Session, tag_names: List[str]) -> List[Tag]:
+async def process_tags(db: AsyncSession, tag_names: List[str]) -> List[Tag]:
     """Process a list of tag names and return Tag objects (creating new ones if needed)."""
     if not tag_names:
         return []
@@ -120,46 +120,25 @@ def process_tags(db: Session, tag_names: List[str]) -> List[Tag]:
     if not normalized_names:
         return []
 
-    # Find existing tags
-    existing_tags = db.query(Tag).filter(Tag.name.in_(normalized_names)).all()
-    existing_names = {tag.name for tag in existing_tags}
+    # Insert missing tags, ignoring conflicts from concurrent requests
+    await db.execute(
+        pg_insert(Tag).values([{"name": name} for name in normalized_names]).on_conflict_do_nothing()
+    )
 
-    result_tags = list(existing_tags)
-
-    # Create new tags
-    for name in normalized_names:
-        if name not in existing_names:
-            new_tag = Tag(name=name)
-            db.add(new_tag)
-            result_tags.append(new_tag)
-
-    return result_tags
+    # Fetch all tag objects (existing + newly inserted)
+    result = await db.execute(select(Tag).where(Tag.name.in_(normalized_names)))
+    return result.scalars().all()
 
 
-def generate_unique_relic_id(db: Session, max_retries: int = 5) -> str:
+async def generate_unique_relic_id(db: AsyncSession, max_retries: int = 5) -> str:
     """
     Generate a unique relic ID with collision handling.
-
-    Attempts to generate a unique ID by checking the database for existing IDs.
-    With 128-bit entropy (32 hex chars), collisions are astronomically rare,
-    but this provides defensive handling just in case.
-
-    Args:
-        db: Database session for checking existing IDs
-        max_retries: Maximum number of generation attempts (default: 5)
-
-    Returns:
-        A unique relic ID guaranteed not to exist in the database
-
-    Raises:
-        HTTPException: If unable to generate unique ID after max_retries
     """
     for attempt in range(max_retries):
         relic_id = generate_relic_id()
 
-        # Check if ID already exists
-        existing = db.query(Relic).filter(Relic.id == relic_id).first()
-        if not existing:
+        result = await db.execute(select(Relic).where(Relic.id == relic_id))
+        if not result.scalar_one_or_none():
             return relic_id
 
     # This should virtually never happen with 128-bit IDs
@@ -169,12 +148,14 @@ def generate_unique_relic_id(db: Session, max_retries: int = 5) -> str:
     )
 
 
-def get_space_relic_count(space_id: str, db: Session) -> int:
+async def get_space_relic_count(space_id: str, db: AsyncSession) -> int:
     """Get the count of relics in a space efficiently using COUNT query."""
-    count = db.query(func.count(Relic.id)).join(
-        space_relics, Relic.id == space_relics.c.relic_id
-    ).filter(space_relics.c.space_id == space_id).scalar()
-    return count or 0
+    result = await db.execute(
+        select(func.count(Relic.id)).join(
+            space_relics, Relic.id == space_relics.c.relic_id
+        ).where(space_relics.c.space_id == space_id)
+    )
+    return result.scalar() or 0
 
 
 def get_space_role(space: Space, client_id: Optional[str]) -> Optional[str]:

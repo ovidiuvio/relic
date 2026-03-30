@@ -43,9 +43,9 @@ class Space(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    owner = relationship("ClientKey", backref="owned_spaces", foreign_keys=[owner_client_id])
-    relics = relationship("Relic", secondary=space_relics, back_populates="spaces")
-    access_list = relationship("SpaceAccess", back_populates="space", cascade="all, delete-orphan")
+    owner = relationship("ClientKey", backref="owned_spaces", foreign_keys=[owner_client_id], lazy="raise")
+    relics = relationship("Relic", secondary=space_relics, back_populates="spaces", lazy="raise")
+    access_list = relationship("SpaceAccess", back_populates="space", cascade="all, delete-orphan", lazy="raise")
 
 
 class SpaceAccess(Base):
@@ -62,8 +62,8 @@ class SpaceAccess(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    space = relationship("Space", back_populates="access_list")
-    client = relationship("ClientKey", backref="space_accesses")
+    space = relationship("Space", back_populates="access_list", lazy="raise")
+    client = relationship("ClientKey", backref="space_accesses", lazy="raise")
 
     # Unique constraint to prevent duplicate access entries
     __table_args__ = (
@@ -110,9 +110,9 @@ class Relic(Base):
     bookmark_count = Column(Integer, default=0)
 
     # Relationships
-    tags = relationship("Tag", secondary=relic_tags, back_populates="relics")
-    spaces = relationship("Space", secondary=space_relics, back_populates="relics")
-    access_list = relationship("RelicAccess", back_populates="relic", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary=relic_tags, back_populates="relics", lazy="raise")
+    spaces = relationship("Space", secondary=space_relics, back_populates="relics", lazy="raise")
+    access_list = relationship("RelicAccess", back_populates="relic", cascade="all, delete-orphan", lazy="raise")
 
 class RelicAccess(Base):
     """
@@ -127,8 +127,8 @@ class RelicAccess(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    relic = relationship("Relic", back_populates="access_list")
-    client = relationship("ClientKey", backref="relic_accesses")
+    relic = relationship("Relic", back_populates="access_list", lazy="raise")
+    client = relationship("ClientKey", backref="relic_accesses", lazy="raise")
 
     __table_args__ = (
         UniqueConstraint('relic_id', 'client_id', name='unique_relic_client_access'),
@@ -146,7 +146,7 @@ class ClientKey(Base):
     relic_count = Column(Integer, default=0)
 
     # Relationships
-    relics = relationship("Relic", backref="owner_client")
+    relics = relationship("Relic", backref=backref("owner_client", lazy="raise"), lazy="raise")
 
 
 class Tag(Base):
@@ -156,7 +156,7 @@ class Tag(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    relics = relationship("Relic", secondary=relic_tags, back_populates="tags")
+    relics = relationship("Relic", secondary=relic_tags, back_populates="tags", lazy="raise")
 
 
 class ClientBookmark(Base):
@@ -169,8 +169,8 @@ class ClientBookmark(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    client = relationship("ClientKey", backref="bookmarks")
-    relic = relationship("Relic", backref=backref("bookmarked_by", passive_deletes=True))
+    client = relationship("ClientKey", backref="bookmarks", lazy="raise")
+    relic = relationship("Relic", backref=backref("bookmarked_by", passive_deletes=True, lazy="raise"), lazy="raise")
 
     # Unique constraint to prevent duplicate bookmarks
     __table_args__ = (
@@ -191,7 +191,7 @@ class RelicReport(Base):
     # reporter_id = Column(String, ForeignKey('client_key.id'), nullable=True)
 
     # Relationships
-    relic = relationship("Relic", backref=backref("reports", passive_deletes=True))
+    relic = relationship("Relic", backref=backref("reports", passive_deletes=True, lazy="raise"), lazy="raise")
 
 
 class Comment(Base):
@@ -207,6 +207,6 @@ class Comment(Base):
     parent_id = Column(String, ForeignKey('comment.id'), nullable=True)
 
     # Relationships
-    relic = relationship("Relic", backref=backref("comments", passive_deletes=True))
-    client = relationship("ClientKey", backref="comments")
-    replies = relationship("Comment", backref=backref("parent", remote_side=[id]), cascade="all, delete-orphan")
+    relic = relationship("Relic", backref=backref("comments", passive_deletes=True, lazy="raise"), lazy="raise")
+    client = relationship("ClientKey", backref="comments", lazy="raise")
+    replies = relationship("Comment", backref=backref("parent", remote_side=[id], lazy="raise"), cascade="all, delete-orphan", lazy="raise")

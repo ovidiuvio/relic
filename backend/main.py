@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from backend.config import settings
-from backend.database import init_db
+from backend.database import init_db, async_engine
 from backend.storage import storage_service
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
@@ -66,6 +66,9 @@ async def shutdown_event():
 
         # Stop scheduler
         await shutdown_scheduler()
+
+    # Dispose async engine connection pool
+    await async_engine.dispose()
 
 
 # Include routers - order matters: relics router has catch-all /{relic_id} routes

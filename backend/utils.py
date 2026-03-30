@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import hashlib
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def generate_relic_id() -> str:
@@ -91,13 +91,13 @@ def like_term(value: str) -> str:
     return f"%{like_escape(value)}%"
 
 
-def apply_relic_search(query, search: str, db: Session):
-    """Filter a Relic query by search term across name, id, description, and tags."""
+def apply_relic_search(stmt, search: str):
+    """Filter a Relic Select statement by search term across name, id, description, and tags."""
     from backend.models import Relic, Tag
-    from sqlalchemy import or_
+    from sqlalchemy import select, or_
     term = like_term(search)
-    tag_sq = db.query(Relic.id).join(Relic.tags).filter(Tag.name.ilike(term)).scalar_subquery()
-    return query.filter(
+    tag_sq = select(Relic.id).join(Relic.tags).where(Tag.name.ilike(term)).scalar_subquery()
+    return stmt.where(
         or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_sq))
     ).distinct()
 
@@ -129,25 +129,27 @@ def clamp_limit(limit: int, default: int = 25) -> int:
     return min(limit, MAX_PAGE_LIMIT)
 
 
-def get_fork_counts(db: Session, relic_ids: List[str]) -> Dict[str, int]:
+async def get_fork_counts(db: AsyncSession, relic_ids: List[str]) -> Dict[str, int]:
     """Count direct forks for each relic. Returns {relic_id: count}."""
     if not relic_ids:
         return {}
     from backend.models import Relic
-    from sqlalchemy import func
-    rows = (
-        db.query(Relic.fork_of, func.count(Relic.id))
-        .filter(Relic.fork_of.in_(relic_ids))
+    from sqlalchemy import select, func
+    result = await db.execute(
+        select(Relic.fork_of, func.count(Relic.id))
+        .where(Relic.fork_of.in_(relic_ids))
         .group_by(Relic.fork_of)
-        .all()
     )
-    return {row[0]: row[1] for row in rows}
+    return {row[0]: row[1] for row in result.all()}
 
 
-def get_fork_count(db: Session, relic_id: str) -> int:
+async def get_fork_count(db: AsyncSession, relic_id: str) -> int:
     """Count direct forks of a single relic."""
     from backend.models import Relic
-    from sqlalchemy import func
-    return db.query(func.count(Relic.id)).filter(Relic.fork_of == relic_id).scalar() or 0
+    from sqlalchemy import select, func
+    result = await db.execute(
+        select(func.count(Relic.id)).where(Relic.fork_of == relic_id)
+    )
+    return result.scalar() or 0
 
 

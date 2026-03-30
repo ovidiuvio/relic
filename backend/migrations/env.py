@@ -7,6 +7,7 @@ from alembic import context
 
 # Import models and settings
 from backend.config import settings
+from backend.database import _sync_url
 from backend.models import Base
 
 
@@ -23,8 +24,8 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Set the database URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set the database URL from settings — always use sync psycopg2 driver for Alembic
+config.set_main_option("sqlalchemy.url", _sync_url(settings.DATABASE_URL))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

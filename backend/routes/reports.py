@@ -1,6 +1,7 @@
 """Report endpoints."""
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from datetime import datetime
 
 from backend.database import get_db
@@ -13,13 +14,14 @@ router = APIRouter(prefix="/api/v1")
 @router.post("/reports", response_model=dict)
 async def create_report(
     report: ReportCreate,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Report a relic for inappropriate content.
     """
     # Verify relic exists
-    relic = db.query(Relic).filter(Relic.id == report.relic_id).first()
+    result = await db.execute(select(Relic).where(Relic.id == report.relic_id))
+    relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
@@ -31,6 +33,6 @@ async def create_report(
     )
 
     db.add(new_report)
-    db.commit()
+    await db.commit()
 
     return {"message": "Report submitted successfully"}

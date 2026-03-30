@@ -1,45 +1,53 @@
 """Database session and initialization."""
-from typing import Generator
+import os
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 from backend.config import settings
 from backend.models import Base
 
 
-# Create engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+def _async_url(url: str) -> str:
+    return url.replace("postgresql://", "postgresql+asyncpg://", 1) \
+              .replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+
+
+def _sync_url(url: str) -> str:
+    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
+# Async engine — used by all FastAPI request handlers
+async_engine = create_async_engine(
+    _async_url(settings.DATABASE_URL),
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True
 )
+AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Sync engine — used only by init_db() and backup restore
+sync_engine = create_engine(_sync_url(settings.DATABASE_URL))
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Dependency to get database session."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency to get async database session."""
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 def init_db():
-    """Initialize database tables and run migrations."""
-    # Create tables if they don't exist
-    Base.metadata.create_all(bind=engine)
-    
-    # Run alembic migrations
-    import os
+    """Initialize database tables and run migrations (synchronous)."""
+    Base.metadata.create_all(bind=sync_engine)
+
     from alembic.config import Config
     from alembic import command
-    
-    # Get backend directory
+
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     alembic_cfg = Config(os.path.join(backend_dir, "alembic.ini"))
     alembic_cfg.set_main_option("script_location", os.path.join(backend_dir, "migrations"))
-    
+
     print("Running database migrations...")
     try:
         command.upgrade(alembic_cfg, "head")

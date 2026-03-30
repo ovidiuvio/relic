@@ -41,6 +41,7 @@ services:
       BACKUP_CLEANUP_ENABLED: "true"
       BACKUP_ON_STARTUP: "true"
       BACKUP_ON_SHUTDOWN: "true"
+      PROFILING_ENABLED: "true"
     volumes:
       - ./backend:/app/backend:z
       - ./requirements.txt:/app/requirements.txt:ro
