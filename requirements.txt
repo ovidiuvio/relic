@@ -13,8 +13,7 @@ python-multipart>=0.0.6
 
 
 # Storage & Cloud
-boto3>=1.26.0
-minio>=7.1.0
+aiobotocore>=2.7.0
 
 # Image Processing
 Pillow>=9.0.0

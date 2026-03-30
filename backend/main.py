@@ -43,7 +43,8 @@ async def startup_event():
     import os
     if not os.getenv("SKIP_DB_INIT"):
         init_db()
-    storage_service.ensure_bucket()
+    await storage_service.start()
+    await storage_service.ensure_bucket()
 
 
     # Start background scheduler (handles backups and relic cleanup)
@@ -69,6 +70,9 @@ async def shutdown_event():
 
     # Dispose async engine connection pool
     await async_engine.dispose()
+
+    # Close S3 client
+    await storage_service.close()
 
 
 # Include routers - order matters: relics router has catch-all /{relic_id} routes
