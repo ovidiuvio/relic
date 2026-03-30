@@ -1,106 +1,179 @@
-# 🔬 Benchmarking Guide
+# 🔬 Benchmark Suite
 
-Simple benchmarking for relic creation performance. Results stored as GitHub artifacts for 90 days.
+Comprehensive benchmark suite for Relic performance testing.
+
+## Benchmarks
+
+| Benchmark | Description | Operations |
+|-----------|-------------|------------|
+| **create** | Create relics | POST /api/v1/relics |
+| **read** | Fetch relic content/metadata | GET /{id}/raw, GET /api/v1/relics/{id} |
+| **search** | Search and filter | GET /api/v1/relics?search=, ?tag=, ?sort_by= |
+| **spaces** | Space operations | GET /api/v1/spaces, /spaces/{id}/relics |
+| **social** | Social features | GET /bookmarks/check, /comments, /lineage |
+| **mixed** | Realistic workload | 50% read, 20% search, 15% social, 10% spaces, 5% write |
 
 ## Quick Start
 
-### Run Locally
+### Run All Benchmarks
+```bash
+python3 scripts/run_all_benchmarks.py \
+  --client-key YOUR_KEY \
+  --url http://localhost \
+  --iterations 5 \
+  --workers 5 \
+  --operations 100
+```
+
+### Run Create Benchmark Only
 ```bash
 python3 scripts/benchmark_relics.py \
   --count 1000 \
   --workers 5 \
-  --url http://localhost \
   --client-key YOUR_KEY
 ```
 
-### Run via GitHub Actions
-Go to **Actions** → **Benchmark - Relic Creation** → **Run workflow**
+## GitHub Actions
 
-Optional parameters:
-- `relic_count`: default 1000
-- `workers`: default 5
+The `benchmark-suite.yml` workflow runs automatically on pushes to `main`.
 
-## Scripts
+**Configuration:**
+- Seeds 500 relics before running
+- Runs 5 iterations per benchmark
+- 100 operations per iteration
+- 5 concurrent workers
+- Create benchmark: 5 iterations × 1000 relics
 
-### `scripts/benchmark_relics.py`
+**Outputs:**
+- Workflow summary with all benchmark results
+- Artifact: `benchmark-{sha}` (90 days)
+- Artifact: `benchmark-history` (90 days)
+- Trend plots and comparison charts
+
+## Output Format
+
+```json
+{
+  "create": {
+    "name": "create",
+    "iterations": 5,
+    "median": {
+      "operations_per_second": 130.5,
+      "latency_ms": {"p95": 51.2}
+    }
+  },
+  "read": {
+    "name": "read",
+    "iterations": 5,
+    "median": {
+      "operations_per_second": 450.2,
+      "success_rate": 100,
+      "latency_ms": {
+        "p50": 12.5,
+        "p95": 28.3,
+        "p99": 45.1
+      }
+    }
+  },
+  "_metadata": {
+    "git_hash": "abc1234",
+    "configuration": {...}
+  }
+}
+```
+
+## Analyze Trends
+
+```bash
+# Download artifacts
+gh run download <run-id> --dir benchmarks/
+
+# Generate trends
+python3 scripts/analyze_benchmarks.py \
+  --input benchmarks/ \
+  --output trends/
+
+# View plots
+open trends/comparison.png
+```
+
+## Benchmark Details
+
+### Create
+- Creates 1000 relics per iteration
+- Measures throughput (relics/sec)
+- Tracks latency percentiles
+- Uses async httpx with configurable workers
+
+### Read
+- Randomly fetches relic content or metadata
+- Uses pre-seeded relic IDs
+- Handles 404/410 gracefully (expired relics)
+
+### Search
+- Tests search by text
+- Tests filter by tag
+- Tests pagination
+- Tests sorting (created_at, name, access_count)
+
+### Spaces
+- Lists spaces
+- Gets space details
+- Lists space relics
+
+### Social
+- Checks bookmark status
+- Fetches comments
+- Fetches fork lineage
+- Fetches bookmarker list
+
+### Mixed
+- Weighted distribution of all operations
+- Simulates real-world usage patterns
+- Best indicator of overall system performance
+
+## Configuration Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--count` | 1000 | Number of relics |
-| `--workers` | 5 | Concurrent workers |
-| `--url` | http://localhost | Base URL |
-| `--client-key` | (required) | Auth key |
-| `--output` | none | Output JSON file |
+| `--iterations` | 5 | Runs per benchmark |
+| `--workers` | 5 | Concurrent connections |
+| `--operations` | 100 | Ops per iteration |
+| `--relic-count` | 100 | Relic IDs to fetch |
+| `--space-count` | 50 | Space IDs to fetch |
+| `--output` | - | JSON output file |
 
-### `scripts/analyze_benchmarks.py`
+## Interpreting Results
 
-Analyze historical results and generate plots.
+**Throughput (ops/sec)**: Higher is better
+- Create: ~100-200 relics/sec expected
+- Read: ~400-800 ops/sec expected
+- Mixed: ~200-400 ops/sec expected
 
-```bash
-# Download artifact from GitHub
-gh run download <run-id> --dir benchmark-results/
+**P95 Latency (ms)**: Lower is better
+- < 50ms: Excellent
+- 50-100ms: Good
+- 100-200ms: Acceptable
+- > 200ms: Needs investigation
 
-# Analyze
-python3 scripts/analyze_benchmarks.py \
-  --input benchmark-results/ \
-  --output trends/
-```
+**Success Rate (%)**: Should be > 99%
+- < 95%: Investigate errors
+- 95-99%: Monitor
+- > 99%: Healthy
 
-Requires: `pip install matplotlib`
+## Troubleshooting
 
-## Metrics
+**Low throughput**: 
+- Check database connection pool
+- Increase worker count
+- Check for locks/contention
 
-- **Throughput**: relics/sec
-- **Latency**: min, max, avg, P50, P90, P95, P99
-- **Success Rate**: %
+**High latency**:
+- Check storage performance (MinIO)
+- Monitor database query times
+- Check network latency
 
-## Viewing Results
-
-### GitHub Actions Summary
-Each workflow run displays a markdown table with key metrics.
-
-### Download Artifacts
-1. Go to the workflow run
-2. Click **benchmark-{sha}** artifact
-3. Extract and view `results.json`
-
-### Local Analysis
-```bash
-# Download all artifacts for a repo
-gh run list --limit 20 --json databaseId --jq '.[].databaseId' | while read id; do
-  gh run download "$id" --dir "benchmarks/$id"
-done
-
-# Generate trends
-python3 scripts/analyze_benchmarks.py --input benchmarks/ --output trends/
-```
-
-## Results Structure
-
-```
-benchmark-results/
-├── results.json    # Full metrics
-└── (uploaded as artifact, retained 90 days)
-```
-
-## Example Output
-
-```
-📊 BENCHMARK RESULTS
-------------------------------------------------------------
-   Total requested:     1000
-   Successful:          998
-   Failed:              2
-   Success rate:        99.8%
-   Duration:            45.23s
-   Throughput:          22.06 relics/sec
-
-   Latency (ms):
-      MIN: 12.34
-      MAX: 892.45
-      AVG: 45.67
-      P50: 38.21
-      P90: 78.43
-      P95: 125.67
-      P99: 345.21
-```
+**High failure rate**:
+- Check backend logs
+- Verify database connections
+- Check storage availability

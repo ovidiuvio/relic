@@ -27,15 +27,32 @@ def load_results(input_dir: Path) -> list[dict]:
         try:
             with open(f) as fp:
                 data = json.load(fp)
-                # Handle new format with runs array and median
-                if "median" in data and "runs" in data:
-                    # Use median values as the result
+                
+                # Handle benchmark suite format (multiple benchmarks in one file)
+                if any(k in data for k in ["read", "search", "spaces", "social", "mixed", "create"]):
+                    # Extract each benchmark as a separate result entry
+                    for bench_name in ["create", "read", "search", "spaces", "social", "mixed"]:
+                        if bench_name in data:
+                            bench = data[bench_name]
+                            if "median" in bench:
+                                results.append({
+                                    "metadata": data.get("_metadata", {}),
+                                    "benchmark": bench_name,
+                                    "results": {
+                                        "throughput_relics_per_sec": bench["median"].get("operations_per_second", 0),
+                                        "success_rate": bench["median"].get("success_rate", 100),
+                                        "latency_ms": bench["median"].get("latency_ms", {"p95": 0})
+                                    }
+                                })
+                
+                # Handle new format with runs array and median (create benchmark)
+                elif "median" in data and "runs" in data:
                     latency_ms = data["median"].get("latency_ms")
                     if latency_ms is None:
-                        # Fallback for older combined format
                         latency_ms = {"p95": data["median"].get("p95_latency_ms", 0)}
                     results.append({
                         "metadata": data.get("metadata", {}),
+                        "benchmark": "create",
                         "results": {
                             "throughput_relics_per_sec": data["median"]["throughput_relics_per_sec"],
                             "success_rate": data["median"]["success_rate"],
@@ -52,60 +69,101 @@ def load_results(input_dir: Path) -> list[dict]:
 
 
 def generate_plots(results: list[dict], output_dir: Path) -> None:
-    """Generate trend plots."""
+    """Generate trend plots for each benchmark type."""
     if not HAS_MATPLOTLIB or not results:
         return
     
-    dates, throughputs, success_rates, p95_latencies = [], [], [], []
-    
+    # Group results by benchmark type
+    benchmarks = {}
     for r in results:
-        if "results" not in r or "metadata" not in r:
-            continue
-        try:
-            dates.append(datetime.fromisoformat(r["metadata"]["timestamp"].replace("Z", "+00:00")))
-            throughputs.append(r["results"]["throughput_relics_per_sec"])
-            success_rates.append(r["results"]["success_rate"])
-            p95_latencies.append(r["results"]["latency_ms"]["p95"])
-        except (KeyError, ValueError) as e:
-            continue
+        bench_name = r.get("benchmark", "unknown")
+        if bench_name not in benchmarks:
+            benchmarks[bench_name] = []
+        benchmarks[bench_name].append(r)
     
-    if not dates:
-        print("⚠️  No valid data to plot")
+    # Generate plots for each benchmark type
+    for bench_name, bench_results in benchmarks.items():
+        dates, throughputs, p95_latencies = [], [], []
+        
+        for r in bench_results:
+            if "results" not in r or "metadata" not in r:
+                continue
+            try:
+                ts = r["metadata"].get("timestamp", "")
+                if not ts:
+                    continue
+                dates.append(datetime.fromisoformat(ts.replace("Z", "+00:00")))
+                throughputs.append(r["results"]["throughput_relics_per_sec"])
+                p95_latencies.append(r["results"]["latency_ms"]["p95"])
+            except (KeyError, ValueError):
+                continue
+        
+        if not dates or len(dates) < 1:
+            continue
+        
+        # Create plot
+        fig, axes = plt.subplots(2, 1, figsize=(12, 8))
+        fig.suptitle(f"{bench_name.upper()} Benchmark Trends", fontsize=14, fontweight='bold')
+        
+        # Throughput
+        ax1 = axes[0]
+        ax1.plot(dates, throughputs, marker='o', linestyle='-', color='#2563eb', linewidth=2)
+        ax1.set_ylabel("Throughput (ops/sec)")
+        ax1.set_title(f"Throughput (avg: {sum(throughputs)/len(throughputs):.1f} ops/s)")
+        ax1.grid(True, alpha=0.3)
+        
+        # P95 latency
+        ax2 = axes[1]
+        ax2.plot(dates, p95_latencies, marker='^', linestyle='-', color='#dc2626', linewidth=2)
+        ax2.set_ylabel("P95 Latency (ms)")
+        ax2.set_xlabel("Date")
+        ax2.set_title(f"P95 Latency (avg: {sum(p95_latencies)/len(p95_latencies):.1f}ms)")
+        ax2.grid(True, alpha=0.3)
+        
+        for ax in axes:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+        
+        plt.tight_layout()
+        plt.savefig(output_dir / f"{bench_name}_trends.png", dpi=150, bbox_inches='tight')
+        print(f"✅ Plot saved to: {output_dir / f'{bench_name}_trends.png'}")
+    
+    # Also create combined summary plot (throughput comparison)
+    if len(benchmarks) > 1:
+        generate_combined_plot(benchmarks, output_dir)
+
+
+def generate_combined_plot(benchmarks: dict, output_dir: Path) -> None:
+    """Generate combined throughput comparison plot."""
+    if not HAS_MATPLOTLIB:
         return
     
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    fig.suptitle("Relic Creation Benchmark Trends", fontsize=14, fontweight='bold')
+    # Get latest result for each benchmark
+    latest = {}
+    for name, results in benchmarks.items():
+        if results:
+            latest[name] = results[-1]
     
-    # Throughput
-    ax1 = axes[0]
-    ax1.plot(dates, throughputs, marker='o', linestyle='-', color='#2563eb', linewidth=2)
-    ax1.set_ylabel("Throughput (relics/sec)")
-    ax1.set_title(f"Throughput (avg: {sum(throughputs)/len(throughputs):.1f} req/s)")
-    ax1.grid(True, alpha=0.3)
+    if not latest:
+        return
     
-    # Success rate
-    ax2 = axes[1]
-    ax2.plot(dates, success_rates, marker='s', linestyle='-', color='#16a34a', linewidth=2)
-    ax2.set_ylabel("Success Rate (%)")
-    ax2.set_title(f"Success Rate (avg: {sum(success_rates)/len(success_rates):.1f}%)")
-    ax2.grid(True, alpha=0.3)
-    ax2.set_ylim(max(0, min(success_rates) - 2), 100.5)
+    names = list(latest.keys())
+    throughputs = [latest[n]["results"]["throughput_relics_per_sec"] for n in names]
     
-    # P95 latency
-    ax3 = axes[2]
-    ax3.plot(dates, p95_latencies, marker='^', linestyle='-', color='#dc2626', linewidth=2)
-    ax3.set_ylabel("P95 Latency (ms)")
-    ax3.set_xlabel("Date")
-    ax3.set_title(f"P95 Latency (avg: {sum(p95_latencies)/len(p95_latencies):.1f}ms)")
-    ax3.grid(True, alpha=0.3)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.bar(names, throughputs, color=['#2563eb', '#16a34a', '#8b5cf6', '#f59e0b', '#dc2626', '#0891b2'])
+    ax.set_ylabel("Throughput (ops/sec)")
+    ax.set_title("Benchmark Comparison (Latest Results)")
+    ax.set_xticklabels([n.upper() for n in names], rotation=45, ha='right')
     
-    for ax in axes:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+    # Add value labels on bars
+    for bar, val in zip(bars, throughputs):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+               f'{val:.1f}', ha='center', va='bottom', fontsize=9)
     
     plt.tight_layout()
-    plt.savefig(output_dir / "benchmark_trends.png", dpi=150, bbox_inches='tight')
-    print(f"✅ Plot saved to: {output_dir / 'benchmark_trends.png'}")
+    plt.savefig(output_dir / "comparison.png", dpi=150, bbox_inches='tight')
+    print(f"✅ Comparison plot saved to: {output_dir / 'comparison.png'}")
 
 
 def generate_summary(results: list[dict], output_dir: Path) -> None:
@@ -113,50 +171,70 @@ def generate_summary(results: list[dict], output_dir: Path) -> None:
     if not results:
         return
     
-    latest = results[-1]
-    throughputs = [r["results"]["throughput_relics_per_sec"] for r in results if "results" in r]
-    success_rates = [r["results"]["success_rate"] for r in results if "results" in r]
-    p95s = [r["results"]["latency_ms"]["p95"] for r in results if "results" in r and "latency_ms" in r["results"]]
+    # Group by benchmark type
+    benchmarks = {}
+    for r in results:
+        bench_name = r.get("benchmark", "unknown")
+        if bench_name not in benchmarks:
+            benchmarks[bench_name] = []
+        benchmarks[bench_name].append(r)
     
-    summary = f"""# 📊 Benchmark Summary
+    # Get latest timestamp
+    latest_ts = "N/A"
+    for r in results:
+        ts = r.get("metadata", {}).get("timestamp", "")
+        if ts:
+            latest_ts = ts
+    
+    summary = f"""# 📊 Benchmark Suite Summary
 
 Generated: {datetime.now().isoformat()}
+Last Run: {latest_ts}
 
-## Latest Run
+## Latest Results
 
-| Metric | Value |
-|--------|-------|
-| Date | {latest.get("metadata", {}).get("timestamp", "N/A")} |
-| Git Hash | {latest.get("metadata", {}).get("git_hash", "N/A")[:7]} |
-| Throughput | {latest["results"]["throughput_relics_per_sec"]} relics/sec |
-| Success Rate | {latest["results"]["success_rate"]}% |
-| P95 Latency | {latest["results"]["latency_ms"]["p95"]} ms |
-
-## Trends ({len(results)} runs)
-
-| Metric | Min | Max | Average |
-|--------|-----|-----|---------|
-| Throughput | {min(throughputs):.2f} | {max(throughputs):.2f} | {sum(throughputs)/len(throughputs):.2f} |
-| Success Rate | {min(success_rates):.2f}% | {max(success_rates):.2f}% | {sum(success_rates)/len(success_rates):.2f}% |
-| P95 Latency | {min(p95s):.2f}ms | {max(p95s):.2f}ms | {sum(p95s)/len(p95s):.2f}ms |
-
-## History
-
-See `benchmark_trends.png` for visual trends.
+| Benchmark | Throughput | Success Rate | P95 Latency |
+|-----------|------------|--------------|-------------|
 """
+    
+    for name in ["create", "read", "search", "spaces", "social", "mixed"]:
+        if name not in benchmarks:
+            continue
+        latest = benchmarks[name][-1]
+        tp = latest["results"]["throughput_relics_per_sec"]
+        sr = latest["results"].get("success_rate", 100)
+        p95 = latest["results"]["latency_ms"]["p95"]
+        summary += f"| {name.upper()} | {tp:.1f} ops/sec | {sr:.1f}% | {p95:.2f}ms |\n"
+    
+    # Add trends info
+    summary += f"""
+## Trends
+
+Total runs analyzed: {len(results)}
+
+See individual plots for each benchmark:
+"""
+    
+    for name in benchmarks.keys():
+        summary += f"- `{name}_trends.png` - {name.upper()} throughput and latency over time\n"
+    
+    summary += "\nSee `comparison.png` for side-by-side benchmark comparison.\n"
     
     with open(output_dir / "SUMMARY.md", 'w') as f:
         f.write(summary)
     print(f"✅ Summary saved to: {output_dir / 'SUMMARY.md'}")
     
-    # Print summary to stdout for workflow logs
+    # Print summary to stdout
     print("\n" + "=" * 50)
-    print("📈 TREND SUMMARY")
+    print("📈 BENCHMARK SUITE SUMMARY")
     print("=" * 50)
-    print(f"   Total runs: {len(results)}")
-    print(f"   Throughput avg: {sum(throughputs)/len(throughputs):.2f} relics/sec")
-    print(f"   Success rate avg: {sum(success_rates)/len(success_rates):.2f}%")
-    print(f"   P95 latency avg: {sum(p95s)/len(p95s):.2f}ms")
+    for name in ["create", "read", "search", "spaces", "social", "mixed"]:
+        if name not in benchmarks:
+            continue
+        latest = benchmarks[name][-1]
+        tp = latest["results"]["throughput_relics_per_sec"]
+        p95 = latest["results"]["latency_ms"]["p95"]
+        print(f"   {name.upper()}: {tp:.1f} ops/sec, P95: {p95:.2f}ms")
     print("=" * 50)
 
 

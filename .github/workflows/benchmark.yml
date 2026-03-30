@@ -1,18 +1,22 @@
-name: Benchmark - Relic Creation
+name: Benchmark Suite
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
-      relic_count:
-        description: 'Number of relics to create'
-        required: false
-        default: '1000'
-      workers:
-        description: 'Number of concurrent workers'
+      iterations:
+        description: 'Iterations per benchmark'
         required: false
         default: '5'
+      workers:
+        description: 'Concurrent workers'
+        required: false
+        default: '5'
+      operations:
+        description: 'Operations per iteration'
+        required: false
+        default: '100'
 
 jobs:
   benchmark:
@@ -56,7 +60,6 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p benchmark-history/
-          # Try to download latest artifact from previous runs
           if gh run list --workflow=benchmark.yml --branch=${{ github.ref_name }} --limit 1 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId' > /tmp/last_run_id.txt 2>/dev/null; then
             LAST_RUN_ID=$(cat /tmp/last_run_id.txt)
             if [ -n "$LAST_RUN_ID" ]; then
@@ -66,42 +69,67 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run benchmark (5 iterations)
+      - name: Seed relics for benchmarks
+        id: seed
+        env:
+          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
+        run: |
+          echo "Seeding 500 relics for benchmarks..."
+          python3 scripts/seed_relics.py \
+            --count 500 \
+            --workers 10 \
+            --url http://localhost \
+            --client-key "$RELIC_ADMIN_KEY" \
+            --access-level public
+          echo "Seed complete"
+
+      - name: Run benchmark suite
         id: benchmark
         env:
           RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
         run: |
-          COUNT="${{ github.event.inputs.relic_count || 1000 }}"
+          ITERATIONS="${{ github.event.inputs.iterations || 5 }}"
           WORKERS="${{ github.event.inputs.workers || 5 }}"
-          RUNS=5
+          OPERATIONS="${{ github.event.inputs.operations || 100 }}"
+          
+          mkdir -p benchmark-results
+          
+          python3 scripts/run_all_benchmarks.py \
+            --url http://localhost \
+            --client-key "$RELIC_ADMIN_KEY" \
+            --iterations "$ITERATIONS" \
+            --workers "$WORKERS" \
+            --operations "$OPERATIONS" \
+            --output benchmark-results/results.json \
+            --git-hash "$GITHUB_SHA"
+
+      - name: Run create benchmark (5 iterations)
+        env:
+          RELIC_ADMIN_KEY: 09d85e5f91316a66233d97e1b5936399
+        run: |
+          ITERATIONS="${{ github.event.inputs.iterations || 5 }}"
+          WORKERS="${{ github.event.inputs.workers || 5 }}"
           
           mkdir -p benchmark-results/runs
           
-          echo "Running $RUNS iterations of $COUNT relics with $WORKERS workers..."
+          echo "Running create benchmark: 1000 relics x $ITERATIONS iterations..."
           
-          for i in $(seq 1 $RUNS); do
-            echo ""
-            echo "=== Run $i of $RUNS ==="
+          for i in $(seq 1 $ITERATIONS); do
+            echo "=== Create Run $i of $ITERATIONS ==="
             
             python3 scripts/benchmark_relics.py \
-              --count "$COUNT" \
+              --count 1000 \
               --workers "$WORKERS" \
               --url http://localhost \
               --client-key "$RELIC_ADMIN_KEY" \
-              --output "benchmark-results/runs/run-${i}.json" \
+              --output "benchmark-results/runs/create-run-${i}.json" \
               --git-hash "$GITHUB_SHA"
             
-            # Extract metrics
-            jq -r '.results.throughput_relics_per_sec' "benchmark-results/runs/run-${i}.json" >> /tmp/throughputs.txt
-            jq -r '.results.success_rate' "benchmark-results/runs/run-${i}.json" >> /tmp/success_rates.txt
-            jq -r '.results.duration_seconds' "benchmark-results/runs/run-${i}.json" >> /tmp/durations.txt
-            jq -r '.results.latency_ms.p95' "benchmark-results/runs/run-${i}.json" >> /tmp/p95s.txt
+            jq -r '.results.throughput_relics_per_sec' "benchmark-results/runs/create-run-${i}.json" >> /tmp/create_throughputs.txt
+            jq -r '.results.latency_ms.p95' "benchmark-results/runs/create-run-${i}.json" >> /tmp/create_p95.txt
           done
           
-          echo ""
-          echo "=== Calculating median values ==="
-          
-          # Calculate median (middle value of sorted list)
+          # Calculate median
           median() {
             local arr=($(sort -n))
             local len=${#arr[@]}
@@ -113,124 +141,60 @@ jobs:
             fi
           }
           
-          MEDIAN_THROUGHPUT=$(cat /tmp/throughputs.txt | median)
-          MEDIAN_SUCCESS_RATE=$(cat /tmp/success_rates.txt | median)
-          MEDIAN_DURATION=$(cat /tmp/durations.txt | median)
+          CREATE_MEDIAN_THROUGHPUT=$(cat /tmp/create_throughputs.txt | median)
+          CREATE_MEDIAN_P95=$(cat /tmp/create_p95.txt | median)
           
-          # Extract all latency metrics from each run
-          for i in $(seq 1 $RUNS); do
-            jq -r '.results.latency_ms.min' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_min.txt
-            jq -r '.results.latency_ms.p50' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p50.txt
-            jq -r '.results.latency_ms.p90' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p90.txt
-            jq -r '.results.latency_ms.p95' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p95.txt
-            jq -r '.results.latency_ms.p99' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_p99.txt
-            jq -r '.results.latency_ms.max' "benchmark-results/runs/run-${i}.json" >> /tmp/lat_max.txt
-          done
+          echo "Create Median Throughput: $CREATE_MEDIAN_THROUGHPUT relics/sec"
+          echo "Create Median P95: ${CREATE_MEDIAN_P95}ms"
           
-          MEDIAN_MIN=$(cat /tmp/lat_min.txt | median)
-          MEDIAN_P50=$(cat /tmp/lat_p50.txt | median)
-          MEDIAN_P90=$(cat /tmp/lat_p90.txt | median)
-          MEDIAN_P95=$(cat /tmp/lat_p95.txt | median)
-          MEDIAN_P99=$(cat /tmp/lat_p99.txt | median)
-          MEDIAN_MAX=$(cat /tmp/lat_max.txt | median)
-          
-          # Calculate min/max for reference
-          MIN_THROUGHPUT=$(sort -n /tmp/throughputs.txt | head -1)
-          MAX_THROUGHPUT=$(sort -n /tmp/throughputs.txt | tail -1)
-          MIN_P95=$(sort -n /tmp/lat_p95.txt | head -1)
-          MAX_P95=$(sort -n /tmp/lat_p95.txt | tail -1)
-          
-          echo "Median throughput: $MEDIAN_THROUGHPUT relics/sec (range: $MIN_THROUGHPUT - $MAX_THROUGHPUT)"
-          echo "Median success rate: $MEDIAN_SUCCESS_RATE%"
-          echo "Median duration: ${MEDIAN_DURATION}s"
-          echo "Median P95 latency: ${MEDIAN_P95}ms (range: $MIN_P95 - $MAX_P95)"
-          
-          # Save median values
-          echo "$MEDIAN_THROUGHPUT" > /tmp/median_throughput.txt
-          echo "$MEDIAN_SUCCESS_RATE" > /tmp/median_success_rate.txt
-          echo "$MEDIAN_DURATION" > /tmp/median_duration.txt
-          echo "$MEDIAN_P95" > /tmp/median_p95.txt
-          echo "$MEDIAN_MIN" > /tmp/median_min.txt
-          echo "$MEDIAN_P50" > /tmp/median_p50.txt
-          echo "$MEDIAN_P90" > /tmp/median_p90.txt
-          echo "$MEDIAN_P99" > /tmp/median_p99.txt
-          echo "$MEDIAN_MAX" > /tmp/median_max.txt
-          
-          # Create combined results file
-          jq -n \
-            --argjson runs "$(jq -s '.' benchmark-results/runs/*.json)" \
-            --arg median_throughput "$MEDIAN_THROUGHPUT" \
-            --arg median_success_rate "$MEDIAN_SUCCESS_RATE" \
-            --arg median_duration "$MEDIAN_DURATION" \
-            --arg median_p95 "$MEDIAN_P95" \
-            --arg median_min "$MEDIAN_MIN" \
-            --arg median_p50 "$MEDIAN_P50" \
-            --arg median_p90 "$MEDIAN_P90" \
-            --arg median_p99 "$MEDIAN_P99" \
-            --arg median_max "$MEDIAN_MAX" \
-            --arg git_hash "$GITHUB_SHA" \
-            '{
-              runs: $runs,
-              median: {
-                throughput_relics_per_sec: ($median_throughput | tonumber),
-                success_rate: ($median_success_rate | tonumber),
-                duration_seconds: ($median_duration | tonumber),
-                latency_ms: {
-                  min: ($median_min | tonumber),
-                  p50: ($median_p50 | tonumber),
-                  p90: ($median_p90 | tonumber),
-                  p95: ($median_p95 | tonumber),
-                  p99: ($median_p99 | tonumber),
-                  max: ($median_max | tonumber)
-                }
-              },
-              metadata: {
-                git_hash: $git_hash,
-                timestamp: (now | todate),
-                iterations: 5
+          # Add create results to combined JSON
+          jq --arg tp "$CREATE_MEDIAN_THROUGHPUT" --arg p95 "$CREATE_MEDIAN_P95" \
+            '.create = {
+              "name": "create",
+              "iterations": 5,
+              "median": {
+                "operations_per_second": ($tp | tonumber),
+                "latency_ms": {"p95": ($p95 | tonumber)}
               }
-            }' > benchmark-results/results.json
+            }' benchmark-results/results.json > /tmp/results_tmp.json
+          mv /tmp/results_tmp.json benchmark-results/results.json
 
       - name: Generate summary
         run: |
-          MEDIAN_THROUGHPUT=$(cat /tmp/median_throughput.txt)
-          MEDIAN_SUCCESS_RATE=$(cat /tmp/median_success_rate.txt)
-          MEDIAN_DURATION=$(cat /tmp/median_duration.txt)
-          MEDIAN_P95=$(cat /tmp/median_p95.txt)
-          MEDIAN_MIN=$(cat /tmp/median_min.txt)
-          MEDIAN_P50=$(cat /tmp/median_p50.txt)
-          MEDIAN_P90=$(cat /tmp/median_p90.txt)
-          MEDIAN_P99=$(cat /tmp/median_p99.txt)
-          MEDIAN_MAX=$(cat /tmp/median_max.txt)
+          echo "## 🔬 Benchmark Suite Results"
+          echo ""
           
-          echo "## 🔬 Benchmark Results (Median of 5 runs)"
-          echo ""
-          echo "| Metric | Value |"
-          echo "|--------|-------|"
-          echo "| Relics per run | ${{ github.event.inputs.relic_count || 1000 }} |"
-          echo "| Workers | ${{ github.event.inputs.workers || 5 }} |"
-          echo "| Iterations | 5 |"
-          echo "| **Median Throughput** | **${MEDIAN_THROUGHPUT}** relics/sec |"
-          echo "| **Median Success Rate** | **${MEDIAN_SUCCESS_RATE}%** |"
-          echo "| **Median Duration** | ${MEDIAN_DURATION}s |"
-          echo "| **Median P95 Latency** | ${MEDIAN_P95}ms |"
-          echo ""
-          echo "### Latency Distribution (Median of 5 runs)"
-          echo ""
-          echo "| Percentile | Latency (ms) |"
-          echo "|------------|--------------|"
-          echo "| Min | ${MEDIAN_MIN} |"
-          echo "| P50 | ${MEDIAN_P50} |"
-          echo "| P90 | ${MEDIAN_P90} |"
-          echo "| P95 | ${MEDIAN_P95} |"
-          echo "| P99 | ${MEDIAN_P99} |"
-          echo "| Max | ${MEDIAN_MAX} |"
-          echo ""
+          # Parse and display each benchmark
+          for bench in create read search spaces social mixed; do
+            if jq -e ".$bench" benchmark-results/results.json > /dev/null 2>&1; then
+              echo "### ${bench^}"
+              echo ""
+              
+              if [ "$bench" = "create" ]; then
+                TP=$(jq -r ".create.median.operations_per_second" benchmark-results/results.json)
+                P95=$(jq -r ".create.median.latency_ms.p95" benchmark-results/results.json)
+                echo "| Metric | Value |"
+                echo "|--------|-------|"
+                echo "| Median Throughput | **${TP}** relics/sec |"
+                echo "| Median P95 Latency | ${P95}ms |"
+              else
+                TP=$(jq -r ".${bench}.median.operations_per_second // \"N/A\"" benchmark-results/results.json)
+                SR=$(jq -r ".${bench}.median.success_rate // \"N/A\"" benchmark-results/results.json)
+                P95=$(jq -r ".${bench}.median.latency_ms.p95 // \"N/A\"" benchmark-results/results.json)
+                echo "| Metric | Value |"
+                echo "|--------|-------|"
+                echo "| Throughput | **${TP}** ops/sec |"
+                echo "| Success Rate | ${SR}% |"
+                echo "| P95 Latency | ${P95}ms |"
+              fi
+              echo ""
+            fi
+          done
+          
           echo "> Full results in artifact: \`benchmark-results\`"
 
       - name: Generate trend plots
         run: |
-          # Merge current result with history
           mkdir -p benchmark-history/
           cp benchmark-results/results.json benchmark-history/
           
@@ -238,7 +202,6 @@ jobs:
             --input benchmark-history/ \
             --output benchmark-results/trends/
           
-          # Copy history for next run
           cp -r benchmark-results/trends/ benchmark-history/trends/ 2>/dev/null || true
       
       - name: Display trend summary
@@ -251,8 +214,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-${{ github.sha }}
-          path: |
-            benchmark-results/
+          path: benchmark-results/
           retention-days: 90
 
       - name: Upload history for next run
