@@ -2,6 +2,7 @@
 from fastapi import Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from datetime import datetime
 from typing import Optional, List
 
@@ -122,21 +123,14 @@ async def process_tags(db: AsyncSession, tag_names: List[str]) -> List[Tag]:
         if not normalized_names:
             return []
 
-        # Find existing tags
+        # Insert missing tags, ignoring conflicts from concurrent requests
+        await db.execute(
+            pg_insert(Tag).values([{"name": name} for name in normalized_names]).on_conflict_do_nothing()
+        )
+
+        # Fetch all tag objects (existing + newly inserted)
         result = await db.execute(select(Tag).where(Tag.name.in_(normalized_names)))
-        existing_tags = result.scalars().all()
-        existing_names = {tag.name for tag in existing_tags}
-
-        result_tags = list(existing_tags)
-
-        # Create new tags
-        for name in normalized_names:
-            if name not in existing_names:
-                new_tag = Tag(name=name)
-                db.add(new_tag)
-                result_tags.append(new_tag)
-
-        return result_tags
+        return result.scalars().all()
 
 
 async def generate_unique_relic_id(db: AsyncSession, max_retries: int = 5) -> str:
