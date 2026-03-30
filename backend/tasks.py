@@ -1,9 +1,12 @@
 """Background tasks for relic expiration and cleanup."""
+import logging
 from datetime import datetime
 from sqlalchemy import select
 from backend.database import AsyncSessionLocal
 from backend.models import Relic
 from backend.storage import storage_service
+
+logger = logging.getLogger(__name__)
 
 
 async def cleanup_expired_relics():
@@ -29,7 +32,7 @@ async def cleanup_expired_relics():
                 # Hard delete from database
                 await db.delete(relic)
                 await db.commit()
-                print(f"Expired relic {relic.id} permanently deleted")
+                logger.info(f"Expired relic {relic.id} permanently deleted")
             except Exception as e:
-                print(f"Error cleaning up relic {relic.id}: {e}")
+                logger.error(f"Error cleaning up relic {relic.id}: {e}")
                 await db.rollback()
