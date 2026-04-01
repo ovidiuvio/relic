@@ -164,6 +164,9 @@ async def main_async():
     limits = httpx.Limits(max_connections=args.workers, max_keepalive_connections=args.workers)
     
     async with httpx.AsyncClient(limits=limits) as client:
+        # Ensure client key is registered before benchmarking
+        await client.post(f"{args.url}/api/v1/client/register", headers={"X-Client-Key": args.client_key})
+
         space_id = args.space_id
         if not space_id:
             print("No space ID provided. Relics will be created globally.")

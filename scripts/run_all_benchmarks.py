@@ -78,6 +78,10 @@ async def run_benchmarks(
     print(f"   Operations per benchmark: {operations}")
     print("=" * 60)
 
+    # Ensure client key is registered before running any benchmarks
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await client.post(f"{base_url}/api/v1/client/register", headers={"X-Client-Key": client_key})
+
     # Fetch IDs for benchmarks
     print("\n📋 Fetching relic and space IDs...")
     relic_ids = await fetch_relic_ids(base_url, client_key, relic_count)
