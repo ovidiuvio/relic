@@ -114,19 +114,8 @@ jobs:
           done
 
           # Calculate median
-          median() {
-            local arr=($(sort -n))
-            local len=${#arr[@]}
-            local mid=$((len / 2))
-            if (( len % 2 == 0 )); then
-              echo "scale=3; (${arr[$mid-1]} + ${arr[$mid]}) / 2" | bc
-            else
-              echo "${arr[$mid]}"
-            fi
-          }
-
-          CREATE_MEDIAN_THROUGHPUT=$(cat /tmp/create_throughputs.txt | median)
-          CREATE_MEDIAN_P95=$(cat /tmp/create_p95.txt | median)
+          CREATE_MEDIAN_THROUGHPUT=$(python3 scripts/calculate_median.py /tmp/create_throughputs.txt)
+          CREATE_MEDIAN_P95=$(python3 scripts/calculate_median.py /tmp/create_p95.txt)
 
           echo "Create Median Throughput: $CREATE_MEDIAN_THROUGHPUT relics/sec"
           echo "Create Median P95: ${CREATE_MEDIAN_P95}ms"
