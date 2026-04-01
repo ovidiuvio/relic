@@ -31,19 +31,13 @@ def get_r2_client():
     if not HAS_BOTO3:
         return None
 
-    endpoint_url = Path("R2_ENDPOINT").read_text().strip() if Path("R2_ENDPOINT").exists() else ""
-    access_key = Path("R2_ACCESS_KEY").read_text().strip() if Path("R2_ACCESS_KEY").exists() else ""
-    secret_key = Path("R2_SECRET_KEY").read_text().strip() if Path("R2_SECRET_KEY").exists() else ""
-    bucket_name = Path("R2_BUCKET_NAME").read_text().strip() if Path("R2_BUCKET_NAME").exists() else "relic-benchmarks"
-    region = Path("R2_REGION").read_text().strip() if Path("R2_REGION").exists() else "auto"
-
-    # Also check environment variables
     import os
-    endpoint_url = endpoint_url or os.environ.get("R2_ENDPOINT", "")
-    access_key = access_key or os.environ.get("R2_ACCESS_KEY", "")
-    secret_key = secret_key or os.environ.get("R2_SECRET_KEY", "")
-    bucket_name = bucket_name or os.environ.get("R2_BUCKET_NAME", "relic-benchmarks")
-    region = region or os.environ.get("R2_REGION", "auto")
+    
+    endpoint_url = os.environ.get("R2_ENDPOINT", "").strip()
+    access_key = os.environ.get("R2_ACCESS_KEY", "").strip()
+    secret_key = os.environ.get("R2_SECRET_KEY", "").strip()
+    bucket_name = os.environ.get("R2_BUCKET_NAME", "relic-benchmarks").strip()
+    region = os.environ.get("R2_REGION", "auto").strip()
 
     if not all([endpoint_url, access_key, secret_key]):
         print("❌ R2 credentials not configured. Set R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY")
@@ -89,7 +83,8 @@ def upload_result(file_path: Path, branch: str, git_hash: str, runner_id: str | 
         print(f"✅ Uploaded to R2: s3://{bucket_name}/{key}")
         return True
     except Exception as e:
-        print(f"❌ Upload failed: {e}")
+        print(f"❌ Upload failed: {type(e).__name__}")
+        print(f"   Check R2 credentials and bucket permissions")
         return False
 
 
