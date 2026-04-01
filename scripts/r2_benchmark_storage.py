@@ -61,9 +61,11 @@ def get_r2_client():
 
 def upload_result(file_path: Path, branch: str, git_hash: str, runner_id: str | None = None) -> bool:
     """Upload benchmark result to R2."""
-    r2_client, bucket_name = get_r2_client()
-    if not r2_client:
+    result = get_r2_client()
+    if not result or result[0] is None:
         return False
+    
+    r2_client, bucket_name = result
 
     # Organize by branch: benchmarks/{branch}/{git_hash}.json
     key = f"benchmarks/{branch}/{git_hash}.json"
@@ -93,9 +95,11 @@ def upload_result(file_path: Path, branch: str, git_hash: str, runner_id: str | 
 
 def download_history(branch: str, output_dir: Path) -> list[Path]:
     """Download all benchmark results for a branch from R2."""
-    r2_client, bucket_name = get_r2_client()
-    if not r2_client:
+    result = get_r2_client()
+    if not result or result[0] is None:
         return []
+    
+    r2_client, bucket_name = result
 
     prefix = f"benchmarks/{branch}/"
     downloaded = []
@@ -131,9 +135,11 @@ def download_history(branch: str, output_dir: Path) -> list[Path]:
 
 def download_latest(branch: str, output_path: Path, limit: int = 30) -> bool:
     """Download latest benchmark results for a branch from R2."""
-    r2_client, bucket_name = get_r2_client()
-    if not r2_client:
+    result = get_r2_client()
+    if not result or result[0] is None:
         return False
+    
+    r2_client, bucket_name = result
 
     prefix = f"benchmarks/{branch}/"
 
