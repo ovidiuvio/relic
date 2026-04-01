@@ -57,28 +57,22 @@ jobs:
       - name: Install dependencies
         run: pip install httpx jq matplotlib plotly
 
-      - name: Download previous benchmarks
+      - name: Download previous benchmarks from R2
         continue-on-error: true
         run: |
           mkdir -p benchmark-history/
-          echo "🔍 Looking for previous successful benchmark runs on main..."
-          
-          # Get the last SUCCESSFUL run ID on main branch
-          LAST_RUN_ID=$(gh run list --workflow=benchmark.yml --branch=main --limit 30 --json databaseId,status,conclusion --jq '[.[] | select(.status=="completed" and .conclusion=="success")] | first | .databaseId' 2>/dev/null || echo "")
-          
-          if [ -n "$LAST_RUN_ID" ]; then
-            echo "📥 Downloading benchmark history from successful run #$LAST_RUN_ID..."
-            if gh run download "$LAST_RUN_ID" --name benchmark-history --dir benchmark-history/ 2>/dev/null; then
-              echo "✅ Downloaded $(ls -1 benchmark-history/ | wc -l) previous benchmark files"
-              ls -la benchmark-history/
-            else
-              echo "⚠️  No benchmark-history artifact found in run #$LAST_RUN_ID (first run with history?)"
-            fi
-          else
-            echo "⚠️  No previous successful benchmark runs found (this may be the first successful run)"
-          fi
+          echo "🔍 Downloading benchmark history from R2 for branch: ${{ github.ref_name }}..."
+
+          python3 scripts/r2_benchmark_storage.py download \
+            --branch "${{ github.ref_name }}" \
+            --output-dir benchmark-history/ \
+            --limit 30
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_REGION: ${{ secrets.R2_REGION }}
 
       - name: Seed relics for benchmarks
         env:
@@ -224,12 +218,20 @@ jobs:
           path: benchmark-results/
           retention-days: 90
 
-      - name: Upload history for next run
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-history
-          path: benchmark-history/
-          retention-days: 90
+      - name: Upload benchmark history to R2
+        run: |
+          echo "📤 Uploading benchmark results to R2 for branch: ${{ github.ref_name }}..."
+          python3 scripts/r2_benchmark_storage.py upload \
+            --file benchmark-results/results.json \
+            --branch "${{ github.ref_name }}" \
+            --git-hash "${GITHUB_SHA::8}" \
+            --runner-id "${{ runner.name }}"
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_REGION: ${{ secrets.R2_REGION }}
 
       - name: Cleanup
         if: always()

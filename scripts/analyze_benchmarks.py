@@ -136,43 +136,6 @@ def generate_plots(results: list[dict], output_dir: Path) -> None:
         plt.tight_layout()
         plt.savefig(output_dir / f"{bench_name}_trends.png", dpi=150, bbox_inches='tight')
         print(f"✅ Plot saved to: {output_dir / f'{bench_name}_trends.png'}")
-    
-    # Also create combined summary plot (throughput comparison)
-    if len(benchmarks) > 1:
-        generate_combined_plot(benchmarks, output_dir)
-
-
-def generate_combined_plot(benchmarks: dict, output_dir: Path) -> None:
-    """Generate combined throughput comparison plot."""
-    if not HAS_MATPLOTLIB:
-        return
-    
-    # Get latest result for each benchmark
-    latest = {}
-    for name, results in benchmarks.items():
-        if results:
-            latest[name] = results[-1]
-    
-    if not latest:
-        return
-    
-    names = list(latest.keys())
-    throughputs = [latest[n]["results"]["throughput_relics_per_sec"] for n in names]
-    
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.bar(names, throughputs, color=['#2563eb', '#16a34a', '#8b5cf6', '#f59e0b', '#dc2626', '#0891b2'])
-    ax.set_ylabel("Throughput (ops/sec)")
-    ax.set_title("Benchmark Comparison (Latest Results)")
-    ax.set_xticklabels([n.upper() for n in names], rotation=45, ha='right')
-    
-    # Add value labels on bars
-    for bar, val in zip(bars, throughputs):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
-               f'{val:.1f}', ha='center', va='bottom', fontsize=9)
-    
-    plt.tight_layout()
-    plt.savefig(output_dir / "comparison.png", dpi=150, bbox_inches='tight')
-    print(f"✅ Comparison plot saved to: {output_dir / 'comparison.png'}")
 
 
 def parse_timestamp(ts_str: str) -> datetime | None:
@@ -458,7 +421,6 @@ See individual plots for each benchmark:
     for name in benchmarks.keys():
         summary += f"- `{name}_trends.png` - {name.upper()} throughput and latency over time\n"
 
-    summary += "\nSee `comparison.png` for side-by-side benchmark comparison.\n"
     summary += "\n**NEW:** See `benchmark_report.html` for interactive charts with time-scale visualization.\n"
 
     with open(output_dir / "SUMMARY.md", 'w') as f:
