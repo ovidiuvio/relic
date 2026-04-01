@@ -188,7 +188,7 @@ class CommentResponse(CommentBase):
     """Comment response schema."""
     id: str
     relic_id: str
-    client_id: Optional[str] = None
+    public_id: Optional[str] = None
     author_name: Optional[str] = None
     created_at: datetime
     parent_id: Optional[str] = None

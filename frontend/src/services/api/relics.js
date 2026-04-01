@@ -74,26 +74,19 @@ export async function updateRelic(relicId, data) {
     return api.put(`/relics/${relicId}`, data)
 }
 
-// Note: getRelicRaw often needs specific responseType, so it's a bit special.
-// We import axios directly usually to avoid default interceptors modifying it? 
-// No, raw content should be fine with interceptors, but we need responseType: 'blob'.
-// However, in original code it used `axios.get` not `api.get`.
-// This might be intentional to bypass base URL or interceptors?
-// Base URL is `/api/v1` in `api`. Raw endpoint is `/{relic_id}/raw` (root level, usually).
-// If `getRelicRaw` calls `/{relicId}/raw`, and base URL is `/api/v1`, `api.get` would be `/api/v1/{relicId}/raw`?
-// Let's check `api.js` original. `axios.get('/' + relicId + '/raw')`.
-// So it uses global axios to hit root path.
-import axios from 'axios'
-import { getClientKey } from './auth'
-
 export async function getRelicRaw(relicId) {
-    const clientKey = getClientKey()
+    // SW intercepts /{id}/raw and injects X-Client-Key automatically.
+    // In fallback mode (no SW), we inject the header manually.
     const headers = {}
-    if (clientKey) headers['X-Client-Key'] = clientKey
-    return axios.get(`/${relicId}/raw`, {
-        responseType: 'blob',
-        headers
-    })
+    const { usingSw, getClientKey } = await import('./auth')
+    if (!usingSw) {
+        const key = getClientKey()
+        if (key) headers['X-Client-Key'] = key
+    }
+    const response = await fetch(`/${relicId}/raw`, { headers })
+    if (!response.ok) throw new Error(`Raw fetch failed: ${response.status}`)
+    const blob = await response.blob()
+    return { data: blob, headers: Object.fromEntries(response.headers.entries()) }
 }
 
 export async function getRelicLineage(relicId, params = {}) {

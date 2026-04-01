@@ -1,11 +1,13 @@
 <script>
   import { onMount } from "svelte";
   import Toast from "./components/Toast.svelte";
+  import KeyRevealModal from "./components/KeyRevealModal.svelte";
   import { toastStore } from "./stores/toastStore";
-  import { triggerDownload } from "./services/utils/download";
   import { matchRoute, sectionToPath } from "./routes";
-  import { getOrCreateClientKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
+  import { initClientKey, swSetKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
+  import { usingSw, getClientKey } from "./services/api/auth";
   import { showToast } from "./stores/toastStore";
+  import { clientPublicId as clientPublicIdStore } from "./stores/clientStore";
 
   let currentSection = null;
   let routeComponent = null;
@@ -19,6 +21,8 @@
   let clientPublicId = "";
   let isNameSaving = false;
   let appVersion = "loading...";
+  let clientKeyOnce = null;
+  let showKeyReveal = false;
 
   function updateRouting() {
     const path = window.location.pathname;
@@ -43,8 +47,10 @@
   updateRouting();
 
   onMount(async () => {
-    // Initialize client key on app start
-    const key = getOrCreateClientKey();
+    // Initialise SW vault and migrate key from localStorage if needed.
+    // Returns the key only on first creation or migration — null for returning users.
+    clientKeyOnce = await initClientKey();
+    if (clientKeyOnce) showKeyReveal = true;
 
     // Fetch app version
     try {
@@ -55,11 +61,14 @@
       appVersion = "unknown";
     }
 
-    // Register/Fetch client info
+    // Register/Fetch client info (SW injects X-Client-Key automatically)
     try {
-        const clientInfo = await registerClient(key);
+        const clientInfo = await registerClient();
         if (clientInfo && clientInfo.name) clientName = clientInfo.name;
-        if (clientInfo && clientInfo.public_id) clientPublicId = clientInfo.public_id;
+        if (clientInfo && clientInfo.public_id) {
+          clientPublicId = clientInfo.public_id;
+          clientPublicIdStore.set(clientInfo.public_id);
+        }
     } catch (e) {
         console.error("Failed to fetch client info", e);
     }
@@ -136,31 +145,12 @@
     updateRouting();
   }
 
-  function downloadClientKey() {
-    const clientKey = getOrCreateClientKey();
-    triggerDownload(clientKey, `relic-client-key-${clientKey.substring(0, 8)}.txt`, 'text/plain', 'Client key downloaded successfully');
-    showKeyDropdown = false;
-  }
-
-  function copyClientKey() {
-    const clientKey = getOrCreateClientKey();
-    navigator.clipboard
-      .writeText(clientKey)
-      .then(() => {
-        showToast("Client key copied to clipboard", "success");
-      })
-      .catch(() => {
-        showToast("Failed to copy client key", "error");
-      });
-    showKeyDropdown = false;
-  }
-
   function uploadClientKey(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const clientKey = e.target.result.trim();
 
       // Validate client key format (32 hex characters)
@@ -172,37 +162,25 @@
         return;
       }
 
-      // Store the new client key
-      localStorage.setItem("relic_client_key", clientKey);
-
-      // Re-register with server
-      fetch("/api/v1/client/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Client-Key": clientKey,
-        },
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (
-            data.message.includes("successfully") ||
-            data.message.includes("already registered")
-          ) {
-            showToast(
-              "Client key imported successfully! Reloading...",
-              "success",
-            );
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
-          } else {
-            showToast("Failed to import client key", "error");
-          }
-        })
-        .catch(() => {
-          showToast("Failed to import client key", "error");
+      try {
+        // Store key in SW vault (or localStorage in fallback mode)
+        await swSetKey(clientKey);
+        const headers = { "Content-Type": "application/json" };
+        if (!usingSw) headers["X-Client-Key"] = clientKey;
+        const response = await fetch("/api/v1/client/register", {
+          method: "POST",
+          headers,
         });
+        const data = await response.json();
+        if (data.message?.includes("successfully") || data.message?.includes("already registered")) {
+          showToast("Client key imported successfully! Reloading...", "success");
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          showToast("Failed to import client key", "error");
+        }
+      } catch {
+        showToast("Failed to import client key", "error");
+      }
     };
     reader.readAsText(file);
 
@@ -303,9 +281,9 @@
             <button
               on:click={() => (showKeyDropdown = !showKeyDropdown)}
               class="p-2 text-white/80 hover:text-white transition-colors"
-              title="Relic Key"
+              title="Profile"
             >
-              <i class="fas fa-key"></i>
+              <i class="fas fa-user-circle"></i>
             </button>
 
             {#if showKeyDropdown}
@@ -314,24 +292,19 @@
                 on:click={e => e.stopPropagation()}
               >
                 <div class="p-3 border-b border-gray-200">
-                  <p class="text-sm font-medium text-gray-900">
-                    Manage Your Relic Key
-                  </p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    Backup your key to access your relics from any device
-                  </p>
+                  <p class="text-sm font-medium text-gray-900">Profile</p>
                 </div>
 
                 <div class="p-3 border-b border-gray-200">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Display Name</label>
                     <div class="flex gap-2">
-                        <input 
-                            type="text" 
-                            bind:value={clientName} 
+                        <input
+                            type="text"
+                            bind:value={clientName}
                             placeholder="Anonymous"
                             class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
                         />
-                        <button 
+                        <button
                             on:click={saveClientName}
                             disabled={isNameSaving}
                             class="w-8 h-[30px] flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
@@ -365,22 +338,6 @@
                 </div>
 
                 <div class="py-2">
-                  <button
-                    on:click={downloadClientKey}
-                    class="maas-dropdown-item w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
-                  >
-                    <i class="fas fa-download w-5 text-blue-600"></i>
-                    <span>Download Key</span>
-                  </button>
-
-                  <button
-                    on:click={copyClientKey}
-                    class="maas-dropdown-item w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
-                  >
-                    <i class="fas fa-copy w-5 text-green-600"></i>
-                    <span>Copy to Clipboard</span>
-                  </button>
-
                   <label
                     class="maas-dropdown-item block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
                   >
@@ -398,7 +355,13 @@
                 <div class="px-4 py-3 bg-gray-50 rounded-b-lg">
                   <p class="text-xs text-gray-500">
                     <i class="fas fa-info-circle mr-1"></i>
-                    Your relic key identifies you as the owner of your relics
+                    {#if usingSw}
+                      Your key is stored securely and cannot be displayed again.
+                      Use Import to restore from a backup.
+                    {:else}
+                      Your key is stored in browser local storage.
+                      Use Import to restore from a backup on another device.
+                    {/if}
                   </p>
                 </div>
               </div>
@@ -435,6 +398,11 @@
   </main>
 
   <Toast />
+  <KeyRevealModal
+    show={showKeyReveal}
+    clientKey={clientKeyOnce || ''}
+    on:confirm={() => { showKeyReveal = false; clientKeyOnce = null; }}
+  />
 </div>
 
 

@@ -48,9 +48,10 @@ async def create_comment(
     await db.commit()
     await db.refresh(db_comment)
 
-    # Add author name to response
+    # Add author name and public_id to response
     response = CommentResponse.from_orm(db_comment)
     response.author_name = client.name
+    response.public_id = client.public_id
     return response
 
 
@@ -71,7 +72,7 @@ async def get_relic_comments(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    stmt = select(Comment, ClientKey.name).outerjoin(
+    stmt = select(Comment, ClientKey.name, ClientKey.public_id).outerjoin(
         ClientKey, Comment.client_id == ClientKey.id
     ).where(Comment.relic_id == relic_id)
 
@@ -86,9 +87,10 @@ async def get_relic_comments(
     )).all()
 
     comments = []
-    for comment, author_name in rows:
+    for comment, author_name, public_id in rows:
         comment_resp = CommentResponse.from_orm(comment)
         comment_resp.author_name = author_name
+        comment_resp.public_id = public_id
         comments.append(comment_resp)
 
     return {"comments": comments, "total": total, "limit": limit, "offset": offset}
@@ -125,6 +127,7 @@ async def update_comment(
 
     response = CommentResponse.from_orm(comment)
     response.author_name = client.name
+    response.public_id = client.public_id
     return response
 
 
