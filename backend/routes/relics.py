@@ -17,7 +17,7 @@ from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, Relic
 from backend.storage import storage_service
 from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import (
-    get_client_key, get_or_create_client_key, check_ownership_or_admin,
+    get_client_key, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
 )
 
@@ -56,8 +56,10 @@ async def create_relic(
             detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
         )
 
-    # Get or create client
-    client = await get_or_create_client_key(request, db)
+    # Validate client key if provided (anonymous creation is allowed)
+    client = await get_client_key(request, db)
+    if not client and request.headers.get("X-Client-Key"):
+        raise HTTPException(status_code=401, detail="Invalid client key")
 
     try:
         # Read file content
@@ -269,8 +271,10 @@ async def fork_relic(
     if access_level and access_level not in ['public', 'private', 'restricted']:
         raise HTTPException(status_code=400, detail="Invalid access_level. Must be 'public', 'private', or 'restricted'")
 
-    # Get client (optional)
-    client = await get_or_create_client_key(request, db)
+    # Validate client key if provided (anonymous forking is allowed)
+    client = await get_client_key(request, db)
+    if not client and request.headers.get("X-Client-Key"):
+        raise HTTPException(status_code=401, detail="Invalid client key")
 
     result = await db.execute(
         select(Relic).options(

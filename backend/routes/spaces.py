@@ -15,7 +15,7 @@ from backend.schemas import (
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
 from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
-from backend.dependencies import get_space_role, check_space_access, get_space_relic_count
+from backend.dependencies import get_client_key, get_space_role, check_space_access, get_space_relic_count
 
 router = APIRouter(prefix="/api/v1/spaces")
 
@@ -27,15 +27,17 @@ async def create_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
 
     space = Space(
         id=generate_relic_id(),
         name=space_in.name,
         visibility=space_in.visibility,
-        owner_client_id=client_id
+        owner_client_id=client.id
     )
 
     db.add(space)
@@ -211,9 +213,12 @@ async def update_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Update space metadata."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -253,9 +258,12 @@ async def transfer_space_ownership(
     db: AsyncSession = Depends(get_db)
 ):
     """Transfer space ownership to another user. Only the current owner or a system admin can do this."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -323,9 +331,12 @@ async def delete_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     result = await db.execute(select(Space).where(Space.id == space_id))
     space = result.scalar_one_or_none()
@@ -444,9 +455,12 @@ async def add_relic_to_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Add a relic to a space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -485,9 +499,12 @@ async def remove_relic_from_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a relic from a space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -599,9 +616,12 @@ async def add_space_access(
     db: AsyncSession = Depends(get_db)
 ):
     """Add or update a user's access to a space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -667,9 +687,12 @@ async def remove_space_access(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a user's access from a space."""
-    client_id = request.headers.get("X-Client-Key")
-    if not client_id:
+    client = await get_client_key(request, db)
+    if not client:
+        if request.headers.get("X-Client-Key"):
+            raise HTTPException(status_code=401, detail="Invalid client key")
         raise HTTPException(status_code=401, detail="Client key required")
+    client_id = client.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
