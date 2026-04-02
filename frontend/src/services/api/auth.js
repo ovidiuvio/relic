@@ -22,6 +22,7 @@ function swMessage(type, payload = {}, target) {
     }, 5000)
     port1.onmessage = ({ data }) => {
       clearTimeout(timeout)
+      port1.close()
       data.error ? reject(new Error(data.error)) : resolve(data)
     }
     sw.postMessage({ type, ...payload }, [port2])
