@@ -126,10 +126,6 @@ export async function initClientKey() {
   return key
 }
 
-export function generateClientKey() {
-  return _generateKey()
-}
-
 function _generateKey() {
   const bytes = new Uint8Array(16)
   crypto.getRandomValues(bytes)
