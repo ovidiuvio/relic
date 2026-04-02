@@ -15,10 +15,15 @@
         keySaved = true;
     }
 
+    let copyFailed = false;
+
     function copy() {
         navigator.clipboard.writeText(clientKey).then(() => {
             copied = true;
+            copyFailed = false;
             keySaved = true;
+        }).catch(() => {
+            copyFailed = true;
         });
     }
 
@@ -62,7 +67,7 @@
             class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <i class="fas fa-copy"></i>
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy'}
           </button>
         </div>
       </div>

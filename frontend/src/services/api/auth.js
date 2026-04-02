@@ -11,14 +11,20 @@ export let usingSw = false
 
 // ─── SW messaging (one-shot MessageChannel) ───────────────────────────────────
 
-function swMessage(type, payload = {}) {
+function swMessage(type, payload = {}, target) {
   return new Promise((resolve, reject) => {
-    const ctrl = navigator.serviceWorker?.controller
-    if (!ctrl) { reject(new Error('SW not controlling page')); return }
+    const sw = target ?? navigator.serviceWorker?.controller
+    if (!sw) { reject(new Error('SW not controlling page')); return }
     const { port1, port2 } = new MessageChannel()
-    port1.onmessage = ({ data }) =>
+    const timeout = setTimeout(() => {
+      port1.close()
+      reject(new Error('SW communication timeout'))
+    }, 5000)
+    port1.onmessage = ({ data }) => {
+      clearTimeout(timeout)
       data.error ? reject(new Error(data.error)) : resolve(data)
-    ctrl.postMessage({ type, ...payload }, [port2])
+    }
+    sw.postMessage({ type, ...payload }, [port2])
   })
 }
 
@@ -33,13 +39,12 @@ export async function swSetKey(key) {
   }
   await swMessage('SET_KEY', { key })
 }
-
 export async function swClearKey() {
   if (!usingSw) {
     localStorage.removeItem(LEGACY_STORAGE_KEY)
     return
   }
-  try { await swMessage('CLEAR_KEY') } catch {}
+  await swMessage('CLEAR_KEY')
 }
 
 // ─── localStorage fallback ────────────────────────────────────────────────────
@@ -84,12 +89,7 @@ export async function initClientKey() {
   if (!navigator.serviceWorker.controller) {
     try {
       const reg = await navigator.serviceWorker.ready
-      const sw = reg.active
-      await new Promise((resolve, reject) => {
-        const { port1, port2 } = new MessageChannel()
-        port1.onmessage = ({ data }) => data.error ? reject(new Error(data.error)) : resolve()
-        sw.postMessage({ type: 'CLAIM' }, [port2])
-      })
+      await swMessage('CLAIM', {}, reg.active)
       // Wait for the controller to actually be set on this page
       if (!navigator.serviceWorker.controller) {
         await new Promise(resolve =>
@@ -102,28 +102,38 @@ export async function initClientKey() {
     }
   }
 
-  usingSw = true
+  try {
+    // Migrate legacy key from localStorage → SW vault
+    // Note: usingSw is still false here, so call swMessage directly
+    // to talk to the SW without going through the usingSw guard.
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacy) {
+      console.log('[Auth] Migrating client key to SW vault')
+      await swMessage('SET_KEY', { key: legacy })
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      usingSw = true
+      markSwReady()
+      return legacy
+    }
 
-  // Migrate legacy key from localStorage → SW vault
-  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
-  if (legacy) {
-    console.log('[Auth] Migrating client key to SW vault')
-    await swSetKey(legacy)
-    localStorage.removeItem(LEGACY_STORAGE_KEY)
+    // Key already in vault — we can't retrieve it (by design)
+    const { hasKey } = await swMessage('HAS_KEY')
+    if (hasKey) {
+      usingSw = true
+      markSwReady()
+      return null
+    }
+
+    const key = _generateKey()
+    await swMessage('SET_KEY', { key })
+    usingSw = true
     markSwReady()
-    return legacy
+    return key
+  } catch (err) {
+    console.warn('[Auth] SW vault operation failed, falling back:', err)
+    usingSw = false
+    return initFallback()
   }
-
-  // Key already in vault — we can't retrieve it (by design)
-  if (await swHasKey()) {
-    markSwReady()
-    return null
-  }
-
-  const key = _generateKey()
-  await swSetKey(key)
-  markSwReady()
-  return key
 }
 
 function _generateKey() {

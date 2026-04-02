@@ -1,4 +1,5 @@
-import api from './core'
+import api, { waitForAuth } from './core'
+import { usingSw, getClientKey } from './auth'
 
 export async function createRelic(formData) {
     const data = new FormData()
@@ -75,13 +76,16 @@ export async function updateRelic(relicId, data) {
 }
 
 export async function getRelicRaw(relicId) {
-    // SW intercepts /{id}/raw and injects X-Client-Key automatically.
-    // In fallback mode (no SW), we inject the header manually.
+    // Wait for auth init so the SW (or fallback) is ready to inject the key.
+    await waitForAuth()
+    // In fallback mode (no SW), inject the header manually.
+    // In SW mode, the service worker intercepts /{id}/raw and injects it;
+    // if the SW was restarted it re-reads the key from IDB before responding.
     const headers = {}
-    const { usingSw, getClientKey } = await import('./auth')
     if (!usingSw) {
         const key = getClientKey()
-        if (key) headers['X-Client-Key'] = key
+        if (!key) throw new Error('No client key available')
+        headers['X-Client-Key'] = key
     }
     const response = await fetch(`/${relicId}/raw`, { headers })
     if (!response.ok) throw new Error(`Raw fetch failed: ${response.status}`)
