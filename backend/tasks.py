@@ -26,13 +26,19 @@ async def cleanup_expired_relics():
         expired_relics = result.scalars().all()
 
         for relic in expired_relics:
+            relic_id = relic.id
+            s3_key = relic.s3_key
             try:
-                # Delete from storage
-                await storage_service.delete(relic.s3_key)
-                # Hard delete from database
+                # Delete DB record first — if S3 delete later fails, the orphaned
+                # S3 object is harmless and reclaimable. The reverse order risks a
+                # zombie DB row that retries forever against a missing S3 object.
                 await db.delete(relic)
                 await db.commit()
-                logger.info(f"Expired relic {relic.id} permanently deleted")
+                try:
+                    await storage_service.delete(s3_key)
+                except Exception as s3_err:
+                    logger.warning(f"Relic {relic_id} removed from DB but S3 delete failed (orphaned object {s3_key}): {s3_err}")
+                logger.info(f"Expired relic {relic_id} permanently deleted")
             except Exception as e:
-                logger.error(f"Error cleaning up relic {relic.id}: {e}")
+                logger.error(f"Error cleaning up relic {relic_id}: {e}")
                 await db.rollback()
