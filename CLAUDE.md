@@ -144,44 +144,88 @@ relic/
 │   ├── storage.py           # S3/MinIO client wrapper
 │   ├── utils.py             # Utilities (ID generation, hashing, expiry parsing)
 │   ├── backup.py            # Database backup logic
+│   ├── dependencies.py      # FastAPI dependencies
+│   ├── profiling.py         # Profiling utilities
+│   ├── scheduler.py         # Background task scheduler
+│   ├── tasks.py             # Background tasks
+│   ├── entrypoint.sh        # Docker entrypoint
+│   ├── routes/              # API route handlers
+│   │   ├── admin.py
+│   │   ├── bookmarks.py
+│   │   ├── clients.py
+│   │   ├── comments.py
+│   │   ├── health.py
+│   │   ├── relics.py
+│   │   ├── reports.py
+│   │   └── spaces.py
 │   └── __init__.py
 ├── frontend/
 │   ├── src/
 │   │   ├── App.svelte       # Main app component
 │   │   ├── main.js          # Entry point
+│   │   ├── routes.js        # Frontend routes
 │   │   ├── app.css          # Tailwind styles
+│   │   ├── utils/           # Frontend utilities
 │   │   ├── components/
-│   │   │   ├── Navigation.svelte
-│   │   │   ├── RelicForm.svelte
-│   │   │   ├── RelicViewer.svelte
+│   │   │   ├── AddToSpaceModal.svelte
+│   │   │   ├── AdminPanel.svelte
+│   │   │   ├── ApiDocs.svelte
+│   │   │   ├── BookmarkersModal.svelte
+│   │   │   ├── CommentEditor.svelte
+│   │   │   ├── CommentsSummaryModal.svelte
+│   │   │   ├── ConfirmModal.svelte
+│   │   │   ├── EditRelicModal.svelte
+│   │   │   ├── ForkEditor.svelte
 │   │   │   ├── ForkModal.svelte
+│   │   │   ├── ForkSettings.svelte
+│   │   │   ├── LineageModal.svelte
 │   │   │   ├── MonacoEditor.svelte
 │   │   │   ├── MyBookmarks.svelte
 │   │   │   ├── MyRelics.svelte
+│   │   │   ├── PDFViewer.svelte
 │   │   │   ├── RecentRelics.svelte
+│   │   │   ├── RelicDropModal.svelte
+│   │   │   ├── RelicForm.svelte
+│   │   │   ├── RelicHeader.svelte
+│   │   │   ├── RelicStatusBar.svelte
 │   │   │   ├── RelicTable.svelte
-│   │   │   ├── ApiDocs.svelte
+│   │   │   ├── RelicViewer.svelte
+│   │   │   ├── ReportModal.svelte
+│   │   │   ├── SpaceViewer.svelte
+│   │   │   ├── SpacesList.svelte
 │   │   │   ├── Toast.svelte
+│   │   │   ├── VisibilityModal.svelte
 │   │   │   └── renderers/
-│   │   │       ├── MarkdownRenderer.svelte
-│   │   │       ├── CodeRenderer.svelte
-│   │   │       ├── ImageRenderer.svelte
-│   │   │       ├── CsvRenderer.svelte
 │   │   │       ├── ArchiveRenderer.svelte
+│   │   │       ├── CodeRenderer.svelte
+│   │   │       ├── CsvRenderer.svelte
+│   │   │       ├── DiffRenderer.svelte
 │   │   │       ├── ExcalidrawRenderer.svelte
-│   │   │       └── RelicIndexRenderer.svelte
+│   │   │       ├── HtmlRenderer.svelte
+│   │   │       ├── ImageRenderer.svelte
+│   │   │       ├── MarkdownRenderer.svelte
+│   │   │       ├── RelicIndexRenderer.svelte
+│   │   │       ├── TreeNode.svelte
+│   │   │       └── TreeRenderer.svelte
 │   │   ├── stores/
 │   │   │   └── toastStore.js
 │   │   └── services/
 │   │       ├── api.js
-│   │       ├── processors.js
+│   │       ├── relicActions.js
 │   │       ├── typeUtils.js
-│   │       └── paginationUtils.js
+│   │       ├── api/
+│   │       ├── data/
+│   │       ├── processors/
+│   │       └── utils/
 │   ├── index.html
 │   ├── vite.config.js
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   └── package.json
+├── cli/client/              # Go CLI client
+│   ├── cmd/
+│   ├── internal/
+│   └── pkg/
 ├── sync/                    # S3 Sync service
 │   └── Dockerfile
 ├── requirements.txt         # Python dependencies
