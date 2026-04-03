@@ -27,19 +27,16 @@ async def get_or_create_client_key(request: Request, db: AsyncSession) -> Option
     if not x_client_key:
         return None
 
-    result = await db.execute(select(ClientKey).where(ClientKey.id == x_client_key))
-    client = result.scalar_one_or_none()
-    if client:
-        return client
-
-    # Create new client if it doesn't exist
-    client = ClientKey(
-        id=x_client_key,
-        created_at=datetime.utcnow()
+    # Upsert to avoid race condition when two concurrent requests arrive with the same new key
+    await db.execute(
+        pg_insert(ClientKey)
+        .values(id=x_client_key, created_at=datetime.utcnow())
+        .on_conflict_do_nothing()
     )
-    db.add(client)
     await db.commit()
-    return client
+
+    result = await db.execute(select(ClientKey).where(ClientKey.id == x_client_key))
+    return result.scalar_one()
 
 
 def is_admin_client(client: Optional[ClientKey]) -> bool:
