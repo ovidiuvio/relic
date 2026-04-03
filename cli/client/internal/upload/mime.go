@@ -147,9 +147,9 @@ var fileTypes = []FileType{
 	// ============================================
 	{Syntax: "r", Label: "R", MIME: "text/x-r", Extensions: []string{"r", "R"}, Category: "code"},
 	{Syntax: "julia", Label: "Julia", MIME: "text/x-julia", Extensions: []string{"jl"}, Category: "code"},
-	{Syntax: "matlab", Label: "MATLAB", MIME: "text/x-matlab", Extensions: []string{"mat"}, Category: "code"},
-	{Syntax: "octave", Label: "Octave", MIME: "text/x-octave", Extensions: []string{}, Category: "code"},
-	{Syntax: "mathematica", Label: "Mathematica", MIME: "text/x-mathematica", Extensions: []string{"nb", "wl", "wls"}, Category: "code"},
+	{Syntax: "matlab", Label: "MATLAB", MIME: "text/x-matlab", Extensions: []string{"m", "mat"}, Category: "code"},
+	{Syntax: "octave", Label: "Octave", MIME: "text/x-octave", Extensions: []string{"m"}, Category: "code"},
+	{Syntax: "mathematica", Label: "Mathematica", MIME: "text/x-mathematica", Extensions: []string{"nb", "wl", "wls", "m"}, Category: "code"},
 	{Syntax: "sage", Label: "Sage", MIME: "text/x-sage", Extensions: []string{"sage"}, Category: "code"},
 	{Syntax: "fortran", Label: "Fortran", MIME: "text/x-fortran", Extensions: []string{"f", "for", "f90", "f95", "f03", "f08"}, Category: "code"},
 
@@ -176,7 +176,7 @@ var fileTypes = []FileType{
 	// ============================================
 	// HARDWARE DESCRIPTION LANGUAGES
 	// ============================================
-	{Syntax: "verilog", Label: "Verilog", MIME: "text/x-verilog", Extensions: []string{"sv", "svh"}, Category: "code"},
+	{Syntax: "verilog", Label: "Verilog", MIME: "text/x-verilog", Extensions: []string{"v", "vh", "sv", "svh"}, Category: "code"},
 	{Syntax: "vhdl", Label: "VHDL", MIME: "text/x-vhdl", Extensions: []string{"vhd", "vhdl"}, Category: "code"},
 
 	// ============================================
