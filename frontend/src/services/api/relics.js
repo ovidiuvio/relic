@@ -1,4 +1,5 @@
-import api from './core'
+import api, { waitForAuth } from './core'
+import { usingSw, getClientKey } from './auth'
 
 export async function createRelic(formData) {
     const data = new FormData()
@@ -74,26 +75,22 @@ export async function updateRelic(relicId, data) {
     return api.put(`/relics/${relicId}`, data)
 }
 
-// Note: getRelicRaw often needs specific responseType, so it's a bit special.
-// We import axios directly usually to avoid default interceptors modifying it? 
-// No, raw content should be fine with interceptors, but we need responseType: 'blob'.
-// However, in original code it used `axios.get` not `api.get`.
-// This might be intentional to bypass base URL or interceptors?
-// Base URL is `/api/v1` in `api`. Raw endpoint is `/{relic_id}/raw` (root level, usually).
-// If `getRelicRaw` calls `/{relicId}/raw`, and base URL is `/api/v1`, `api.get` would be `/api/v1/{relicId}/raw`?
-// Let's check `api.js` original. `axios.get('/' + relicId + '/raw')`.
-// So it uses global axios to hit root path.
-import axios from 'axios'
-import { getClientKey } from './auth'
-
 export async function getRelicRaw(relicId) {
-    const clientKey = getClientKey()
+    // Wait for auth init so the SW (or fallback) is ready to inject the key.
+    await waitForAuth()
+    // In fallback mode (no SW), inject the header manually.
+    // In SW mode, the service worker intercepts /{id}/raw and injects it;
+    // if the SW was restarted it re-reads the key from IDB before responding.
     const headers = {}
-    if (clientKey) headers['X-Client-Key'] = clientKey
-    return axios.get(`/${relicId}/raw`, {
-        responseType: 'blob',
-        headers
-    })
+    if (!usingSw) {
+        const key = getClientKey()
+        if (!key) throw new Error('No client key available')
+        headers['X-Client-Key'] = key
+    }
+    const response = await fetch(`/${relicId}/raw`, { headers })
+    if (!response.ok) throw new Error(`Raw fetch failed: ${response.status}`)
+    const blob = await response.blob()
+    return { data: blob, headers: Object.fromEntries(response.headers.entries()) }
 }
 
 export async function getRelicLineage(relicId, params = {}) {

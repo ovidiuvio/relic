@@ -12,7 +12,7 @@
   import { getMonacoLanguage } from '../services/typeUtils';
   import CommentEditor from './CommentEditor.svelte';
   import { processMarkdown } from '../services/processors/markdownProcessor';
-  import { getClientKey } from '../services/api';
+  import { clientPublicId } from '../stores/clientStore';
 
   export let value = ''
   export let language = 'plaintext'
@@ -55,17 +55,14 @@
   let commentWidgets = new Map() // zoneId -> widget DOM element
   let commentEditorComponents = [] // Track Svelte components for cleanup
   let hoveredGlyphLine = null
-  let currentClientId = null
   let isFocused = false
 
   $: isDarkMode = darkMode
+  $: currentPublicId = $clientPublicId
 
   const dispatch = createEventDispatcher()
 
   onMount(async () => {
-    if (typeof window !== 'undefined') {
-        currentClientId = getClientKey()
-    }
 
     if (!container) return
 
@@ -672,7 +669,7 @@
                        </span>` 
                     : `<span style="width: 16px; display: inline-block;"></span>`;
 
-                const isAuthor = currentClientId && comment.client_id === currentClientId;
+                const isAuthor = currentPublicId && comment.public_id === currentPublicId;
 
                 commentEl.innerHTML = `
                     <div class="comment-main">

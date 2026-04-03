@@ -1,55 +1,144 @@
-// Client key management and auth logic
+// Client key management via Service Worker vault.
+// Falls back to localStorage when SW is unavailable (Firefox private mode,
+// disabled by policy, non-secure context other than localhost, etc.).
 
-const CLIENT_KEY_STORAGE_KEY = 'relic_client_key'
+import { markSwReady, enableFallbackAuth } from './core'
+
+const LEGACY_STORAGE_KEY = 'relic_client_key'
+
+// True when the SW vault is active; false when using localStorage fallback.
+export let usingSw = false
+
+// ─── SW messaging (one-shot MessageChannel) ───────────────────────────────────
+
+function swMessage(type, payload = {}, target) {
+  return new Promise((resolve, reject) => {
+    const sw = target ?? navigator.serviceWorker?.controller
+    if (!sw) { reject(new Error('SW not controlling page')); return }
+    const { port1, port2 } = new MessageChannel()
+    const timeout = setTimeout(() => {
+      port1.close()
+      reject(new Error('SW communication timeout'))
+    }, 5000)
+    port1.onmessage = ({ data }) => {
+      clearTimeout(timeout)
+      port1.close()
+      data.error ? reject(new Error(data.error)) : resolve(data)
+    }
+    sw.postMessage({ type, ...payload }, [port2])
+  })
+}
+
+export async function swHasKey() {
+  try { return (await swMessage('HAS_KEY')).hasKey } catch { return false }
+}
+
+export async function swSetKey(key) {
+  if (!usingSw) {
+    localStorage.setItem(LEGACY_STORAGE_KEY, key)
+    return
+  }
+  await swMessage('SET_KEY', { key })
+}
+export async function swClearKey() {
+  if (!usingSw) {
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
+    return
+  }
+  await swMessage('CLEAR_KEY')
+}
+
+// ─── localStorage fallback ────────────────────────────────────────────────────
 
 export function getClientKey() {
-    if (typeof localStorage === 'undefined') return null
-    return localStorage.getItem(CLIENT_KEY_STORAGE_KEY)
+  if (typeof localStorage === 'undefined') return null
+  return localStorage.getItem(LEGACY_STORAGE_KEY)
 }
 
-export function setClientKey(key) {
-    if (typeof localStorage === 'undefined') return
-    localStorage.setItem(CLIENT_KEY_STORAGE_KEY, key)
+function initFallback() {
+  console.warn('[Auth] Service Worker unavailable — using localStorage fallback')
+  usingSw = false
+  enableFallbackAuth(getClientKey)
+  let key = localStorage.getItem(LEGACY_STORAGE_KEY)
+  if (!key) {
+    key = _generateKey()
+    localStorage.setItem(LEGACY_STORAGE_KEY, key)
+    markSwReady()
+    return key           // new key — caller should show it once
+  }
+  markSwReady()
+  return null            // existing key — no reveal needed
 }
 
-export function generateClientKey() {
-    // Generate 32-character hex string (same as backend)
-    const array = new Uint8Array(16)
-    crypto.getRandomValues(array)
-    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
-}
+// ─── Initialisation ───────────────────────────────────────────────────────────
 
-// Internal register function using fetch to avoid circular dependency with core api instance
-async function registerClientInternal(clientKey) {
+export async function initClientKey() {
+  // Bail out early if SW API is missing entirely
+  if (!('serviceWorker' in navigator)) return initFallback()
+
+  try {
+    await navigator.serviceWorker.register('/vault-sw.js', { updateViaCache: 'none' })
+    await navigator.serviceWorker.ready
+  } catch (err) {
+    console.warn('[Auth] SW registration failed:', err)
+    return initFallback()
+  }
+
+  // Ensure SW is controlling this page. On first install, clients.claim()
+  // fires during activate. On hard refresh (Shift+F5), the SW is active
+  // but not controlling — ask it to re-claim.
+  if (!navigator.serviceWorker.controller) {
     try {
-        const response = await fetch('/api/v1/client/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Client-Key': clientKey
-            }
-        })
-
-        if (!response.ok) {
-            throw new Error(`Registration failed: ${response.statusText}`)
-        }
-
-        const data = await response.json()
-        console.log('[API] Client registered successfully:', data)
-        return data
-    } catch (error) {
-        console.error('[API] Client registration failed:', error)
-        // Don't throw for background registration
+      const reg = await navigator.serviceWorker.ready
+      await swMessage('CLAIM', {}, reg.active)
+      // Wait for the controller to actually be set on this page
+      if (!navigator.serviceWorker.controller) {
+        await new Promise(resolve =>
+          navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })
+        )
+      }
+    } catch (err) {
+      console.warn('[Auth] SW claim failed:', err)
+      return initFallback()
     }
+  }
+
+  try {
+    // Migrate legacy key from localStorage → SW vault
+    // Note: usingSw is still false here, so call swMessage directly
+    // to talk to the SW without going through the usingSw guard.
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacy) {
+      console.log('[Auth] Migrating client key to SW vault')
+      await swMessage('SET_KEY', { key: legacy })
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      usingSw = true
+      markSwReady()
+      return legacy
+    }
+
+    // Key already in vault — we can't retrieve it (by design)
+    const { hasKey } = await swMessage('HAS_KEY')
+    if (hasKey) {
+      usingSw = true
+      markSwReady()
+      return null
+    }
+
+    const key = _generateKey()
+    await swMessage('SET_KEY', { key })
+    usingSw = true
+    markSwReady()
+    return key
+  } catch (err) {
+    console.warn('[Auth] SW vault operation failed, falling back:', err)
+    usingSw = false
+    return initFallback()
+  }
 }
 
-export function getOrCreateClientKey() {
-    let clientKey = getClientKey()
-    if (!clientKey) {
-        clientKey = generateClientKey()
-        setClientKey(clientKey)
-        // Register with server
-        registerClientInternal(clientKey)
-    }
-    return clientKey
+function _generateKey() {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
