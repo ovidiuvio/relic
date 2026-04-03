@@ -105,6 +105,8 @@ type RelicListResponse struct {
 // ClientInfo represents information about the client
 type ClientInfo struct {
 	ClientID   string    `json:"client_id"`
+	PublicID   string    `json:"public_id"`
+	Name       string    `json:"name"`
 	CreatedAt  RelicTime `json:"created_at"`
 	RelicCount int       `json:"relic_count"`
 }
