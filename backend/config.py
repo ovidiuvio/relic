@@ -4,6 +4,7 @@ import json
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List
+import functools
 
 
 class Settings(BaseSettings):
@@ -101,9 +102,13 @@ class Settings(BaseSettings):
         Returns:
             List of admin client ID strings
         """
-        if not self.ADMIN_CLIENT_IDS:
-            return []
-        return [cid.strip() for cid in self.ADMIN_CLIENT_IDS.split(",") if cid.strip()]
+        return list(_get_admin_client_ids(self.ADMIN_CLIENT_IDS))
+
+@functools.lru_cache(maxsize=1)
+def _get_admin_client_ids(admin_client_ids: str) -> tuple:
+    if not admin_client_ids:
+        return ()
+    return tuple(cid.strip() for cid in admin_client_ids.split(",") if cid.strip())
 
 
 settings = Settings()
