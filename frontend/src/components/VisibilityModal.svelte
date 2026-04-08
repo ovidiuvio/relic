@@ -105,6 +105,15 @@
         }
     }
 
+    function copyPublicId(publicId) {
+        if (!publicId) return
+        navigator.clipboard.writeText(publicId).then(() => {
+            showToast('Public ID copied', 'success')
+        }).catch(() => {
+            showToast('Failed to copy ID', 'error')
+        })
+    }
+
     function close() { dispatch('close') }
 
     const levels = [
@@ -279,7 +288,19 @@
                                                         </div>
                                                         <div>
                                                             <div class="text-sm font-semibold text-gray-900">{entry.client_name || 'Anonymous'}</div>
-                                                            <div class="text-[10px] text-gray-400 font-mono">{entry.public_id || '—'}</div>
+                                                            <div class="flex items-center gap-1 group">
+                                                                <div class="text-[10px] text-gray-400 font-mono">{entry.public_id || '—'}</div>
+                                                                {#if entry.public_id}
+                                                                    <button
+                                                                        on:click={() => copyPublicId(entry.public_id)}
+                                                                        class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 transition-opacity"
+                                                                        title="Copy Public ID"
+                                                                        aria-label="Copy Public ID"
+                                                                    >
+                                                                        <i class="fas fa-copy text-[10px]"></i>
+                                                                    </button>
+                                                                {/if}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
