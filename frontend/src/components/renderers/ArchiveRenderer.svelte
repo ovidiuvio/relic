@@ -28,6 +28,7 @@
   let loading = false
   let error = null
   let expandedDirs = new Set(['', '/']) // Support both empty string and '/' for root
+  let searchQuery = ''
 
   // Resizable panel state
   let sidebarWidth = parseInt(localStorage.getItem('archiveSidebarWidth') || '400')
@@ -211,7 +212,73 @@
     return result
   }
 
-  $: flatTree = flattenTree(processed.fileTree)
+  // Filter tree based on search query
+  function filterTree(node, query) {
+    if (!query) return { filteredNode: node, newExpanded: new Set() }
+
+    const lowerQuery = query.toLowerCase()
+
+    function traverse(currentNode) {
+      const clonedNode = { ...currentNode }
+      let hasMatch = false
+
+      // Node itself matches
+      if (
+        (clonedNode.name && clonedNode.name.toLowerCase().includes(lowerQuery)) ||
+        (clonedNode.path && clonedNode.path.toLowerCase().includes(lowerQuery))
+      ) {
+        hasMatch = true
+      }
+
+      const expandedSet = new Set()
+
+      if (clonedNode.children) {
+        const filteredChildren = []
+        for (const child of clonedNode.children) {
+          const { node: resultChild, hasMatch: childMatch, expanded: childExpanded } = traverse(child)
+          if (childMatch) {
+            filteredChildren.push(resultChild)
+            hasMatch = true
+            childExpanded.forEach(p => expandedSet.add(p))
+          }
+        }
+        clonedNode.children = filteredChildren
+      }
+
+      if (hasMatch && clonedNode.type === 'directory') {
+        expandedSet.add(clonedNode.path || '/')
+      }
+
+      return { node: clonedNode, hasMatch, expanded: expandedSet }
+    }
+
+    const { node: filteredNode, hasMatch, expanded } = traverse(node)
+
+    // Return root if it has matches or if it's the root directory itself
+    if (hasMatch || node.name === '/') {
+      expanded.add('')
+      expanded.add('/')
+      return { filteredNode, newExpanded: expanded }
+    }
+
+    return { filteredNode: null, newExpanded: new Set() }
+  }
+
+  $: filteredResult = processed ? filterTree(processed.fileTree, searchQuery) : { filteredNode: null, newExpanded: new Set() }
+  $: filteredTree = filteredResult.filteredNode
+
+  // Track previous query to detect when search changes vs when just navigating
+  let prevSearchQuery = '';
+  $: if (searchQuery !== prevSearchQuery) {
+    if (searchQuery && filteredResult.newExpanded.size > 0) {
+      // Create a fresh set with only the necessary directories expanded when searching
+      const nextExpanded = new Set(filteredResult.newExpanded)
+      expandedDirs = nextExpanded
+    }
+    prevSearchQuery = searchQuery;
+  }
+
+  $: flatTree = filteredTree ? flattenTree(filteredTree) : []
 
   // Debug logging
   $: if (processed) {
@@ -279,28 +346,55 @@
     <!-- File tree sidebar -->
     <div class="bg-gray-50 overflow-y-auto flex-shrink-0" style="width: {sidebarWidth}px">
       <!-- Archive metadata header -->
-      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10 flex flex-col gap-2">
         <h3 class="text-sm font-semibold text-gray-900">Archive Contents</h3>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400 text-xs"></i>
+          </div>
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Search files..."
+            class="w-full pl-8 pr-8 py-1.5 text-xs bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          />
+          {#if searchQuery}
+            <button
+              class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              on:click={() => searchQuery = ''}
+              title="Clear search"
+            >
+              <i class="fas fa-times text-xs"></i>
+            </button>
+          {/if}
+        </div>
       </div>
 
       <!-- File tree -->
       <div class="py-1">
-        {#each flatTree as item}
-          <button
-            class="w-full text-left px-4 py-1.5 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm
-                   {selectedFile?.path === item.node.path ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600' : 'text-gray-700'}"
-            style="padding-left: {item.depth * 16 + 16}px"
-            on:click={() => selectFile(item.node)}
-          >
-            <i class="fas {getIcon(item)} {getIconColor(item)} text-sm flex-shrink-0"></i>
-            <span class="truncate flex-1">{item.node.name}</span>
-            {#if item.node.type === 'file' && item.node.size}
-              <span class="text-xs text-gray-500 flex-shrink-0">
-                {(item.node.size / 1024).toFixed(1)}KB
-              </span>
-            {/if}
-          </button>
-        {/each}
+        {#if flatTree.length === 0 && searchQuery}
+          <div class="px-4 py-8 text-center text-gray-500">
+            <i class="fas fa-search text-gray-300 text-3xl mb-3"></i>
+            <p class="text-sm">No files found matching "{searchQuery}"</p>
+          </div>
+        {:else}
+          {#each flatTree as item}
+            <button
+              class="w-full text-left px-4 py-1.5 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm
+                     {selectedFile?.path === item.node.path ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600' : 'text-gray-700'}"
+              style="padding-left: {item.depth * 16 + 16}px"
+              on:click={() => selectFile(item.node)}
+            >
+              <i class="fas {getIcon(item)} {getIconColor(item)} text-sm flex-shrink-0"></i>
+              <span class="truncate flex-1">{item.node.name}</span>
+              {#if item.node.type === 'file' && item.node.size}
+                <span class="text-xs text-gray-500 flex-shrink-0">
+                  {(item.node.size / 1024).toFixed(1)}KB
+                </span>
+              {/if}
+            </button>
+          {/each}
+        {/if}
       </div>
     </div>
 
