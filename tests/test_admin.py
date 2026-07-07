@@ -102,6 +102,9 @@ def test_admin_stats(http, disposable_relic):
     assert "total_spaces" in data
     assert "total_comments" in data
     assert "total_bookmarks" in data
+    
+    # Assert that the breakdown sum matches the total relics count
+    assert data["public_relics"] + data["private_relics"] + data["restricted_relics"] == data["total_relics"]
 
 
 @pytest.mark.integration
