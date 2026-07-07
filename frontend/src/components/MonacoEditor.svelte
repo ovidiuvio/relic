@@ -4,10 +4,7 @@
   import {
     parseLineNumberFragment,
     getCurrentLineNumberFragment,
-    getHighlightDecorations,
-    getLineNumberFromClick,
     updateUrlWithLineNumbers,
-    createLineTooltip,
   } from '../utils/lineNumbers';
   import { getMonacoLanguage } from '../services/typeUtils';
   import CommentEditor from './CommentEditor.svelte';
