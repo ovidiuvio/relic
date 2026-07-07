@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Table, UniqueConstraint
+from sqlalchemy import Column, String, Integer, BigInteger, DateTime, ForeignKey, Text, Table, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
@@ -89,7 +89,8 @@ class Relic(Base):
     description = Column(Text, nullable=True)
     content_type = Column(String, default="text/plain")
     language_hint = Column(String, nullable=True)
-    size_bytes = Column(Integer)
+    # BigInteger: int4 caps at ~2.1 GB, uploads can be far larger
+    size_bytes = Column(BigInteger)
 
     # Fork tracking (but no versioning)
     fork_of = Column(String, nullable=True, index=True)  # Which relic this was forked from

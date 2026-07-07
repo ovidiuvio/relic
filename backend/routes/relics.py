@@ -14,7 +14,7 @@ from backend.config import settings
 from backend.database import get_db
 from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
-from backend.storage import storage_service
+from backend.storage import storage_service, FileTooLargeError
 from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import (
     get_client_key, check_ownership_or_admin,
@@ -25,6 +25,68 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+async def _create_relic_record(
+    db: AsyncSession,
+    client: Optional[ClientKey],
+    relic_id: str,
+    s3_key: str,
+    size_bytes: int,
+    *,
+    name: Optional[str],
+    content_type: str,
+    language_hint: Optional[str],
+    access_level: str,
+    expires_in: Optional[str],
+    tags: Optional[List[str]],
+    space_id: Optional[str],
+) -> dict:
+    """Create the relic DB record after content is already in storage. Commits."""
+    expires_at = parse_expiry_string(expires_in)
+    tag_objects = await process_tags(db, tags) if tags else []
+
+    relic = Relic(
+        id=relic_id,
+        client_id=client.id if client else None,
+        name=name,
+        content_type=content_type,
+        language_hint=language_hint,
+        size_bytes=size_bytes,
+        s3_key=s3_key,
+        access_level=access_level,
+        created_at=datetime.utcnow(),
+        expires_at=expires_at
+    )
+
+    if tag_objects:
+        relic.tags = tag_objects
+
+    # Update client relic count (flushed with commit)
+    if client:
+        client.relic_count += 1
+
+    db.add(relic)
+
+    # Add to space if space_id is provided
+    if space_id:
+        space_result = await db.execute(select(Space).where(Space.id == space_id))
+        space = space_result.scalar_one_or_none()
+        if space and client and check_space_access(space, client.id, "editor"):
+            await db.flush()
+            await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
+
+    await db.commit()
+
+    return {
+        "id": relic.id,
+        "name": relic.name,
+        "content_type": relic.content_type,
+        "language_hint": relic.language_hint,
+        "url": f"/{relic.id}",
+        "created_at": relic.created_at,
+        "size_bytes": relic.size_bytes
+    }
 
 
 @router.post("/api/v1/relics", response_model=dict)
@@ -61,83 +123,139 @@ async def create_relic(
     if not client and request.headers.get("X-Client-Key"):
         raise HTTPException(status_code=401, detail="Invalid client key")
 
-    try:
-        # Read file content
-        if file:
-            content = await file.read()
-            if not content_type:
-                content_type = file.content_type or "application/octet-stream"
-            if not name:
-                name = file.filename
-        else:
-            raise HTTPException(status_code=400, detail="No content provided")
+    if not file:
+        raise HTTPException(status_code=400, detail="No content provided")
 
-        # Check size limit
-        if len(content) > settings.MAX_UPLOAD_SIZE:
-            raise HTTPException(status_code=413, detail="File too large")
+    # Reject oversized uploads before touching the body when the client declares a length
+    declared_length = request.headers.get("content-length")
+    if declared_length and declared_length.isdigit() and int(declared_length) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+
+    s3_key = None
+    try:
+        if not content_type:
+            content_type = file.content_type or "application/octet-stream"
+        if not name:
+            name = file.filename
 
         # Generate unique relic ID with collision handling
         relic_id = await generate_unique_relic_id(db)
 
-        # Upload to storage
+        # Stream to storage without buffering the whole file in memory;
+        # size limit is enforced as bytes flow through
         s3_key = f"relics/{relic_id}"
-        await storage_service.upload(s3_key, content, content_type)
-
-        # Parse expiry
-        expires_at = parse_expiry_string(expires_in)
-
-        # Process tags
-        tag_objects = await process_tags(db, tags) if tags else []
-
-        # Create relic record
-        relic = Relic(
-            id=relic_id,
-            client_id=client.id if client else None,
-            name=name,
-            content_type=content_type,
-            language_hint=language_hint,
-            size_bytes=len(content),
-            s3_key=s3_key,
-            access_level=access_level,
-            created_at=datetime.utcnow(),
-            expires_at=expires_at
+        size_bytes = await storage_service.upload_stream(
+            s3_key, file.read, content_type, max_size=settings.MAX_UPLOAD_SIZE
         )
 
-        # Associate tags
-        if tag_objects:
-            relic.tags = tag_objects
-
-        # Update client relic count (flushed with commit)
-        if client:
-            client.relic_count += 1
-
-        db.add(relic)
-
-        # Add to space if space_id is provided
-        if space_id:
-            space_result = await db.execute(select(Space).where(Space.id == space_id))
-            space = space_result.scalar_one_or_none()
-            if space and client and check_space_access(space, client.id, "editor"):
-                await db.flush()
-                await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
-
-        await db.commit()
-
-        return {
-            "id": relic.id,
-            "name": relic.name,
-            "content_type": relic.content_type,
-            "language_hint": relic.language_hint,
-            "url": f"/{relic.id}",
-            "created_at": relic.created_at,
-            "size_bytes": relic.size_bytes
-        }
+        return await _create_relic_record(
+            db, client, relic_id, s3_key, size_bytes,
+            name=name, content_type=content_type, language_hint=language_hint,
+            access_level=access_level, expires_in=expires_in, tags=tags, space_id=space_id,
+        )
 
     except HTTPException:
         raise
+    except FileTooLargeError:
+        raise HTTPException(status_code=413, detail="File too large")
     except Exception as e:
         await db.rollback()
         logger.error(f"Operation failed: {e}")
+        if s3_key:
+            try:
+                await storage_service.delete(s3_key)
+            except Exception:
+                logger.warning(f"Failed to clean up orphaned S3 object {s3_key}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.post("/api/v1/relics/raw", response_model=dict)
+@router.put("/api/v1/relics/raw", response_model=dict)
+async def create_relic_raw(
+    request: Request,
+    name: Optional[str] = None,
+    content_type: Optional[str] = None,
+    language_hint: Optional[str] = None,
+    access_level: str = "public",
+    expires_in: Optional[str] = None,
+    tags: Optional[str] = None,
+    space_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create a relic from a raw request body (no multipart form).
+
+    This is the fast path for large uploads: the body streams straight to
+    storage with no multipart parsing and no temp-file spooling. Metadata
+    comes from query parameters (tags comma-separated); the content type
+    from the Content-Type header unless overridden via ?content_type=.
+
+    Example: curl -T bigfile.bin "https://host/api/v1/relics/raw?name=bigfile.bin"
+    """
+    tag_list = [t.strip() for t in tags.split(',') if t.strip()] if tags else None
+
+    if access_level not in ("public", "private", "restricted"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
+        )
+
+    # Validate client key if provided (anonymous creation is allowed)
+    client = await get_client_key(request, db)
+    if not client and request.headers.get("X-Client-Key"):
+        raise HTTPException(status_code=401, detail="Invalid client key")
+
+    # Reject oversized uploads before touching the body when the client declares a length
+    declared_length = request.headers.get("content-length")
+    if declared_length and declared_length.isdigit() and int(declared_length) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+
+    if not content_type:
+        content_type = request.headers.get("content-type") or "application/octet-stream"
+
+    # Adapt the request body stream to the read(n) interface of upload_stream
+    body_iter = request.stream().__aiter__()
+    leftover = b""
+
+    async def read(n: int) -> bytes:
+        nonlocal leftover
+        while not leftover:
+            try:
+                leftover = await body_iter.__anext__()
+            except StopAsyncIteration:
+                return b""
+        out, leftover = leftover[:n], leftover[n:]
+        return out
+
+    s3_key = None
+    try:
+        relic_id = await generate_unique_relic_id(db)
+        s3_key = f"relics/{relic_id}"
+        size_bytes = await storage_service.upload_stream(
+            s3_key, read, content_type, max_size=settings.MAX_UPLOAD_SIZE
+        )
+        if size_bytes == 0:
+            await storage_service.delete(s3_key)
+            raise HTTPException(status_code=400, detail="No content provided")
+
+        return await _create_relic_record(
+            db, client, relic_id, s3_key, size_bytes,
+            name=name, content_type=content_type, language_hint=language_hint,
+            access_level=access_level, expires_in=expires_in, tags=tag_list, space_id=space_id,
+        )
+
+    except HTTPException:
+        raise
+    except FileTooLargeError:
+        raise HTTPException(status_code=413, detail="File too large")
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Operation failed: {e}")
+        if s3_key:
+            try:
+                await storage_service.delete(s3_key)
+            except Exception:
+                logger.warning(f"Failed to clean up orphaned S3 object {s3_key}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
@@ -233,13 +351,16 @@ async def get_relic_raw(relic_id: str, request: Request, password: Optional[str]
                 raise HTTPException(status_code=403, detail="Access restricted")
 
     try:
-        content = await storage_service.download(relic.s3_key)
+        body, content_length = await storage_service.stream(relic.s3_key)
         return StreamingResponse(
-            iter([content]),
+            body,
             media_type=relic.content_type,
-            headers={"Content-Disposition": "inline; filename*=UTF-8''{filename}".format(
-                filename=urllib.parse.quote(relic.name or relic.id, safe="")
-            )}
+            headers={
+                "Content-Length": str(content_length),
+                "Content-Disposition": "inline; filename*=UTF-8''{filename}".format(
+                    filename=urllib.parse.quote(relic.name or relic.id, safe="")
+                ),
+            }
         )
     except Exception as e:
         logger.error(f"Operation failed: {e}")
@@ -305,21 +426,23 @@ async def fork_relic(
             if not client or client.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
 
+    s3_key = None
     try:
-        # If no new content provided, fork with same content
-        if file:
-            content = await file.read()
-            content_type = file.content_type or original.content_type
-        else:
-            content = await storage_service.download(original.s3_key)
-            content_type = original.content_type
-
         # Generate unique new ID with collision handling
         new_id = await generate_unique_relic_id(db)
-
-        # Upload to storage
         s3_key = f"relics/{new_id}"
-        await storage_service.upload(s3_key, content, content_type)
+
+        if file:
+            # New content provided: stream it to storage
+            content_type = file.content_type or original.content_type
+            size_bytes = await storage_service.upload_stream(
+                s3_key, file.read, content_type, max_size=settings.MAX_UPLOAD_SIZE
+            )
+        else:
+            # Same content: server-side S3 copy, no data flows through the app
+            content_type = original.content_type
+            size_bytes = original.size_bytes or 0
+            await storage_service.copy(original.s3_key, s3_key, size_bytes, content_type)
 
         # Calculate expiry date if provided
         expires_at = None
@@ -339,7 +462,7 @@ async def fork_relic(
             name=name or original.name,
             content_type=content_type,
             language_hint=original.language_hint,
-            size_bytes=len(content),
+            size_bytes=size_bytes,
             s3_key=s3_key,
             fork_of=relic_id,
             access_level=access_level or original.access_level,
@@ -369,9 +492,16 @@ async def fork_relic(
 
     except HTTPException:
         raise
+    except FileTooLargeError:
+        raise HTTPException(status_code=413, detail="File too large")
     except Exception as e:
         await db.rollback()
         logger.error(f"Operation failed: {e}")
+        if s3_key:
+            try:
+                await storage_service.delete(s3_key)
+            except Exception:
+                logger.warning(f"Failed to clean up orphaned S3 object {s3_key}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 

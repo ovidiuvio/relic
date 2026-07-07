@@ -2,38 +2,26 @@ import api, { waitForAuth } from './core'
 import { usingSw, getClientKey } from './auth'
 
 export async function createRelic(formData) {
-    const data = new FormData()
-    if (formData.file) {
-        data.append('file', formData.file)
+    // Raw-body upload: the file streams straight from disk to the server
+    // (no multipart encoding, no server-side spooling — fast path for large files)
+    const file = formData.file
+    const params = {
+        name: formData.name || file.name,
+        access_level: formData.access_level || 'public'
     }
-    if (formData.name) data.append('name', formData.name)
-    if (formData.content_type) data.append('content_type', formData.content_type)
-    if (formData.language_hint) data.append('language_hint', formData.language_hint)
-    data.append('access_level', formData.access_level || 'public')
-    if (formData.expires_in) data.append('expires_in', formData.expires_in)
-    if (formData.space_id) data.append('space_id', formData.space_id)
-
-    // Handle tags: FastAPI expects List[str], which usually means repeating keys or comma separated
-    // Sending as comma separated string works best with the backend implementation we added
+    if (formData.content_type) params.content_type = formData.content_type
+    if (formData.language_hint) params.language_hint = formData.language_hint
+    if (formData.expires_in) params.expires_in = formData.expires_in
+    if (formData.space_id) params.space_id = formData.space_id
     if (formData.tags) {
-        if (Array.isArray(formData.tags)) {
-            data.append('tags', formData.tags.join(','))
-        } else {
-            data.append('tags', formData.tags)
-        }
+        params.tags = Array.isArray(formData.tags) ? formData.tags.join(',') : formData.tags
     }
 
-    // Use axios with FormData - let browser set Content-Type automatically
-    return api.post('/relics', data, {
+    return api.post('/relics/raw', file, {
+        params,
         headers: {
-            'Content-Type': 'multipart/form-data'
-        },
-        // Don't let axios override the Content-Type for FormData
-        transformRequest: [(data, headers) => {
-            // Remove the Content-Type header to let browser set it automatically for FormData
-            delete headers['Content-Type']
-            return data
-        }]
+            'Content-Type': formData.content_type || file.type || 'application/octet-stream'
+        }
     })
 }
 
