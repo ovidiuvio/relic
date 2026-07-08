@@ -72,7 +72,7 @@ async def _create_relic_record(
     if space_id:
         space_result = await db.execute(select(Space).where(Space.id == space_id))
         space = space_result.scalar_one_or_none()
-        if space and client and check_space_access(space, client.id, "editor"):
+        if space and client and await check_space_access(space, client.id, db, "editor"):
             await db.flush()
             await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
 

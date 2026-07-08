@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, BigInteger, DateTime, ForeignKey, Text, Table, UniqueConstraint
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Text, Table, UniqueConstraint, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
@@ -145,6 +145,8 @@ class ClientKey(Base):
     name = Column(String, nullable=True)  # User's display name
     created_at = Column(DateTime, default=datetime.utcnow)
     relic_count = Column(Integer, default=0)
+    # Runtime-grantable admin flag (env ADMIN_CLIENT_IDS are immutable super-admins on top of this)
+    is_admin = Column(Boolean, nullable=False, server_default=text("false"), default=False, index=True)
 
     # Relationships
     relics = relationship("Relic", backref=backref("owner_client", lazy="raise"), lazy="raise")

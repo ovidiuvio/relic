@@ -62,6 +62,11 @@ class SpaceTransferOwnership(BaseModel):
     public_id: str  # new owner's public_id
 
 
+class AdminGrant(BaseModel):
+    """Schema for granting admin privileges by a user's public_id."""
+    public_id: str  # target user's public_id (safe to share); resolved to client_id server-side
+
+
 class SpaceAccessBase(BaseModel):
     """Base space access schema."""
     public_id: str  # target user's public_id (safe to share); resolved to client_id server-side

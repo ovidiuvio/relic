@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload, contains_eager
 from datetime import datetime
 from typing import Optional, List
 
-from backend.config import settings
 from backend.database import get_db
 from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics, Comment, Tag
 from backend.schemas import (
@@ -15,7 +14,7 @@ from backend.schemas import (
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
 from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
-from backend.dependencies import get_client_key, get_space_role, check_space_access, get_space_relic_count
+from backend.dependencies import get_client_key, get_space_role, check_space_access, get_space_relic_count, is_admin_client_id
 
 router = APIRouter(prefix="/api/v1/spaces")
 
@@ -76,7 +75,7 @@ async def list_spaces(
     limit = clamp_limit(limit, default=50)
     offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
-    is_admin = client_id and client_id in settings.get_admin_client_ids()
+    is_admin = await is_admin_client_id(db, client_id)
 
     stmt = select(Space).options(selectinload(Space.access_list))
 
@@ -163,7 +162,7 @@ async def list_spaces(
 
     result = []
     for space in spaces:
-        role = get_space_role(space, client_id)
+        role = await get_space_role(space, client_id, db, is_admin=is_admin)
         result.append({
             "id": space.id,
             "name": space.name,
@@ -192,7 +191,9 @@ async def get_space(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    if not check_space_access(space, client_id, "viewer"):
+    is_admin = await is_admin_client_id(db, client_id)
+
+    if not await check_space_access(space, client_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
     return {
@@ -202,7 +203,7 @@ async def get_space(
         "owner_client_id": space.owner_client_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": get_space_role(space, client_id)
+        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
     }
 
 @router.put("/{space_id}", response_model=SpaceResponse)
@@ -228,7 +229,7 @@ async def update_space(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can update space metadata
-    is_admin = client_id in settings.get_admin_client_ids()
+    is_admin = await is_admin_client_id(db, client_id)
     if space.owner_client_id != client_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this space")
 
@@ -247,7 +248,7 @@ async def update_space(
         "owner_client_id": space.owner_client_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": get_space_role(space, client_id)
+        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
     }
 
 @router.post("/{space_id}/transfer-ownership", response_model=SpaceResponse)
@@ -272,7 +273,7 @@ async def transfer_space_ownership(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    is_admin = client_id in settings.get_admin_client_ids()
+    is_admin = await is_admin_client_id(db, client_id)
     if space.owner_client_id != client_id and not is_admin:
         raise HTTPException(status_code=403, detail="Only the space owner or a system admin can transfer ownership")
 
@@ -320,7 +321,7 @@ async def transfer_space_ownership(
         "owner_client_id": space.owner_client_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": get_space_role(space, client_id)
+        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
     }
 
 
@@ -344,7 +345,7 @@ async def delete_space(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can delete space
-    is_admin = client_id in settings.get_admin_client_ids()
+    is_admin = await is_admin_client_id(db, client_id)
     if space.owner_client_id != client_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this space")
 
@@ -368,7 +369,7 @@ async def get_space_relics(
     limit = clamp_limit(limit)
     offset = max(0, offset)
     client_id = request.headers.get("X-Client-Key")
-    is_admin = client_id in settings.get_admin_client_ids() if client_id else False
+    is_admin = await is_admin_client_id(db, client_id)
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -377,7 +378,7 @@ async def get_space_relics(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    if not check_space_access(space, client_id, "viewer"):
+    if not await check_space_access(space, client_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
     stmt = select(Relic).options(selectinload(Relic.tags)).join(
@@ -474,12 +475,12 @@ async def add_relic_to_space(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    # Must have edit access to space
-    if not check_space_access(space, client_id, "editor"):
-        raise HTTPException(status_code=403, detail="Not authorized to edit this space")
-
     # Must have access to relic (either public, owner, or admin)
-    is_admin = client_id in settings.get_admin_client_ids()
+    is_admin = await is_admin_client_id(db, client_id)
+
+    # Must have edit access to space
+    if not await check_space_access(space, client_id, db, "editor", is_admin=is_admin):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this space")
     if relic.access_level in ("private", "restricted"):
         if space.visibility == "public":
             raise HTTPException(status_code=400, detail="Cannot add private or restricted relics to a public space")
@@ -519,7 +520,7 @@ async def remove_relic_from_space(
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Must have edit access to space
-    if not check_space_access(space, client_id, "editor"):
+    if not await check_space_access(space, client_id, db, "editor"):
         raise HTTPException(status_code=403, detail="Not authorized to edit this space")
 
     # Direct DELETE on association table — avoids lazy loading space.relics
@@ -554,7 +555,7 @@ async def get_space_access(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    if not check_space_access(space, client_id, "editor"):
+    if not await check_space_access(space, client_id, db, "editor"):
         raise HTTPException(status_code=403, detail="Not authorized to view space access list")
 
     owner_result = await db.execute(select(ClientKey).where(ClientKey.id == space.owner_client_id))
@@ -631,7 +632,7 @@ async def add_space_access(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can modify access list
-    if not check_space_access(space, client_id, "admin"):
+    if not await check_space_access(space, client_id, db, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to modify space access list")
 
     # Look up target client by public_id
@@ -713,7 +714,7 @@ async def remove_space_access(
         raise HTTPException(status_code=404, detail="Access record not found")
 
     # Only owner, admin, or the user themselves can remove access
-    if access.client_id != client_id and not check_space_access(space, client_id, "admin"):
+    if access.client_id != client_id and not await check_space_access(space, client_id, db, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to remove space access")
 
     await db.delete(access)

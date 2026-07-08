@@ -196,6 +196,156 @@ def test_admin_delete_admin_client_forbidden(http):
     assert resp.json()["detail"] == "Cannot delete admin client"
 
 
+# ── Runtime admin management ──────────────────────────────────────────────────
+
+@pytest.fixture
+def registered_pair(http):
+    """Register a fresh client and return (client_key, public_id). Best-effort cleanup."""
+    key = uuid.uuid4().hex
+    public_id = http.post("/api/v1/client/register", headers={"X-Client-Key": key}).json()["public_id"]
+    yield key, public_id
+    # Revoke any admin grant, then delete the client.
+    http.delete(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+    http.delete(f"/api/v1/admin/clients/{key}", headers=ADMIN_HEADERS)
+
+
+# GET /api/v1/admin/admins
+
+@pytest.mark.integration
+def test_admin_list_admins(http):
+    resp = http.get("/api/v1/admin/admins", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "admins" in data
+    # The env super-admin is present and flagged.
+    me = next((a for a in data["admins"] if a["client_id"] == ADMIN_KEY), None)
+    assert me is not None
+    assert me["is_super_admin"] is True
+
+
+@pytest.mark.integration
+def test_admin_list_admins_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/admins", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+
+
+@pytest.mark.integration
+def test_admin_list_clients_exposes_super_admin_flag(http):
+    # Locate the env super-admin via search (the client list is paginated).
+    clients = http.get(
+        "/api/v1/admin/clients",
+        headers=ADMIN_HEADERS,
+        params={"search": ADMIN_KEY},
+    ).json()["clients"]
+    me = next((c for c in clients if c["id"] == ADMIN_KEY), None)
+    assert me is not None
+    assert me["is_super_admin"] is True and me["is_admin"] is True
+
+
+# POST /api/v1/admin/admins  (grant by Public ID / Client ID)
+
+@pytest.mark.integration
+def test_admin_add_admin_by_public_id(http, registered_pair):
+    key, public_id = registered_pair
+    assert http.get("/api/v1/admin/check", headers={"X-Client-Key": key}).json()["is_admin"] is False
+
+    resp = http.post("/api/v1/admin/admins", headers=ADMIN_HEADERS, json={"public_id": public_id})
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is True
+
+    # Effective immediately, no restart.
+    assert http.get("/api/v1/admin/check", headers={"X-Client-Key": key}).json()["is_admin"] is True
+
+    # Appears in the admins list as a non-super (runtime) admin.
+    admins = http.get("/api/v1/admin/admins", headers=ADMIN_HEADERS).json()["admins"]
+    entry = next((a for a in admins if a["client_id"] == key), None)
+    assert entry is not None and entry["is_super_admin"] is False
+
+
+@pytest.mark.integration
+def test_admin_add_admin_rejects_raw_client_id(http, registered_pair):
+    """POST /admins no longer falls back to raw client_id; use POST /clients/{id}/admin instead."""
+    key, _ = registered_pair
+    resp = http.post("/api/v1/admin/admins", headers=ADMIN_HEADERS, json={"public_id": key})
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+def test_admin_add_admin_unknown_identifier(http):
+    resp = http.post("/api/v1/admin/admins", headers=ADMIN_HEADERS, json={"public_id": "no-such-identifier"})
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+def test_admin_add_admin_forbidden(http, disposable_client):
+    resp = http.post(
+        "/api/v1/admin/admins",
+        headers={"X-Client-Key": disposable_client},
+        json={"public_id": "whatever"},
+    )
+    assert resp.status_code == 403
+
+
+# POST/DELETE /api/v1/admin/clients/{id}/admin  (grant/revoke by Client ID)
+
+@pytest.mark.integration
+def test_admin_grant_and_revoke_by_client_id(http, registered_pair):
+    key, _ = registered_pair
+    grant = http.post(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+    assert grant.status_code == 200 and grant.json()["is_admin"] is True
+    assert http.get("/api/v1/admin/check", headers={"X-Client-Key": key}).json()["is_admin"] is True
+
+    revoke = http.delete(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+    assert revoke.status_code == 200 and revoke.json()["is_admin"] is False
+    assert http.get("/api/v1/admin/check", headers={"X-Client-Key": key}).json()["is_admin"] is False
+
+
+@pytest.mark.integration
+def test_admin_grant_nonexistent_client(http):
+    resp = http.post("/api/v1/admin/clients/nonexistent_client_xyz/admin", headers=ADMIN_HEADERS)
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+def test_admin_grant_forbidden_for_non_admin(http, disposable_client, registered_pair):
+    key, _ = registered_pair
+    resp = http.post(f"/api/v1/admin/clients/{key}/admin", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+
+
+@pytest.mark.integration
+def test_admin_revoke_super_admin_forbidden(http):
+    resp = http.delete(f"/api/v1/admin/clients/{ADMIN_KEY}/admin", headers=ADMIN_HEADERS)
+    assert resp.status_code == 400
+    assert "super-admin" in resp.json()["detail"].lower()
+
+
+@pytest.mark.integration
+def test_admin_cannot_revoke_own_admin(http, registered_pair):
+    """Lockout protection: a runtime admin cannot revoke their own privileges."""
+    key, _ = registered_pair
+    http.post(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+
+    resp = http.delete(f"/api/v1/admin/clients/{key}/admin", headers={"X-Client-Key": key})
+    assert resp.status_code == 400
+    assert "your own" in resp.json()["detail"].lower()
+
+
+@pytest.mark.integration
+def test_runtime_admin_protected_from_deletion(http, registered_pair):
+    """A runtime-granted admin can't be deleted until admin is revoked."""
+    key, _ = registered_pair
+    http.post(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+
+    blocked = http.delete(f"/api/v1/admin/clients/{key}", headers=ADMIN_HEADERS)
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"] == "Cannot delete admin client"
+
+    http.delete(f"/api/v1/admin/clients/{key}/admin", headers=ADMIN_HEADERS)
+    ok = http.delete(f"/api/v1/admin/clients/{key}", headers=ADMIN_HEADERS)
+    assert ok.status_code == 200
+
+
 # ── GET /api/v1/admin/reports ─────────────────────────────────────────────────
 
 @pytest.mark.integration
