@@ -30,6 +30,22 @@ export async function deleteClient(clientId, deleteRelics = false) {
     })
 }
 
+export async function getAdmins() {
+    return api.get('/admin/admins')
+}
+
+export async function addAdmin(publicId) {
+    return api.post('/admin/admins', { public_id: publicId })
+}
+
+export async function grantAdmin(clientId) {
+    return api.post(`/admin/clients/${clientId}/admin`)
+}
+
+export async function revokeAdmin(clientId) {
+    return api.delete(`/admin/clients/${clientId}/admin`)
+}
+
 export async function getAdminConfig() {
     return api.get('/admin/config')
 }

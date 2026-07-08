@@ -43,11 +43,28 @@ def is_admin_client(client: Optional[ClientKey]) -> bool:
     """
     Check if a client has admin privileges.
 
-    A client is admin if their ID is in the ADMIN_CLIENT_IDS config.
+    A client is admin if their ID is in the ADMIN_CLIENT_IDS config (immutable
+    super-admin) OR their ClientKey.is_admin flag is set (runtime-grantable).
+    The ClientKey is already loaded, so no extra query is needed.
     """
     if not client:
         return False
-    return client.id in settings.get_admin_client_ids()
+    return bool(client.is_admin) or client.id in settings.get_admin_client_ids()
+
+
+async def is_admin_client_id(db: AsyncSession, client_id: Optional[str]) -> bool:
+    """
+    Check admin privileges given only a client ID string.
+
+    Env super-admins are resolved without a query; otherwise the ClientKey.is_admin
+    flag is looked up. Used by call sites that hold a client_id but not a ClientKey.
+    """
+    if not client_id:
+        return False
+    if client_id in settings.get_admin_client_ids():
+        return True
+    result = await db.execute(select(ClientKey.is_admin).where(ClientKey.id == client_id))
+    return bool(result.scalar_one_or_none())
 
 
 async def get_admin_client(request: Request, db: AsyncSession) -> ClientKey:
@@ -155,18 +172,23 @@ async def get_space_relic_count(space_id: str, db: AsyncSession) -> int:
     return result.scalar() or 0
 
 
-def get_space_role(space: Space, client_id: Optional[str]) -> Optional[str]:
-    """Helper to determine a client's role in a space."""
+async def get_space_role(space: Space, client_id: Optional[str], db: AsyncSession, *, is_admin: Optional[bool] = None) -> Optional[str]:
+    """Helper to determine a client's role in a space.
+
+    Args:
+        is_admin: Pre-computed admin status. When provided, skips the
+            ``is_admin_client_id`` DB query, eliminating redundant lookups
+            in handlers that have already resolved admin status.
+    """
     if not client_id:
         return None
-
-    # Admins get 'admin' role if no other role
-    is_admin = client_id in settings.get_admin_client_ids()
 
     if space.owner_client_id == client_id:
         return "owner"
 
-    if is_admin:
+    # Admins (env super-admin or runtime-granted) get 'admin' role if no other role
+    _is_admin = is_admin if is_admin is not None else await is_admin_client_id(db, client_id)
+    if _is_admin:
         return "admin"
 
     for access in space.access_list:
@@ -175,13 +197,20 @@ def get_space_role(space: Space, client_id: Optional[str]) -> Optional[str]:
 
     return None
 
-def check_space_access(space: Space, client_id: Optional[str], required_role: str = "viewer") -> bool:
-    """Helper to check if client has required access to space."""
+async def check_space_access(space: Space, client_id: Optional[str], db: AsyncSession, required_role: str = "viewer", *, is_admin: Optional[bool] = None) -> bool:
+    """Helper to check if client has required access to space.
+
+    Args:
+        is_admin: Pre-computed admin status. When provided, skips the
+            ``is_admin_client_id`` DB query, eliminating redundant lookups.
+    """
     # Admins have full access to all spaces
-    if client_id and client_id in settings.get_admin_client_ids():
+    _is_admin = is_admin if is_admin is not None else await is_admin_client_id(db, client_id)
+    if _is_admin:
         return True
 
-    role = get_space_role(space, client_id)
+    # Admin already handled above; pass is_admin=False to avoid a second lookup
+    role = await get_space_role(space, client_id, db, is_admin=False)
     if role == "owner":
         return True
 

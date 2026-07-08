@@ -16,6 +16,10 @@
         createRelic,
         deleteRelic,
         deleteClient,
+        grantAdmin,
+        revokeAdmin,
+        getAdmins,
+        addAdmin,
         getAdminReports,
         deleteReport,
     } from "../services/api";
@@ -82,6 +86,12 @@
     // Config state
     let config = null;
     let configLoading = false;
+
+    // Admins management (Config tab)
+    let admins = [];
+    let adminsLoading = false;
+    let newAdminPublicId = "";
+    let addingAdmin = false;
 
     // Backups state
     let backups = [];
@@ -238,6 +248,54 @@
         }
     }
 
+    async function loadAdmins() {
+        adminsLoading = true;
+        try {
+            const response = await getAdmins();
+            admins = response.data.admins || [];
+        } catch (error) {
+            console.error("Failed to load admins:", error);
+            showToast("Failed to load admins", "error");
+            admins = [];
+        } finally {
+            adminsLoading = false;
+        }
+    }
+
+    async function handleAddAdmin() {
+        const publicId = newAdminPublicId.trim();
+        if (!publicId || addingAdmin) return;
+        addingAdmin = true;
+        try {
+            await addAdmin(publicId);
+            showToast("Admin added", "success");
+            newAdminPublicId = "";
+            await Promise.all([loadAdmins(), loadStats(), loadClients()]);
+        } catch (error) {
+            console.error("Failed to add admin:", error);
+            showToast(
+                error.response?.data?.detail || "Failed to add admin",
+                "error",
+            );
+        } finally {
+            addingAdmin = false;
+        }
+    }
+
+    async function handleRemoveAdmin(admin) {
+        try {
+            await revokeAdmin(admin.client_id);
+            showToast("Admin removed", "success");
+            await Promise.all([loadAdmins(), loadStats(), loadClients()]);
+        } catch (error) {
+            console.error("Failed to remove admin:", error);
+            showToast(
+                error.response?.data?.detail || "Failed to remove admin",
+                "error",
+            );
+        }
+    }
+
     async function loadBackups() {
         backupsLoading = true;
         try {
@@ -391,6 +449,28 @@
         showConfirm = true;
     }
 
+    async function handleToggleAdmin(client) {
+        try {
+            if (client.is_admin) {
+                await revokeAdmin(client.id);
+                showToast("Admin privileges revoked", "success");
+            } else {
+                await grantAdmin(client.id);
+                showToast("Admin privileges granted", "success");
+            }
+            // loadAdmins() only needed when the Config tab (admins table) is visible
+            const refreshes = [loadClients(), loadStats()];
+            if (activeTab === "config") refreshes.push(loadAdmins());
+            await Promise.all(refreshes);
+        } catch (error) {
+            console.error("Failed to update admin status:", error);
+            showToast(
+                error.response?.data?.detail || "Failed to update admin status",
+                "error",
+            );
+        }
+    }
+
     async function performDeleteClient(deleteRelicsChoice) {
         showDeleteRelicsConfirm = false;
         if (!confirmClientToDelete) return;
@@ -451,6 +531,7 @@
         loadRelics();
         loadClients();
         loadConfig();
+        loadAdmins();
         loadBackups();
         loadReports();
     }
@@ -504,6 +585,7 @@
                 loadRelics(),
                 loadClients(),
                 loadConfig(),
+                loadAdmins(),
                 loadBackups(),
                 loadReports(),
             ]);
@@ -1377,7 +1459,11 @@
                                             </button>
                                         </td>
                                         <td>
-                                            {#if client.is_admin}
+                                            {#if client.is_super_admin}
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;" title="Defined via ADMIN_CLIENT_IDS (cannot be revoked at runtime)">
+                                                    <i class="fas fa-shield-alt mr-1"></i>super admin
+                                                </span>
+                                            {:else if client.is_admin}
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;">
                                                     <i class="fas fa-shield-alt mr-1"></i>admin
                                                 </span>
@@ -1388,14 +1474,33 @@
                                         <td class="text-gray-500 text-xs">{formatTimeAgo(client.created_at)}</td>
                                         <td class="text-right">
                                             <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
-                                                {#if !client.is_admin}
-                                                    <button
-                                                        on:click={() => handleDeleteClient(client)}
-                                                        class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                                        title="Delete User"
-                                                    >
-                                                        <i class="fas fa-trash text-xs"></i>
-                                                    </button>
+                                                {#if !client.is_super_admin}
+                                                    {#if client.is_admin}
+                                                        <button
+                                                            on:click={() => handleToggleAdmin(client)}
+                                                            class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
+                                                            title="Remove admin"
+                                                        >
+                                                            <i class="fas fa-user-minus text-xs"></i>
+                                                        </button>
+                                                    {:else}
+                                                        <button
+                                                            on:click={() => handleToggleAdmin(client)}
+                                                            class="p-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors"
+                                                            title="Make admin"
+                                                        >
+                                                            <i class="fas fa-user-shield text-xs"></i>
+                                                        </button>
+                                                    {/if}
+                                                    {#if !client.is_admin}
+                                                        <button
+                                                            on:click={() => handleDeleteClient(client)}
+                                                            class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                            title="Delete User"
+                                                        >
+                                                            <i class="fas fa-trash text-xs"></i>
+                                                        </button>
+                                                    {/if}
                                                 {/if}
                                             </div>
                                         </td>
@@ -1608,7 +1713,160 @@
                     </div>
                 {:else}
                     <div class="p-6 space-y-6">
-                        {#each Object.entries(config) as [section, values]}
+                        <!-- Administrators management -->
+                        <div>
+                            <h3
+                                class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2"
+                            >
+                                <i class="fas fa-shield-alt text-gray-400"></i>
+                                Administrators
+                                {#if admins.length}
+                                    <span
+                                        class="text-xs font-normal text-gray-400 normal-case"
+                                        >({admins.length})</span
+                                    >
+                                {/if}
+                            </h3>
+
+                            <form
+                                on:submit|preventDefault={handleAddAdmin}
+                                class="flex gap-2 mb-3"
+                            >
+                                <input
+                                    type="text"
+                                    bind:value={newAdminPublicId}
+                                    placeholder="Add admin by Public ID"
+                                    class="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded font-mono"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!newAdminPublicId.trim() ||
+                                        addingAdmin}
+                                    class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                    {#if addingAdmin}<i
+                                            class="fas fa-spinner fa-spin mr-1"
+                                        ></i>{:else}<i
+                                            class="fas fa-user-plus mr-1"
+                                        ></i>{/if}Add admin
+                                </button>
+                            </form>
+
+                            <div
+                                class="overflow-x-auto border border-gray-200 rounded-lg"
+                            >
+                                <table class="w-full maas-table text-sm">
+                                    <thead>
+                                        <tr
+                                            class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]"
+                                        >
+                                            <th
+                                                class="px-4 py-2 text-left border-none"
+                                                >Name</th
+                                            >
+                                            <th
+                                                class="px-4 py-2 text-left border-none"
+                                                >Identifier</th
+                                            >
+                                            <th
+                                                class="px-4 py-2 text-left border-none"
+                                                >Role</th
+                                            >
+                                            <th
+                                                class="px-4 py-2 text-right border-none w-16"
+                                                >Actions</th
+                                            >
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#if adminsLoading}
+                                            <tr
+                                                ><td
+                                                    colspan="4"
+                                                    class="px-4 py-6 text-center text-gray-400"
+                                                    ><i
+                                                        class="fas fa-spinner fa-spin"
+                                                    ></i></td
+                                                ></tr
+                                            >
+                                        {:else if admins.length === 0}
+                                            <tr
+                                                ><td
+                                                    colspan="4"
+                                                    class="px-4 py-6 text-center text-gray-400"
+                                                    >No administrators</td
+                                                ></tr
+                                            >
+                                        {:else}
+                                            {#each admins as admin (admin.client_id)}
+                                                <tr class="hover:bg-gray-50 group">
+                                                    <td>
+                                                        <div
+                                                            class="flex items-center gap-2"
+                                                        >
+                                                            <i
+                                                                class="fas fa-user-circle text-gray-400 text-[13px]"
+                                                            ></i>
+                                                            <span
+                                                                class="text-[13px] text-gray-900"
+                                                                >{admin.name ||
+                                                                    "Unnamed user"}</span
+                                                            >
+                                                        </div>
+                                                    </td>
+                                                    <td
+                                                        class="font-mono text-[11px] text-gray-500"
+                                                        >{admin.public_id ||
+                                                            admin.client_id}</td
+                                                    >
+                                                    <td>
+                                                        <span
+                                                            class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                                            style="background-color: #f3e5f5; color: #772953;"
+                                                            title={admin.is_super_admin
+                                                                ? "Defined via ADMIN_CLIENT_IDS (cannot be revoked at runtime)"
+                                                                : "Runtime-granted admin"}
+                                                        >
+                                                            <i
+                                                                class="fas fa-shield-alt mr-1"
+                                                            ></i>{admin.is_super_admin
+                                                                ? "super admin"
+                                                                : "admin"}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-right">
+                                                        {#if !admin.is_super_admin}
+                                                            <button
+                                                                on:click={() =>
+                                                                    handleRemoveAdmin(
+                                                                        admin,
+                                                                    )}
+                                                                class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors opacity-40 group-hover:opacity-100"
+                                                                title="Remove admin"
+                                                                aria-label="Remove admin"
+                                                            >
+                                                                <i
+                                                                    class="fas fa-user-minus text-xs"
+                                                                ></i>
+                                                            </button>
+                                                        {/if}
+                                                    </td>
+                                                </tr>
+                                            {/each}
+                                        {/if}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">
+                                Super admins are set via the <code
+                                    class="bg-gray-100 px-1 rounded"
+                                    >ADMIN_CLIENT_IDS</code
+                                > env var and can't be removed here. Others can be
+                                added or removed at runtime.
+                            </p>
+                        </div>
+
+                        {#each Object.entries(config).filter(([section]) => section !== "admin") as [section, values]}
                             <div>
                                 <h3
                                     class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2"

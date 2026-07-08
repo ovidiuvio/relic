@@ -12,6 +12,7 @@ from typing import Optional
 from backend.config import settings
 from backend.database import get_db
 from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag, Space
+from backend.schemas import AdminGrant
 from backend.storage import storage_service
 from backend.dependencies import get_client_key, get_admin_client, is_admin_client
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
@@ -208,7 +209,8 @@ async def admin_list_clients(
                 "name": c.name,
                 "created_at": c.created_at,
                 "relic_count": actual_relic_counts.get(c.id, 0),
-                "is_admin": c.id in admin_ids
+                "is_admin": bool(c.is_admin) or c.id in admin_ids,
+                "is_super_admin": c.id in admin_ids
             }
             for c in clients
         ]
@@ -243,6 +245,11 @@ async def admin_get_stats(
     result = await db.execute(stmt)
     stats = result.first()
 
+    # Effective admins = env super-admins ∪ clients with the runtime is_admin flag
+    env_admin_ids = set(settings.get_admin_client_ids())
+    db_admin_result = await db.execute(select(ClientKey.id).where(ClientKey.is_admin.is_(True)))
+    admin_ids = env_admin_ids | {row[0] for row in db_admin_result.all()}
+
     return {
         "total_relics": stats.total_relics or 0,
         "total_size_bytes": stats.total_size_bytes or 0,
@@ -254,7 +261,7 @@ async def admin_get_stats(
         "total_bookmarks": stats.total_bookmarks or 0,
         "total_reports": stats.total_reports or 0,
         "total_spaces": stats.total_spaces or 0,
-        "admin_count": len(settings.get_admin_client_ids())
+        "admin_count": len(admin_ids)
     }
 
 
@@ -280,8 +287,8 @@ async def admin_delete_client(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    # Prevent deleting admin clients
-    if client_id in settings.get_admin_client_ids():
+    # Prevent deleting admin clients (env super-admins or runtime-granted)
+    if is_admin_client(client):
         raise HTTPException(
             status_code=403,
             detail="Cannot delete admin client"
@@ -319,6 +326,156 @@ async def admin_delete_client(
     await db.commit()
 
     return {"message": f"Client {client_id} deleted successfully"}
+
+
+@router.get("/admins", response_model=dict)
+async def admin_list_admins(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] List all effective admins.
+
+    Combines env super-admins (ADMIN_CLIENT_IDS) with runtime-granted admins
+    (ClientKey.is_admin). Env admins are flagged is_super_admin and cannot be
+    revoked at runtime. Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    env_ids = set(settings.get_admin_client_ids())
+
+    # Runtime (DB-flagged) admins
+    db_result = await db.execute(select(ClientKey).where(ClientKey.is_admin.is_(True)))
+    db_admins = db_result.scalars().all()
+
+    # Client rows for any env admins (some may never have created a client row)
+    env_rows = {}
+    if env_ids:
+        er = await db.execute(select(ClientKey).where(ClientKey.id.in_(env_ids)))
+        env_rows = {c.id: c for c in er.scalars().all()}
+
+    admins = {}
+    for c in db_admins:
+        admins[c.id] = {
+            "client_id": c.id,
+            "public_id": c.public_id,
+            "name": c.name,
+            "is_super_admin": c.id in env_ids,
+        }
+    for cid in env_ids:
+        row = env_rows.get(cid)
+        admins[cid] = {
+            "client_id": cid,
+            "public_id": row.public_id if row else None,
+            "name": row.name if row else None,
+            "is_super_admin": True,
+        }
+
+    # Super-admins first, then by display name / id
+    admin_list = sorted(
+        admins.values(),
+        key=lambda a: (not a["is_super_admin"], (a["name"] or a["public_id"] or a["client_id"]).lower())
+    )
+
+    return {"admins": admin_list, "total": len(admin_list)}
+
+
+@router.post("/admins", response_model=dict)
+async def admin_add_admin(
+    body: AdminGrant,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Grant admin privileges to a user identified by Public ID.
+
+    Takes effect immediately without a restart. To grant by raw client_id
+    (e.g. copied from localStorage), use POST /admin/clients/{client_id}/admin
+    instead. Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    identifier = body.public_id.strip()
+    if not identifier:
+        raise HTTPException(status_code=400, detail="A Public ID is required")
+
+    result = await db.execute(select(ClientKey).where(ClientKey.public_id == identifier))
+    client = result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="No user found with that Public ID")
+
+    client.is_admin = True
+    await db.commit()
+
+    return {
+        "message": f"Admin privileges granted to {client.public_id}",
+        "client_id": client.id,
+        "public_id": client.public_id,
+        "is_admin": True,
+    }
+
+
+@router.post("/clients/{client_id}/admin")
+async def admin_grant_admin(
+    client_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Grant runtime admin privileges to a client.
+
+    Sets the ClientKey.is_admin flag. Takes effect immediately without a restart.
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    result = await db.execute(select(ClientKey).where(ClientKey.id == client_id))
+    client = result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    client.is_admin = True
+    await db.commit()
+
+    return {"message": f"Client {client_id} granted admin privileges", "is_admin": True}
+
+
+@router.delete("/clients/{client_id}/admin")
+async def admin_revoke_admin(
+    client_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Revoke runtime admin privileges from a client.
+
+    Clears the ClientKey.is_admin flag. Env super-admins (ADMIN_CLIENT_IDS) cannot
+    be revoked at runtime, and an admin cannot revoke their own privileges.
+    Requires admin privileges.
+    """
+    admin = await get_admin_client(request, db)
+
+    if client_id in settings.get_admin_client_ids():
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot revoke a super-admin defined via ADMIN_CLIENT_IDS"
+        )
+
+    if client_id == admin.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot revoke your own admin privileges"
+        )
+
+    result = await db.execute(select(ClientKey).where(ClientKey.id == client_id))
+    client = result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    client.is_admin = False
+    await db.commit()
+
+    return {"message": f"Client {client_id} admin privileges revoked", "is_admin": False}
 
 
 @router.get("/config", response_model=dict)
