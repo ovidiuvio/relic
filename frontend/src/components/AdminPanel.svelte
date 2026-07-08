@@ -18,6 +18,10 @@
         deleteClient,
         getAdminReports,
         deleteReport,
+        getAdminJobs,
+        runAdminJob,
+        pauseAdminJob,
+        resumeAdminJob,
     } from "../services/api";
     import {
         getTypeLabel,
@@ -108,6 +112,18 @@
     let reportsSortBy = 'created_at';
     let reportsSortOrder = 'desc';
 
+    // Jobs state
+    let jobs = [];
+    let jobsHistory = [];
+    let expandedTracebacks = {};
+    let expandedLogs = {};
+    let jobsLoading = false;
+    let jobsRunning = false;
+    let jobsActionInProgress = {};
+    let jobsSubTab = 'scheduled'; // 'scheduled' | 'history'
+    let jobsHistoryFilter = '';   // Filter history by job_id
+    $: filteredHistory = jobsHistoryFilter ? jobsHistory.filter(run => run.job_id === jobsHistoryFilter) : jobsHistory;
+
     // Selected client for viewing their relics
     let selectedClient = null;
 
@@ -157,6 +173,108 @@
     function formatDate(dateStr) {
         if (!dateStr) return "-";
         return new Date(dateStr).toLocaleString();
+    }
+
+    function formatTrigger(triggerStr) {
+        if (!triggerStr) return "Not scheduled";
+        
+        // Handle cron triggers
+        if (triggerStr.startsWith("cron[")) {
+            const matches = triggerStr.match(/cron\[(.*)\]/);
+            if (!matches) return triggerStr;
+            const fieldsStr = matches[1];
+            const fields = {};
+            fieldsStr.split(',').forEach(field => {
+                const parts = field.split('=');
+                if (parts.length === 2) {
+                    const key = parts[0].trim();
+                    let val = parts[1].trim();
+                    if ((val.startsWith("'") && val.endsWith("'")) || (val.startsWith('"') && val.endsWith('"'))) {
+                        val = val.substring(1, val.length - 1);
+                    }
+                    fields[key] = val;
+                }
+            });
+            
+            const hour = fields['hour'];
+            const minute = fields['minute'];
+            const dayOfWeek = fields['day_of_week'] || '*';
+            const day = fields['day'] || '*';
+            
+            let timeStr = "";
+            if (hour !== undefined && minute !== undefined && hour !== '*' && minute !== '*') {
+                const minPad = String(minute).padStart(2, '0');
+                const hrPad = String(hour).padStart(2, '0');
+                timeStr = ` at ${hrPad}:${minPad}`;
+            } else if (minute !== undefined && minute !== '*') {
+                timeStr = ` at minute ${minute}`;
+            }
+
+            if (dayOfWeek === '*' && day === '*') {
+                return `Daily${timeStr}`;
+            } else if (dayOfWeek && dayOfWeek !== '*') {
+                const dowPretty = dayOfWeek.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+                return `Weekly on ${dowPretty}${timeStr}`;
+            } else if (day && day !== '*') {
+                return `Monthly on day ${day}${timeStr}`;
+            } else {
+                const cronParts = [];
+                if (fields['hour'] !== undefined) cronParts.push(`hour=${fields['hour']}`);
+                if (fields['minute'] !== undefined) cronParts.push(`minute=${fields['minute']}`);
+                if (fields['day_of_week'] !== undefined && fields['day_of_week'] !== '*') cronParts.push(`day_of_week=${fields['day_of_week']}`);
+                return `Cron (${cronParts.join(', ')})`;
+            }
+        }
+        
+        // Handle interval triggers
+        if (triggerStr.startsWith("interval[")) {
+            const matches = triggerStr.match(/interval\[(.*)\]/);
+            if (!matches) return triggerStr;
+            const fieldsStr = matches[1];
+            const parts = fieldsStr.split(',').map(p => p.trim());
+            
+            const cleanParts = parts.map(part => {
+                const eq = part.split('=');
+                if (eq.length === 2) {
+                    const unit = eq[0].trim();
+                    const val = eq[1].trim();
+                    if (val === '0') return null;
+                    
+                    let unitLabel = unit;
+                    const num = parseInt(val, 10);
+                    if (num === 1) {
+                        if (unit.endsWith('s')) unitLabel = unit.slice(0, -1);
+                    }
+                    return `${num} ${unitLabel}`;
+                }
+                return part;
+            }).filter(Boolean);
+            
+            if (cleanParts.length > 0) {
+                return `Every ${cleanParts.join(', ')}`;
+            }
+            return "Interval";
+        }
+        
+        // Handle date triggers
+        if (triggerStr.startsWith("date[")) {
+            const matches = triggerStr.match(/date\[run_date='(.*)'\]/);
+            if (matches) {
+                const dateVal = matches[1];
+                return `Once on ${dateVal.split('T')[0]} at ${dateVal.split('T')[1].slice(0, 5)}`;
+            }
+            return "One-time task";
+        }
+
+        return triggerStr;
+    }
+
+    function toggleTraceback(runId) {
+        expandedTracebacks = { ...expandedTracebacks, [runId]: !expandedTracebacks[runId] };
+    }
+
+    function toggleLogs(runId) {
+        expandedLogs = { ...expandedLogs, [runId]: !expandedLogs[runId] };
     }
 
     async function checkAdmin() {
@@ -268,6 +386,60 @@
             reports = [];
         } finally {
             reportsLoading = false;
+        }
+    }
+
+    async function loadJobs() {
+        jobsLoading = true;
+        try {
+            const response = await getAdminJobs();
+            jobs = response.data.jobs || [];
+            jobsHistory = response.data.history || [];
+            jobsRunning = response.data.running;
+        } catch (error) {
+            console.error("Failed to load background jobs:", error);
+            showToast("Failed to load background jobs", "error");
+            jobs = [];
+            jobsHistory = [];
+        } finally {
+            jobsLoading = false;
+        }
+    }
+
+    async function handleRunJob(jobId) {
+        jobsActionInProgress = { ...jobsActionInProgress, [jobId]: 'run' };
+        try {
+            const response = await runAdminJob(jobId);
+            if (response.data.success) {
+                showToast(response.data.message || `Job ${jobId} triggered successfully`, "success");
+                await loadJobs();
+            } else {
+                showToast(response.data.message || `Failed to trigger job ${jobId}`, "error");
+            }
+        } catch (error) {
+            console.error(`Failed to run job ${jobId}:`, error);
+            showToast(error.response?.data?.detail || `Failed to run job ${jobId}`, "error");
+        } finally {
+            jobsActionInProgress = { ...jobsActionInProgress, [jobId]: null };
+        }
+    }
+
+    async function handleTogglePauseJob(job) {
+        const action = job.paused ? 'resume' : 'pause';
+        jobsActionInProgress = { ...jobsActionInProgress, [job.id]: action };
+        try {
+            const response = job.paused ? await resumeAdminJob(job.id) : await pauseAdminJob(job.id);
+            if (response.data.success) {
+                showToast(response.data.message || `Job ${job.id} ${job.paused ? 'resumed' : 'paused'} successfully`, "success");
+                await loadJobs();
+            } else {
+                showToast(response.data.message || `Action failed`, "error");
+            }
+        } catch (error) {
+            console.error(`Failed to ${action} job ${job.id}:`, error);
+            showToast(error.response?.data?.detail || `Failed to ${action} job`, "error");
+        } finally {
+            jobsActionInProgress = { ...jobsActionInProgress, [job.id]: null };
         }
     }
 
@@ -453,6 +625,7 @@
         loadConfig();
         loadBackups();
         loadReports();
+        loadJobs();
     }
 
     // Watch for filter/search changes
@@ -506,6 +679,7 @@
                 loadConfig(),
                 loadBackups(),
                 loadReports(),
+                loadJobs(),
             ]);
         }
     });
@@ -584,6 +758,15 @@
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-history mr-2"></i>Backups
+                    </button>
+                    <button
+                        on:click={() => { activeTab = "jobs"; loadJobs(); }}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'jobs'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-tasks mr-2"></i>Jobs
                     </button>
                     <button
                         on:click={() => (activeTab = "config")}
@@ -1590,6 +1773,355 @@
                             </div>
                         {/if}
                     </div>
+                {/if}
+            {/if}
+
+            <!-- Jobs Tab -->
+            {#if activeTab === "jobs"}
+                <div
+                    class="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-600">Background scheduler & periodic tasks</span>
+                        <span class="h-4 w-[1px] bg-gray-300"></span>
+                        <div class="flex items-center gap-1.5 text-xs font-semibold">
+                            {#if jobsRunning}
+                                <span class="flex h-2 w-2 relative">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span class="text-green-700">Scheduler Active</span>
+                            {:else}
+                                <span class="inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                <span class="text-red-700">Scheduler Stopped</span>
+                            {/if}
+                        </div>
+                    </div>
+                    <button
+                        on:click={loadJobs}
+                        disabled={jobsLoading}
+                        class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                        {#if jobsLoading}
+                            <i class="fas fa-spinner fa-spin"></i>Refreshing...
+                        {:else}
+                            <i class="fas fa-sync-alt"></i>Refresh Scheduler
+                        {/if}
+                    </button>
+                </div>
+
+                <!-- Sub-tab Navigation -->
+                <div class="px-6 py-2 border-b border-gray-200 bg-white flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <button
+                            on:click={() => jobsSubTab = 'scheduled'}
+                            class="text-xs font-medium py-1.5 px-3 rounded-md transition-colors flex items-center gap-1.5 {jobsSubTab === 'scheduled' ? 'bg-[#772953] text-white' : 'text-gray-600 hover:bg-gray-100'}"
+                        >
+                            <i class="fas fa-clock text-[10px]"></i> Scheduled Tasks ({jobs.length})
+                        </button>
+                        <button
+                            on:click={() => jobsSubTab = 'history'}
+                            class="text-xs font-medium py-1.5 px-3 rounded-md transition-colors flex items-center gap-1.5 {jobsSubTab === 'history' ? 'bg-[#772953] text-white' : 'text-gray-600 hover:bg-gray-100'}"
+                        >
+                            <i class="fas fa-history text-[10px]"></i> Execution History & Logs ({jobsHistory.length})
+                        </button>
+                    </div>
+                    
+                    {#if jobsSubTab === 'history'}
+                        <div class="text-[10px] text-gray-400 font-sans italic">
+                            Retaining up to 500 recent job runs in-memory
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Scheduled Tasks Sub-Tab -->
+                {#if jobsSubTab === 'scheduled'}
+                    {#if jobsLoading && jobs.length === 0}
+                        <div class="p-8 text-center">
+                            <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
+                        </div>
+                    {:else if jobs.length === 0}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-tasks text-4xl mb-2"></i>
+                            <p>No scheduled jobs found</p>
+                        </div>
+                    {:else}
+                        <div class="overflow-x-auto">
+                            <table class="w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="pl-6 pr-4 py-2.5 text-left border-none">Job Info</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Target Function</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Schedule / Trigger</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Next Execution</th>
+                                        <th class="pl-4 pr-6 py-2.5 text-right border-none w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="font-mono text-[11px]">
+                                    {#each jobs as job}
+                                        <tr class="group hover:bg-gray-50/50 transition-colors">
+                                            <td class="pl-6 pr-4 align-top">
+                                                <div class="flex items-start gap-2.5">
+                                                    <div class="h-7 w-7 rounded-lg bg-purple-50 text-[#772953] flex items-center justify-center border border-purple-100 flex-shrink-0 mt-0.5">
+                                                        {#if job.id.startsWith('backup')}
+                                                            <i class="fas fa-database text-[10px]"></i>
+                                                        {:else}
+                                                            <i class="fas fa-clock text-[10px]"></i>
+                                                        {/if}
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700 font-sans text-xs block">{job.name}</span>
+                                                        <span class="text-[10px] text-gray-400 mt-0.5 block">{job.id}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 text-gray-500 align-top font-mono">{job.func}</td>
+                                            <td class="px-4 align-top">
+                                                 <span class="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-blue-50 text-blue-700 border border-blue-100 inline-flex items-center gap-1" title={job.trigger}>
+                                                     <i class="fas fa-calendar-alt text-[9px]"></i> {formatTrigger(job.trigger)}
+                                                 </span>
+                                            </td>
+                                            <td class="px-4 align-top">
+                                                {#if job.paused}
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-amber-50 text-amber-700 border border-amber-100 inline-flex items-center gap-1">
+                                                        <i class="fas fa-pause-circle text-[9px]"></i> Paused / Disabled
+                                                    </span>
+                                                {:else if job.next_run_time}
+                                                    <div class="text-gray-500 whitespace-nowrap">
+                                                        {formatDate(job.next_run_time)}
+                                                    </div>
+                                                    <div class="text-[10px] text-gray-400 mt-0.5 font-sans">
+                                                        {formatTimeAgo(job.next_run_time)}
+                                                    </div>
+                                                {:else}
+                                                    <span class="text-gray-400 italic font-sans">Not scheduled</span>
+                                                {/if}
+                                            </td>
+                                            <td class="pl-4 pr-6 text-right align-top">
+                                                <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
+                                                    <!-- View History Button -->
+                                                    <button
+                                                        on:click={() => {
+                                                            jobsHistoryFilter = job.id;
+                                                            jobsSubTab = 'history';
+                                                        }}
+                                                        class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                                        title="View History Runs"
+                                                    >
+                                                        <i class="fas fa-history text-xs"></i>
+                                                    </button>
+
+                                                    <button
+                                                        on:click={() => handleRunJob(job.id)}
+                                                        disabled={jobsActionInProgress[job.id] === 'run'}
+                                                        class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                                                        title="Run Now"
+                                                    >
+                                                        {#if jobsActionInProgress[job.id] === 'run'}
+                                                            <i class="fas fa-spinner fa-spin text-xs"></i>
+                                                        {:else}
+                                                            <i class="fas fa-play text-xs"></i>
+                                                        {/if}
+                                                    </button>
+ 
+                                                    {#if job.paused}
+                                                        <button
+                                                            on:click={() => handleTogglePauseJob(job)}
+                                                            disabled={jobsActionInProgress[job.id] === 'resume'}
+                                                            class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                            title="Resume"
+                                                        >
+                                                            {#if jobsActionInProgress[job.id] === 'resume'}
+                                                                <i class="fas fa-spinner fa-spin text-xs"></i>
+                                                            {:else}
+                                                                <i class="fas fa-play-circle text-xs"></i>
+                                                            {/if}
+                                                        </button>
+                                                    {:else}
+                                                        <button
+                                                            on:click={() => handleTogglePauseJob(job)}
+                                                            disabled={jobsActionInProgress[job.id] === 'pause'}
+                                                            class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                                            title="Pause"
+                                                        >
+                                                            {#if jobsActionInProgress[job.id] === 'pause'}
+                                                                <i class="fas fa-spinner fa-spin text-xs"></i>
+                                                            {:else}
+                                                                <i class="fas fa-pause text-xs"></i>
+                                                            {/if}
+                                                        </button>
+                                                    {/if}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                {:else if jobsSubTab === 'history'}
+                    <!-- Execution History Sub-Tab -->
+                    <div class="px-6 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                        <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            <i class="fas fa-terminal text-gray-400"></i> Execution Records
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-500 font-sans">Filter Task:</span>
+                                <select
+                                    bind:value={jobsHistoryFilter}
+                                    class="text-xs border border-gray-300 rounded px-2.5 py-1 bg-white text-gray-700 font-sans"
+                                >
+                                    <option value="">All Tasks</option>
+                                    {#each jobs as j}
+                                        <option value={j.id}>{j.name}</option>
+                                    {/each}
+                                </select>
+                            </div>
+                            <button
+                                on:click={loadJobs}
+                                disabled={jobsLoading}
+                                class="px-3 py-1 text-xs bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                                title="Refresh execution logs"
+                            >
+                                {#if jobsLoading}
+                                    <i class="fas fa-spinner fa-spin text-[10px]"></i>Refreshing...
+                                {:else}
+                                    <i class="fas fa-sync-alt text-[10px]"></i>Refresh
+                                {/if}
+                            </button>
+                        </div>
+                    </div>
+
+                    {#if jobsHistoryFilter}
+                        <div class="px-6 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between text-xs text-indigo-700">
+                            <span class="flex items-center gap-1.5 font-medium">
+                                <i class="fas fa-filter"></i>
+                                Showing runs for task: <span class="font-mono bg-indigo-100 px-1.5 py-0.5 rounded font-semibold text-indigo-800">{jobsHistoryFilter}</span>
+                            </span>
+                            <button
+                                on:click={() => jobsHistoryFilter = ''}
+                                class="text-[10px] bg-white border border-indigo-200 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded transition-colors font-medium flex items-center gap-1"
+                            >
+                                <i class="fas fa-times"></i> Clear Filter
+                            </button>
+                        </div>
+                    {/if}
+
+                    {#if filteredHistory.length === 0}
+                        <div class="mx-6 my-8 border border-dashed border-gray-200 rounded-lg p-8 text-center text-gray-500 text-xs">
+                            <i class="fas fa-terminal text-2xl mb-1.5 opacity-50 block text-gray-400"></i>
+                            <p>No task executions recorded {jobsHistoryFilter ? 'for this task' : ''} in this session.</p>
+                        </div>
+                    {:else}
+                        <div class="overflow-x-auto">
+                            <table class="w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="pl-6 pr-4 py-2.5 text-left border-none">Job Name</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Trigger Type</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Started</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Duration</th>
+                                        <th class="px-4 py-2.5 text-left border-none">Status</th>
+                                        <th class="pl-4 pr-6 py-2.5 text-left border-none">Details / Logs</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="font-mono text-[11px]">
+                                    {#each filteredHistory.slice().reverse() as run (run.run_id)}
+                                        <tr class="hover:bg-gray-50/50">
+                                            <td class="pl-6 pr-4 align-top font-sans">
+                                                <div class="font-semibold text-gray-700 text-xs">{run.job_name}</div>
+                                                <div class="text-[10px] text-gray-400 mt-0.5 font-mono">{run.job_id}</div>
+                                            </td>
+                                            <td class="px-4 align-top">
+                                                {#if run.trigger_type === 'manual'}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-sans px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
+                                                        <i class="fas fa-hand-pointer text-[9px]"></i> Manual
+                                                    </span>
+                                                {:else}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-sans px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium">
+                                                        <i class="fas fa-clock text-[9px]"></i> Scheduled
+                                                    </span>
+                                                {/if}
+                                            </td>
+                                            <td class="px-4 text-gray-500 whitespace-nowrap align-top">
+                                                {formatDate(run.start_time)}
+                                            </td>
+                                            <td class="px-4 text-gray-600 font-sans align-top">
+                                                {#if run.duration !== null}
+                                                    {run.duration.toFixed(3)}s
+                                                {:else}
+                                                    -
+                                                {/if}
+                                            </td>
+                                            <td class="px-4 align-top">
+                                                {#if run.status === 'running'}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-sans px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
+                                                        <i class="fas fa-spinner fa-spin text-[9px]"></i> Running
+                                                    </span>
+                                                {:else if run.status === 'success'}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-sans px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
+                                                        <i class="fas fa-check-circle text-[9px]"></i> Success
+                                                    </span>
+                                                {:else}
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-sans px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-medium">
+                                                        <i class="fas fa-times-circle text-[9px]"></i> Failed
+                                                    </span>
+                                                {/if}
+                                            </td>
+                                            <td class="pl-4 pr-6 text-gray-700 align-top">
+                                                <div class="max-w-xs md:max-w-md break-words">
+                                                    <div class="flex flex-col gap-1.5">
+                                                        {#if run.status === 'running'}
+                                                            <span class="text-gray-400 italic font-sans text-[11px]">Executing task...</span>
+                                                        {:else if run.status === 'success'}
+                                                            <span class="text-emerald-600 font-medium font-sans text-[11px]"><i class="fas fa-check mr-1"></i>Completed successfully</span>
+                                                        {:else}
+                                                            <div class="text-rose-600 font-medium font-sans text-[11px] break-words" title={run.error}>
+                                                                <i class="fas fa-exclamation-triangle mr-1"></i>{run.error}
+                                                            </div>
+                                                        {/if}
+
+                                                        <!-- Show Captured Logs if available -->
+                                                        {#if run.logs && run.logs.length > 0}
+                                                            <div>
+                                                                    <button
+                                                                        on:click={() => toggleLogs(run.run_id)}
+                                                                        class="text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-sans flex items-center gap-1 p-0 bg-transparent border-none cursor-pointer"
+                                                                    >
+                                                                        <i class="fas {expandedLogs[run.run_id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[8px]"></i>
+                                                                        {expandedLogs[run.run_id] ? 'Hide' : 'View'} Execution Logs ({run.logs.length})
+                                                                    </button>
+                                                                    {#if expandedLogs[run.run_id]}
+                                                                        <pre class="mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-600 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.logs.join('\n')}</pre>
+                                                                    {/if}
+                                                            </div>
+                                                        {/if}
+
+                                                        <!-- Show traceback if available and failed -->
+                                                        {#if run.status === 'failed' && run.traceback}
+                                                            <div>
+                                                                <button
+                                                                    on:click={() => toggleTraceback(run.run_id)}
+                                                                    class="text-[10px] text-red-600 hover:text-red-800 hover:underline font-sans flex items-center gap-1 p-0 bg-transparent border-none cursor-pointer"
+                                                                >
+                                                                    <i class="fas {expandedTracebacks[run.run_id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[8px]"></i>
+                                                                    {expandedTracebacks[run.run_id] ? 'Hide' : 'View'} Stack Trace
+                                                                </button>
+                                                                {#if expandedTracebacks[run.run_id]}
+                                                                    <pre class="mt-1.5 p-2 bg-rose-50/50 border border-rose-100 rounded text-[10px] text-rose-700 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.traceback}</pre>
+                                                                {/if}
+                                                            </div>
+                                                        {/if}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
                 {/if}
             {/if}
 

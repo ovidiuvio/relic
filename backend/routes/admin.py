@@ -1,6 +1,6 @@
 """Admin endpoints."""
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
@@ -646,3 +646,118 @@ async def admin_delete_report(
     await db.commit()
 
     return {"message": "Report dismissed successfully"}
+
+
+@router.get("/jobs", response_model=dict)
+async def admin_list_jobs(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] List all scheduled background jobs.
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.scheduler import scheduler, job_history
+
+    if not scheduler:
+        return {"jobs": [], "running": False, "history": []}
+
+    jobs = []
+    for job in scheduler.get_jobs():
+        jobs.append({
+            "id": job.id,
+            "name": job.name,
+            "trigger": str(job.trigger),
+            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+            "func": job.func_ref,
+            "paused": job.next_run_time is None
+        })
+
+    return {"jobs": jobs, "running": scheduler.running, "history": job_history}
+
+
+@router.post("/jobs/{job_id}/run", response_model=dict)
+async def admin_run_job(
+    job_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Trigger a scheduled background job immediately in the background.
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.scheduler import scheduler, run_manual_job_wrapper
+
+    if not scheduler:
+        raise HTTPException(status_code=400, detail="Scheduler not running")
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    func = job.func
+
+    # Trigger job's function inside the manual wrapper in backend background task
+    background_tasks.add_task(run_manual_job_wrapper, job_id, func, *job.args, **job.kwargs)
+
+    return {"success": True, "message": f"Job '{job.name}' triggered successfully"}
+
+
+@router.post("/jobs/{job_id}/pause", response_model=dict)
+async def admin_pause_job(
+    job_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Pause a background job.
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.scheduler import scheduler
+
+    if not scheduler:
+        raise HTTPException(status_code=400, detail="Scheduler not running")
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.pause()
+    return {"success": True, "message": f"Job '{job.name}' paused successfully"}
+
+
+@router.post("/jobs/{job_id}/resume", response_model=dict)
+async def admin_resume_job(
+    job_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Resume a paused background job.
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.scheduler import scheduler
+
+    if not scheduler:
+        raise HTTPException(status_code=400, detail="Scheduler not running")
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.resume()
+    return {"success": True, "message": f"Job '{job.name}' resumed successfully"}
+

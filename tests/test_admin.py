@@ -315,3 +315,81 @@ def test_admin_restore_from_upload_wrong_extension(http):
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "File must be a .sql.gz backup"
+
+
+# ── GET /api/v1/admin/jobs ───────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_list_jobs(http):
+    resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "jobs" in data
+    assert "running" in data
+    assert "history" in data
+    assert isinstance(data["jobs"], list)
+    assert isinstance(data["history"], list)
+    # Check that relic_cleanup is one of the jobs
+    job_ids = [j["id"] for j in data["jobs"]]
+    assert "relic_cleanup" in job_ids
+
+
+@pytest.mark.integration
+def test_admin_list_jobs_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/jobs", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+
+
+# ── POST /api/v1/admin/jobs/{job_id}/run ──────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_run_job(http):
+    import time
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/run", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # Allow background task to execute/register
+    time.sleep(0.5)
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    data = list_resp.json()
+    assert "history" in data
+    manual_runs = [h for h in data["history"] if h["job_id"] == "relic_cleanup" and h["trigger_type"] == "manual"]
+    assert len(manual_runs) > 0
+    assert manual_runs[-1]["status"] in ("running", "success", "failed")
+    assert "logs" in manual_runs[-1]
+    assert isinstance(manual_runs[-1]["logs"], list)
+    # Check that logs were captured
+    assert any("Starting expired relics cleanup..." in log for log in manual_runs[-1]["logs"])
+
+
+@pytest.mark.integration
+def test_admin_run_job_not_found(http):
+    resp = http.post("/api/v1/admin/jobs/nonexistent_job/run", headers=ADMIN_HEADERS)
+    assert resp.status_code == 404
+
+
+# ── POST /api/v1/admin/jobs/{job_id}/pause & resume ───────────────────────────
+
+@pytest.mark.integration
+def test_admin_pause_resume_job(http):
+    # 1. Pause the job
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/pause", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # Verify it is paused in list
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    jobs = {j["id"]: j for j in list_resp.json()["jobs"]}
+    assert jobs["relic_cleanup"]["paused"] is True
+
+    # 2. Resume the job
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/resume", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # Verify it is resumed
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    jobs = {j["id"]: j for j in list_resp.json()["jobs"]}
+    assert jobs["relic_cleanup"]["paused"] is False
+

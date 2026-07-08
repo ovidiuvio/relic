@@ -75,3 +75,20 @@ export async function getAdminReports(limit = 100, offset = 0, sortBy = 'created
 export async function deleteReport(reportId) {
     return api.delete(`/admin/reports/${reportId}`)
 }
+
+export async function getAdminJobs() {
+    return api.get('/admin/jobs')
+}
+
+export async function runAdminJob(jobId) {
+    return api.post(`/admin/jobs/${encodeURIComponent(jobId)}/run`)
+}
+
+export async function pauseAdminJob(jobId) {
+    return api.post(`/admin/jobs/${encodeURIComponent(jobId)}/pause`)
+}
+
+export async function resumeAdminJob(jobId) {
+    return api.post(`/admin/jobs/${encodeURIComponent(jobId)}/resume`)
+}
+

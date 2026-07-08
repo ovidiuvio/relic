@@ -16,6 +16,7 @@ async def cleanup_expired_relics():
     Runs periodically to hard-delete relics that have expired.
     Soft-deleted relics are hard-deleted after 30 days.
     """
+    logger.info("Starting expired relics cleanup...")
     async with AsyncSessionLocal() as db:
         now = datetime.utcnow()
 
