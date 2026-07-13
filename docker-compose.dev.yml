@@ -42,6 +42,9 @@ services:
       BACKUP_ON_STARTUP: "true"
       BACKUP_ON_SHUTDOWN: "true"
       PROFILING_ENABLED: "true"
+      # Ops agent (service logs in admin panel; deploys disabled in dev)
+      OPS_AGENT_URL: http://ops-agent:9100
+      OPS_AGENT_TOKEN: dev-ops-token
     volumes:
       - ./backend:/app/backend:z
       - ./requirements.txt:/app/requirements.txt:ro
@@ -111,6 +114,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - Relic
+
+  # Ops Agent (service monitoring for the admin panel; deploys disabled in dev)
+  ops-agent:
+    build:
+      context: ./ops
+      dockerfile: Dockerfile
+    container_name: Relic-ops-agent
+    environment:
+      OPS_AGENT_TOKEN: dev-ops-token
+      COMPOSE_PROJECT_NAME: relic
+      DEPLOY_ENABLED: "false"
+      AGENT_SERVICE_NAME: ops-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./ops/main.py:/app/main.py:ro
     networks:
       - Relic
 

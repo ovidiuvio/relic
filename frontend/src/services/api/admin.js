@@ -92,3 +92,36 @@ export async function resumeAdminJob(jobId) {
     return api.post(`/admin/jobs/${encodeURIComponent(jobId)}/resume`)
 }
 
+// Management endpoints (metrics, services, updates, deployments)
+export async function getAdminMetrics(window = '15m') {
+    return api.get('/admin/metrics', { params: { window } })
+}
+
+export async function getAdminServices() {
+    return api.get('/admin/services')
+}
+
+export async function getServiceLogs(service, tail = 200) {
+    return api.get(`/admin/services/${encodeURIComponent(service)}/logs`, { params: { tail } })
+}
+
+export async function restartService(service) {
+    return api.post(`/admin/services/${encodeURIComponent(service)}/restart`)
+}
+
+export async function getUpdateInfo(force = false) {
+    return api.get('/admin/updates', { params: { force } })
+}
+
+export async function getDeployments(limit = 50) {
+    return api.get('/admin/deployments', { params: { limit } })
+}
+
+export async function getDeploymentStatus() {
+    return api.get('/admin/deployments/status')
+}
+
+export async function triggerDeployment(version) {
+    return api.post('/admin/deployments', { version })
+}
+

@@ -44,6 +44,18 @@ class Settings(BaseSettings):
     RELIC_CLEANUP_INTERVAL: int = int(os.getenv("RELIC_CLEANUP_INTERVAL", "60"))  # Minutes
     ADMIN_CLIENT_IDS: str = os.getenv("ADMIN_CLIENT_IDS", "")
 
+    # Ops agent (service logs / deployments sidecar); empty URL disables the feature
+    OPS_AGENT_URL: str = os.getenv("OPS_AGENT_URL", "")
+    OPS_AGENT_TOKEN: str = os.getenv("OPS_AGENT_TOKEN", "")
+
+    # Update check (GitHub releases)
+    UPDATE_REPO: str = os.getenv("UPDATE_REPO", "ovidiuvio/relic")
+    UPDATE_CHECK_TTL: int = int(os.getenv("UPDATE_CHECK_TTL", "1800"))  # Seconds
+
+    # API metrics collection
+    METRICS_ENABLED: bool = os.getenv("METRICS_ENABLED", "true").lower() == "true"
+    METRICS_RETENTION_HOURS: int = int(os.getenv("METRICS_RETENTION_HOURS", "24"))
+
     # CORS - accept as string from env, parse in validator
     ALLOWED_ORIGINS: str = '["http://localhost:3000", "http://localhost:8000"]'
 

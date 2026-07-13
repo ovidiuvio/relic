@@ -109,7 +109,32 @@ GET    /api/v1/admin/relics            List all relics (including private)
 GET    /api/v1/admin/clients           List all clients
 GET    /api/v1/admin/stats             Get system statistics
 DELETE /api/v1/admin/clients/:id       Delete a client
+
+GET    /api/v1/admin/metrics           Aggregated API metrics (rates, latencies, DB times)
+GET    /api/v1/admin/services          List deployment stack services (via ops-agent)
+GET    /api/v1/admin/services/:s/logs  Container logs for a service (via ops-agent)
+POST   /api/v1/admin/services/:s/restart  Restart a service (via ops-agent)
+GET    /api/v1/admin/updates           Check GitHub releases for updates
+GET    /api/v1/admin/deployments       Deployment history (via ops-agent)
+GET    /api/v1/admin/deployments/status  Current deploy job state (via ops-agent)
+POST   /api/v1/admin/deployments       Deploy/rollback a released version (via ops-agent)
 ```
+
+### Ops Agent & Management
+
+The admin panel's Monitor/Services/Deploy tabs are backed by two pieces:
+
+- **`backend/metrics.py`**: ASGI middleware + SQLAlchemy cursor events collect per-request
+  latency and DB timings into 10s buckets, flushed per worker to the `api_metrics` table
+  (aggregated across gunicorn workers by `GET /api/v1/admin/metrics`). Retention pruned
+  hourly by the scheduler. Toggle via `METRICS_ENABLED`.
+- **`ops/` (ops-agent sidecar)**: small FastAPI service holding the docker socket, internal
+  network only, authenticated with `OPS_AGENT_TOKEN` (`X-Ops-Token` header). The backend
+  proxies admin requests to it (`backend/ops_client.py`, config `OPS_AGENT_URL`). Deploys
+  pin `RELIC_VERSION` in `deploy/.env` and run `docker compose pull && up -d` for the app
+  services only; history is journaled to the `ops_data` volume. Deploys are disabled in dev
+  (`DEPLOY_ENABLED=false`). Update checks (`backend/updates.py`) hit GitHub releases for
+  `UPDATE_REPO` with a TTL cache and need no agent.
 
 **Admin Privileges:**
 - Delete any relic (not just their own)
@@ -226,6 +251,10 @@ relic/
 │   ├── cmd/
 │   ├── internal/
 │   └── pkg/
+├── ops/                     # Ops-agent sidecar (docker socket holder)
+│   ├── main.py              # FastAPI agent: services, logs, deploy/rollback
+│   ├── requirements.txt
+│   └── Dockerfile
 ├── sync/                    # S3 Sync service
 │   └── Dockerfile
 ├── requirements.txt         # Python dependencies

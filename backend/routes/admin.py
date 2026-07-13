@@ -761,3 +761,146 @@ async def admin_resume_job(
     job.resume()
     return {"success": True, "message": f"Job '{job.name}' resumed successfully"}
 
+
+@router.get("/metrics", response_model=dict)
+async def admin_get_metrics(
+    request: Request,
+    window: str = "15m",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Get aggregated API metrics: request rates, latencies, DB times,
+    per-route breakdowns, and recent slow queries.
+
+    Requires admin privileges. window: 5m | 15m | 1h | 6h | 24h
+    """
+    await get_admin_client(request, db)
+
+    from backend.metrics import aggregate_metrics
+    return await aggregate_metrics(db, window)
+
+
+@router.get("/services", response_model=dict)
+async def admin_list_services(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] List services in the deployment stack (via ops agent).
+
+    Requires admin privileges. Returns 503 if the ops agent is not configured.
+    """
+    await get_admin_client(request, db)
+
+    from backend.ops_client import ops_request
+    return await ops_request("GET", "/services")
+
+
+@router.get("/services/{service}/logs", response_model=dict)
+async def admin_service_logs(
+    service: str,
+    request: Request,
+    tail: int = 200,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Get recent log lines for a service (via ops agent).
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.ops_client import ops_request
+    return await ops_request("GET", f"/services/{service}/logs", params={"tail": tail})
+
+
+@router.post("/services/{service}/restart", response_model=dict)
+async def admin_restart_service(
+    service: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Restart a service container (via ops agent).
+
+    Requires admin privileges.
+    """
+    client = await get_admin_client(request, db)
+
+    from backend.ops_client import ops_request
+    logger.warning(f"Admin {client.id[:8]}... requested restart of service '{service}'")
+    return await ops_request("POST", f"/services/{service}/restart", timeout=60.0)
+
+
+@router.get("/updates", response_model=dict)
+async def admin_check_updates(
+    request: Request,
+    force: bool = False,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Check GitHub releases for available updates.
+
+    Requires admin privileges. Result is cached; pass force=true to refresh.
+    """
+    await get_admin_client(request, db)
+
+    from backend.updates import get_update_info
+    return await get_update_info(force=force)
+
+
+@router.get("/deployments", response_model=dict)
+async def admin_list_deployments(
+    request: Request,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] List deployment history (via ops agent journal).
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.ops_client import ops_request
+    return await ops_request("GET", "/deployments", params={"limit": limit})
+
+
+@router.get("/deployments/status", response_model=dict)
+async def admin_deployment_status(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Get the state of the current/last deployment job (via ops agent).
+
+    Requires admin privileges.
+    """
+    await get_admin_client(request, db)
+
+    from backend.ops_client import ops_request
+    return await ops_request("GET", "/deploy/status")
+
+
+@router.post("/deployments", response_model=dict)
+async def admin_trigger_deployment(
+    request: Request,
+    body: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Deploy a specific released version (or roll back to an older one).
+
+    Requires admin privileges. The ops agent pins RELIC_VERSION and runs
+    'docker compose pull && up -d' for the app services.
+    """
+    client = await get_admin_client(request, db)
+
+    version = (body.get("version") or "").strip()
+    if not version:
+        raise HTTPException(status_code=400, detail="version is required")
+
+    from backend.ops_client import ops_request
+    logger.warning(f"Admin {client.id[:8]}... triggered deployment of {version}")
+    return await ops_request("POST", "/deploy", json={"version": version}, timeout=60.0)
+

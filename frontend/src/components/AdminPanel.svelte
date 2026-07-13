@@ -1,5 +1,5 @@
 <script>
-    import { onMount } from "svelte";
+    import { onMount, onDestroy, tick } from "svelte";
     import { showToast } from "../stores/toastStore";
     import ConfirmModal from "./ConfirmModal.svelte";
     import {
@@ -22,6 +22,14 @@
         runAdminJob,
         pauseAdminJob,
         resumeAdminJob,
+        getAdminMetrics,
+        getAdminServices,
+        getServiceLogs,
+        restartService,
+        getUpdateInfo,
+        getDeployments,
+        getDeploymentStatus,
+        triggerDeployment,
     } from "../services/api";
     import {
         getTypeLabel,
@@ -123,6 +131,34 @@
     let jobsSubTab = 'scheduled'; // 'scheduled' | 'history'
     let jobsHistoryFilter = '';   // Filter history by job_id
     $: filteredHistory = jobsHistoryFilter ? jobsHistory.filter(run => run.job_id === jobsHistoryFilter) : jobsHistory;
+
+    // Monitor (metrics) state
+    let metrics = null;
+    let metricsLoading = false;
+    let metricsWindow = "15m";
+    let metricsAutoRefresh = true;
+    let _metricsTimer = null;
+    let sparkHover = null; // { key, xPct, point }
+
+    // Services state
+    let services = [];
+    let servicesLoading = false;
+    let opsAvailable = true; // false when the ops agent is not configured/reachable
+    let logsService = null;
+    let logsTail = 200;
+    let logsText = "";
+    let logsLoading = false;
+    let logsAutoRefresh = false;
+    let _logsTimer = null;
+    let logsElement;
+
+    // Deploy state
+    let updateInfo = null;
+    let updateLoading = false;
+    let deployments = [];
+    let deployStatus = null;
+    let _deployTimer = null;
+    let expandedDeployLogs = {};
 
     // Selected client for viewing their relics
     let selectedClient = null;
@@ -618,6 +654,274 @@
         loadRelics();
     }
 
+    // --- Monitor (metrics) ---
+
+    async function loadMetrics(background = false) {
+        if (!background) metricsLoading = true;
+        try {
+            const response = await getAdminMetrics(metricsWindow);
+            metrics = response.data;
+        } catch (error) {
+            console.error("Failed to load metrics:", error);
+            if (!background) showToast("Failed to load metrics", "error");
+        } finally {
+            if (!background) metricsLoading = false;
+        }
+    }
+
+    function sparkPoints(series, key, width = 120, height = 36) {
+        if (!series || series.length < 2) return "";
+        const values = series.map((p) => p[key] ?? 0);
+        const max = Math.max(...values, 0.0001);
+        const stepX = width / (series.length - 1);
+        return values
+            .map((v, i) => `${(i * stepX).toFixed(1)},${(height - 2 - (v / max) * (height - 6)).toFixed(1)}`)
+            .join(" ");
+    }
+
+    function sparkLast(series, key, width = 120, height = 36) {
+        if (!series || series.length < 2) return null;
+        const values = series.map((p) => p[key] ?? 0);
+        const max = Math.max(...values, 0.0001);
+        const v = values[values.length - 1];
+        return { x: width, y: height - 2 - (v / max) * (height - 6) };
+    }
+
+    const SPARK_KEYS = ["req_per_s", "avg_ms", "avg_db_ms", "errors"];
+    $: sparks = metrics?.series
+        ? Object.fromEntries(SPARK_KEYS.map((k) => [k, { points: sparkPoints(metrics.series, k), last: sparkLast(metrics.series, k) }]))
+        : null;
+
+    $: monitorTiles = metrics ? [
+        { key: "req_per_s", label: "Requests / sec", unit: "/s",
+          value: `${metrics.summary.req_per_s_now.toFixed(2)}`,
+          sub: `${metrics.summary.requests} requests · avg ${metrics.summary.req_per_s.toFixed(2)}/s` },
+        { key: "avg_ms", label: "Avg latency", unit: " ms",
+          value: `${metrics.summary.avg_ms} ms`,
+          sub: `max ${metrics.summary.max_ms} ms` },
+        { key: "avg_db_ms", label: "DB time / request", unit: " ms",
+          value: `${metrics.summary.avg_db_ms} ms`,
+          sub: `${metrics.summary.db_queries_per_s.toFixed(1)} queries/s` },
+        { key: "errors", label: "Error rate", unit: "",
+          value: `${(metrics.summary.error_rate * 100).toFixed(2)}%`,
+          sub: `${metrics.summary.errors} × 5xx · ${metrics.summary.client_errors} × 4xx` },
+    ] : [];
+
+    function sparkMove(event, key) {
+        if (!metrics?.series?.length) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
+        const idx = Math.round(ratio * (metrics.series.length - 1));
+        sparkHover = { key, xPct: (idx / (metrics.series.length - 1)) * 100, point: metrics.series[idx] };
+    }
+
+    function sparkLeave() {
+        sparkHover = null;
+    }
+
+    function formatBinTime(ts) {
+        return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    // --- Services ---
+
+    async function loadServices(background = false) {
+        if (!background) servicesLoading = true;
+        try {
+            const response = await getAdminServices();
+            services = response.data.services || [];
+            opsAvailable = true;
+        } catch (error) {
+            if (error.response?.status === 503) {
+                opsAvailable = false;
+            } else {
+                console.error("Failed to load services:", error);
+                if (!background) showToast("Failed to load services", "error");
+            }
+        } finally {
+            if (!background) servicesLoading = false;
+        }
+    }
+
+    function serviceDotClass(s) {
+        if (s.state === "running") return s.health === "unhealthy" ? "bg-red-500" : "bg-green-500";
+        if (s.state === "restarting" || s.state === "created") return "bg-yellow-500";
+        if (s.state === "paused") return "bg-gray-400";
+        return "bg-red-500";
+    }
+
+    async function loadLogs(background = false) {
+        if (!logsService) return;
+        if (!background) logsLoading = true;
+        try {
+            const response = await getServiceLogs(logsService, logsTail);
+            logsText = response.data.logs || "";
+            // Keep the terminal scrolled to the latest lines
+            await tick();
+            if (logsElement) logsElement.scrollTop = logsElement.scrollHeight;
+        } catch (error) {
+            console.error("Failed to load logs:", error);
+            if (!background) showToast("Failed to load logs", "error");
+        } finally {
+            if (!background) logsLoading = false;
+        }
+    }
+
+    function openLogs(service) {
+        logsService = service;
+        logsText = "";
+        loadLogs();
+    }
+
+    function closeLogs() {
+        logsService = null;
+        logsAutoRefresh = false;
+        logsText = "";
+    }
+
+    function copyLogs() {
+        copyToClipboard(logsText);
+        showToast("Logs copied to clipboard", "success");
+    }
+
+    function downloadLogs() {
+        const blob = new Blob([logsText], { type: "text/plain" });
+        triggerDownload(blob, `${logsService}-logs-${new Date().toISOString().slice(0, 19)}.log`);
+    }
+
+    function handleRestartService(service) {
+        confirmTitle = "Restart Service";
+        confirmMessage = `Restart the '${service}' service container?`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await restartService(service);
+                showToast(`Service '${service}' restarted`, "success");
+                await loadServices();
+            } catch (error) {
+                console.error("Failed to restart service:", error);
+                showToast(error.response?.data?.detail || "Failed to restart service", "error");
+            }
+        };
+        showConfirm = true;
+    }
+
+    // --- Deploy ---
+
+    async function loadUpdates(force = false) {
+        updateLoading = true;
+        try {
+            const response = await getUpdateInfo(force);
+            updateInfo = response.data;
+            if (force && updateInfo.error) showToast("Update check failed", "error");
+        } catch (error) {
+            console.error("Failed to check for updates:", error);
+            if (force) showToast("Update check failed", "error");
+        } finally {
+            updateLoading = false;
+        }
+    }
+
+    async function loadDeployments() {
+        try {
+            const response = await getDeployments();
+            deployments = response.data.deployments || [];
+            opsAvailable = true;
+        } catch (error) {
+            if (error.response?.status === 503) opsAvailable = false;
+            else console.error("Failed to load deployments:", error);
+        }
+    }
+
+    async function loadDeployStatus() {
+        try {
+            const previous = deployStatus?.state;
+            const response = await getDeploymentStatus();
+            deployStatus = response.data;
+            if (previous === "running" && deployStatus.state !== "running") {
+                // The deploy job we were polling just finished
+                const ok = deployStatus.state === "succeeded";
+                showToast(
+                    ok ? `Deployed ${deployStatus.version}` : `Deployment of ${deployStatus.version} failed`,
+                    ok ? "success" : "error",
+                );
+                loadDeployments();
+                loadServices(true);
+            }
+        } catch (error) {
+            if (error.response?.status === 503) opsAvailable = false;
+        }
+    }
+
+    function parseSemver(tag) {
+        const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec((tag || "").trim());
+        return m ? [+m[1], +m[2], +m[3]] : null;
+    }
+
+    // < 0 when tag is older than the running version, > 0 when newer
+    function releaseCompare(tag) {
+        const a = parseSemver(tag);
+        const b = parseSemver(updateInfo?.current_version);
+        if (!a || !b) return 1;
+        for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+        return 0;
+    }
+
+    function handleDeploy(release) {
+        const rollback = releaseCompare(release.tag) < 0;
+        confirmTitle = rollback ? "Confirm Rollback" : "Confirm Deployment";
+        confirmMessage = `${rollback ? "Roll back to" : "Deploy"} ${release.tag}? App services will be recreated with the ${rollback ? "older" : "new"} images (brief downtime).`;
+        confirmAction = async () => {
+            showConfirm = false;
+            try {
+                await triggerDeployment(release.tag);
+                showToast(`Deployment of ${release.tag} started`, "success");
+                await loadDeployStatus();
+            } catch (error) {
+                console.error("Failed to start deployment:", error);
+                showToast(error.response?.data?.detail || "Failed to start deployment", "error");
+            }
+        };
+        showConfirm = true;
+    }
+
+    function toggleDeployLog(index) {
+        expandedDeployLogs[index] = !expandedDeployLogs[index];
+        expandedDeployLogs = expandedDeployLogs;
+    }
+
+    function deployDuration(d) {
+        if (!d.started_at || !d.finished_at) return "-";
+        const seconds = (new Date(d.finished_at) - new Date(d.started_at)) / 1000;
+        return `${seconds.toFixed(1)}s`;
+    }
+
+    // --- Auto-refresh timers (cleared on tab switch / unmount) ---
+
+    $: {
+        const want = isAdmin && activeTab === "monitor" && metricsAutoRefresh;
+        if (want && !_metricsTimer) _metricsTimer = setInterval(() => loadMetrics(true), 5000);
+        if (!want && _metricsTimer) { clearInterval(_metricsTimer); _metricsTimer = null; }
+    }
+
+    $: {
+        const want = isAdmin && activeTab === "services" && logsAutoRefresh && !!logsService;
+        if (want && !_logsTimer) _logsTimer = setInterval(() => loadLogs(true), 3000);
+        if (!want && _logsTimer) { clearInterval(_logsTimer); _logsTimer = null; }
+    }
+
+    $: {
+        const want = isAdmin && deployStatus?.state === "running";
+        if (want && !_deployTimer) _deployTimer = setInterval(loadDeployStatus, 3000);
+        if (!want && _deployTimer) { clearInterval(_deployTimer); _deployTimer = null; }
+    }
+
+    onDestroy(() => {
+        if (_metricsTimer) clearInterval(_metricsTimer);
+        if (_logsTimer) clearInterval(_logsTimer);
+        if (_deployTimer) clearInterval(_deployTimer);
+    });
+
     function refreshAll() {
         loadStats();
         loadRelics();
@@ -626,6 +930,11 @@
         loadBackups();
         loadReports();
         loadJobs();
+        loadMetrics();
+        loadServices();
+        loadUpdates();
+        loadDeployments();
+        loadDeployStatus();
     }
 
     // Watch for filter/search changes
@@ -680,6 +989,11 @@
                 loadBackups(),
                 loadReports(),
                 loadJobs(),
+                loadMetrics(),
+                loadServices(),
+                loadUpdates(),
+                loadDeployments(),
+                loadDeployStatus(),
             ]);
         }
     });
@@ -767,6 +1081,33 @@
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-tasks mr-2"></i>Jobs
+                    </button>
+                    <button
+                        on:click={() => { activeTab = "monitor"; loadMetrics(); }}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'monitor'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-heartbeat mr-2"></i>Monitor
+                    </button>
+                    <button
+                        on:click={() => { activeTab = "services"; loadServices(); }}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'services'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-server mr-2"></i>Services
+                    </button>
+                    <button
+                        on:click={() => { activeTab = "deploy"; loadUpdates(); loadDeployments(); loadDeployStatus(); }}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'deploy'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-rocket mr-2"></i>Deploy
                     </button>
                     <button
                         on:click={() => (activeTab = "config")}
@@ -2123,6 +2464,473 @@
                         </div>
                     {/if}
                 {/if}
+            {/if}
+
+            <!-- Monitor Tab -->
+            {#if activeTab === "monitor"}
+                <div class="p-6 space-y-6">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div class="flex items-center gap-4">
+                            <select
+                                bind:value={metricsWindow}
+                                on:change={() => loadMetrics()}
+                                class="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                            >
+                                <option value="5m">Last 5 minutes</option>
+                                <option value="15m">Last 15 minutes</option>
+                                <option value="1h">Last hour</option>
+                                <option value="6h">Last 6 hours</option>
+                                <option value="24h">Last 24 hours</option>
+                            </select>
+                            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                                <input type="checkbox" bind:checked={metricsAutoRefresh} class="rounded" />
+                                Auto-refresh (5s)
+                            </label>
+                        </div>
+                        <button
+                            on:click={() => loadMetrics()}
+                            class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                        >
+                            <i class="fas fa-sync-alt mr-1"></i>Refresh
+                        </button>
+                    </div>
+
+                    {#if metricsLoading && !metrics}
+                        <div class="p-8 text-center">
+                            <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
+                        </div>
+                    {:else if !metrics || metrics.summary.requests === 0}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-heartbeat text-4xl mb-2 text-gray-300"></i>
+                            <p>No API traffic recorded in this window</p>
+                        </div>
+                    {:else}
+                        <!-- Stat tiles with sparklines -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {#each monitorTiles as tile}
+                                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                    <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500">{tile.label}</p>
+                                    <p class="text-2xl font-semibold text-gray-900 mt-1">{tile.value}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{tile.sub}</p>
+                                    {#if sparks?.[tile.key]?.points}
+                                        <!-- svelte-ignore a11y-no-static-element-interactions -->
+                                        <div
+                                            class="mt-3 relative"
+                                            on:mousemove={(e) => sparkMove(e, tile.key)}
+                                            on:mouseleave={sparkLeave}
+                                        >
+                                            <svg viewBox="0 0 120 36" preserveAspectRatio="none" class="w-full h-9 block" role="img" aria-label="{tile.label} trend">
+                                                <polyline
+                                                    points={sparks[tile.key].points}
+                                                    fill="none"
+                                                    stroke="#9ca3af"
+                                                    stroke-width="1.5"
+                                                    vector-effect="non-scaling-stroke"
+                                                />
+                                                {#if sparks[tile.key].last}
+                                                    <circle cx={sparks[tile.key].last.x} cy={sparks[tile.key].last.y} r="2.5" fill="#E95420" />
+                                                {/if}
+                                            </svg>
+                                            {#if sparkHover?.key === tile.key}
+                                                <div
+                                                    class="absolute -top-7 bg-gray-900 text-white text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap pointer-events-none z-10"
+                                                    style="left: {sparkHover.xPct}%; transform: translateX(-50%);"
+                                                >
+                                                    {sparkHover.point[tile.key]}{tile.unit} · {formatBinTime(sparkHover.point.ts)}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+
+                        <!-- Top routes -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                <div class="px-4 py-3 border-b border-gray-200">
+                                    <h3 class="text-sm font-semibold text-gray-900">Top routes by requests</h3>
+                                </div>
+                                <table class="w-full maas-table text-sm">
+                                    <thead>
+                                        <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                            <th class="px-4 py-2 text-left border-none">Route</th>
+                                            <th class="px-4 py-2 text-right border-none">Requests</th>
+                                            <th class="px-4 py-2 text-right border-none">Avg ms</th>
+                                            <th class="px-4 py-2 text-right border-none">5xx</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#each metrics.top_routes_by_count as r}
+                                            <tr class="border-b border-gray-100">
+                                                <td class="px-4 py-2 font-mono text-xs">{r.route}</td>
+                                                <td class="px-4 py-2 text-right">{r.count}</td>
+                                                <td class="px-4 py-2 text-right">{r.avg_ms}</td>
+                                                <td class="px-4 py-2 text-right {r.errors ? 'text-red-600 font-semibold' : 'text-gray-400'}">{r.errors}</td>
+                                            </tr>
+                                        {/each}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                <div class="px-4 py-3 border-b border-gray-200">
+                                    <h3 class="text-sm font-semibold text-gray-900">Top routes by total time</h3>
+                                </div>
+                                <table class="w-full maas-table text-sm">
+                                    <thead>
+                                        <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                            <th class="px-4 py-2 text-left border-none">Route</th>
+                                            <th class="px-4 py-2 text-right border-none">Total ms</th>
+                                            <th class="px-4 py-2 text-right border-none">Avg ms</th>
+                                            <th class="px-4 py-2 text-right border-none">Requests</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#each metrics.top_routes_by_time as r}
+                                            <tr class="border-b border-gray-100">
+                                                <td class="px-4 py-2 font-mono text-xs">{r.route}</td>
+                                                <td class="px-4 py-2 text-right">{r.total_ms}</td>
+                                                <td class="px-4 py-2 text-right">{r.avg_ms}</td>
+                                                <td class="px-4 py-2 text-right">{r.count}</td>
+                                            </tr>
+                                        {/each}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Slow queries -->
+                        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-200">
+                                <h3 class="text-sm font-semibold text-gray-900">Slowest queries <span class="text-xs font-normal text-gray-500">(&gt;100 ms)</span></h3>
+                            </div>
+                            {#if metrics.slow_queries.length === 0}
+                                <p class="px-4 py-6 text-sm text-gray-500 text-center">No slow queries in this window</p>
+                            {:else}
+                                <table class="w-full maas-table text-sm">
+                                    <thead>
+                                        <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                            <th class="px-4 py-2 text-left border-none">Query</th>
+                                            <th class="px-4 py-2 text-right border-none">Duration</th>
+                                            <th class="px-4 py-2 text-right border-none">When</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#each metrics.slow_queries as q}
+                                            <tr class="border-b border-gray-100">
+                                                <td class="px-4 py-2 font-mono text-xs max-w-0 w-full truncate" title={q.statement}>{q.statement}</td>
+                                                <td class="px-4 py-2 text-right whitespace-nowrap">{q.ms} ms</td>
+                                                <td class="px-4 py-2 text-right whitespace-nowrap text-gray-500">{formatTimeAgo(q.ts)}</td>
+                                            </tr>
+                                        {/each}
+                                    </tbody>
+                                </table>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
+            <!-- Services Tab -->
+            {#if activeTab === "services"}
+                <div class="p-6 space-y-6">
+                    {#if !opsAvailable}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-plug text-4xl mb-3 text-gray-300"></i>
+                            <h3 class="text-base font-semibold text-gray-900 mb-1">Ops agent not connected</h3>
+                            <p class="text-sm">Service monitoring and deployments require the ops-agent sidecar.</p>
+                            <p class="text-xs text-gray-500 mt-3">
+                                Configure <code class="bg-gray-100 px-1 rounded">OPS_AGENT_URL</code> and
+                                <code class="bg-gray-100 px-1 rounded">OPS_AGENT_TOKEN</code> on the backend and run the
+                                <code class="bg-gray-100 px-1 rounded">ops-agent</code> service (see deploy/README.md).
+                            </p>
+                        </div>
+                    {:else if servicesLoading && services.length === 0}
+                        <div class="p-8 text-center">
+                            <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
+                        </div>
+                    {:else}
+                        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <table class="w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="px-4 py-3 text-left border-none">Service</th>
+                                        <th class="px-4 py-3 text-left border-none">Image</th>
+                                        <th class="px-4 py-3 text-left border-none">State</th>
+                                        <th class="px-4 py-3 text-left border-none">Started</th>
+                                        <th class="px-4 py-3 text-right border-none">Restarts</th>
+                                        <th class="px-4 py-3 text-right border-none">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each services as s}
+                                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                            <td class="px-4 py-3 font-medium text-gray-900">{s.service}</td>
+                                            <td class="px-4 py-3 font-mono text-xs text-gray-600">{s.image}</td>
+                                            <td class="px-4 py-3">
+                                                <span class="inline-flex items-center gap-1.5">
+                                                    <span class="w-2 h-2 rounded-full {serviceDotClass(s)}"></span>
+                                                    <span class="capitalize">{s.state}</span>
+                                                    {#if s.health}
+                                                        <span class="text-xs text-gray-500">({s.health})</span>
+                                                    {/if}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-gray-600" title={s.started_at}>{formatTimeAgo(s.started_at)}</td>
+                                            <td class="px-4 py-3 text-right {s.restart_count ? 'text-yellow-600 font-semibold' : 'text-gray-400'}">{s.restart_count}</td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                                                <button
+                                                    on:click={() => openLogs(s.service)}
+                                                    class="px-2 py-1 text-xs bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                                                    title="View logs"
+                                                >
+                                                    <i class="fas fa-file-alt mr-1"></i>Logs
+                                                </button>
+                                                <button
+                                                    on:click={() => handleRestartService(s.service)}
+                                                    class="ml-1 px-2 py-1 text-xs bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 hover:text-[#E95420] transition-colors"
+                                                    title="Restart service"
+                                                >
+                                                    <i class="fas fa-redo-alt mr-1"></i>Restart
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {#if logsService}
+                            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+                                    <h3 class="text-sm font-semibold text-gray-900">
+                                        <i class="fas fa-file-alt mr-2 text-gray-400"></i>Logs: {logsService}
+                                    </h3>
+                                    <div class="flex items-center gap-3">
+                                        <select
+                                            bind:value={logsTail}
+                                            on:change={() => loadLogs()}
+                                            class="px-2 py-1 text-xs border border-gray-300 rounded bg-white"
+                                        >
+                                            <option value={100}>100 lines</option>
+                                            <option value={200}>200 lines</option>
+                                            <option value={500}>500 lines</option>
+                                            <option value={2000}>2000 lines</option>
+                                        </select>
+                                        <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                                            <input type="checkbox" bind:checked={logsAutoRefresh} class="rounded" />
+                                            Follow (3s)
+                                        </label>
+                                        <button on:click={() => loadLogs()} class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50" title="Refresh">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <button on:click={copyLogs} class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button on:click={downloadLogs} class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button on:click={closeLogs} class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50" title="Close">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {#if logsLoading && !logsText}
+                                    <div class="p-8 text-center">
+                                        <i class="fas fa-spinner fa-spin text-[#772953] text-xl"></i>
+                                    </div>
+                                {:else}
+                                    <pre
+                                        bind:this={logsElement}
+                                        class="bg-gray-900 text-green-400 text-xs p-3 overflow-auto h-96 whitespace-pre-wrap break-all m-0">{logsText || "No log output"}</pre>
+                                {/if}
+                            </div>
+                        {/if}
+                    {/if}
+                </div>
+            {/if}
+
+            <!-- Deploy Tab -->
+            {#if activeTab === "deploy"}
+                <div class="p-6 space-y-6">
+                    <!-- Version / update check -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-5 flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500">Running version</p>
+                            <p class="text-2xl font-semibold text-gray-900 mt-1">
+                                {updateInfo?.current_version || "unknown"}
+                                {#if updateInfo?.update_available}
+                                    <span class="ml-2 align-middle text-xs font-semibold text-white bg-[#E95420] rounded-full px-2 py-0.5">
+                                        {updateInfo.latest_version} available
+                                    </span>
+                                {:else if updateInfo?.latest_version}
+                                    <span class="ml-2 align-middle text-xs font-semibold text-white bg-green-600 rounded-full px-2 py-0.5">
+                                        up to date
+                                    </span>
+                                {/if}
+                            </p>
+                            {#if updateInfo?.checked_at}
+                                <p class="text-xs text-gray-500 mt-1">Last checked {formatTimeAgo(new Date(updateInfo.checked_at * 1000).toISOString())}</p>
+                            {/if}
+                        </div>
+                        <button
+                            on:click={() => loadUpdates(true)}
+                            disabled={updateLoading}
+                            class="px-3 py-1.5 text-sm bg-[#E95420] text-white rounded hover:bg-[#c7451a] transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {#if updateLoading}
+                                <i class="fas fa-spinner fa-spin"></i>
+                            {:else}
+                                <i class="fas fa-cloud-download-alt"></i>
+                            {/if}
+                            Check for updates
+                        </button>
+                    </div>
+
+                    {#if deployStatus && deployStatus.deploy_enabled === false}
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
+                            <i class="fas fa-info-circle mr-2"></i>Deployments are disabled in this environment.
+                        </div>
+                    {/if}
+
+                    <!-- Active deployment -->
+                    {#if deployStatus?.state === "running"}
+                        <div class="bg-white border-2 border-[#E95420] rounded-lg overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
+                                <i class="fas fa-spinner fa-spin text-[#E95420]"></i>
+                                <h3 class="text-sm font-semibold text-gray-900">
+                                    Deploying {deployStatus.version}
+                                    <span class="font-normal text-gray-500">(from {deployStatus.previous_version})</span>
+                                </h3>
+                            </div>
+                            <pre class="bg-gray-900 text-cyan-300 text-xs p-3 overflow-auto max-h-64 whitespace-pre-wrap break-all m-0">{deployStatus.log || "Starting..."}</pre>
+                        </div>
+                    {/if}
+
+                    <!-- Releases -->
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-200">
+                            <h3 class="text-sm font-semibold text-gray-900">Releases</h3>
+                        </div>
+                        {#if !updateInfo || updateInfo.releases.length === 0}
+                            <p class="px-4 py-6 text-sm text-gray-500 text-center">
+                                {updateInfo?.error ? "Could not reach GitHub to list releases" : "No releases found"}
+                            </p>
+                        {:else}
+                            <table class="w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="px-4 py-3 text-left border-none">Version</th>
+                                        <th class="px-4 py-3 text-left border-none">Name</th>
+                                        <th class="px-4 py-3 text-left border-none">Published</th>
+                                        <th class="px-4 py-3 text-right border-none">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each updateInfo.releases as release}
+                                        <tr class="border-b border-gray-100 hover:bg-gray-50 {release.is_current ? 'bg-orange-50/50' : ''}">
+                                            <td class="px-4 py-3 font-mono font-medium text-gray-900">
+                                                {release.tag}
+                                                {#if release.is_current}
+                                                    <span class="ml-2 text-[10px] font-sans font-semibold text-[#E95420] border border-[#E95420] rounded-full px-1.5 py-0.5">CURRENT</span>
+                                                {/if}
+                                                {#if release.prerelease}
+                                                    <span class="ml-2 text-[10px] font-sans font-semibold text-yellow-700 border border-yellow-400 rounded-full px-1.5 py-0.5">PRE</span>
+                                                {/if}
+                                            </td>
+                                            <td class="px-4 py-3 text-gray-600">
+                                                {#if release.url}
+                                                    <a href={release.url} target="_blank" rel="noopener" class="hover:text-[#E95420] hover:underline">{release.name}</a>
+                                                {:else}
+                                                    {release.name}
+                                                {/if}
+                                            </td>
+                                            <td class="px-4 py-3 text-gray-500" title={release.published_at}>{formatTimeAgo(release.published_at)}</td>
+                                            <td class="px-4 py-3 text-right">
+                                                {#if !release.is_current}
+                                                    <button
+                                                        on:click={() => handleDeploy(release)}
+                                                        disabled={!opsAvailable || deployStatus?.state === "running" || deployStatus?.deploy_enabled === false}
+                                                        class="px-2.5 py-1 text-xs rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed {releaseCompare(release.tag) < 0
+                                                            ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                            : 'bg-[#E95420] text-white hover:bg-[#c7451a]'}"
+                                                    >
+                                                        {#if releaseCompare(release.tag) < 0}
+                                                            <i class="fas fa-history mr-1"></i>Roll back
+                                                        {:else}
+                                                            <i class="fas fa-rocket mr-1"></i>Deploy
+                                                        {/if}
+                                                    </button>
+                                                {/if}
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        {/if}
+                    </div>
+
+                    <!-- Deployment history -->
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-200">
+                            <h3 class="text-sm font-semibold text-gray-900">Deployment history</h3>
+                        </div>
+                        {#if !opsAvailable}
+                            <p class="px-4 py-6 text-sm text-gray-500 text-center">Requires the ops agent</p>
+                        {:else if deployments.length === 0}
+                            <p class="px-4 py-6 text-sm text-gray-500 text-center">No deployments recorded yet</p>
+                        {:else}
+                            <table class="w-full maas-table text-sm">
+                                <thead>
+                                    <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
+                                        <th class="px-4 py-3 text-left border-none">Version</th>
+                                        <th class="px-4 py-3 text-left border-none">From</th>
+                                        <th class="px-4 py-3 text-left border-none">Status</th>
+                                        <th class="px-4 py-3 text-left border-none">When</th>
+                                        <th class="px-4 py-3 text-right border-none">Duration</th>
+                                        <th class="px-4 py-3 text-right border-none">Log</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each deployments as d, i}
+                                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                            <td class="px-4 py-3 font-mono font-medium text-gray-900">{d.version}</td>
+                                            <td class="px-4 py-3 font-mono text-gray-500">{d.previous_version || "-"}</td>
+                                            <td class="px-4 py-3">
+                                                {#if d.status === "succeeded"}
+                                                    <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                                                        <i class="fas fa-check mr-1"></i>succeeded
+                                                    </span>
+                                                {:else}
+                                                    <span class="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                                                        <i class="fas fa-times mr-1"></i>{d.status}
+                                                    </span>
+                                                {/if}
+                                            </td>
+                                            <td class="px-4 py-3 text-gray-500" title={d.started_at}>{formatTimeAgo(d.started_at)}</td>
+                                            <td class="px-4 py-3 text-right text-gray-600">{deployDuration(d)}</td>
+                                            <td class="px-4 py-3 text-right">
+                                                <button
+                                                    on:click={() => toggleDeployLog(i)}
+                                                    class="text-xs text-gray-500 hover:text-gray-800"
+                                                >
+                                                    <i class="fas {expandedDeployLogs[i] ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {#if expandedDeployLogs[i]}
+                                            <tr class="border-b border-gray-100">
+                                                <td colspan="6" class="px-4 py-2">
+                                                    <pre class="bg-gray-900 text-cyan-300 text-xs rounded p-3 overflow-auto max-h-64 whitespace-pre-wrap break-all m-0">{d.log || "No log recorded"}</pre>
+                                                </td>
+                                            </tr>
+                                        {/if}
+                                    {/each}
+                                </tbody>
+                            </table>
+                        {/if}
+                    </div>
+                </div>
             {/if}
 
             <!-- Config Tab -->

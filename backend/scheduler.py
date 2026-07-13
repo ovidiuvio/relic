@@ -273,6 +273,19 @@ async def start_scheduler() -> None:
     )
     logger.info(f"Scheduled relic cleanup every {settings.RELIC_CLEANUP_INTERVAL} minutes")
 
+    # 3. Schedule API Metrics Retention Cleanup
+    if settings.METRICS_ENABLED:
+        from backend.metrics import cleanup_old_metrics
+        scheduler.add_job(
+            func=wrap_job(cleanup_old_metrics, 'metrics_cleanup'),
+            trigger='interval',
+            hours=1,
+            id='metrics_cleanup',
+            name='API Metrics Retention Cleanup',
+            replace_existing=True
+        )
+        logger.info(f"Scheduled metrics cleanup hourly (retention {settings.METRICS_RETENTION_HOURS}h)")
+
     scheduler.start()
     logger.info("Background task scheduler started successfully")
 

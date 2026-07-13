@@ -30,7 +30,7 @@ services:
       MINIO_USE_SSL: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://localhost"
-      ADMIN_CLIENT_IDS:
+      ADMIN_CLIENT_IDS: 09d85e5f91316a66233d97e1b5936399
       # Database Backup Configuration
       BACKUP_ENABLED: "true"
       BACKUP_TIMES: "02:00,14:00"
@@ -38,6 +38,9 @@ services:
       BACKUP_CLEANUP_ENABLED: "true"
       BACKUP_ON_STARTUP: "true"
       BACKUP_ON_SHUTDOWN: "true"
+      # Ops agent (service logs / monitoring in the admin panel)
+      OPS_AGENT_URL: http://ops-agent:9100
+      OPS_AGENT_TOKEN: ${OPS_AGENT_TOKEN:-relic-local-ops-token}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +93,27 @@ services:
       - Relic
     restart: always
 
+  # Ops Agent (service monitoring for the admin panel)
+  # Holds the docker socket; internal network only, never exposed via nginx.
+  # This stack builds images locally, so registry-tag deploys are disabled -
+  # use deploy/docker-compose.yml for UI-driven deployments and rollbacks.
+  ops-agent:
+    build:
+      context: ./ops
+      dockerfile: Dockerfile
+    container_name: Relic-ops-agent
+    environment:
+      OPS_AGENT_TOKEN: ${OPS_AGENT_TOKEN:-relic-local-ops-token}
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-relic}
+      DEPLOY_ENABLED: "false"
+      AGENT_SERVICE_NAME: ops-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ops_data:/data
+    networks:
+      - Relic
+    restart: always
+
   # S3 Bucket Sync Service
   s3-sync:
     build:
@@ -124,6 +148,7 @@ services:
 volumes:
   minio_data:
   postgres_data:
+  ops_data:
 
 networks:
   Relic:

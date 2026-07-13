@@ -1,8 +1,9 @@
-.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test db-init backup-now backup-list backup-cleanup backup-status
+.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test db-init backup-now backup-list backup-cleanup backup-status deploy-up deploy-down deploy-logs
 
 # Docker Compose files
 COMPOSE_DEV := docker-compose.dev.yml
 COMPOSE_PROD := docker-compose.prod.yml
+COMPOSE_DEPLOY := --project-directory deploy -f deploy/docker-compose.yml
 
 help:
 	@echo "Relic Commands"
@@ -13,6 +14,11 @@ help:
 	@echo "  make logs          - View production logs"
 	@echo "  make build         - Build production images"
 	@echo "  make rebuild       - Rebuild and restart production"
+	@echo ""
+	@echo "Deployment (registry images from GHCR, UI deploy/rollback enabled):"
+	@echo "  make deploy-up     - Pull pinned versions and start the deploy/ stack"
+	@echo "  make deploy-down   - Stop the registry-based stack"
+	@echo "  make deploy-logs   - View registry stack logs"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev-up        - Start dev services (with hot-reload)"
@@ -86,6 +92,29 @@ clean:
 	else \
 		echo "Cancelled"; \
 	fi
+
+# ===== Deployment Commands (registry-based stack in deploy/) =====
+
+# Pull pinned versions and start the registry stack (GHCR images; UI deploy/rollback enabled)
+# First run generates deploy/.env with random secrets - no manual edits needed.
+deploy-up:
+	@test -f deploy/.env || { \
+		cp deploy/.env.example deploy/.env; \
+		sed -i "s/^OPS_AGENT_TOKEN=.*/OPS_AGENT_TOKEN=$$(openssl rand -hex 32)/" deploy/.env; \
+		sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$$(openssl rand -hex 16)/" deploy/.env; \
+		sed -i "s/^MINIO_ROOT_PASSWORD=.*/MINIO_ROOT_PASSWORD=$$(openssl rand -hex 16)/" deploy/.env; \
+		echo "✓ Generated deploy/.env with random secrets"; }
+	docker compose $(COMPOSE_DEPLOY) pull
+	docker compose $(COMPOSE_DEPLOY) up -d
+	@echo "✓ Deployment running at http://localhost - manage it from the admin panel"
+
+# Stop the registry-based stack
+deploy-down:
+	docker compose $(COMPOSE_DEPLOY) down
+
+# View registry stack logs
+deploy-logs:
+	docker compose $(COMPOSE_DEPLOY) logs -f
 
 # ===== Development Commands =====
 

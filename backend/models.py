@@ -1,5 +1,6 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, BigInteger, DateTime, ForeignKey, Text, Table, UniqueConstraint
+from sqlalchemy import Column, String, Integer, BigInteger, Float, DateTime, ForeignKey, Text, Table, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
@@ -211,3 +212,25 @@ class Comment(Base):
     relic = relationship("Relic", backref=backref("comments", passive_deletes=True, lazy="raise"), lazy="raise")
     client = relationship("ClientKey", backref="comments", lazy="raise")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id], lazy="raise"), cascade="all, delete-orphan", lazy="raise")
+
+
+class ApiMetricBucket(Base):
+    """Aggregated API metrics for one 10-second window from one worker process.
+
+    Each gunicorn worker flushes its in-memory counters here so the admin
+    Monitor tab can aggregate rates/latencies across all workers.
+    """
+    __tablename__ = "api_metrics"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bucket_ts = Column(DateTime, nullable=False, index=True)  # naive UTC, aligned to 10s
+    worker_pid = Column(Integer, nullable=False)
+    requests = Column(Integer, nullable=False, default=0)
+    errors = Column(Integer, nullable=False, default=0)         # 5xx
+    client_errors = Column(Integer, nullable=False, default=0)  # 4xx
+    total_ms = Column(Float, nullable=False, default=0.0)
+    max_ms = Column(Float, nullable=False, default=0.0)
+    db_ms = Column(Float, nullable=False, default=0.0)
+    db_queries = Column(Integer, nullable=False, default=0)
+    routes = Column(JSONB, nullable=True)        # {"GET /api/v1/relics": {count, total_ms, errors}}
+    slow_queries = Column(JSONB, nullable=True)  # [{statement, ms, ts}]

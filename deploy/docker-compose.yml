@@ -1,7 +1,7 @@
 services:
   # Frontend (Nginx + Static Files)
   frontend:
-    image: ghcr.io/ovidiuvio/relic/frontend:latest
+    image: ghcr.io/ovidiuvio/relic/frontend:${RELIC_VERSION:-latest}
     container_name: Relic-frontend
     ports:
       - "80:80"
@@ -13,7 +13,7 @@ services:
 
   # Backend API Service
   backend:
-    image: ghcr.io/ovidiuvio/relic/backend:latest
+    image: ghcr.io/ovidiuvio/relic/backend:${RELIC_VERSION:-latest}
     container_name: Relic-backend
     expose:
       - "8000"
@@ -26,6 +26,7 @@ services:
       MINIO_USE_SSL: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost}"
+      ADMIN_CLIENT_IDS: 09d85e5f91316a66233d97e1b5936399
       # Database Backup Configuration
       BACKUP_ENABLED: "true"
       BACKUP_TIMES: "02:00,14:00"
@@ -33,6 +34,9 @@ services:
       BACKUP_CLEANUP_ENABLED: "true"
       BACKUP_ON_STARTUP: "true"
       BACKUP_ON_SHUTDOWN: "true"
+      # Ops agent (service logs / deployments in the admin panel)
+      OPS_AGENT_URL: http://ops-agent:9100
+      OPS_AGENT_TOKEN: ${OPS_AGENT_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,9 +89,28 @@ services:
       - Relic
     restart: always
 
+  # Ops Agent (service monitoring + deployments for the admin panel)
+  # Holds the docker socket; internal network only, never exposed via nginx.
+  ops-agent:
+    image: ghcr.io/ovidiuvio/relic/ops-agent:latest
+    container_name: Relic-ops-agent
+    environment:
+      OPS_AGENT_TOKEN: ${OPS_AGENT_TOKEN:-}
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-deploy}
+      DEPLOY_SERVICES: "backend frontend s3-sync"
+      DEPLOY_ENABLED: "true"
+      AGENT_SERVICE_NAME: ops-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/deploy
+      - ops_data:/data
+    networks:
+      - Relic
+    restart: always
+
   # S3 Bucket Sync Service
   s3-sync:
-    image: ghcr.io/ovidiuvio/relic/s3-sync:latest
+    image: ghcr.io/ovidiuvio/relic/s3-sync:${RELIC_VERSION:-latest}
     container_name: Relic-s3-sync
     environment:
       # Source (MinIO)
@@ -117,6 +140,7 @@ services:
 volumes:
   minio_data:
   postgres_data:
+  ops_data:
 
 networks:
   Relic:

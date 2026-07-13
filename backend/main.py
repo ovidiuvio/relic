@@ -8,6 +8,7 @@ from backend.database import init_db, async_engine
 from backend.storage import storage_service
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
+from backend.metrics import setup_metrics, start_metrics_flusher, stop_metrics_flusher
 
 from backend.routes import health, clients, relics, bookmarks, comments, spaces, reports, admin
 
@@ -36,6 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API metrics collection (middleware + DB cursor timing)
+setup_metrics(app)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -50,6 +54,9 @@ async def startup_event():
     # Start background scheduler (handles backups and relic cleanup)
     await start_scheduler()
 
+    # Start per-worker metrics flusher
+    await start_metrics_flusher()
+
     # Create backup on startup if enabled
     if settings.BACKUP_ENABLED and settings.BACKUP_ON_STARTUP:
         logger.info("Creating startup backup...")
@@ -59,6 +66,9 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
+    # Flush remaining metrics buckets before the pool goes away
+    await stop_metrics_flusher()
+
     if settings.BACKUP_ENABLED:
         # Create backup on shutdown
         if settings.BACKUP_ON_SHUTDOWN:
