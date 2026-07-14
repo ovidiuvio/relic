@@ -79,6 +79,13 @@ export async function processContent(content, contentType, languageHint) {
       if (isCodeType(contentType)) {
         return processCode(content, contentType, languageHint)
       }
-      return processText(content)
+      return {
+        type: 'unknown',
+        preview: null,
+        metadata: {
+          category: 'unknown',
+          mime: contentType || 'application/octet-stream'
+        }
+      }
   }
 }

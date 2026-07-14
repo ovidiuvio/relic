@@ -10,6 +10,7 @@
     getAvailableSyntaxOptions,
     getFileTypeDefinition,
     isBinaryType,
+    hasViewer,
   } from "../services/typeUtils";
   import { formatBytes, formatTimeAgo } from "../services/utils/formatting";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
@@ -599,18 +600,28 @@
 
           <div class="border rounded-md divide-y divide-gray-200">
             {#each creationResult.success as relic}
+              {@const relicHasViewer = hasViewer(relic.content_type)}
               <div
                 class="p-4 flex items-center justify-between hover:bg-gray-50"
               >
                 <div class="flex items-center space-x-3 truncate">
                   <i class="fas fa-file-code text-gray-400"></i>
                   <div class="truncate">
-                    <a
-                      href="/{relic.id}"
-                      class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline block truncate"
-                    >
-                      {relic.name || relic.id}
-                    </a>
+                    {#if relicHasViewer}
+                      <a
+                        href="/{relic.id}"
+                        class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline block truncate"
+                      >
+                        {relic.name || relic.id}
+                      </a>
+                    {:else}
+                      <span
+                        class="text-sm font-medium text-gray-700 block truncate cursor-default"
+                        title="No dedicated viewer available for this type"
+                      >
+                        {relic.name || relic.id}
+                      </span>
+                    {/if}
                     <div class="text-xs text-gray-500 flex items-center gap-2">
                       <span>{formatBytes(relic.size_bytes)}</span>
                       <span>&bull;</span>
@@ -627,13 +638,15 @@
                   >
                     <i class="fas fa-link"></i>
                   </button>
-                  <a
-                    href="/{relic.id}"
-                    class="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50"
-                    title="View Relic"
-                  >
-                    <i class="fas fa-external-link-alt"></i>
-                  </a>
+                  {#if relicHasViewer}
+                    <a
+                      href="/{relic.id}"
+                      class="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50"
+                      title="View Relic"
+                    >
+                      <i class="fas fa-external-link-alt"></i>
+                    </a>
+                  {/if}
                 </div>
               </div>
             {/each}

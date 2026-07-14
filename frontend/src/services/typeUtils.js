@@ -109,6 +109,15 @@ export function isCodeType(contentType) {
   return false
 }
 
+// Check if a content type has a dedicated viewer/preview (mirrors processContent's
+// fallback in processors/index.js, which still renders unrecognized-but-code-ish
+// types via processCode instead of the no-preview 'unknown' state).
+export function hasViewer(contentType) {
+  const type = getFileTypeDefinition(contentType)
+  if (type.category !== 'unknown') return true
+  return isCodeType(contentType)
+}
+
 // Get all available syntax options for forms (flat list, searchable by language name)
 export function getAvailableSyntaxOptions() {
   // Popular languages that should appear at the top
