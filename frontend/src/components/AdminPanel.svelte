@@ -34,6 +34,7 @@
         formatBytes,
         formatTimeAgo,
         getDefaultItemsPerPage,
+        hasViewer,
     } from "../services/typeUtils";
 
     import {
@@ -1146,12 +1147,21 @@
                                                         relic.content_type,
                                                     )}
                                                 ></i>
-                                                <a
-                                                    href="/{relic.id}"
-                                                    class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight"
-                                                    >{relic.name ||
-                                                        "Untitled"}</a
-                                                >
+                                                {#if hasViewer(relic.content_type)}
+                                                    <a
+                                                        href="/{relic.id}"
+                                                        class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight"
+                                                        >{relic.name ||
+                                                            "Untitled"}</a
+                                                    >
+                                                {:else}
+                                                    <span
+                                                        class="font-medium text-gray-700 truncate text-[13px] leading-tight cursor-default"
+                                                        title="No dedicated viewer available for this type"
+                                                        >{relic.name ||
+                                                            "Untitled"}</span
+                                                    >
+                                                {/if}
                                                 <!-- Views, Bookmarks, Comments & Forks (Top Row) -->
                                                 <div class="flex items-center gap-2.5 ml-4 text-[10px] text-gray-400/80 whitespace-nowrap mt-[1px]">
                                                     {#if relic.access_count}

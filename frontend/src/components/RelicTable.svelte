@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import { shareRelic, copyRelicContent, downloadRelic, viewRaw, fastForkRelic, copyToClipboard } from '../services/relicActions'
-  import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes, formatTimeAgo } from '../services/typeUtils'
+  import { getTypeLabel, getTypeIcon, getTypeIconColor, formatBytes, formatTimeAgo, hasViewer } from '../services/typeUtils'
   import LineageModal from './LineageModal.svelte'
   import BookmarkersModal from './BookmarkersModal.svelte'
   import CommentsSummaryModal from './CommentsSummaryModal.svelte'
@@ -226,7 +226,8 @@
         </thead>
         <tbody>
           {#each paginatedData as relic (relic.id)}
-            <tr class="hover:bg-gray-50 cursor-pointer group">
+            {@const relicHasViewer = hasViewer(relic.content_type)}
+            <tr class="hover:bg-gray-50 group {relicHasViewer ? 'cursor-pointer' : 'cursor-default'}">
               <td>
                 <div class="flex items-center gap-1.5">
                   <!-- Status indicators -->
@@ -242,9 +243,15 @@
                     </div>
                   {/if}
                   <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-[13px] flex-shrink-0 translate-y-[1px]" title={getTypeLabel(relic.content_type)}></i>
-                  <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight">
-                    {relic.name || 'Untitled'}
-                  </a>
+                  {#if relicHasViewer}
+                    <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight">
+                      {relic.name || 'Untitled'}
+                    </a>
+                  {:else}
+                    <span class="font-medium text-gray-700 truncate text-[13px] leading-tight cursor-default" title="No dedicated viewer available for this type">
+                      {relic.name || 'Untitled'}
+                    </span>
+                  {/if}
 
                   <!-- Views, Bookmarks, Comments & Forks as small inline badges (Top Row) -->
                   <div class="flex items-center gap-2.5 ml-4 text-[10.5px] whitespace-nowrap mt-[1px]">
