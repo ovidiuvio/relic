@@ -78,6 +78,7 @@ async def get_client_relics(
     request: Request,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    access_level: Optional[str] = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
     limit: int = 25,
@@ -98,6 +99,14 @@ async def get_client_relics(
     stmt = select(Relic).options(selectinload(Relic.tags)).where(
         Relic.client_id == client.id
     )
+
+    if access_level:
+        if access_level not in ("public", "private", "restricted"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
+            )
+        stmt = stmt.where(Relic.access_level == access_level)
 
     if tag:
         result = await db.execute(select(Tag).where(Tag.name == tag.strip().lower()))
