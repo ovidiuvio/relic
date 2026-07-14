@@ -17,7 +17,11 @@ func GenerateClientKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// EnsureClientKey ensures a client key exists, generating one if needed
+// EnsureClientKey ensures a client key exists, generating one in memory if needed.
+// It does NOT persist a newly generated key to disk - the caller must do that
+// (via config.Save) only after the key has been successfully registered with the
+// server, so a failed registration doesn't leave an unregistered key permanently
+// cached in the local config.
 func EnsureClientKey(cfg *config.Config) (string, bool, error) {
 	// If client key already exists, return it
 	if cfg.ClientKey != "" {
@@ -28,11 +32,6 @@ func EnsureClientKey(cfg *config.Config) (string, bool, error) {
 	clientKey, err := GenerateClientKey()
 	if err != nil {
 		return "", false, err
-	}
-
-	// Save to config
-	if err := config.Save("client.key", clientKey); err != nil {
-		return "", false, fmt.Errorf("failed to save client key: %w", err)
 	}
 
 	return clientKey, true, nil
