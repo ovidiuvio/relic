@@ -1,5 +1,5 @@
 <script>
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { showToast } from "../stores/toastStore";
     import ConfirmModal from "./ConfirmModal.svelte";
     import {
@@ -43,7 +43,20 @@
 
     let isAdmin = false;
     let loading = true;
+    let pollTimeouts = [];
+    let jobsAutoRefreshId = null;
+    onDestroy(() => {
+        pollTimeouts.forEach(clearTimeout);
+        if (jobsAutoRefreshId) clearInterval(jobsAutoRefreshId);
+    });
     let activeTab = "stats";
+    $: {
+        // Auto-refresh jobs tab every 30s while active
+        if (jobsAutoRefreshId) { clearInterval(jobsAutoRefreshId); jobsAutoRefreshId = null; }
+        if (activeTab === "jobs") {
+            jobsAutoRefreshId = setInterval(() => { if (!jobsLoading) loadJobs(); }, 30_000);
+        }
+    }
 
     // Stats
     let stats = {
@@ -122,7 +135,16 @@
     let jobsActionInProgress = {};
     let jobsSubTab = 'scheduled'; // 'scheduled' | 'history'
     let jobsHistoryFilter = '';   // Filter history by job_id
-    $: filteredHistory = jobsHistoryFilter ? jobsHistory.filter(run => run.job_id === jobsHistoryFilter) : jobsHistory;
+    let jobsHistoryStatus = '';   // Filter history by status
+    let jobsHistoryPage = 1;
+    let jobsHistoryLimit = 25;
+    $: filteredHistory = jobsHistory.filter(run => {
+        if (jobsHistoryFilter && run.job_id !== jobsHistoryFilter) return false;
+        if (jobsHistoryStatus && run.status !== jobsHistoryStatus) return false;
+        return true;
+    });
+    $: jobsHistoryTotalPages = Math.ceil(filteredHistory.length / jobsHistoryLimit);
+    $: paginatedHistory = filteredHistory.slice().reverse().slice((jobsHistoryPage - 1) * jobsHistoryLimit, jobsHistoryPage * jobsHistoryLimit);
 
     // Selected client for viewing their relics
     let selectedClient = null;
@@ -175,98 +197,48 @@
         return new Date(dateStr).toLocaleString();
     }
 
-    function formatTrigger(triggerStr) {
-        if (!triggerStr) return "Not scheduled";
-        
-        // Handle cron triggers
-        if (triggerStr.startsWith("cron[")) {
-            const matches = triggerStr.match(/cron\[(.*)\]/);
-            if (!matches) return triggerStr;
-            const fieldsStr = matches[1];
-            const fields = {};
-            fieldsStr.split(',').forEach(field => {
-                const parts = field.split('=');
-                if (parts.length === 2) {
-                    const key = parts[0].trim();
-                    let val = parts[1].trim();
-                    if ((val.startsWith("'") && val.endsWith("'")) || (val.startsWith('"') && val.endsWith('"'))) {
-                        val = val.substring(1, val.length - 1);
-                    }
-                    fields[key] = val;
-                }
-            });
-            
-            const hour = fields['hour'];
-            const minute = fields['minute'];
-            const dayOfWeek = fields['day_of_week'] || '*';
-            const day = fields['day'] || '*';
-            
-            let timeStr = "";
-            if (hour !== undefined && minute !== undefined && hour !== '*' && minute !== '*') {
-                const minPad = String(minute).padStart(2, '0');
-                const hrPad = String(hour).padStart(2, '0');
-                timeStr = ` at ${hrPad}:${minPad}`;
-            } else if (minute !== undefined && minute !== '*') {
-                timeStr = ` at minute ${minute}`;
+    function formatTriggerJob(job) {
+        // Prefer the structured ``trigger_info`` payload (added after the bug
+        // review); fall back to legacy regex parsing of ``job.trigger`` for
+        // backward compatibility with old responses.
+        const info = job && job.trigger_info;
+        if (info && info.type) {
+            if (info.type === 'interval') {
+                const secs = info.seconds;
+                if (secs == null) return info.repr || 'Interval';
+                if (secs >= 3600 && secs % 3600 === 0) return `Every ${secs / 3600} hour${secs / 3600 === 1 ? '' : 's'}`;
+                if (secs >= 60 && secs % 60 === 0) return `Every ${secs / 60} minute${secs / 60 === 1 ? '' : 's'}`;
+                return `Every ${secs} second${secs === 1 ? '' : 's'}`;
             }
-
-            if (dayOfWeek === '*' && day === '*') {
-                return `Daily${timeStr}`;
-            } else if (dayOfWeek && dayOfWeek !== '*') {
-                const dowPretty = dayOfWeek.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
-                return `Weekly on ${dowPretty}${timeStr}`;
-            } else if (day && day !== '*') {
+            if (info.type === 'cron') {
+                const f = info.fields || {};
+                const hour = f['hour'];
+                const minute = f['minute'];
+                const dayOfWeek = f['day_of_week'];
+                const day = f['day'];
+                let timeStr = '';
+                if (hour && hour !== '*' && minute && minute !== '*') {
+                    timeStr = ` at ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                } else if (minute && minute !== '*') {
+                    timeStr = ` at minute ${minute}`;
+                }
+                const dowIsStar = dayOfWeek === undefined || dayOfWeek === '*';
+                const dayIsStar = day === undefined || day === '*';
+                if (dowIsStar && dayIsStar) return `Daily${timeStr}`;
+                if (!dowIsStar) {
+                    const pretty = dayOfWeek.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+                    return `Weekly on ${pretty}${timeStr}`;
+                }
                 return `Monthly on day ${day}${timeStr}`;
-            } else {
-                const cronParts = [];
-                if (fields['hour'] !== undefined) cronParts.push(`hour=${fields['hour']}`);
-                if (fields['minute'] !== undefined) cronParts.push(`minute=${fields['minute']}`);
-                if (fields['day_of_week'] !== undefined && fields['day_of_week'] !== '*') cronParts.push(`day_of_week=${fields['day_of_week']}`);
-                return `Cron (${cronParts.join(', ')})`;
             }
-        }
-        
-        // Handle interval triggers
-        if (triggerStr.startsWith("interval[")) {
-            const matches = triggerStr.match(/interval\[(.*)\]/);
-            if (!matches) return triggerStr;
-            const fieldsStr = matches[1];
-            const parts = fieldsStr.split(',').map(p => p.trim());
-            
-            const cleanParts = parts.map(part => {
-                const eq = part.split('=');
-                if (eq.length === 2) {
-                    const unit = eq[0].trim();
-                    const val = eq[1].trim();
-                    if (val === '0') return null;
-                    
-                    let unitLabel = unit;
-                    const num = parseInt(val, 10);
-                    if (num === 1) {
-                        if (unit.endsWith('s')) unitLabel = unit.slice(0, -1);
-                    }
-                    return `${num} ${unitLabel}`;
-                }
-                return part;
-            }).filter(Boolean);
-            
-            if (cleanParts.length > 0) {
-                return `Every ${cleanParts.join(', ')}`;
+            if (info.type === 'date') {
+                if (!info.run_date) return 'One-time task';
+                const [d, t] = info.run_date.split('T');
+                return `Once on ${d} at ${t.slice(0, 5)}`;
             }
-            return "Interval";
+            return info.repr || (job && job.trigger) || 'Unknown';
         }
-        
-        // Handle date triggers
-        if (triggerStr.startsWith("date[")) {
-            const matches = triggerStr.match(/date\[run_date='(.*)'\]/);
-            if (matches) {
-                const dateVal = matches[1];
-                return `Once on ${dateVal.split('T')[0]} at ${dateVal.split('T')[1].slice(0, 5)}`;
-            }
-            return "One-time task";
-        }
-
-        return triggerStr;
+        return (job && job.trigger) || "Not scheduled";
     }
 
     function toggleTraceback(runId) {
@@ -412,16 +384,46 @@
             const response = await runAdminJob(jobId);
             if (response.data.success) {
                 showToast(response.data.message || `Job ${jobId} triggered successfully`, "success");
+                // Refresh immediately (entry is created synchronously server-
+                // side now) and again after a short delay so the terminal
+                // status / duration / logs appear without manual reload.
                 await loadJobs();
+                pollJobRun(jobId, response.data.run_id);
             } else {
                 showToast(response.data.message || `Failed to trigger job ${jobId}`, "error");
             }
         } catch (error) {
-            console.error(`Failed to run job ${jobId}:`, error);
-            showToast(error.response?.data?.detail || `Failed to run job ${jobId}`, "error");
+            if (error.response?.status === 409) {
+                showToast(error.response?.data?.detail || `Job ${jobId} is already running`, "warning");
+            } else {
+                console.error(`Failed to run job ${jobId}:`, error);
+                showToast(error.response?.data?.detail || `Failed to run job ${jobId}`, "error");
+            }
         } finally {
             jobsActionInProgress = { ...jobsActionInProgress, [jobId]: null };
         }
+    }
+
+    function pollJobRun(jobId, runId) {
+        // Poll for terminal state up to ~30s. Cheap, server-debounced refresh
+        // gives the UI a live feel without SSE/WebSockets.
+        const deadline = Date.now() + 30_000;
+        const tick = async () => {
+            if (Date.now() > deadline) {
+                await loadJobs();
+                return;
+            }
+            await loadJobs();
+            const run = jobsHistory.find(r => r.run_id === runId);
+            if (run && (run.status === 'success' || run.status === 'failed')) {
+                if (run.status === 'failed') {
+                    showToast(`Job '${run.job_name || jobId}' failed`, "error");
+                }
+                return;
+            }
+            pollTimeouts.push(setTimeout(tick, 1500));
+        };
+        pollTimeouts.push(setTimeout(tick, 1200));
     }
 
     async function handleTogglePauseJob(job) {
@@ -1836,6 +1838,10 @@
 
                 <!-- Scheduled Tasks Sub-Tab -->
                 {#if jobsSubTab === 'scheduled'}
+                    <div class="px-4 py-2 bg-yellow-50 border-b border-yellow-100 text-yellow-800 text-xs flex items-center gap-2">
+                        <i class="fas fa-info-circle"></i>
+                        Note: Paused job states are currently stored in-memory and will be lost on server restart.
+                    </div>
                     {#if jobsLoading && jobs.length === 0}
                         <div class="p-8 text-center">
                             <i class="fas fa-spinner fa-spin text-[#772953] text-2xl"></i>
@@ -1878,7 +1884,7 @@
                                             <td class="px-4 text-gray-500 align-top font-mono">{job.func}</td>
                                             <td class="px-4 align-top">
                                                  <span class="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-blue-50 text-blue-700 border border-blue-100 inline-flex items-center gap-1" title={job.trigger}>
-                                                     <i class="fas fa-calendar-alt text-[9px]"></i> {formatTrigger(job.trigger)}
+                                                     <i class="fas fa-calendar-alt text-[9px]"></i> {formatTriggerJob(job)}
                                                  </span>
                                             </td>
                                             <td class="px-4 align-top">
@@ -1912,10 +1918,15 @@
                                                     </button>
 
                                                     <button
-                                                        on:click={() => handleRunJob(job.id)}
-                                                        disabled={jobsActionInProgress[job.id] === 'run'}
-                                                        class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                                        title="Run Now"
+                                                        on:click={() => {
+                                                            confirmTitle = 'Run Job Manually';
+                                                            confirmMessage = `Trigger a manual run of ${job.name || job.id}?`;
+                                                            confirmAction = () => { showConfirm = false; handleRunJob(job.id); };
+                                                            showConfirm = true;
+                                                        }}
+                                                        disabled={jobsActionInProgress[job.id] === 'run' || job.paused}
+                                                        class="p-1.5 transition-colors rounded {job.paused ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}"
+                                                        title={job.paused ? "Cannot run paused job" : "Run Now"}
                                                     >
                                                         {#if jobsActionInProgress[job.id] === 'run'}
                                                             <i class="fas fa-spinner fa-spin text-xs"></i>
@@ -1967,15 +1978,29 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="flex items-center gap-2">
-                                <span class="text-xs text-gray-500 font-sans">Filter Task:</span>
+                                <span class="text-xs text-gray-500 font-sans">Task:</span>
                                 <select
                                     bind:value={jobsHistoryFilter}
+                                    on:change={() => jobsHistoryPage = 1}
                                     class="text-xs border border-gray-300 rounded px-2.5 py-1 bg-white text-gray-700 font-sans"
                                 >
                                     <option value="">All Tasks</option>
                                     {#each jobs as j}
                                         <option value={j.id}>{j.name}</option>
                                     {/each}
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-500 font-sans">Status:</span>
+                                <select
+                                    bind:value={jobsHistoryStatus}
+                                    on:change={() => jobsHistoryPage = 1}
+                                    class="text-xs border border-gray-300 rounded px-2.5 py-1 bg-white text-gray-700 font-sans"
+                                >
+                                    <option value="">All</option>
+                                    <option value="success">Success</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="running">Running</option>
                                 </select>
                             </div>
                             <button
@@ -1993,17 +2018,20 @@
                         </div>
                     </div>
 
-                    {#if jobsHistoryFilter}
+                    {#if jobsHistoryFilter || jobsHistoryStatus}
                         <div class="px-6 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between text-xs text-indigo-700">
                             <span class="flex items-center gap-1.5 font-medium">
                                 <i class="fas fa-filter"></i>
-                                Showing runs for task: <span class="font-mono bg-indigo-100 px-1.5 py-0.5 rounded font-semibold text-indigo-800">{jobsHistoryFilter}</span>
+                                {#if jobsHistoryFilter}Task: <span class="font-mono bg-indigo-100 px-1.5 py-0.5 rounded font-semibold text-indigo-800">{jobsHistoryFilter}</span>{/if}
+                                {#if jobsHistoryFilter && jobsHistoryStatus}&nbsp;•&nbsp;{/if}
+                                {#if jobsHistoryStatus}Status: <span class="font-mono bg-indigo-100 px-1.5 py-0.5 rounded font-semibold text-indigo-800">{jobsHistoryStatus}</span>{/if}
+                                <span class="text-indigo-400 font-normal ml-1">({filteredHistory.length} result{filteredHistory.length !== 1 ? 's' : ''})</span>
                             </span>
                             <button
-                                on:click={() => jobsHistoryFilter = ''}
+                                on:click={() => { jobsHistoryFilter = ''; jobsHistoryStatus = ''; jobsHistoryPage = 1; }}
                                 class="text-[10px] bg-white border border-indigo-200 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded transition-colors font-medium flex items-center gap-1"
                             >
-                                <i class="fas fa-times"></i> Clear Filter
+                                <i class="fas fa-times"></i> Clear Filters
                             </button>
                         </div>
                     {/if}
@@ -2011,7 +2039,7 @@
                     {#if filteredHistory.length === 0}
                         <div class="mx-6 my-8 border border-dashed border-gray-200 rounded-lg p-8 text-center text-gray-500 text-xs">
                             <i class="fas fa-terminal text-2xl mb-1.5 opacity-50 block text-gray-400"></i>
-                            <p>No task executions recorded {jobsHistoryFilter ? 'for this task' : ''} in this session.</p>
+                            <p>No task executions recorded {jobsHistoryFilter || jobsHistoryStatus ? 'matching these filters' : ''} in this session.</p>
                         </div>
                     {:else}
                         <div class="overflow-x-auto">
@@ -2027,7 +2055,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="font-mono text-[11px]">
-                                    {#each filteredHistory.slice().reverse() as run (run.run_id)}
+                                    {#each paginatedHistory as run (run.run_id)}
                                         <tr class="hover:bg-gray-50/50">
                                             <td class="pl-6 pr-4 align-top font-sans">
                                                 <div class="font-semibold text-gray-700 text-xs">{run.job_name}</div>
@@ -2093,7 +2121,16 @@
                                                                         {expandedLogs[run.run_id] ? 'Hide' : 'View'} Execution Logs ({run.logs.length})
                                                                     </button>
                                                                     {#if expandedLogs[run.run_id]}
-                                                                        <pre class="mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-600 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.logs.join('\n')}</pre>
+                                                                        <div class="relative group/logs">
+                                                                            <button
+                                                                                on:click={() => copyToClipboard(run.logs.join('\n'), 'Logs copied to clipboard')}
+                                                                                class="absolute top-1.5 right-1.5 p-1 text-gray-400 hover:text-gray-600 bg-white/80 hover:bg-white rounded border border-gray-200 opacity-0 group-hover/logs:opacity-100 transition-opacity"
+                                                                                title="Copy logs"
+                                                                            >
+                                                                                <i class="fas fa-copy text-[9px]"></i>
+                                                                            </button>
+                                                                            <pre class="mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-600 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.logs.join('\n')}</pre>
+                                                                        </div>
                                                                     {/if}
                                                             </div>
                                                         {/if}
@@ -2109,7 +2146,16 @@
                                                                     {expandedTracebacks[run.run_id] ? 'Hide' : 'View'} Stack Trace
                                                                 </button>
                                                                 {#if expandedTracebacks[run.run_id]}
-                                                                    <pre class="mt-1.5 p-2 bg-rose-50/50 border border-rose-100 rounded text-[10px] text-rose-700 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.traceback}</pre>
+                                                                    <div class="relative group/tb">
+                                                                        <button
+                                                                            on:click={() => copyToClipboard(run.traceback, 'Stack trace copied to clipboard')}
+                                                                            class="absolute top-1.5 right-1.5 p-1 text-rose-400 hover:text-rose-600 bg-white/80 hover:bg-white rounded border border-rose-200 opacity-0 group-hover/tb:opacity-100 transition-opacity"
+                                                                            title="Copy stack trace"
+                                                                        >
+                                                                            <i class="fas fa-copy text-[9px]"></i>
+                                                                        </button>
+                                                                        <pre class="mt-1.5 p-2 bg-rose-50/50 border border-rose-100 rounded text-[10px] text-rose-700 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono leading-relaxed">{run.traceback}</pre>
+                                                                    </div>
                                                                 {/if}
                                                             </div>
                                                         {/if}
@@ -2120,6 +2166,43 @@
                                     {/each}
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
+                            <div class="flex items-center gap-4">
+                                <div class="text-[11px] text-[#999]">
+                                    <span class="font-medium text-[#666]">{filteredHistory.length}</span> run{filteredHistory.length !== 1 ? "s" : ""}
+                                </div>
+                                <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
+                                    <span class="text-[#999]">Show:</span>
+                                    <select
+                                        bind:value={jobsHistoryLimit}
+                                        on:change={() => jobsHistoryPage = 1}
+                                        class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
+                                    >
+                                        <option value={10}>10</option>
+                                        <option value={15}>15</option>
+                                        <option value={20}>20</option>
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {#if jobsHistoryTotalPages > 1}
+                                <div class="flex items-center gap-0.5 whitespace-nowrap">
+                                    <span class="text-[11px] text-[#999] mr-2">Page {jobsHistoryPage} of {jobsHistoryTotalPages}</span>
+                                    <button
+                                        on:click={() => jobsHistoryPage = Math.max(1, jobsHistoryPage - 1)}
+                                        disabled={jobsHistoryPage === 1}
+                                        class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    ><i class="fas fa-chevron-left text-[11px]"></i></button>
+                                    <button
+                                        on:click={() => jobsHistoryPage = Math.min(jobsHistoryTotalPages, jobsHistoryPage + 1)}
+                                        disabled={jobsHistoryPage === jobsHistoryTotalPages}
+                                        class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
+                                    ><i class="fas fa-chevron-right text-[11px]"></i></button>
+                                </div>
+                            {/if}
                         </div>
                     {/if}
                 {/if}

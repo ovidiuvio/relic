@@ -656,14 +656,15 @@ async def admin_list_jobs(
     """
     [ADMIN] List all scheduled background jobs.
 
-    Requires admin privileges.
+    Requires admin privileges. Returns: registered jobs, scheduler status,
+    in-memory execution history (bounded by scheduler to ~500 runs).
     """
     await get_admin_client(request, db)
 
-    from backend.scheduler import scheduler, job_history
+    from backend.scheduler import scheduler, job_history, paused_job_ids, serialize_trigger
 
     if not scheduler:
-        return {"jobs": [], "running": False, "history": []}
+        return {"jobs": [], "running": False, "history": list(job_history)}
 
     jobs = []
     for job in scheduler.get_jobs():
@@ -671,12 +672,19 @@ async def admin_list_jobs(
             "id": job.id,
             "name": job.name,
             "trigger": str(job.trigger),
+            "trigger_info": serialize_trigger(job.trigger),
             "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
             "func": job.func_ref,
-            "paused": job.next_run_time is None
+            # Single source of truth: admin pause/resume marks this set.
+            # We also expose next_run_time for the UI to render next-execution.
+            "paused": job.id in paused_job_ids or job.next_run_time is None,
         })
 
-    return {"jobs": jobs, "running": scheduler.running, "history": job_history}
+    return {
+        "jobs": jobs,
+        "running": scheduler.running,
+        "history": [dict(e) for e in job_history],
+    }
 
 
 @router.post("/jobs/{job_id}/run", response_model=dict)
@@ -689,11 +697,16 @@ async def admin_run_job(
     """
     [ADMIN] Trigger a scheduled background job immediately in the background.
 
-    Requires admin privileges.
+    Requires admin privileges. The history entry is appended synchronously
+    before this returns so it is visible from GET /admin/jobs without delay;
+    the actual execution happens in BackgroundTasks under a per-job lock that
+    prevents concurrent manual triggers (returns 409 if already running).
     """
     await get_admin_client(request, db)
 
-    from backend.scheduler import scheduler, run_manual_job_wrapper
+    from backend.scheduler import (
+        scheduler, create_manual_run_entry, run_manual_job_wrapper, manual_run_locked,
+    )
 
     if not scheduler:
         raise HTTPException(status_code=400, detail="Scheduler not running")
@@ -702,12 +715,22 @@ async def admin_run_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    run_id = create_manual_run_entry(job_id)
+    if not run_id:
+        if manual_run_locked(job_id):
+            raise HTTPException(status_code=409, detail="Job is already running manually")
+        raise HTTPException(status_code=500, detail="Failed to create manual run entry")
+
     func = job.func
+    # Unwrap to avoid double-wrapping with run_manual_job_wrapper's own
+    # current_run_id binding and _finish_history call.
+    while hasattr(func, '__wrapped__'):
+        func = func.__wrapped__
+    background_tasks.add_task(
+        run_manual_job_wrapper, run_id, job_id, func, *job.args, **job.kwargs
+    )
 
-    # Trigger job's function inside the manual wrapper in backend background task
-    background_tasks.add_task(run_manual_job_wrapper, job_id, func, *job.args, **job.kwargs)
-
-    return {"success": True, "message": f"Job '{job.name}' triggered successfully"}
+    return {"success": True, "run_id": run_id, "message": f"Job '{job.name}' triggered successfully"}
 
 
 @router.post("/jobs/{job_id}/pause", response_model=dict)
@@ -723,7 +746,7 @@ async def admin_pause_job(
     """
     await get_admin_client(request, db)
 
-    from backend.scheduler import scheduler
+    from backend.scheduler import scheduler, paused_job_ids
 
     if not scheduler:
         raise HTTPException(status_code=400, detail="Scheduler not running")
@@ -733,6 +756,7 @@ async def admin_pause_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     job.pause()
+    paused_job_ids.add(job_id)
     return {"success": True, "message": f"Job '{job.name}' paused successfully"}
 
 
@@ -749,7 +773,7 @@ async def admin_resume_job(
     """
     await get_admin_client(request, db)
 
-    from backend.scheduler import scheduler
+    from backend.scheduler import scheduler, paused_job_ids
 
     if not scheduler:
         raise HTTPException(status_code=400, detail="Scheduler not running")
@@ -759,5 +783,6 @@ async def admin_resume_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     job.resume()
+    paused_job_ids.discard(job_id)
     return {"success": True, "message": f"Job '{job.name}' resumed successfully"}
 
