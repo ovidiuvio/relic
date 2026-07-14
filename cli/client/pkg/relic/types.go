@@ -122,8 +122,13 @@ type SpaceInfo struct {
 	Role          string    `json:"role,omitempty"`
 }
 
-// SpaceListResponse is a list of spaces
-type SpaceListResponse []SpaceInfo
+// SpaceListResponse represents a paginated list of spaces
+type SpaceListResponse struct {
+	Spaces []SpaceInfo `json:"spaces"`
+	Total  int         `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+}
 
 // SpaceCreateRequest is the payload for creating a space
 type SpaceCreateRequest struct {
