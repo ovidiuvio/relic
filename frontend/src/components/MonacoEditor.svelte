@@ -1,5 +1,5 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher, mount } from 'svelte';
   import * as monaco from 'monaco-editor';
   import {
     parseLineNumberFragment,
@@ -600,22 +600,18 @@
                 container.addEventListener(evt, stopPropagation)
             );
 
-            const component = new CommentEditor({
+            const component = mount(CommentEditor, {
                 target: container,
                 props: {
                     initialValue,
                     submitLabel
+                },
+                events: {
+                    submit: (e) => onSubmit(e.detail),
+                    cancel: () => onCancel()
                 }
             })
-            
-            component.$on('submit', (e) => {
-                onSubmit(e.detail)
-            })
-            
-            component.$on('cancel', () => {
-                onCancel()
-            })
-            
+
             commentEditorComponents.push(component)
             return container
         }
