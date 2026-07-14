@@ -96,6 +96,42 @@ func main() {
 	}
 }
 
+// ensureRegisteredClientKey makes sure a client key exists and, if a new one
+// was just generated, registers it with the server before persisting it to
+// the local config. The key is only saved to disk once registration succeeds,
+// so a failed registration attempt (network error, server hiccup) doesn't
+// leave an unregistered key cached locally - which would otherwise 401 every
+// future command, since the server rejects requests bearing an unregistered
+// X-Client-Key.
+func ensureRegisteredClientKey(cfg *config.Config) (string, error) {
+	key, isNew, err := api.EnsureClientKey(cfg)
+	if err != nil {
+		return "", err
+	}
+	cfg.ClientKey = key
+
+	if isNew {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
+		}
+
+		apiClient := api.NewClient(cfg, verbose)
+		apiClient.ClientKey = key
+		if _, err := apiClient.RegisterClient(); err != nil {
+			return "", fmt.Errorf("failed to register client key with server: %w", err)
+		}
+
+		if err := config.Save("client.key", key); err != nil {
+			return "", fmt.Errorf("failed to save client key: %w", err)
+		}
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "%s Client key saved to config\n", ui.Success(ui.SymbolSuccess))
+		}
+	}
+
+	return key, nil
+}
+
 // uploadCommand handles file/stdin upload
 func uploadCommand(cmd *cobra.Command, args []string) error {
 	cfg, err := loadConfig()
@@ -104,24 +140,9 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Ensure client key
-	key, isNew, err := api.EnsureClientKey(cfg)
+	key, err := ensureRegisteredClientKey(cfg)
 	if err != nil {
 		return err
-	}
-	cfg.ClientKey = key
-
-	if isNew {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
-			fmt.Fprintf(os.Stderr, "%s Client key saved to config\n", ui.Success(ui.SymbolSuccess))
-		}
-		// Register the new key with the server
-		apiClient := api.NewClient(cfg, verbose)
-		apiClient.ClientKey = key
-		_, err = apiClient.RegisterClient()
-		if err != nil {
-			return fmt.Errorf("failed to register client key with server: %w", err)
-		}
 	}
 
 	// Build upload options
@@ -307,23 +328,9 @@ func forkCmd() *cobra.Command {
 			}
 
 			// Ensure client key
-			key, isNew, err := api.EnsureClientKey(cfg)
+			key, err := ensureRegisteredClientKey(cfg)
 			if err != nil {
 				return err
-			}
-			cfg.ClientKey = key
-
-			if isNew {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
-				}
-				// Register the new key with the server
-				apiClient := api.NewClient(cfg, verbose)
-				apiClient.ClientKey = key
-				_, err = apiClient.RegisterClient()
-				if err != nil {
-					return fmt.Errorf("failed to register client key with server: %w", err)
-				}
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
@@ -672,7 +679,7 @@ func spacesCmd() *cobra.Command {
 			}
 
 			fmt.Println(ui.Muted("───────────────────────────────────────────────────────────────────────────────────────"))
-			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Total:"), ui.WhiteBold(fmt.Sprintf("%d spaces", len(spaces.Spaces))))
+			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Total:"), ui.WhiteBold(fmt.Sprintf("%d spaces", spaces.Total)))
 			fmt.Println()
 			return nil
 		},
