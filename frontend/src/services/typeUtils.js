@@ -118,6 +118,19 @@ export function hasViewer(contentType) {
   return isCodeType(contentType)
 }
 
+// Files above this size are viewable but expensive to render inline (large code/CSV
+// files can lock up the tab); skip auto-navigating to them after upload.
+const AUTO_OPEN_MAX_SIZE = 100 * 1024 * 1024 // 100MB
+
+// Decide whether to auto-navigate to a just-created relic, or fall back to a
+// summary view. True whenever the type has a dedicated viewer and the content
+// isn't too large to render inline.
+export function shouldAutoOpen(contentType, sizeBytes) {
+  if (!hasViewer(contentType)) return false
+  if (typeof sizeBytes === 'number' && sizeBytes > AUTO_OPEN_MAX_SIZE) return false
+  return true
+}
+
 // Get all available syntax options for forms (flat list, searchable by language name)
 export function getAvailableSyntaxOptions() {
   // Popular languages that should appear at the top
