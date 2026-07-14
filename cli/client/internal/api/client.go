@@ -288,7 +288,7 @@ func (c *Client) DeleteRelic(relicID string) error {
 }
 
 // ListSpaces lists spaces accessible to the client
-func (c *Client) ListSpaces(visibility string) (relic.SpaceListResponse, error) {
+func (c *Client) ListSpaces(visibility string) (*relic.SpaceListResponse, error) {
 	path := "/api/v1/spaces"
 	if visibility != "" {
 		path += "?visibility=" + visibility
@@ -309,7 +309,7 @@ func (c *Client) ListSpaces(visibility string) (relic.SpaceListResponse, error) 
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return spaces, nil
+	return &spaces, nil
 }
 
 // GetSpace retrieves details for a single space

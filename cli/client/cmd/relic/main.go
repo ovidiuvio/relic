@@ -110,9 +110,18 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 	}
 	cfg.ClientKey = key
 
-	if isNew && !quiet {
-		fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
-		fmt.Fprintf(os.Stderr, "%s Client key saved to config\n", ui.Success(ui.SymbolSuccess))
+	if isNew {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
+			fmt.Fprintf(os.Stderr, "%s Client key saved to config\n", ui.Success(ui.SymbolSuccess))
+		}
+		// Register the new key with the server
+		apiClient := api.NewClient(cfg, verbose)
+		apiClient.ClientKey = key
+		_, err = apiClient.RegisterClient()
+		if err != nil {
+			return fmt.Errorf("failed to register client key with server: %w", err)
+		}
 	}
 
 	// Build upload options
@@ -304,8 +313,17 @@ func forkCmd() *cobra.Command {
 			}
 			cfg.ClientKey = key
 
-			if isNew && !quiet {
-				fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
+			if isNew {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
+				}
+				// Register the new key with the server
+				apiClient := api.NewClient(cfg, verbose)
+				apiClient.ClientKey = key
+				_, err = apiClient.RegisterClient()
+				if err != nil {
+					return fmt.Errorf("failed to register client key with server: %w", err)
+				}
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
@@ -615,7 +633,7 @@ func spacesCmd() *cobra.Command {
 			fmt.Printf("%s %s\n", ui.InfoBold(ui.SymbolFolder), ui.InfoBold("Spaces"))
 			fmt.Println(ui.Muted("═══════════════════════════════════════════════════════════════════════════════════════"))
 
-			if len(spaces) == 0 {
+			if len(spaces.Spaces) == 0 {
 				fmt.Printf("%s %s\n", ui.Muted(ui.SymbolInfo), "No spaces found.")
 				fmt.Println()
 				return nil
@@ -624,7 +642,7 @@ func spacesCmd() *cobra.Command {
 			fmt.Printf("%-34s %-25s %-10s %-8s %-10s\n", "ID", "Name", "Visibility", "Relics", "Your Role")
 			fmt.Println(ui.Muted("───────────────────────────────────────────────────────────────────────────────────────"))
 
-			for _, s := range spaces {
+			for _, s := range spaces.Spaces {
 				id := s.ID
 				if len(id) > 34 {
 					id = id[:31] + "..."
@@ -654,7 +672,7 @@ func spacesCmd() *cobra.Command {
 			}
 
 			fmt.Println(ui.Muted("───────────────────────────────────────────────────────────────────────────────────────"))
-			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Total:"), ui.WhiteBold(fmt.Sprintf("%d spaces", len(spaces))))
+			fmt.Printf("%s %s %s\n", ui.Muted(ui.SymbolDot), ui.Bold("Total:"), ui.WhiteBold(fmt.Sprintf("%d spaces", len(spaces.Spaces))))
 			fmt.Println()
 			return nil
 		},
