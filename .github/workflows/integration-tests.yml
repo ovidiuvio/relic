@@ -65,6 +65,31 @@ jobs:
           reporter: java-junit
           fail-on-error: true
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
+      - name: Run CLI Integration Tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          cd cli/client
+          go test -v ./... 2>&1 | go-junit-report -parser gotest -out ../../test-results/cli-junit.xml
+
+      - name: Publish CLI test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: CLI Integration Tests
+          path: test-results/cli-junit.xml
+          reporter: java-junit
+          fail-on-error: true
+
       - name: Show service logs on failure
         if: failure()
         run: docker compose -f docker-compose.dev.yml logs --tail=100

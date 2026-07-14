@@ -1,4 +1,4 @@
-.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test db-init backup-now backup-list backup-cleanup backup-status
+.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test cli-test db-init backup-now backup-list backup-cleanup backup-status
 
 # Docker Compose files
 COMPOSE_DEV := docker-compose.dev.yml
@@ -27,6 +27,7 @@ help:
 	@echo "  make dev-shell-backend  - Open shell in backend container"
 	@echo "  make dev-shell-frontend - Open shell in frontend container"
 	@echo "  make dev-test           - Run tests in backend container"
+	@echo "  make cli-test           - Run CLI tests on host"
 	@echo ""
 	@echo "Database & Maintenance:"
 	@echo "  make db-init            - Initialize database"
@@ -149,6 +150,10 @@ dev-shell-frontend:
 # Run tests in backend container
 dev-test:
 	docker compose -f $(COMPOSE_DEV) exec backend pytest -v
+
+# Run CLI tests on host
+cli-test:
+	cd cli/client && $(MAKE) test
 
 # ===== Database Commands =====
 
