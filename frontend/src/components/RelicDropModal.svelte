@@ -7,6 +7,7 @@
     getContentType,
     getSyntaxFromExtension,
     getFileTypeDefinition,
+    isBinaryType,
   } from "../services/typeUtils";
   import { formatBytes } from "../services/utils/formatting";
 
@@ -121,10 +122,16 @@
       if (createdRelics.length > 0) {
         if (errors.length > 0) {
           showToast(`Uploaded ${createdRelics.length} relics, but ${errors.length} failed.`, "warning");
+          dispatch("success", { relics: createdRelics });
+        } else if (createdRelics.length === 1 && !isBinaryType(createdRelics[0].content_type)) {
+          // Single successful, non-binary upload: redirect straight to it,
+          // mirroring RelicForm's "classic behavior" so drag-and-drop uploads
+          // open the same way form uploads do.
+          window.location.href = `/${createdRelics[0].id}`;
         } else {
           showToast(`Successfully uploaded ${createdRelics.length} relic(s) to ${spaceName || 'space'}!`, "success");
+          dispatch("success", { relics: createdRelics });
         }
-        dispatch("success", { relics: createdRelics });
       } else if (errors.length > 0) {
         showToast(`Failed to upload any relics: ${errors.join(", ")}`, "error");
       }
