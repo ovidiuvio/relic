@@ -1,6 +1,6 @@
 """Background tasks for relic expiration and cleanup."""
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from backend.database import AsyncSessionLocal
 from backend.models import Relic
@@ -16,8 +16,9 @@ async def cleanup_expired_relics():
     Runs periodically to hard-delete relics that have expired.
     Soft-deleted relics are hard-deleted after 30 days.
     """
+    logger.info("Starting expired relics cleanup...")
     async with AsyncSessionLocal() as db:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Find expired relics
         result = await db.execute(

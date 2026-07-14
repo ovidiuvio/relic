@@ -1,4 +1,5 @@
 """Integration tests for admin endpoints."""
+import time
 import uuid
 import pytest
 from conftest import ADMIN_KEY
@@ -465,3 +466,150 @@ def test_admin_restore_from_upload_wrong_extension(http):
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "File must be a .sql.gz backup"
+
+
+# ── GET /api/v1/admin/jobs ───────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_admin_list_jobs(http):
+    resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "jobs" in data
+    assert "running" in data
+    assert "history" in data
+    assert isinstance(data["jobs"], list)
+    assert isinstance(data["history"], list)
+    job_ids = [j["id"] for j in data["jobs"]]
+    assert "relic_cleanup" in job_ids
+    # trigger_info is the structured payload added in the bug-fix pass; verify
+    # it is present and exposes a recognisable "type" for each registered job.
+    for j in data["jobs"]:
+        assert "trigger_info" in j
+        info = j["trigger_info"]
+        assert "type" in info
+        assert info["type"] in ("cron", "interval", "date", "unknown")
+        if info["type"] == "interval":
+            assert info["seconds"] is not None and info["seconds"] > 0
+        if info["type"] == "cron":
+            assert isinstance(info["fields"], dict)
+
+
+@pytest.mark.integration
+def test_admin_list_jobs_forbidden(http, disposable_client):
+    resp = http.get("/api/v1/admin/jobs", headers={"X-Client-Key": disposable_client})
+    assert resp.status_code == 403
+
+
+# ── POST /api/v1/admin/jobs/{job_id}/run ──────────────────────────────────────
+
+def _wait_for_manual_run(http, run_id, timeout=5.0):
+    """Poll /admin/jobs until the given manual run is terminal; return entry."""
+    deadline = time.time() + timeout
+    last_entry = None
+    while time.time() < deadline:
+        data = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS).json()
+        for entry in data.get("history", []):
+            if entry.get("run_id") == run_id:
+                last_entry = entry
+                if entry["status"] in ("success", "failed"):
+                    return entry
+        time.sleep(0.2)
+    return last_entry
+
+
+@pytest.mark.integration
+def test_admin_run_job(http):
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/run", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    run_id = body["run_id"]
+    assert run_id
+
+    # Synchronous creation: the entry should be visible immediately. It may
+    # already be terminal if FastAPI's BackgroundTasks ran in between, which
+    # is a valid outcome — the important thing is that the run_id exists in
+    # history with trigger_type=manual before any waiting.
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    entry_now = next(
+        (h for h in list_resp.json()["history"] if h["run_id"] == run_id), None
+    )
+    assert entry_now is not None
+    assert entry_now["trigger_type"] == "manual"
+    assert entry_now["status"] in ("running", "success", "failed")
+
+    # Poll for terminal state instead of fixed sleep
+    final = _wait_for_manual_run(http, run_id, timeout=5.0)
+    assert final is not None
+    assert final["status"] in ("success", "failed")
+    assert isinstance(final["logs"], list)
+    assert any("Starting expired relics cleanup..." in log for log in final["logs"])
+
+
+@pytest.mark.integration
+def test_admin_run_job_not_found(http):
+    resp = http.post("/api/v1/admin/jobs/nonexistent_job/run", headers=ADMIN_HEADERS)
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+def test_admin_run_job_conflict(http):
+    import concurrent.futures
+
+    def trigger():
+        return http.post("/api/v1/admin/jobs/relic_cleanup/run", headers=ADMIN_HEADERS)
+
+    # We send multiple requests simultaneously to try and cause a 409 conflict.
+    # relic_cleanup does a DB query, which is async and should take enough time
+    # for the second request to hit the endpoint before the first finishes.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(trigger) for _ in range(4)]
+        responses = [f.result() for f in futures]
+
+    status_codes = [r.status_code for r in responses]
+    
+    # At least one should be 409 if the job takes any time at all
+    assert 409 in status_codes
+    assert 200 in status_codes
+
+
+@pytest.mark.integration
+def test_admin_list_jobs_relics_cleanup_trigger_info_is_interval(http):
+    """The relic_cleanup job is registered with an interval trigger, so its
+    structured trigger_info should report type='interval' and seconds matching
+    settings.RELIC_CLEANUP_INTERVAL. Documents the contract the frontend
+    formatTriggerJob() depends on."""
+    data = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS).json()
+    job = next((j for j in data["jobs"] if j["id"] == "relic_cleanup"), None)
+    assert job is not None
+    info = job["trigger_info"]
+    assert info["type"] == "interval"
+    assert info["seconds"] is not None
+    assert info["seconds"] >= 60
+
+
+# ── POST /api/v1/admin/jobs/{job_id}/pause & resume ───────────────────────────
+
+@pytest.mark.integration
+def test_admin_pause_resume_job(http):
+    # 1. Pause the job
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/pause", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # Verify it is paused in list
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    jobs = {j["id"]: j for j in list_resp.json()["jobs"]}
+    assert jobs["relic_cleanup"]["paused"] is True
+
+    # 2. Resume the job
+    resp = http.post("/api/v1/admin/jobs/relic_cleanup/resume", headers=ADMIN_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # Verify it is resumed
+    list_resp = http.get("/api/v1/admin/jobs", headers=ADMIN_HEADERS)
+    jobs = {j["id"]: j for j in list_resp.json()["jobs"]}
+    assert jobs["relic_cleanup"]["paused"] is False
+
