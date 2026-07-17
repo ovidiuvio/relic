@@ -270,7 +270,8 @@ async def get_relic(
     result = await db.execute(
         select(Relic).options(
             selectinload(Relic.tags),
-            selectinload(Relic.access_list)
+            selectinload(Relic.access_list),
+            joinedload(Relic.owner_client)
         ).where(Relic.id == relic_id)
     )
     relic = result.scalar_one_or_none()
@@ -581,7 +582,7 @@ async def update_relic(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(
-        select(Relic).options(selectinload(Relic.tags)).where(Relic.id == relic_id)
+        select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(Relic.id == relic_id)
     )
     relic = result.scalar_one_or_none()
     if not relic:
@@ -677,7 +678,7 @@ async def list_relics(
     """List the most recent public relics with pagination."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    stmt = select(Relic).options(selectinload(Relic.tags)).where(Relic.access_level == "public")
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(Relic.access_level == "public")
 
     if tag:
         tag_result = await db.execute(select(Tag).where(Tag.name == tag.strip().lower()))

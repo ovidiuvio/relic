@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import uuid
+from typing import Optional
 
 
 Base = declarative_base()
@@ -114,6 +115,14 @@ class Relic(Base):
     tags = relationship("Tag", secondary=relic_tags, back_populates="relics", lazy="raise")
     spaces = relationship("Space", secondary=space_relics, back_populates="relics", lazy="raise")
     access_list = relationship("RelicAccess", back_populates="relic", cascade="all, delete-orphan", lazy="raise")
+
+    @property
+    def owner_name(self) -> Optional[str]:
+        return self.owner_client.name if self.owner_client else None
+
+    @property
+    def owner_public_id(self) -> Optional[str]:
+        return self.owner_client.public_id if self.owner_client else None
 
 class RelicAccess(Base):
     """

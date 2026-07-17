@@ -1226,23 +1226,28 @@
 
                                         <td>
                                             {#if relic.client_id}
-                                                <div class="flex items-center gap-1 group/owner">
-                                                    <button
-                                                        on:click={() => viewClientRelics({ id: relic.client_id, public_id: relic.client_public_id })}
-                                                        class="text-xs font-mono text-gray-500 hover:text-gray-800 hover:underline"
-                                                        title="View client's relics"
-                                                    >
-                                                        {relic.client_public_id || 'anonymous'}
-                                                    </button>
-                                                    {#if relic.client_public_id}
-                                                        <button
-                                                            on:click|stopPropagation={() => copyToClipboard(relic.client_public_id, 'Owner ID copied!')}
-                                                            class="opacity-0 group-hover/owner:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
-                                                            title="Copy owner ID"
-                                                        >
-                                                            <i class="fas fa-copy text-[10px]"></i>
-                                                        </button>
+                                                <div class="flex flex-col">
+                                                    {#if relic.owner_name}
+                                                        <span class="text-xs font-semibold text-gray-700 leading-normal">{relic.owner_name}</span>
                                                     {/if}
+                                                    <div class="flex items-center gap-1 group/owner">
+                                                        <button
+                                                            on:click={() => viewClientRelics({ id: relic.client_id, public_id: relic.client_public_id })}
+                                                            class="text-[10px] font-mono text-gray-400 hover:text-gray-600 hover:underline leading-tight"
+                                                            title="View client's relics"
+                                                        >
+                                                            {relic.client_public_id || 'anonymous'}
+                                                        </button>
+                                                        {#if relic.client_public_id}
+                                                            <button
+                                                                on:click|stopPropagation={() => copyToClipboard(relic.client_public_id, 'Owner ID copied!')}
+                                                                class="opacity-0 group-hover/owner:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
+                                                                title="Copy owner ID"
+                                                            >
+                                                                <i class="fas fa-copy text-[10px]"></i>
+                                                            </button>
+                                                        {/if}
+                                                    </div>
                                                 </div>
                                             {:else}
                                                 <span class="text-gray-400 text-xs">anonymous</span>

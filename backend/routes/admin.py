@@ -116,6 +116,8 @@ async def admin_list_all_relics(
                 "name": r.name,
                 "client_id": r.client_id,
                 "client_public_id": r.owner_client.public_id if r.owner_client else None,
+                "owner_name": r.owner_name,
+                "owner_public_id": r.owner_public_id,
                 "content_type": r.content_type,
                 "size_bytes": r.size_bytes,
                 "access_level": r.access_level,
