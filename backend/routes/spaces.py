@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, or_, and_, case, select, delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, contains_eager
+from sqlalchemy.orm import selectinload, contains_eager, joinedload
 from datetime import datetime
 from typing import Optional, List
 
@@ -381,7 +381,7 @@ async def get_space_relics(
     if not await check_space_access(space, client_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
-    stmt = select(Relic).options(selectinload(Relic.tags)).join(
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).join(
         space_relics, Relic.id == space_relics.c.relic_id
     ).where(
         space_relics.c.space_id == space_id
@@ -443,6 +443,8 @@ async def get_space_relics(
             "comments_count": comments_counts.get(relic.id, 0),
             "forks_count": forks_counts.get(relic.id, 0),
             "can_edit": can_edit,
+            "owner_name": relic.owner_name,
+            "owner_public_id": relic.owner_public_id,
             "tags": [{"name": t.name, "id": t.id} for t in relic.tags]
         })
 

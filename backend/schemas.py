@@ -125,6 +125,8 @@ class RelicResponse(BaseModel):
     comments_count: int = 0
     forks_count: int = 0
     can_edit: bool = False
+    owner_name: Optional[str] = None
+    owner_public_id: Optional[str] = None
     tags: List[TagResponse] = []
 
     class Config:

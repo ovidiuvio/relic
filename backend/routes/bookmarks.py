@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime
 from typing import Optional
 
@@ -166,7 +166,10 @@ async def get_client_bookmarks(
 
     stmt = select(ClientBookmark, Relic).join(
         Relic, ClientBookmark.relic_id == Relic.id
-    ).options(selectinload(Relic.tags)).where(
+    ).options(
+        selectinload(Relic.tags),
+        joinedload(Relic.owner_client)
+    ).where(
         ClientBookmark.client_id == client.id
     )
 
@@ -228,6 +231,8 @@ async def get_client_bookmarks(
                 "forks_count": forks_counts.get(relic.id, 0),
                 "bookmark_id": bookmark.id,
                 "bookmarked_at": bookmark.created_at,
+                "owner_name": relic.owner_name,
+                "owner_public_id": relic.owner_public_id,
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
             }
             for bookmark, relic in rows

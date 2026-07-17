@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime
 from typing import Optional
 import secrets
@@ -96,7 +96,7 @@ async def get_client_relics(
     if not client:
         raise HTTPException(status_code=401, detail="Valid client key required")
 
-    stmt = select(Relic).options(selectinload(Relic.tags)).where(
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(
         Relic.client_id == client.id
     )
 
@@ -166,6 +166,8 @@ async def get_client_relics(
                 "bookmark_count": relic.bookmark_count,
                 "comments_count": comments_counts.get(relic.id, 0),
                 "forks_count": forks_counts.get(relic.id, 0),
+                "owner_name": relic.owner_name,
+                "owner_public_id": relic.owner_public_id,
                 "tags": [{"id": t.id, "name": t.name} for t in relic.tags]
             }
             for relic in relics

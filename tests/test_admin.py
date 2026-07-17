@@ -555,21 +555,22 @@ def test_admin_run_job_not_found(http):
 
 @pytest.mark.integration
 def test_admin_run_job_conflict(http):
-    import concurrent.futures
+    import asyncio
+    import httpx
 
-    def trigger():
-        return http.post("/api/v1/admin/jobs/relic_cleanup/run", headers=ADMIN_HEADERS)
+    async def run_requests():
+        # Use AsyncClient to dispatch all requests concurrently on the event loop
+        async with httpx.AsyncClient(base_url=http.base_url, headers=ADMIN_HEADERS) as client:
+            tasks = [
+                client.post("/api/v1/admin/jobs/relic_cleanup/run")
+                for _ in range(30)
+            ]
+            return await asyncio.gather(*tasks)
 
-    # We send multiple requests simultaneously to try and cause a 409 conflict.
-    # relic_cleanup does a DB query, which is async and should take enough time
-    # for the second request to hit the endpoint before the first finishes.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(trigger) for _ in range(4)]
-        responses = [f.result() for f in futures]
-
+    responses = asyncio.run(run_requests())
     status_codes = [r.status_code for r in responses]
     
-    # At least one should be 409 if the job takes any time at all
+    # Verify that the concurrency lock works: at least one should get 409, and at least one should get 200.
     assert 409 in status_codes
     assert 200 in status_codes
 

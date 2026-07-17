@@ -315,17 +315,26 @@
                   </div>
                 </div>
 
-                {#if relic.tags && relic.tags.length > 0}
-                  <div class="flex items-center flex-wrap gap-1 mt-1">
-                    {#each relic.tags as tag}
-                      <button
-                        on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
-                        class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-[#666] hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
-                      >
-                        <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
-                        {typeof tag === 'string' ? tag : tag.name}
-                      </button>
-                    {/each}
+                {#if relic.owner_name || (relic.tags && relic.tags.length > 0)}
+                  <div class="flex items-center flex-wrap gap-1.5 mt-1 leading-tight">
+                    {#if relic.owner_name}
+                      <span class="text-[11px] text-gray-400 flex items-center gap-1 mr-1" title="Owner">
+                        <i class="fas fa-user text-[9px] opacity-60"></i>
+                        <span>{relic.owner_name}</span>
+                      </span>
+                    {/if}
+
+                    {#if relic.tags && relic.tags.length > 0}
+                      {#each relic.tags as tag}
+                        <button
+                          on:click|stopPropagation={() => dispatch('tag-click', typeof tag === 'string' ? tag : tag.name)}
+                          class="inline-flex items-center px-[6px] py-[2px] rounded text-[10px] font-medium bg-gray-100 text-[#666] hover:bg-gray-200 transition-colors border border-gray-200 leading-[10px]"
+                        >
+                          <i class="fas fa-tag mr-1 text-[10px] opacity-60"></i>
+                          {typeof tag === 'string' ? tag : tag.name}
+                        </button>
+                      {/each}
+                    {/if}
                   </div>
                 {/if}
               </td>
