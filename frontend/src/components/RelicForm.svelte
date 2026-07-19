@@ -2,7 +2,6 @@
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
   import Select from "svelte-select";
-  import JSZip from "jszip";
   import {
     getContentType,
     getFileExtension,
@@ -289,6 +288,7 @@
         if (uploadedFiles.length > 1 && zipMultiple) {
           // Auto-zip logic
           try {
+            const { default: JSZip } = await import("jszip");
             const zip = new JSZip();
             uploadedFiles.forEach(({ file, path }) => {
               // Use the preserved path if available, otherwise just filename

@@ -71,13 +71,13 @@ export async function processContent(content, contentType, languageHint) {
     case 'diff':
       return processDiff(content)
     case 'code':
-      return processCode(content, contentType, languageHint)
+      return await processCode(content, contentType, languageHint)
     case 'text':
       return processText(content)
     default:
       // Fallback for unknown types that might still be code
       if (isCodeType(contentType)) {
-        return processCode(content, contentType, languageHint)
+        return await processCode(content, contentType, languageHint)
       }
       return {
         type: 'unknown',

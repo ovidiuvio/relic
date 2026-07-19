@@ -3,9 +3,6 @@
  * Handles file listing extraction and individual file extraction
  */
 
-import JSZip from 'jszip'
-import untar from 'js-untar'
-import { gunzipSync } from 'fflate'
 import { detectLanguageHint, getSyntaxFromExtension, getContentType } from '../typeUtils.js'
 import { formatBytes } from '../utils/formatting'
 
@@ -113,6 +110,7 @@ function getContentTypeFromPath(path) {
  * Process ZIP archive
  */
 async function processZip(content) {
+  const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(content)
   const files = []
 
@@ -178,6 +176,11 @@ async function processZip(content) {
  */
 async function processTar(content, isGzipped = false) {
   try {
+    const [{ default: untar }, { gunzipSync }] = await Promise.all([
+      import('js-untar'),
+      import('fflate')
+    ]);
+
     let data = content
 
     // Decompress gzip if needed

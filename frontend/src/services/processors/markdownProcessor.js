@@ -11,11 +11,19 @@ import remarkRehype from 'remark-rehype'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
-import hljs from 'highlight.js'
 import { decodeContent } from './utils/contentUtils'
 
 // Import a light theme CSS for highlight.js
 import 'highlight.js/styles/github.css'
+
+let _hljs = null;
+
+async function ensureHljs() {
+  if (!_hljs) {
+    _hljs = (await import('highlight.js')).default;
+  }
+  return _hljs;
+}
 
 /**
  * Create the unified processing pipeline
@@ -157,15 +165,17 @@ export async function processMarkdown(content) {
 /**
  * Get supported languages for code highlighting
  */
-export function getSupportedLanguages() {
-  return hljs.listLanguages().sort()
+export async function getSupportedLanguages() {
+  const h = await ensureHljs();
+  return h.listLanguages().sort()
 }
 
 /**
  * Check if a language is supported for highlighting
  */
-export function isLanguageSupported(lang) {
-  return hljs.getLanguage(lang) !== undefined
+export async function isLanguageSupported(lang) {
+  const h = await ensureHljs();
+  return h.getLanguage(lang) !== undefined
 }
 
 export default {

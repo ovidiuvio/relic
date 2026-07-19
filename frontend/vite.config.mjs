@@ -12,6 +12,17 @@ export default defineConfig({
   optimizeDeps: {
     include: ['pdfjs-dist']
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/monaco-editor')) return 'monaco';
+          if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs';
+          if (id.includes('node_modules/highlight.js')) return 'highlight';
+        }
+      }
+    }
+  },
   server: {
     middlewares: [
       {

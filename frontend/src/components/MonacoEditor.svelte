@@ -1,6 +1,5 @@
 <script>
   import { onMount, createEventDispatcher, mount } from 'svelte';
-  import * as monaco from 'monaco-editor';
   import {
     parseLineNumberFragment,
     getCurrentLineNumberFragment,
@@ -13,6 +12,18 @@
   import CommentEditor from './CommentEditor.svelte';
   import { processMarkdown } from '../services/processors/markdownProcessor';
   import { userPublicId } from '../stores/userStore';
+
+  // Set up Monaco's worker environment early — must be set before monaco-editor is loaded
+  self.MonacoEnvironment = {
+    getWorker: () => {
+      return {
+        postMessage: () => {},
+        terminate: () => {}
+      }
+    }
+  };
+
+  let monaco = null;
 
   export let value = ''
   export let language = 'plaintext'
@@ -66,15 +77,7 @@
 
     if (!container) return
 
-    // Use Monaco's built-in tokenization which doesn't require workers
-    self.MonacoEnvironment = {
-      getWorker: () => {
-        return {
-          postMessage: () => {},
-          terminate: () => {}
-        }
-      }
-    }
+    monaco = await import('monaco-editor');
 
     try {
       // Define relic theme

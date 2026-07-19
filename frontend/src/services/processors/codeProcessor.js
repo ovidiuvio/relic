@@ -1,12 +1,20 @@
-import hljs from 'highlight.js'
 import { detectLanguageHint } from '../typeUtils.js'
 import { decodeContent, getTextMetadata } from './utils/contentUtils'
 import { parseAnsiCodes, containsAnsiCodes } from './utils/ansiUtils'
 
+let hljs = null;
+
+async function ensureHljs() {
+  if (!hljs) {
+    hljs = (await import('highlight.js')).default;
+  }
+  return hljs;
+}
+
 /**
  * Detect programming language from content
  */
-export function detectLanguage(content, contentType, languageHint) {
+export async function detectLanguage(content, contentType, languageHint) {
     if (languageHint && languageHint !== 'auto') {
         return languageHint
     }
@@ -19,7 +27,8 @@ export function detectLanguage(content, contentType, languageHint) {
 
     // Try to auto-detect based on content
     try {
-        const result = hljs.highlightAuto(content.slice(0, 1000))
+        const h = await ensureHljs();
+        const result = h.highlightAuto(content.slice(0, 1000))
         return result.language || 'plaintext'
     } catch (e) {
         return 'plaintext'
@@ -29,22 +38,23 @@ export function detectLanguage(content, contentType, languageHint) {
 /**
  * Highlight code with syntax highlighting
  */
-export function highlightCode(content, language) {
+export async function highlightCode(content, language) {
     try {
-        const highlighted = hljs.highlight(content, { language, ignoreIllegals: true })
+        const h = await ensureHljs();
+        const highlighted = h.highlight(content, { language, ignoreIllegals: true })
         return highlighted.value
     } catch (e) {
-        // Fallback to plain text if highlighting fails
-        return hljs.highlight(content, { language: 'plaintext' }).value
+        const h = await ensureHljs();
+        return h.highlight(content, { language: 'plaintext' }).value
     }
 }
 
 /**
  * Process code content with syntax highlighting
  */
-export function processCode(content, contentType, languageHint) {
+export async function processCode(content, contentType, languageHint) {
     const text = decodeContent(content)
-    const language = detectLanguage(text, contentType, languageHint)
+    const language = await detectLanguage(text, contentType, languageHint)
     const metadata = getTextMetadata(text)
 
     // Check for ANSI codes even in code files
@@ -53,7 +63,7 @@ export function processCode(content, contentType, languageHint) {
         return {
             type: 'code',
             preview: cleanText,
-            highlighted: highlightCode(cleanText, language),
+            highlighted: await highlightCode(cleanText, language),
             ansiDecorations: decorations,
             hasAnsiCodes: true,
             metadata: {
@@ -67,7 +77,7 @@ export function processCode(content, contentType, languageHint) {
     return {
         type: 'code',
         preview: text,
-        highlighted: highlightCode(text, language),
+        highlighted: await highlightCode(text, language),
         hasAnsiCodes: false,
         metadata: {
             ...metadata,
