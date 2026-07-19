@@ -4,6 +4,19 @@ A modern, feature-rich artifact service with immutable relics, complete version 
 
 ![Relic Overview](assets/newrelic.png)
 
+## Quick Start
+
+```bash
+curl -O https://raw.githubusercontent.com/ovidiuvio/relic/main/deploy/docker-compose.yml
+docker compose up -d
+```
+
+Open **http://localhost**. No cloning, no building, no `.env` required.
+
+- Pin a version: `RELIC_VERSION=v0.6.1 docker compose up -d` (default `latest`)
+- Update: `docker compose pull && docker compose up -d`
+- Details: [`deploy/README.md`](deploy/README.md) · Building from source: [Development Setup](#development-setup)
+
 ## Overview
 
 Relic is a self-hosted pastebin and artifact storage system designed for developers. It goes beyond simple text storage by supporting binary files, archives, images, and providing rich previews for various content types. With a focus on immutability and versioning, Relic ensures your shared snippets and files are safe, trackable, and easy to manage.
@@ -98,15 +111,15 @@ relic --space <space_id> script.py
 relic spaces create "My Cool Space" --visibility public
 ```
 
-## Quick Start
+## Build From Source
 
 ### Prerequisites
 - Docker and Docker Compose
 - Make (optional, but recommended)
 
-### Production Deployment (Recommended)
+### Production Deployment
 
-For production/release deployments, use the default configuration:
+Building images from source instead of pulling from `deploy/` (see [Quick Start](#quick-start)):
 
 1. **Start production services**
 ```bash
@@ -130,6 +143,11 @@ make logs
 4. **Stop services**
 ```bash
 make down
+```
+
+**Optional: S3 bucket sync.** Not started by default. To enable periodic backups of MinIO to an external S3-compatible destination, fill in the `S3_SYNC_*` variables in `.env` and add the extra compose file:
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.s3-sync.yml up -d --build
 ```
 
 ### Development Setup
