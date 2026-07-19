@@ -5,10 +5,11 @@ set -e
 # Format: postgresql://relic_user:relic_password@postgres:5432/relic_db
 DB_HOST=$(echo $DATABASE_URL | sed -e 's|.*@||' -e 's|:.*||' -e 's|/.*||')
 DB_USER=$(echo $DATABASE_URL | sed -e 's|.*//||' -e 's|:.*@||')
+DB_NAME=$(echo $DATABASE_URL | sed -e 's|.*/||')
 
 if [ "$DB_HOST" != "" ] && [ "$DB_HOST" != "$DATABASE_URL" ]; then
     echo "Waiting for database at $DB_HOST..."
-    until pg_isready -h "$DB_HOST" -U "$DB_USER"; do
+    until pg_isready -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME"; do
       echo "Postgres is unavailable - sleeping"
       sleep 1
     done
