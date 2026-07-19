@@ -162,6 +162,10 @@
   }
 
   onMount(async () => {
+    // Kick off excalidraw first — it must not wait on the markdown-it fetch.
+    if (isExcalidraw && editorContent) {
+      loadExcalidraw();
+    }
     const { default: MarkdownIt } = await import("markdown-it");
     _md = new MarkdownIt({
       html: true,
@@ -169,9 +173,6 @@
       breaks: true,
       typographer: true,
     });
-    if (isExcalidraw && editorContent) {
-      loadExcalidraw();
-    }
   });
 
   onDestroy(() => {
@@ -182,9 +183,11 @@
     excalidrawAPI = null;
   });
 
-  function renderMarkdown(text) {
+  // `md` is passed in from the template rather than read off the closure so that
+  // Svelte tracks it as a dependency and re-renders once the lazy import resolves.
+  function renderMarkdown(text, md) {
     try {
-      return _md ? _md.render(text || "") : "";
+      return md ? md.render(text || "") : "";
     } catch (error) {
       console.error("Markdown rendering error:", error);
       return '<p class="text-red-600">Error rendering markdown</p>';
@@ -379,7 +382,7 @@
     <div class="flex-1 border-t border-gray-200 overflow-hidden">
       {#if showPreview && forkLanguage === "markdown"}
         <div class="h-full overflow-y-auto p-6 prose prose-sm max-w-none" on:wheel|stopPropagation>
-          {@html renderMarkdown(editorContent)}
+          {@html renderMarkdown(editorContent, _md)}
         </div>
       {:else if showPreview && forkLanguage === "html"}
         <div class="h-full overflow-hidden" on:wheel|stopPropagation>

@@ -10,19 +10,21 @@ export default defineConfig({
     'process.env': {}
   },
   optimizeDeps: {
-    include: ['pdfjs-dist']
+    // monaco-editor is imported only dynamically (MonacoEditor.svelte), and Vite's
+    // startup scanner does not discover it. Without this it gets optimized on demand
+    // the first time an editor opens, which costs a ~20s prebundle of its 961 ESM
+    // modules AND a forced full page reload ("optimized dependencies changed").
+    // The dev container keeps node_modules in an anonymous volume, so that recurs
+    // after every dev-down/dev-up. Listing it here prebundles it at server start.
+    include: ['pdfjs-dist', 'monaco-editor']
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/monaco-editor')) return 'monaco';
-          if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs';
-          if (id.includes('node_modules/highlight.js')) return 'highlight';
-        }
-      }
-    }
-  },
+  // No manualChunks here, deliberately. Vite 8 is rolldown-based, where
+  // rollupOptions.output.manualChunks is a compat path: with rules for
+  // monaco/pdfjs/highlight, rolldown placed the shared __vitePreload helper inside
+  // the monaco chunk. The entry needs that helper for every lazy route import, so it
+  // gained a static edge to the monaco chunk and Vite modulepreloaded all 3.7 MB of
+  // it on first paint (initial payload 4,010 kB vs 234 kB without). The dynamic
+  // import()s in routes.js and the processors already split these out on their own.
   server: {
     middlewares: [
       {

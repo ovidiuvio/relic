@@ -103,11 +103,29 @@
 
     document.addEventListener("click", handleDocumentClick);
 
-    // Listen for popstate to handle browser back/forward
-    window.addEventListener("popstate", updateRouting);
+    // Warm the monaco chunk once the app is idle. Nearly every route ends up
+    // rendering an editor (the "/" form included), so this trades a little
+    // background bandwidth for a ready editor. Deliberately NOT a static import or
+    // modulepreload — those compete with first paint, which is what we just fixed.
+    const conn = navigator.connection;
+    if (!conn?.saveData && !/2g/.test(conn?.effectiveType || "")) {
+      // Warm monaco itself, not just the wrapper component — the ~3.2 MB lives
+      // behind MonacoEditor.svelte's own dynamic import of "monaco-editor".
+      const warm = () =>
+        Promise.all([
+          import("./components/MonacoEditor.svelte"),
+          import("monaco-editor"),
+        ]).catch(() => {});
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(warm, { timeout: 3000 });
+      } else {
+        setTimeout(warm, 1500);
+      }
+    }
 
     // Listen for popstate to handle browser back/forward
     window.addEventListener("popstate", updateRouting);
+
     return () => {
       window.removeEventListener("popstate", updateRouting);
       document.removeEventListener("click", handleDocumentClick);
@@ -200,9 +218,6 @@
     }
   }
 </script>
-
-<svelte:head>
-</svelte:head>
 
 <div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
   <!-- Header with Navigation -->
@@ -379,7 +394,14 @@
         : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
     >
       {#if routeLoader}
-        {#await routeLoader() then { default: Component }}
+        {#await routeLoader()}
+          <div class="flex items-center justify-center py-12 text-gray-500">
+            <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        {:then { default: Component }}
           <svelte:component
             this={Component}
             {...routeProps}
@@ -393,6 +415,18 @@
               }
             }}
           />
+        {:catch error}
+          <!-- Usually a stale chunk hash after a deploy; a reload fetches the new manifest. -->
+          <div class="text-center py-12">
+            <p class="text-gray-700 font-medium">Failed to load this page.</p>
+            <p class="text-sm text-gray-500 mt-1">{error.message}</p>
+            <button
+              on:click={() => window.location.reload()}
+              class="mt-4 px-4 py-2 bg-[#772953] text-white rounded hover:bg-[#5e1f42] transition-colors"
+            >
+              Reload
+            </button>
+          </div>
         {/await}
       {/if}
     </div>

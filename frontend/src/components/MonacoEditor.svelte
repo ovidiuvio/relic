@@ -1235,6 +1235,17 @@
     </div>
   {/if}
 
+  <!-- The container must stay mounted for monaco to attach to, so overlay rather
+       than swap it out while the editor chunk is still downloading. -->
+  {#if !editor}
+    <div class="monaco-loading {isDarkMode ? 'relic-dark-mode' : ''}">
+      <svg class="animate-spin h-5 w-5 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    </div>
+  {/if}
+
   {#if placeholder && !value && !isFocused}
     <div 
       class="monaco-placeholder" 
@@ -1250,6 +1261,20 @@
   .monaco-wrapper-outer {
     position: relative;
     width: 100%;
+  }
+
+  .monaco-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    pointer-events: none;
+  }
+
+  .monaco-loading.relic-dark-mode {
+    color: #858585;
   }
 
   .monaco-placeholder {
