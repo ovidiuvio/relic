@@ -15,6 +15,8 @@ from backend.schemas import (
 )
 from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
+from backend.runtime_settings import get_settings
+from backend.limits import assert_feature_enabled
 
 router = APIRouter(prefix="/api/v1/spaces")
 
@@ -26,6 +28,8 @@ async def create_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new space."""
+    assert_feature_enabled(await get_settings(), "allow_spaces", "Spaces")
+
     user = await get_current_user(request, db)
     if not user:
         if request.headers.get("X-User-Key"):

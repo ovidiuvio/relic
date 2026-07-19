@@ -1,5 +1,6 @@
 """Admin endpoints."""
 import logging
+import re
 from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import Response
 
@@ -11,11 +12,17 @@ from typing import Optional
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, User, UserBookmark, RelicReport, Comment, Tag, Space
+from backend.models import Relic, User, UserBookmark, RelicReport, Comment, Tag, Space, SiteSetting
 from backend.schemas import AdminGrant
 from backend.storage import storage_service
 from backend.dependencies import get_current_user, get_admin_user, is_admin_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
+from backend.limits import get_usage_for_users, resolve_user_quotas
+from backend.runtime_settings import apply_preset, get_settings, reset_settings, set_settings
+from backend.settings_registry import (
+    PRESETS, QUOTA_OVERRIDE_COLUMNS, SECTIONS, SettingError,
+    coerce_and_validate, schema_for_api
+)
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -187,18 +194,13 @@ async def admin_list_users(
     users_result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
     users = users_result.scalars().all()
 
-    # Compute actual relic counts from Relic table (cached counter can drift)
+    # Compute actual usage from the Relic table (the cached counter can drift).
+    # One grouped query for the whole page, not one per row.
     user_ids = [u.id for u in users]
-    actual_relic_counts = {}
-    if user_ids:
-        rc_result = await db.execute(
-            select(Relic.user_id, func.count(Relic.id))
-            .where(Relic.user_id.in_(user_ids))
-            .group_by(Relic.user_id)
-        )
-        actual_relic_counts = dict(rc_result.all())
+    usage_by_user = await get_usage_for_users(db, user_ids)
 
     admin_ids = settings.get_admin_user_ids()
+    config = await get_settings()
 
     return {
         "total": total,
@@ -210,7 +212,15 @@ async def admin_list_users(
                 "public_id": u.public_id,
                 "name": u.name,
                 "created_at": u.created_at,
-                "relic_count": actual_relic_counts.get(u.id, 0),
+                "relic_count": usage_by_user[u.id]["relic_count"],
+                "storage_bytes": usage_by_user[u.id]["storage_bytes"],
+                "relics_today": usage_by_user[u.id]["relics_today"],
+                # Effective quotas, plus the raw overrides so the UI can tell
+                # "inherited from default" apart from "set explicitly for this user"
+                "quotas": resolve_user_quotas(u, config),
+                "quota_overrides": {
+                    column: getattr(u, column) for column in QUOTA_OVERRIDE_COLUMNS
+                },
                 "is_admin": bool(u.is_admin) or u.id in admin_ids,
                 "is_super_admin": u.id in admin_ids
             }
@@ -480,6 +490,30 @@ async def admin_revoke_admin(
     return {"message": f"User {user_id} admin privileges revoked", "is_admin": False}
 
 
+def _mask_secret(value: Optional[str]) -> Optional[str]:
+    """Redact a credential, keeping enough to tell configurations apart.
+
+    The admin config view is read by anyone with an admin key; there is no
+    reason for it to hand back the S3 secret verbatim.
+    """
+    if not value:
+        return value
+    if len(value) <= 8:
+        return "********"
+    return f"{value[:4]}{'*' * 8}{value[-2:]}"
+
+
+def _mask_url_password(url: Optional[str]) -> Optional[str]:
+    """Redact only the password in a connection URL.
+
+    Host, port, database, and user stay visible — those are what an admin
+    actually needs to confirm which deployment they are looking at.
+    """
+    if not url:
+        return url
+    return re.sub(r"(?<=://)([^:/@]+):([^@]+)(?=@)", r"\1:********", url)
+
+
 @router.get("/config", response_model=dict)
 async def admin_get_config(
     request: Request,
@@ -499,18 +533,21 @@ async def admin_get_config(
             "DEBUG": settings.DEBUG
         },
         "database": {
-            "DATABASE_URL": settings.DATABASE_URL
+            "DATABASE_URL": _mask_url_password(settings.DATABASE_URL)
         },
         "storage": {
             "S3_ENDPOINT_URL": settings.S3_ENDPOINT_URL,
             "S3_ACCESS_KEY": settings.S3_ACCESS_KEY,
-            "S3_SECRET_KEY": settings.S3_SECRET_KEY,
+            "S3_SECRET_KEY": _mask_secret(settings.S3_SECRET_KEY),
             "S3_BUCKET_NAME": settings.S3_BUCKET_NAME,
             "S3_REGION": settings.S3_REGION
         },
         "upload": {
             "MAX_UPLOAD_SIZE": settings.MAX_UPLOAD_SIZE,
             "MAX_UPLOAD_SIZE_MB": settings.MAX_UPLOAD_SIZE / 1024 / 1024
+        },
+        "profiling": {
+            "PROFILING_ENABLED": settings.PROFILING_ENABLED
         },
         "backup": {
             "BACKUP_ENABLED": settings.BACKUP_ENABLED,
@@ -523,11 +560,146 @@ async def admin_get_config(
             "BACKUP_ON_SHUTDOWN": settings.BACKUP_ON_SHUTDOWN
         },
         "admin": {
-            "ADMIN_USER_IDS": settings.get_admin_user_ids()
+            "ADMIN_USER_IDS": settings.get_admin_user_ids(),
+            "RELIC_CLEANUP_INTERVAL": settings.RELIC_CLEANUP_INTERVAL
         },
         "cors": {
             "ALLOWED_ORIGINS": settings.get_allowed_origins()
         }
+    }
+
+
+@router.get("/settings", response_model=dict)
+async def admin_get_settings(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Get runtime settings: the registry schema plus effective values.
+
+    Requires admin privileges.
+    """
+    await get_admin_user(request, db)
+
+    config = await get_settings()
+    overridden = {row.key for row in (await db.execute(select(SiteSetting))).scalars().all()}
+
+    sections = schema_for_api()
+    for section in sections:
+        for definition in section["settings"]:
+            definition["value"] = config[definition["key"]]
+            definition["overridden"] = definition["key"] in overridden
+
+    return {"sections": sections, "presets": sorted(PRESETS.keys())}
+
+
+@router.put("/settings", response_model=dict)
+async def admin_update_settings(
+    updates: dict,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Update runtime settings. Takes effect without a restart.
+
+    Requires admin privileges.
+    """
+    admin = await get_admin_user(request, db)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No settings provided")
+
+    try:
+        applied = await set_settings(db, updates, updated_by=admin.id)
+    except SettingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"message": f"Updated {len(applied)} setting(s)", "settings": applied}
+
+
+@router.post("/settings/reset", response_model=dict)
+async def admin_reset_settings(
+    request: Request,
+    section: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Clear setting overrides so they fall back to built-in defaults.
+
+    Requires admin privileges.
+    """
+    await get_admin_user(request, db)
+
+    if section and section not in {key for key, _ in SECTIONS}:
+        raise HTTPException(status_code=400, detail=f"Unknown section: {section}")
+
+    removed = await reset_settings(db, section)
+    return {"message": f"Reset {removed} setting(s) to defaults", "reset": removed}
+
+
+@router.post("/settings/preset/{name}", response_model=dict)
+async def admin_apply_preset(
+    name: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Apply a named settings preset, replacing all existing overrides.
+
+    Requires admin privileges.
+    """
+    admin = await get_admin_user(request, db)
+
+    try:
+        applied = await apply_preset(db, name, updated_by=admin.id)
+    except SettingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"message": f"Applied preset '{name}'", "settings": applied}
+
+
+@router.put("/users/{user_id}/quotas", response_model=dict)
+async def admin_set_user_quotas(
+    user_id: str,
+    quotas: dict,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    [ADMIN] Set per-user quota overrides.
+
+    A null value clears the override so the user inherits the global default,
+    which is distinct from 0 (unlimited). Requires admin privileges.
+    """
+    await get_admin_user(request, db)
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    unknown = set(quotas) - set(QUOTA_OVERRIDE_COLUMNS)
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown quota field(s): {', '.join(sorted(unknown))}")
+
+    for column, setting_key in QUOTA_OVERRIDE_COLUMNS.items():
+        if column not in quotas:
+            continue
+        value = quotas[column]
+        if value is None:
+            setattr(user, column, None)
+            continue
+        try:
+            # Validated against the same bounds as the global setting it overrides
+            setattr(user, column, coerce_and_validate(setting_key, value))
+        except SettingError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    await db.commit()
+
+    return {
+        "message": "Quotas updated",
+        "quotas": {column: getattr(user, column) for column in QUOTA_OVERRIDE_COLUMNS},
     }
 
 

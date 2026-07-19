@@ -20,6 +20,11 @@ from backend.dependencies import (
     get_current_user, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
 )
+from backend.runtime_settings import get_settings
+from backend.limits import (
+    assert_can_create_relic, assert_feature_enabled, assert_length,
+    assert_tags_allowed, raw_disposition, resolve_expiry
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +48,7 @@ async def _create_relic_record(
     space_id: Optional[str],
 ) -> dict:
     """Create the relic DB record after content is already in storage. Commits."""
-    expires_at = parse_expiry_string(expires_in)
+    expires_at = resolve_expiry(expires_in, await get_settings())
     tag_objects = await process_tags(db, tags) if tags else []
 
     relic = Relic(
@@ -123,21 +128,30 @@ async def create_relic(
     if not user and request.headers.get("X-User-Key"):
         raise HTTPException(status_code=401, detail="Invalid user key")
 
+    config = await get_settings()
+    if not user:
+        assert_feature_enabled(config, "allow_anonymous_writes", "Anonymous relic creation")
+
     if not file:
         raise HTTPException(status_code=400, detail="No content provided")
 
-    # Reject oversized uploads before touching the body when the client declares a length
-    declared_length = request.headers.get("content-length")
-    if declared_length and declared_length.isdigit() and int(declared_length) > settings.MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File too large")
+    if not content_type:
+        content_type = file.content_type or "application/octet-stream"
+    if not name:
+        name = file.filename
+
+    assert_length(name, config["max_name_length"], "Name")
+    assert_tags_allowed(tags, config)
+    # Returns the smaller of the upload limit and the user's remaining storage quota
+    max_size = await assert_can_create_relic(db, user, config, content_type)
+
+    # No Content-Length pre-check here: on the multipart path the declared length
+    # covers the whole envelope (boundary + part headers), not just the file, so
+    # comparing it against a byte limit rejects files that actually fit. The
+    # authoritative check is in upload_stream, which aborts mid-stream.
 
     s3_key = None
     try:
-        if not content_type:
-            content_type = file.content_type or "application/octet-stream"
-        if not name:
-            name = file.filename
-
         # Generate unique relic ID with collision handling
         relic_id = await generate_unique_relic_id(db)
 
@@ -145,7 +159,7 @@ async def create_relic(
         # size limit is enforced as bytes flow through
         s3_key = f"relics/{relic_id}"
         size_bytes = await storage_service.upload_stream(
-            s3_key, file.read, content_type, max_size=settings.MAX_UPLOAD_SIZE
+            s3_key, file.read, content_type, max_size=max_size
         )
 
         return await _create_relic_record(
@@ -205,13 +219,22 @@ async def create_relic_raw(
     if not user and request.headers.get("X-User-Key"):
         raise HTTPException(status_code=401, detail="Invalid user key")
 
-    # Reject oversized uploads before touching the body when the client declares a length
-    declared_length = request.headers.get("content-length")
-    if declared_length and declared_length.isdigit() and int(declared_length) > settings.MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File too large")
+    config = await get_settings()
+    if not user:
+        assert_feature_enabled(config, "allow_anonymous_writes", "Anonymous relic creation")
 
     if not content_type:
         content_type = request.headers.get("content-type") or "application/octet-stream"
+
+    assert_length(name, config["max_name_length"], "Name")
+    assert_tags_allowed(tag_list, config)
+    # Returns the smaller of the upload limit and the user's remaining storage quota
+    max_size = await assert_can_create_relic(db, user, config, content_type)
+
+    # Reject oversized uploads before touching the body when the client declares a length
+    declared_length = request.headers.get("content-length")
+    if declared_length and declared_length.isdigit() and max_size and int(declared_length) > max_size:
+        raise HTTPException(status_code=413, detail="File too large")
 
     # Adapt the request body stream to the read(n) interface of upload_stream
     body_iter = request.stream().__aiter__()
@@ -232,7 +255,7 @@ async def create_relic_raw(
         relic_id = await generate_unique_relic_id(db)
         s3_key = f"relics/{relic_id}"
         size_bytes = await storage_service.upload_stream(
-            s3_key, read, content_type, max_size=settings.MAX_UPLOAD_SIZE
+            s3_key, read, content_type, max_size=max_size
         )
         if size_bytes == 0:
             await storage_service.delete(s3_key)
@@ -351,6 +374,8 @@ async def get_relic_raw(relic_id: str, request: Request, password: Optional[str]
             if not user or user.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
 
+    config = await get_settings()
+
     try:
         body, content_length = await storage_service.stream(relic.s3_key)
         return StreamingResponse(
@@ -358,7 +383,8 @@ async def get_relic_raw(relic_id: str, request: Request, password: Optional[str]
             media_type=relic.content_type,
             headers={
                 "Content-Length": str(content_length),
-                "Content-Disposition": "inline; filename*=UTF-8''{filename}".format(
+                "Content-Disposition": "{disposition}; filename*=UTF-8''{filename}".format(
+                    disposition=raw_disposition(relic.content_type, config),
                     filename=urllib.parse.quote(relic.name or relic.id, safe="")
                 ),
             }
@@ -398,6 +424,13 @@ async def fork_relic(
     if not user and request.headers.get("X-User-Key"):
         raise HTTPException(status_code=401, detail="Invalid user key")
 
+    config = await get_settings()
+    assert_feature_enabled(config, "allow_forking", "Forking")
+    if not user:
+        assert_feature_enabled(config, "allow_anonymous_writes", "Anonymous forking")
+    assert_length(name, config["max_name_length"], "Name")
+    assert_tags_allowed(tags, config)
+
     result = await db.execute(
         select(Relic).options(
             selectinload(Relic.access_list),
@@ -427,6 +460,9 @@ async def fork_relic(
             if not user or user.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
 
+    fork_content_type = (file.content_type if file else None) or original.content_type
+    max_size = await assert_can_create_relic(db, user, config, fork_content_type)
+
     s3_key = None
     try:
         # Generate unique new ID with collision handling
@@ -437,18 +473,23 @@ async def fork_relic(
             # New content provided: stream it to storage
             content_type = file.content_type or original.content_type
             size_bytes = await storage_service.upload_stream(
-                s3_key, file.read, content_type, max_size=settings.MAX_UPLOAD_SIZE
+                s3_key, file.read, content_type, max_size=max_size
             )
         else:
-            # Same content: server-side S3 copy, no data flows through the app
+            # Same content: server-side S3 copy, no data flows through the app.
+            # Size is known up front, so check it before duplicating the object —
+            # otherwise one cheap request could copy an arbitrarily large file.
             content_type = original.content_type
             size_bytes = original.size_bytes or 0
+            if max_size and size_bytes > max_size:
+                raise HTTPException(
+                    status_code=413,
+                    detail="Fork would exceed the storage limit for this instance",
+                )
             await storage_service.copy(original.s3_key, s3_key, size_bytes, content_type)
 
-        # Calculate expiry date if provided
-        expires_at = None
-        if expires_in and expires_in != 'never':
-            expires_at = parse_expiry_string(expires_in)
+        # Calculate expiry date, applying the instance retention policy
+        expires_at = resolve_expiry(expires_in, config)
 
         # Process tags: use provided tags or copy from original
         if tags is not None:
@@ -509,7 +550,8 @@ async def fork_relic(
 @router.get("/api/v1/relics/{relic_id}/lineage")
 async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: AsyncSession = Depends(get_db)):
     """Get the fork lineage tree for a relic."""
-    max_nodes = min(max(max_nodes, 1), 5000)
+    config = await get_settings()
+    max_nodes = min(max(max_nodes, 1), config["max_lineage_nodes"])
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
     current = result.scalar_one_or_none()
     if not current:
@@ -591,6 +633,10 @@ async def update_relic(
     if not check_ownership_or_admin(relic, user):
         raise HTTPException(status_code=403, detail="Not authorized to edit this relic")
 
+    config = await get_settings()
+    assert_length(update.name, config["max_name_length"], "Name")
+    assert_tags_allowed(update.tags, config)
+
     if update.name is not None:
         relic.name = update.name
 
@@ -604,7 +650,7 @@ async def update_relic(
         relic.access_level = update.access_level
 
     if update.expires_in is not None:
-        relic.expires_at = parse_expiry_string(update.expires_in)
+        relic.expires_at = resolve_expiry(update.expires_in, config)
 
     if update.tags is not None:
         relic.tags = await process_tags(db, update.tags)

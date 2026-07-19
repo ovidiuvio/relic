@@ -35,40 +35,62 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 
-def parse_expiry_string(expires_in: Optional[str]) -> Optional[datetime]:
+EXPIRY_MULTIPLIERS = {
+    "m": 60,
+    "h": 3600,
+    "d": 86400,
+    "w": 604800,
+    "M": 2592000,  # 30 days
+    "y": 31536000  # 365 days
+}
+
+
+def parse_duration_seconds(duration: Optional[str]) -> Optional[int]:
+    """
+    Parse a duration string into seconds.
+
+    Args:
+        duration: "10m", "1h", "24h", "7d", "30d", "1y", "never", or None
+
+    Returns:
+        Seconds, or None for "never"/unparseable input
+    """
+    if not duration or duration == "never":
+        return None
+
+    try:
+        value = int(duration[:-1])
+        unit = duration[-1]
+        if unit not in EXPIRY_MULTIPLIERS:
+            return None
+        return value * EXPIRY_MULTIPLIERS[unit]
+    except (ValueError, KeyError):
+        return None
+
+
+def parse_expiry_string(expires_in: Optional[str], max_seconds: Optional[int] = None) -> Optional[datetime]:
     """
     Parse expiry string and return expiration datetime.
 
     Args:
         expires_in: "10m", "1h", "24h", "7d", "30d", "1y", or None
+        max_seconds: Optional ceiling; longer durations are clamped down to it,
+            and "never" becomes this far in the future
 
     Returns:
         Datetime object or None
     """
-    if not expires_in or expires_in == "never":
-        return None
+    seconds = parse_duration_seconds(expires_in)
 
-    now = datetime.utcnow()
-    multipliers = {
-        "m": 60,
-        "h": 3600,
-        "d": 86400,
-        "w": 604800,
-        "M": 2592000,  # 30 days
-        "y": 31536000  # 365 days
-    }
-
-    try:
-        value = int(expires_in[:-1])
-        unit = expires_in[-1]
-
-        if unit not in multipliers:
+    if seconds is None:
+        # "never", or input we could not parse — honour the ceiling if there is one.
+        if max_seconds is None:
             return None
+        seconds = max_seconds
+    elif max_seconds is not None:
+        seconds = min(seconds, max_seconds)
 
-        seconds = value * multipliers[unit]
-        return now + timedelta(seconds=seconds)
-    except (ValueError, KeyError):
-        return None
+    return datetime.utcnow() + timedelta(seconds=seconds)
 
 
 def is_expired(expires_at: Optional[datetime]) -> bool:
@@ -122,11 +144,15 @@ def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None):
     return sort_col.desc() if sort_order == "desc" else sort_col.asc()
 
 
-def clamp_limit(limit: int, default: int = 25) -> int:
-    """Clamp a pagination limit to [1, MAX_PAGE_LIMIT]."""
+def clamp_limit(limit: int, default: int = 25, max_limit: Optional[int] = None) -> int:
+    """Clamp a pagination limit to [1, max_limit].
+
+    max_limit defaults to MAX_PAGE_LIMIT; callers that have already resolved
+    runtime settings pass the configured max_page_limit instead.
+    """
     if limit < 1:
         return default
-    return min(limit, MAX_PAGE_LIMIT)
+    return min(limit, max_limit or MAX_PAGE_LIMIT)
 
 
 async def get_fork_counts(db: AsyncSession, relic_ids: List[str]) -> Dict[str, int]:

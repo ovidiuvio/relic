@@ -10,8 +10,12 @@ import secrets
 from backend.database import get_db
 from backend.models import Relic, User, Tag, Comment
 from backend.schemas import UserNameUpdate
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, is_admin_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order
+from backend.runtime_settings import get_settings
+from backend.limits import (
+    assert_feature_enabled, assert_length, get_user_usage, resolve_user_quotas, usage_report
+)
 
 router = APIRouter(prefix="/api/v1/user")
 
@@ -41,6 +45,11 @@ async def register_user(request: Request, db: AsyncSession = Depends(get_db)):
     # Check if user already exists
     result = await db.execute(select(User).where(User.id == x_user_key))
     existing_user = result.scalar_one_or_none()
+
+    # Only gate genuinely new registrations, so an existing user is never
+    # locked out of their own account by the switch being turned off.
+    if not existing_user:
+        assert_feature_enabled(await get_settings(), "allow_registration", "Registration")
     if existing_user:
         # Lazily generate public_id for existing users that don't have one
         if not existing_user.public_id:
@@ -186,7 +195,32 @@ async def update_user_name(
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
+    config = await get_settings()
+    assert_length(name_update.name, config["max_name_length"], "Name")
+
     user.name = name_update.name
     await db.commit()
 
     return {"status": "updated", "name": user.name}
+
+
+@router.get("/usage", response_model=dict)
+async def get_user_usage_report(request: Request, db: AsyncSession = Depends(get_db)):
+    """Return the current user's resource usage against their effective quotas.
+
+    Each dimension is reported as {used, limit, unlimited} so clients never
+    have to reimplement the rule that a limit of 0 means unlimited.
+    """
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    config = await get_settings()
+    usage = await get_user_usage(db, user.id)
+    quotas = resolve_user_quotas(user, config)
+
+    return {
+        "usage": usage_report(usage, quotas),
+        # Admins are exempt from quotas, so the UI can explain why nothing binds
+        "exempt": is_admin_user(user),
+    }

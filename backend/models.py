@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Text, Table, UniqueConstraint, text
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Index, JSON, Text, Table, UniqueConstraint, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
@@ -116,6 +116,11 @@ class Relic(Base):
     spaces = relationship("Space", secondary=space_relics, back_populates="relics", lazy="raise")
     access_list = relationship("RelicAccess", back_populates="relic", cascade="all, delete-orphan", lazy="raise")
 
+    # Serves the per-user usage and rolling-window quota queries in limits.py
+    __table_args__ = (
+        Index('ix_relic_user_id_created_at', 'user_id', 'created_at'),
+    )
+
     @property
     def owner_name(self) -> Optional[str]:
         return self.owner.name if self.owner else None
@@ -156,6 +161,12 @@ class User(Base):
     relic_count = Column(Integer, default=0)
     # Runtime-grantable admin flag (env ADMIN_USER_IDS are immutable super-admins on top of this)
     is_admin = Column(Boolean, nullable=False, server_default=text("false"), default=False, index=True)
+
+    # Per-user quota overrides. NULL means "inherit the global default" — distinct
+    # from 0, which means unlimited. Read via limits.resolve_user_quotas(), never directly.
+    quota_max_relics = Column(Integer, nullable=True)
+    quota_max_relics_per_day = Column(Integer, nullable=True)
+    quota_max_storage_bytes = Column(BigInteger, nullable=True)
 
     # Relationships
     relics = relationship("Relic", backref=backref("owner", lazy="raise"), lazy="raise")
@@ -222,3 +233,33 @@ class Comment(Base):
     relic = relationship("Relic", backref=backref("comments", passive_deletes=True, lazy="raise"), lazy="raise")
     user = relationship("User", backref="comments", lazy="raise")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id], lazy="raise"), cascade="all, delete-orphan", lazy="raise")
+
+
+class RateLimitCounter(Base):
+    """A fixed-window request counter, shared across worker processes.
+
+    The backend runs multiple gunicorn workers, so in-process counters would
+    let each worker grant the full limit independently. Rows are written only
+    while rate limiting is enabled, and expired ones are swept opportunistically.
+    """
+    __tablename__ = "rate_limit_counter"
+
+    # "{bucket}:{client}:{window_start}" — the window is part of the key, so a
+    # new window starts with a fresh row rather than needing a reset.
+    key = Column(String(200), primary_key=True)
+    count = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class SiteSetting(Base):
+    """A runtime-configurable setting that overrides its registry default.
+
+    Only overridden settings are stored. Absence of a row means the default
+    declared in settings_registry.py applies.
+    """
+    __tablename__ = "site_setting"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_by = Column(String(32), nullable=True)  # user id, not a FK: admins may be deleted

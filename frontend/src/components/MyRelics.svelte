@@ -8,6 +8,7 @@
   import EditRelicModal from './EditRelicModal.svelte';
   import RelicDropModal from './RelicDropModal.svelte'
   import ConfirmModal from './ConfirmModal.svelte';
+  import UsageIndicator from './UsageIndicator.svelte';
   import { getFilesFromDrop } from '../services/utils/fileProcessing';
 
   export let tagFilter = null
@@ -165,6 +166,7 @@
       <p class="text-blue-500 font-medium mt-2">Uploading to your collection</p>
     </div>
   {/if}
+  <UsageIndicator />
   <RelicTable
     data={relics}
     {loading}

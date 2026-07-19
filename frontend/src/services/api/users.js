@@ -8,6 +8,10 @@ export async function updateUserName(name) {
     return api.put('/user/name', { name })
 }
 
+export async function getUserUsage() {
+    return api.get('/user/usage')
+}
+
 export async function registerUser() {
     try {
         const response = await api.post('/user/register', {})

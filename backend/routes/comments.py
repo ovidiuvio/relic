@@ -9,6 +9,8 @@ from backend.models import Relic, User, Comment
 from backend.schemas import CommentCreate, CommentResponse, CommentUpdate
 from backend.dependencies import get_current_user, is_admin_user
 from backend.utils import clamp_limit
+from backend.runtime_settings import get_settings
+from backend.limits import assert_can_comment, assert_feature_enabled, assert_length
 
 router = APIRouter(prefix="/api/v1/relics")
 
@@ -21,6 +23,9 @@ async def create_comment(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a comment on a relic."""
+    config = await get_settings()
+    assert_feature_enabled(config, "allow_comments", "Commenting")
+
     # Verify relic exists
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
     relic = result.scalar_one_or_none()
@@ -34,6 +39,9 @@ async def create_comment(
 
     if not user.name:
         raise HTTPException(status_code=400, detail="You must set a display name in your profile to comment")
+
+    assert_length(comment.content, config["max_comment_length"], "Comment")
+    await assert_can_comment(db, user, config)
 
     user_id = user.id
 
@@ -120,6 +128,9 @@ async def update_comment(
     # Check ownership
     if comment.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to edit this comment")
+
+    config = await get_settings()
+    assert_length(comment_update.content, config["max_comment_length"], "Comment")
 
     comment.content = comment_update.content
     await db.commit()

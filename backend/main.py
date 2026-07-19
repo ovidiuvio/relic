@@ -8,6 +8,7 @@ from backend.database import init_db, async_engine
 from backend.storage import storage_service
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
+from backend.middleware import policy_middleware
 
 from backend.routes import health, users, relics, bookmarks, comments, spaces, reports, admin
 
@@ -35,6 +36,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Runtime policy: availability modes, write auth, and rate limits.
+# Registered after CORS so that CORS headers are still applied to denials.
+app.middleware("http")(policy_middleware)
 
 
 @app.on_event("startup")

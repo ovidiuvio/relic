@@ -483,7 +483,7 @@
             {:else if previewedFile.processed.type === 'csv'}
               <CsvRenderer processed={previewedFile.processed} />
             {:else if previewedFile.processed.type === 'image'}
-              <ImageRenderer processed={previewedFile.processed} relicName={selectedFile.name} />
+              <ImageRenderer processed={previewedFile.processed} relicName={selectedFile.name} contentType={previewedFile.processed.contentType || ''} />
             {:else if previewedFile.processed.type === 'excalidraw'}
               <ExcalidrawRenderer processed={previewedFile.processed} />
             {:else if previewedFile.processed.type === 'diff'}

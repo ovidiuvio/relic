@@ -2,6 +2,8 @@
     import { onMount, onDestroy } from "svelte";
     import { showToast } from "../stores/toastStore";
     import ConfirmModal from "./ConfirmModal.svelte";
+    import AdminLimits from "./AdminLimits.svelte";
+    import UserQuotaModal from "./UserQuotaModal.svelte";
     import {
         checkAdminStatus,
         getAdminStats,
@@ -307,6 +309,15 @@
         } finally {
             relicsLoading = false;
         }
+    }
+
+    // Per-user quota editing
+    let showQuotaModal = false;
+    let quotaUser = null;
+
+    function openQuotaModal(user) {
+        quotaUser = user;
+        showQuotaModal = true;
     }
 
     async function loadUsers() {
@@ -852,6 +863,15 @@
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
                         <i class="fas fa-tasks mr-2"></i>Jobs
+                    </button>
+                    <button
+                        on:click={() => (activeTab = "limits")}
+                        class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
+                        'limits'
+                            ? 'border-[#E95420] text-[#E95420]'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'}"
+                    >
+                        <i class="fas fa-sliders-h mr-2"></i>Limits
                     </button>
                     <button
                         on:click={() => (activeTab = "config")}
@@ -1591,6 +1611,7 @@
                                             <i class="fas fa-arrow-up sort-arrow {usersSortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {usersSortBy === 'relic_count' && usersSortOrder === 'desc' ? 'desc' : ''}"></i>
                                         </div>
                                     </th>
+                                    <th class="px-4 py-2.5 text-left border-none">Storage</th>
                                     <th class="px-4 py-2.5 text-left border-none">Role</th>
                                     <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleUsersSort('created_at')}>
                                         <div class="flex items-center gap-1.5">
@@ -1655,8 +1676,11 @@
                                                 class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                                 title="View relics"
                                             >
-                                                <i class="fas fa-archive mr-1"></i>{user.relic_count} relics
+                                                <i class="fas fa-archive mr-1"></i>{user.relic_count}{#if user.quotas?.max_relics}<span class="text-gray-400"> / {user.quotas.max_relics}</span>{/if} relics
                                             </button>
+                                        </td>
+                                        <td class="text-xs text-gray-600 font-mono">
+                                            {formatBytes(user.storage_bytes || 0)}{#if user.quotas?.max_storage_bytes}<span class="text-gray-400"> / {formatBytes(user.quotas.max_storage_bytes)}</span>{/if}
                                         </td>
                                         <td>
                                             {#if user.is_super_admin}
@@ -1674,6 +1698,13 @@
                                         <td class="text-gray-500 text-xs">{formatTimeAgo(user.created_at)}</td>
                                         <td class="text-right">
                                             <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
+                                                <button
+                                                    on:click={() => openQuotaModal(user)}
+                                                    class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                                                    title="Edit quotas"
+                                                >
+                                                    <i class="fas fa-sliders-h text-xs"></i>
+                                                </button>
                                                 {#if !user.is_super_admin}
                                                     {#if user.is_admin}
                                                         <button
@@ -2328,6 +2359,11 @@
                 {/if}
             {/if}
 
+            <!-- Limits Tab -->
+            {#if activeTab === "limits"}
+                <AdminLimits />
+            {/if}
+
             <!-- Config Tab -->
             {#if activeTab === "config"}
                 {#if configLoading}
@@ -2587,6 +2623,13 @@
   cancelLabel="Keep relics (become anonymous)"
   on:confirm={() => performDeleteUser(true)}
   on:cancel={() => performDeleteUser(false)}
+/>
+
+<UserQuotaModal
+  show={showQuotaModal}
+  user={quotaUser}
+  on:saved={() => { showQuotaModal = false; loadUsers(); }}
+  on:cancel={() => showQuotaModal = false}
 />
 
 {#if restoreModalOpen && restoreTarget}

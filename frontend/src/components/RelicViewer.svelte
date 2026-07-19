@@ -791,7 +791,7 @@
             />
           {/if}
         {:else if processed.type === "image"}
-          <ImageRenderer {processed} relicName={relic.name} />
+          <ImageRenderer {processed} relicName={relic.name} contentType={relic.content_type} />
         {:else if processed.type === "pdf"}
           <div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
             <PDFViewer

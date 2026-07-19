@@ -2,6 +2,7 @@
   import MonacoEditor from '../MonacoEditor.svelte'
   import { createEventDispatcher } from 'svelte'
   import { createEventForwarder } from '../../services/utils/eventUtils'
+  import { publicSettings } from '../../stores/settingsStore'
 
   export let processed
   export let relicId
@@ -22,7 +23,25 @@
 </script>
 
 <div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
-  {#if !showSource}
+  {#if !showSource && !$publicSettings.render_html}
+    <!-- Rendering disabled instance-wide: show the source instead of executing it -->
+    <div class="flex-1 min-h-0 flex flex-col">
+      <div class="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-900">
+        <i class="fas fa-shield-alt mr-1"></i>
+        HTML preview is disabled on this instance. Showing source.
+      </div>
+      <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+        {#if monacoHeight > 0}
+          <MonacoEditor
+            value={processed.html || ''}
+            language="html"
+            readOnly={true}
+            height="{monacoHeight}px"
+          />
+        {/if}
+      </div>
+    </div>
+  {:else if !showSource}
     <!-- HTML Preview Frame -->
     <div class="flex-1 min-h-0" bind:clientHeight={iframeHeight}>
       {#if iframeHeight > 0}

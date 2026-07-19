@@ -8,6 +8,7 @@
   import { usingSw, getUserKey } from "./services/api/auth";
   import { showToast } from "./stores/toastStore";
   import { userPublicId as userPublicIdStore } from "./stores/userStore";
+  import { loadPublicSettings } from "./stores/settingsStore";
 
   let currentSection = null;
   let routeLoader = null;
@@ -51,6 +52,10 @@
     // Returns the key only on first creation or migration — null for returning users.
     userKeyOnce = await initUserKey();
     if (userKeyOnce) showKeyReveal = true;
+
+    // Load runtime policy the UI needs (render toggles, size limits).
+    // Failures are non-fatal: the server enforces all of it anyway.
+    loadPublicSettings();
 
     // Fetch app version
     try {

@@ -50,6 +50,26 @@ export async function getAdminConfig() {
     return api.get('/admin/config')
 }
 
+export async function getAdminSettings() {
+    return api.get('/admin/settings')
+}
+
+export async function updateAdminSettings(updates) {
+    return api.put('/admin/settings', updates)
+}
+
+export async function resetAdminSettings(section = null) {
+    return api.post('/admin/settings/reset', null, { params: section ? { section } : {} })
+}
+
+export async function applyAdminPreset(name) {
+    return api.post(`/admin/settings/preset/${encodeURIComponent(name)}`)
+}
+
+export async function setUserQuotas(userId, quotas) {
+    return api.put(`/admin/users/${userId}/quotas`, quotas)
+}
+
 export async function getAdminBackups(limit = 25, offset = 0) {
     return api.get('/admin/backups', { params: { limit, offset } })
 }

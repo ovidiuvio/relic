@@ -31,6 +31,9 @@ services:
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://localhost"
       ADMIN_USER_IDS:
+      # Ceiling for uploads. Set explicitly so the 50GB code default can never
+      # apply silently; adjustable at runtime from the admin Limits tab.
+      MAX_UPLOAD_SIZE: "104857600"
       # Database Backup Configuration
       BACKUP_ENABLED: "true"
       BACKUP_TIMES: "02:00,14:00"
