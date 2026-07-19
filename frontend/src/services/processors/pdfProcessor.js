@@ -3,17 +3,21 @@
  * Handles PDF document loading, metadata extraction, and page rendering
  */
 
-let pdfjsLib = null;
+// Cache the promise, not the module: concurrent callers must not observe the
+// module before workerSrc has been configured.
+let pdfjsPromise = null;
 
-async function ensurePdfjs() {
-  if (!pdfjsLib) {
-    pdfjsLib = await import('pdfjs-dist');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.mjs',
-      import.meta.url
-    ).toString();
+function ensurePdfjs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist').then((lib) => {
+      lib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.mjs',
+        import.meta.url
+      ).toString();
+      return lib;
+    });
   }
-  return pdfjsLib;
+  return pdfjsPromise;
 }
 
 /**
