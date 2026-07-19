@@ -1,104 +1,174 @@
-# Relic - Artifact Storage Service
+<h1 align="center">🗿 Relic</h1>
 
-A modern, feature-rich artifact service with immutable relics, complete version history, and smart content processing. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+<p align="center">
+  <strong>Self-hosted artifact storage for developers.</strong><br>
+  Paste it, share it, preview it — code, images, archives, PDFs, diagrams, anything.
+</p>
+
+<p align="center">
+  <a href="https://github.com/ovidiuvio/relic/releases/latest">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/ovidiuvio/relic?color=blue">
+  </a>
+  <a href="LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green">
+  </a>
+  <img alt="Backend: FastAPI" src="https://img.shields.io/badge/backend-FastAPI-009688">
+  <img alt="Frontend: Svelte" src="https://img.shields.io/badge/frontend-Svelte-ff3e00">
+  <img alt="Deploy: Docker" src="https://img.shields.io/badge/deploy-Docker-2496ed">
+</p>
+
+<p align="center">
+  <a href="#-quick-start"><b>🚀 Quick Start</b></a> ·
+  <a href="#-features"><b>Features</b></a> ·
+  <a href="#-visual-tour"><b>Screenshots</b></a> ·
+  <a href="#-cli"><b>CLI</b></a> ·
+  <a href="#-deployment"><b>Deployment</b></a>
+</p>
 
 ![Relic Overview](assets/newrelic.png)
 
-## Quick Start
+## Why Relic?
 
-### Clone & Deploy
- * Clone repo
- * `make up`
+Most pastebins stop at text. Relic is built for everything developers actually share: it gives rich in-browser previews for code, images, archives, structured data, PDFs, spreadsheets, Markdown, and Excalidraw diagrams — all self-hosted on your own infrastructure with a single `docker compose up`.
 
-OR
+Around that core, Relic adds the workflow pieces a team needs: fork a relic to build on someone else's snippet and diff it against the original, organize things into spaces, tag and bookmark what matters, and discuss it in comments — with public/private access, password protection, and expiration when you want them.
 
-### Use prebuilt images
+## 🚀 Quick Start
+
+**Using prebuilt images** (recommended):
+
 ```bash
 curl -O https://raw.githubusercontent.com/ovidiuvio/relic/main/deploy/docker-compose.yml
 docker compose up -d
 ```
 
-- Details: [`deploy/README.md`](deploy/README.md) · Building from source: [Development Setup](#development-setup)
+**Or from source:**
 
-Open `http://localhost`.
-
-## Overview
-
-Relic is a self-hosted pastebin and artifact storage system designed for developers. It goes beyond simple text storage by supporting binary files, archives, images, and providing rich previews for various content types. With a focus on immutability and versioning, Relic ensures your shared snippets and files are safe, trackable, and easy to manage.
-
-## Key Features
-
-- **Immutable Artifacts**: Each relic is permanent. Edits create new versions via forking with complete history preserved.
-- **Version Comparison**: Visually analyze additions and deletions across text and code lineage through rich diffing.
-- **Universal Content Support**: 
-  - **Code**: Integrated Monaco editor and syntax highlighting for 100+ languages.
-  - **Structured Data**: Visually navigate and explore JSON, YAML, TOML, and XML files with an interactive tree viewer.
-  - **Images**: Direct preview support.
-  - **Archives**: Browse ZIP/TAR contents directly in the browser, complete with structured data exploration for embedded files.
-  - **Documents**: PDF rendering, CSV/Excel tables, and Markdown rendering.
-  - **Diagrams**: Integrated Excalidraw support.
-- **Spaces**: Organize relics into curated dynamic collections with access controls and filtering.
-- **Tagging & Discovery**: Easily organize and search relics using tags.
-- **Bookmarks**: Save important relics using the bookmark functionality to easily find them later.
-- **Comments & Collaboration**: Discuss code snippets and collaborate directly on relics.
-- **CLI Tool**: Powerful command-line interface for quick uploads from terminal.
-- **Relic Indexes**: Create file-based curated collections of relics (`.rix` files).
-- **Access Control**: Public and private relics.
-- **Expiration**: Set relics to expire after 1h, 24h, 7d, 30d, or never.
-- **Admin Panel**: Manage users, view system stats, and moderate content.
-
-## Visual Tour
-
-### Rich Code Viewing
-Syntax highlighting with line numbers, copy-to-clipboard, and raw view options.
-![Source View](assets/source-view.png)
-
-### Image Previews
-Direct image rendering.
-![Image View](assets/relicimg.png)
-
-### Archive Explorer
-Browse the contents of ZIP and TAR files without downloading them.
-![Archive View](assets/archive.png)
-
-### Structured Data Explorer
-Visually navigate and explore JSON, YAML, TOML, and XML structured data directly in the browser.
-![JSON Explorer](assets/json-explore.png)
-
-### Recent Relics & Management
-View recently created public relics or manage your own.
-![Recent Relics](assets/recent.png)
-
-### Spaces
-Organize your relics into specialized spaces.
-![Spaces](assets/spaces.png)
-
-### Space Management
-View, search, and manage relics within your curated collections.
-![Space View](assets/space-view.png)
-
-### Diff viewer
-Compare and diff changes effortlessly across different text and code versions.
-![Diff View](assets/diff-view.png)
-
-### Comments & Collaboration
-Discuss code snippets and artifacts directly on the relic page.
-![Comments](assets/comments.png)
-
-### Admin Dashboard
-Monitor system usage, storage, and manage relics.
-![Admin Panel](assets/admin.png)
-
-## CLI Tool
-
-Relic comes with a powerful CLI tool for terminal-based workflows.
-
-### Quick Install
 ```bash
-curl -sSL https://your-domain.com/install.sh | bash
+git clone https://github.com/ovidiuvio/relic.git
+cd relic
+make up
 ```
 
-### Usage
+Then open **http://localhost**. That's it — no accounts, no configuration required to start pasting.
+
+For production settings (passwords, version pinning, backups), see [`deploy/README.md`](deploy/README.md).
+
+## ✨ Features
+
+### 📦 Universal content support
+
+- **Code** — Monaco editor and syntax highlighting for 100+ languages
+- **Structured data** — interactive tree explorer for JSON, YAML, TOML, and XML
+- **Archives** — browse ZIP/TAR contents in the browser, including previews of embedded files
+- **Documents** — PDF rendering, CSV/Excel tables, Markdown rendering
+- **Images & diagrams** — direct image previews and integrated Excalidraw support
+
+### 🔀 Forks & diffs
+
+- **Fork any relic** — build on someone else's snippet as an independent copy, with a `fork_of` reference back to the source
+- **Lineage & diffs** — trace fork ancestry and visually compare additions/deletions between text relics
+
+### 🗂️ Organize & discover
+
+- **Spaces** — curated, dynamic collections with their own access controls and filtering
+- **Tags & bookmarks** — label relics for search, bookmark the ones you care about
+- **Relic indexes** — file-based curated collections (`.rix` files) that render as browsable tables
+
+### 🔒 Sharing on your terms
+
+- **Public or private** — public relics appear in recents; private ones are reachable only via their unguessable 128-bit URL
+- **Password protection** — optional extra lock on any relic
+- **Expiration** — from 10 minutes to never (the default)
+- **Comments** — discuss code and artifacts directly on the relic page
+
+### ⚡ Terminal-first workflow
+
+- **Go CLI** — pipe from stdin, upload files, fork, list, and manage spaces without leaving the shell
+- **Clean API** — everything the UI does is available under `/api/v1`, with interactive docs at `/docs`
+
+### 🛡️ Built to operate
+
+- **One-command deploy** — Docker Compose with Nginx, PostgreSQL, and MinIO included
+- **Admin panel** — system stats, user management, content moderation
+- **S3 sync** — optional periodic backup of object storage to any S3-compatible destination
+
+## 📸 Visual Tour
+
+<details>
+<summary><b>📝 Rich code viewing</b> — syntax highlighting with line numbers, copy-to-clipboard, and raw view</summary>
+<br>
+
+![Source View](assets/source-view.png)
+</details>
+
+<details>
+<summary><b>🔀 Diff viewer</b> — compare any relic against its fork, additions and deletions side by side</summary>
+<br>
+
+![Diff View](assets/diff-view.png)
+</details>
+
+<details>
+<summary><b>📦 Archive explorer</b> — browse ZIP/TAR contents without downloading</summary>
+<br>
+
+![Archive View](assets/archive.png)
+</details>
+
+<details>
+<summary><b>🌳 Structured data explorer</b> — navigate JSON, YAML, TOML, and XML as a tree</summary>
+<br>
+
+![JSON Explorer](assets/json-explore.png)
+</details>
+
+<details>
+<summary><b>🗂️ Spaces</b> — curated collections with access controls, search, and filtering</summary>
+<br>
+
+![Spaces](assets/spaces.png)
+![Space View](assets/space-view.png)
+</details>
+
+<details>
+<summary><b>💬 Comments</b> — discuss code and artifacts on the relic page</summary>
+<br>
+
+![Comments](assets/comments.png)
+</details>
+
+<details>
+<summary><b>🕒 Recent relics</b> — browse public relics or manage your own</summary>
+<br>
+
+![Recent Relics](assets/recent.png)
+</details>
+
+<details>
+<summary><b>🖼️ Image previews</b> — direct rendering with size information</summary>
+<br>
+
+![Image View](assets/relicimg.png)
+</details>
+
+<details>
+<summary><b>🛡️ Admin dashboard</b> — usage, storage, and moderation</summary>
+<br>
+
+![Admin Panel](assets/admin.png)
+</details>
+
+## ⚡ CLI
+
+Install from your Relic instance (which serves the installer):
+
+```bash
+curl -sSL https://your-relic-instance/install.sh | bash
+```
+
+Or build from source with Go: `cd cli/client && go build ./cmd/relic`.
+
 ```bash
 # Upload from stdin
 echo "Hello World" | relic
@@ -107,180 +177,116 @@ echo "Hello World" | relic
 relic myfile.txt
 
 # Upload with options
-relic --name "My Script" --private --expires 24h script.py
+relic --name "My Script" --private --expires-in 24h script.py
 
 # Push a relic into a space
 relic --space <space_id> script.py
+
+# Fork, inspect, fetch, delete
+relic fork <id>
+relic info <id>
+relic get <id> -o output.txt
+relic delete <id>
 
 # Manage spaces
 relic spaces create "My Cool Space" --visibility public
 ```
 
-## Build From Source
+Run `relic --help` for the full command reference, and `relic init` to configure your default server.
 
-### Prerequisites
-- Docker and Docker Compose
-- Make (optional, but recommended)
+## 🌐 API
 
-### Production Deployment
+All endpoints live under `/api/v1`; interactive OpenAPI docs are served at `/docs`.
 
-Building images from source instead of pulling from `deploy/` (see [Quick Start](#quick-start)):
+| Action | Endpoint |
+| --- | --- |
+| Create relic | `POST /api/v1/relics` |
+| Get metadata | `GET /api/v1/relics/{id}` |
+| Raw content | `GET /{id}/raw` |
+| Fork | `POST /api/v1/relics/{id}/fork` |
+| Delete | `DELETE /api/v1/relics/{id}` |
+| List recent public | `GET /api/v1/relics` |
 
-1. **Start production services**
 ```bash
-make up
+# Create a relic
+curl -X POST http://localhost/api/v1/relics \
+  -F "file=@myfile.txt" \
+  -F "name=My File"
+
+# Fork it with new content
+curl -X POST http://localhost/api/v1/relics/{id}/fork \
+  -F "file=@new.txt"
 ```
 
-Or without Make:
+## 🚢 Deployment
+
+### Production (prebuilt images)
+
+The [`deploy/`](deploy/) directory contains a ready-to-run Compose file that pulls published images:
+
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+curl -O https://raw.githubusercontent.com/ovidiuvio/relic/main/deploy/docker-compose.yml
+docker compose up -d
 ```
 
-2. **Access the application**
-- Application: http://localhost
-- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
+See [`deploy/README.md`](deploy/README.md) for environment configuration, version pinning with `RELIC_VERSION`, and upgrade steps. **Change the default PostgreSQL and MinIO passwords before exposing anything.**
 
-3. **View logs**
+### Production (build from source)
+
 ```bash
-make logs
+make up        # docker compose -f docker-compose.prod.yml up -d --build
+make logs      # follow logs
+make down      # stop services
 ```
 
-4. **Stop services**
-```bash
-make down
-```
+The application is served at http://localhost. (MinIO and PostgreSQL stay internal to the Docker network in this setup; the prebuilt `deploy/` compose additionally publishes the MinIO console on port 9001.)
 
-**Optional: S3 bucket sync.** Not started by default. To enable periodic backups of MinIO to an external S3-compatible destination, fill in the `S3_SYNC_*` variables in `.env` and add the extra compose file:
+**Optional S3 backup sync** — not started by default. Fill in the `S3_SYNC_*` variables in `.env`, then:
+
 ```bash
 docker compose -f docker-compose.prod.yml -f docker-compose.s3-sync.yml up -d --build
 ```
 
-### Development Setup
+### Admin setup
 
-For local development with hot-reload:
+Admins can view and delete any relic, manage users, and see system statistics.
 
-1. **Start development services**
-```bash
-make dev-up
-```
-
-Or without Make:
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-2. **Access the application**
-- Frontend: http://localhost (with hot-reload)
-- Backend: http://localhost/api (with auto-reload)
-- API Docs: http://localhost/api/docs
-- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
-
-3. **View logs**
-```bash
-make dev-logs
-```
-
-4. **Stop services**
-```bash
-make dev-down
-```
-
-**Note:** Development mode mounts your local code directories as volumes, enabling hot-reload for both frontend and backend. Changes to code will be reflected immediately without rebuilding.
-
-## Admin Setup
-
-Relic supports admin users with elevated privileges (view all relics, delete any relic, manage users, view statistics).
-
-### Setting Up an Admin User
-
-1. **Get your User ID**
-
-   Open your browser's Developer Tools (F12) and run this in the Console:
-   ```javascript
-   localStorage.getItem('relic_user_key')
-   ```
-
-   This will output your user ID, which looks like: `5cdb7b79c38385db9f5b5f6ad884c8ef`
-
-2. **Configure Admin in Production**
-
-   Edit `docker-compose.prod.yml` and set the `ADMIN_USER_IDS` environment variable:
+1. Get your user ID from the browser console: `localStorage.getItem('relic_user_key')`
+2. Set it in the backend environment (comma-separate for multiple admins):
    ```yaml
    backend:
      environment:
        ADMIN_USER_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef"
    ```
+3. Restart (`make down && make up`) — the Admin tab appears in the navigation.
 
-   For multiple admins, use comma-separated values:
-   ```yaml
-   ADMIN_USER_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef,a1b2c3d4e5f6789012345678abcdef01"
-   ```
+## 🛠️ Development
 
-3. **Restart Services**
-   ```bash
-   make down
-   make up
-   ```
+Hot-reload setup with mounted source volumes for both frontend and backend:
 
-4. **Access Admin Panel**
-
-   After restarting, the "Admin" tab will appear in the navigation. Admin privileges include:
-   - View all relics (including private ones)
-   - Delete any relic (not just your own)
-   - View all registered users
-   - Delete users and their relics
-   - View system statistics
-
-### Development Environment
-
-For development mode, edit `docker-compose.dev.yml` instead and use:
 ```bash
-make dev-down
-make dev-up
+make dev-up      # start dev stack
+make dev-logs    # follow logs
+make dev-down    # stop
 ```
 
-## Relic Indexes
+- Frontend: http://localhost (Vite, hot-reload)
+- Backend API: http://localhost/api (Uvicorn, auto-reload)
+- MinIO console: http://localhost:9001 (minioadmin/minioadmin)
 
-Relic indexes (`.rix` files) allow you to create curated collections of relics.
+Code changes are picked up immediately — no rebuild needed. See [`CLAUDE.md`](CLAUDE.md) for a map of the codebase and architecture notes.
 
-```yaml
-title: My Project Documentation
-description: A collection of documentation files.
-relics:
-  - id: f47ac10b58cc4372a5670e02b2c3d479
-    title: API Reference
-  - id: a1b2c3d4e5f678901234567890abcdef
-```
+## 🏗️ Tech Stack
 
-## API Endpoints
+- **Frontend** — Svelte, Tailwind CSS, Vite, Monaco
+- **Backend** — FastAPI, SQLAlchemy, Pygments
+- **Storage** — PostgreSQL (metadata), MinIO / any S3-compatible store (content)
+- **Infrastructure** — Docker, Nginx
 
-All API endpoints are prefixed with `/api/v1`.
+## 📄 License
 
-**Create Relic**
-```bash
-curl -X POST http://localhost/api/v1/relics \
-  -F "file=@myfile.txt" \
-  -F "name=My File"
-```
+Relic is licensed under the **[MIT License](LICENSE)** — free to use, modify, and self-host for personal or commercial purposes.
 
-**Get Relic**
-```bash
-curl http://localhost/api/v1/relics/{id}
-```
-
-**Fork Relic**
-```bash
-curl -X POST http://localhost/api/v1/relics/{id}/fork \
-  -F "file=@new.txt"
-```
-
-## Architecture
-
-- **Frontend**: Svelte, Tailwind CSS, Vite
-- **Backend**: FastAPI, SQLAlchemy, Pygments
-- **Storage**: PostgreSQL (Metadata), MinIO (Content)
-- **Infrastructure**: Docker, Nginx
-
-## License
-
-MIT
+<p align="center">
+  <sub><code>~ end of file ~</code></sub>
+</p>
