@@ -14,7 +14,7 @@ export async function processDiff(content) {
   return {
     type: 'diff',
     preview: text, // Raw text for source view
-    highlighted: highlightCode(text, 'diff'),
+    highlighted: await highlightCode(text, 'diff'),
     files,
     metadata: {
       ...metadata,

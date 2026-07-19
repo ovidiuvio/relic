@@ -10,7 +10,7 @@
   import { userPublicId as userPublicIdStore } from "./stores/userStore";
 
   let currentSection = null;
-  let routeComponent = null;
+  let routeLoader = null;
   let routeProps = {};
 
   let showKeyDropdown = false;
@@ -31,7 +31,7 @@
     console.log("[App] Route update - path:", path, "search:", urlParams.toString());
 
     const matched = matchRoute(path, urlParams);
-    routeComponent = matched.component;
+    routeLoader = matched.loader;
     routeProps = matched.props;
     currentSection = matched.section;
 
@@ -102,6 +102,9 @@
     }
 
     document.addEventListener("click", handleDocumentClick);
+
+    // Listen for popstate to handle browser back/forward
+    window.addEventListener("popstate", updateRouting);
 
     // Listen for popstate to handle browser back/forward
     window.addEventListener("popstate", updateRouting);
@@ -199,10 +202,6 @@
 </script>
 
 <svelte:head>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
@@ -379,20 +378,22 @@
         ? ''
         : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
     >
-      {#if routeComponent}
-        <svelte:component
-          this={routeComponent}
-          {...routeProps}
-          on:fullwidth-toggle={handleFullWidthToggle}
-          on:tag-click={handleTagClick}
-          on:navigate={(e) => handleNavigation(e.detail.path)}
-          on:clear-tag-filter={() => {
-            if (currentSection === 'space-view') {
-              window.history.pushState({}, "", `/spaces/${routeProps.spaceId}`);
-              updateRouting();
-            }
-          }}
-        />
+      {#if routeLoader}
+        {#await routeLoader() then { default: Component }}
+          <svelte:component
+            this={Component}
+            {...routeProps}
+            on:fullwidth-toggle={handleFullWidthToggle}
+            on:tag-click={handleTagClick}
+            on:navigate={(e) => handleNavigation(e.detail.path)}
+            on:clear-tag-filter={() => {
+              if (currentSection === 'space-view') {
+                window.history.pushState({}, "", `/spaces/${routeProps.spaceId}`);
+                updateRouting();
+              }
+            }}
+          />
+        {/await}
       {/if}
     </div>
   </main>

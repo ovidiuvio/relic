@@ -2,7 +2,6 @@
   import { createEventDispatcher } from "svelte";
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
-  import JSZip from "jszip";
   import {
     getContentType,
     getSyntaxFromExtension,
@@ -42,6 +41,7 @@
     try {
       if (files.length > 1 && zipMultiple) {
         // Zip logic
+        const { default: JSZip } = await import("jszip");
         const zip = new JSZip();
         files.forEach(({ file, path }) => {
           const zipPath = path || file.name;

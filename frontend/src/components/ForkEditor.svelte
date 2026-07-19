@@ -1,15 +1,9 @@
 <script>
   import MonacoEditor from "./MonacoEditor.svelte";
-  import MarkdownIt from "markdown-it";
   import { createEventDispatcher, onMount, onDestroy } from "svelte";
 
   const dispatch = createEventDispatcher();
-  const md = new MarkdownIt({
-    html: true,
-    linkify: true,
-    breaks: true,
-    typographer: true,
-  });
+  let _md = null;
 
   export let isBinary = false;
   export let binaryBlob = null;
@@ -167,7 +161,14 @@
     renderExcalidraw();
   }
 
-  onMount(() => {
+  onMount(async () => {
+    const { default: MarkdownIt } = await import("markdown-it");
+    _md = new MarkdownIt({
+      html: true,
+      linkify: true,
+      breaks: true,
+      typographer: true,
+    });
     if (isExcalidraw && editorContent) {
       loadExcalidraw();
     }
@@ -183,7 +184,7 @@
 
   function renderMarkdown(text) {
     try {
-      return md.render(text || "");
+      return _md ? _md.render(text || "") : "";
     } catch (error) {
       console.error("Markdown rendering error:", error);
       return '<p class="text-red-600">Error rendering markdown</p>';

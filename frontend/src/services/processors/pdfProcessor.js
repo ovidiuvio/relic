@@ -3,13 +3,18 @@
  * Handles PDF document loading, metadata extraction, and page rendering
  */
 
-import * as pdfjsLib from 'pdfjs-dist'
+let pdfjsLib = null;
 
-// Configure worker path for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString()
+async function ensurePdfjs() {
+  if (!pdfjsLib) {
+    pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.mjs',
+      import.meta.url
+    ).toString();
+  }
+  return pdfjsLib;
+}
 
 /**
  * Process PDF content
@@ -19,8 +24,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
  */
 export async function processPDF(content, password = null) {
   try {
+    const pdfjs = await ensurePdfjs();
+
     // Load PDF document
-    const loadingTask = pdfjsLib.getDocument({
+    const loadingTask = pdfjs.getDocument({
       data: content,
       password: password
     })
@@ -114,7 +121,7 @@ export async function renderPDFPage(pdfDocument, pageNumber, canvas, scale = 1.5
  * Get supported languages for code highlighting (placeholder for future use)
  */
 export function isPDFSupported() {
-  return typeof pdfjsLib !== 'undefined'
+  return true
 }
 
 export default {
