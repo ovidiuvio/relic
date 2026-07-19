@@ -8,13 +8,13 @@ from datetime import datetime
 from typing import Optional, List
 
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Space, SpaceAccess, space_relics, Comment, Tag
+from backend.models import Relic, User, Space, SpaceAccess, space_relics, Comment, Tag
 from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
 from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
-from backend.dependencies import get_client_key, get_space_role, check_space_access, get_space_relic_count, is_admin_client_id
+from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
 
 router = APIRouter(prefix="/api/v1/spaces")
 
@@ -26,17 +26,17 @@ async def create_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
 
     space = Space(
         id=generate_relic_id(),
         name=space_in.name,
         visibility=space_in.visibility,
-        owner_client_id=client.id
+        owner_id=user.id
     )
 
     db.add(space)
@@ -47,7 +47,7 @@ async def create_space(
         "id": space.id,
         "name": space.name,
         "visibility": space.visibility,
-        "owner_client_id": space.owner_client_id,
+        "owner_id": space.owner_id,
         "created_at": space.created_at,
         "relic_count": 0,
         "role": "owner"
@@ -74,14 +74,14 @@ async def list_spaces(
     """
     limit = clamp_limit(limit, default=50)
     offset = max(0, offset)
-    client_id = request.headers.get("X-Client-Key")
-    is_admin = await is_admin_client_id(db, client_id)
+    user_id = request.headers.get("X-User-Key")
+    is_admin = await is_admin_user_id(db, user_id)
 
     stmt = select(Space).options(selectinload(Space.access_list))
 
     access_sq = (
-        select(SpaceAccess.space_id).where(SpaceAccess.client_id == client_id).scalar_subquery()
-    ) if client_id else None
+        select(SpaceAccess.space_id).where(SpaceAccess.user_id == user_id).scalar_subquery()
+    ) if user_id else None
 
     # Apply visibility filter at SQL level
     if not is_admin:
@@ -89,7 +89,7 @@ async def list_spaces(
             stmt = stmt.where(
                 or_(
                     Space.visibility == "public",
-                    Space.owner_client_id == client_id,
+                    Space.owner_id == user_id,
                     Space.id.in_(access_sq)
                 )
             )
@@ -101,15 +101,15 @@ async def list_spaces(
         stmt = stmt.where(Space.visibility == visibility)
 
     # Category filter
-    if category == "my" and client_id:
-        stmt = stmt.where(Space.owner_client_id == client_id)
-    elif category == "shared" and client_id:
+    if category == "my" and user_id:
+        stmt = stmt.where(Space.owner_id == user_id)
+    elif category == "shared" and user_id:
         shared_sq = select(SpaceAccess.space_id).where(
-            SpaceAccess.client_id == client_id
+            SpaceAccess.user_id == user_id
         ).scalar_subquery()
         stmt = stmt.where(
             Space.id.in_(shared_sq),
-            Space.owner_client_id != client_id
+            Space.owner_id != user_id
         )
     elif category == "public":
         stmt = stmt.where(Space.visibility == "public")
@@ -124,7 +124,7 @@ async def list_spaces(
 
     if sort_by == "priority" and access_sq is not None:
         priority_expr = case(
-            (Space.owner_client_id == client_id, 1),
+            (Space.owner_id == user_id, 1),
             (and_(Space.id.in_(access_sq), Space.visibility == "private"), 2),
             else_=3
         )
@@ -162,12 +162,12 @@ async def list_spaces(
 
     result = []
     for space in spaces:
-        role = await get_space_role(space, client_id, db, is_admin=is_admin)
+        role = await get_space_role(space, user_id, db, is_admin=is_admin)
         result.append({
             "id": space.id,
             "name": space.name,
             "visibility": space.visibility,
-            "owner_client_id": space.owner_client_id,
+            "owner_id": space.owner_id,
             "created_at": space.created_at,
             "relic_count": relic_counts.get(space.id, 0),
             "role": role
@@ -182,7 +182,7 @@ async def get_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Get space details."""
-    client_id = request.headers.get("X-Client-Key")
+    user_id = request.headers.get("X-User-Key")
 
     result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -191,19 +191,19 @@ async def get_space(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    is_admin = await is_admin_client_id(db, client_id)
+    is_admin = await is_admin_user_id(db, user_id)
 
-    if not await check_space_access(space, client_id, db, "viewer", is_admin=is_admin):
+    if not await check_space_access(space, user_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
     return {
         "id": space.id,
         "name": space.name,
         "visibility": space.visibility,
-        "owner_client_id": space.owner_client_id,
+        "owner_id": space.owner_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
+        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
     }
 
 @router.put("/{space_id}", response_model=SpaceResponse)
@@ -214,12 +214,12 @@ async def update_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Update space metadata."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -229,8 +229,8 @@ async def update_space(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can update space metadata
-    is_admin = await is_admin_client_id(db, client_id)
-    if space.owner_client_id != client_id and not is_admin:
+    is_admin = await is_admin_user_id(db, user_id)
+    if space.owner_id != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this space")
 
     if space_in.name is not None:
@@ -245,10 +245,10 @@ async def update_space(
         "id": space.id,
         "name": space.name,
         "visibility": space.visibility,
-        "owner_client_id": space.owner_client_id,
+        "owner_id": space.owner_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
+        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
     }
 
 @router.post("/{space_id}/transfer-ownership", response_model=SpaceResponse)
@@ -259,12 +259,12 @@ async def transfer_space_ownership(
     db: AsyncSession = Depends(get_db)
 ):
     """Transfer space ownership to another user. Only the current owner or a system admin can do this."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -273,36 +273,36 @@ async def transfer_space_ownership(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    is_admin = await is_admin_client_id(db, client_id)
-    if space.owner_client_id != client_id and not is_admin:
+    is_admin = await is_admin_user_id(db, user_id)
+    if space.owner_id != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Only the space owner or a system admin can transfer ownership")
 
     # Resolve new owner by public_id
     new_owner_result = await db.execute(
-        select(ClientKey).where(ClientKey.public_id == transfer_in.public_id)
+        select(User).where(User.public_id == transfer_in.public_id)
     )
     new_owner = new_owner_result.scalar_one_or_none()
     if not new_owner:
         raise HTTPException(status_code=404, detail="No user found with that Public ID")
 
-    if new_owner.id == space.owner_client_id:
+    if new_owner.id == space.owner_id:
         raise HTTPException(status_code=400, detail="This user is already the owner")
 
     # Add old owner to SpaceAccess as admin so they keep access
     old_access_result = await db.execute(
         select(SpaceAccess).where(
             SpaceAccess.space_id == space_id,
-            SpaceAccess.client_id == space.owner_client_id
+            SpaceAccess.user_id == space.owner_id
         )
     )
     if not old_access_result.scalar_one_or_none():
-        db.add(SpaceAccess(space_id=space_id, client_id=space.owner_client_id, role="admin"))
+        db.add(SpaceAccess(space_id=space_id, user_id=space.owner_id, role="admin"))
 
     # Remove new owner from SpaceAccess if they were a member (they become the owner now)
     new_owner_access_result = await db.execute(
         select(SpaceAccess).where(
             SpaceAccess.space_id == space_id,
-            SpaceAccess.client_id == new_owner.id
+            SpaceAccess.user_id == new_owner.id
         )
     )
     new_owner_access = new_owner_access_result.scalar_one_or_none()
@@ -310,7 +310,7 @@ async def transfer_space_ownership(
         await db.delete(new_owner_access)
 
     # Transfer ownership
-    space.owner_client_id = new_owner.id
+    space.owner_id = new_owner.id
     await db.commit()
     await db.refresh(space)
 
@@ -318,10 +318,10 @@ async def transfer_space_ownership(
         "id": space.id,
         "name": space.name,
         "visibility": space.visibility,
-        "owner_client_id": space.owner_client_id,
+        "owner_id": space.owner_id,
         "created_at": space.created_at,
         "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, client_id, db, is_admin=is_admin)
+        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
     }
 
 
@@ -332,12 +332,12 @@ async def delete_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     result = await db.execute(select(Space).where(Space.id == space_id))
     space = result.scalar_one_or_none()
@@ -345,8 +345,8 @@ async def delete_space(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can delete space
-    is_admin = await is_admin_client_id(db, client_id)
-    if space.owner_client_id != client_id and not is_admin:
+    is_admin = await is_admin_user_id(db, user_id)
+    if space.owner_id != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this space")
 
     await db.delete(space)
@@ -368,8 +368,8 @@ async def get_space_relics(
     """Get relics in a space with pagination."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client_id = request.headers.get("X-Client-Key")
-    is_admin = await is_admin_client_id(db, client_id)
+    user_id = request.headers.get("X-User-Key")
+    is_admin = await is_admin_user_id(db, user_id)
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -378,10 +378,10 @@ async def get_space_relics(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    if not await check_space_access(space, client_id, db, "viewer", is_admin=is_admin):
+    if not await check_space_access(space, user_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
-    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).join(
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner)).join(
         space_relics, Relic.id == space_relics.c.relic_id
     ).where(
         space_relics.c.space_id == space_id
@@ -426,7 +426,7 @@ async def get_space_relics(
 
     result = []
     for relic in relics:
-        can_edit = client_id is not None and (relic.client_id == client_id or is_admin)
+        can_edit = user_id is not None and (relic.user_id == user_id or is_admin)
         result.append({
             "id": relic.id,
             "name": relic.name,
@@ -458,12 +458,12 @@ async def add_relic_to_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Add a relic to a space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -478,15 +478,15 @@ async def add_relic_to_space(
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Must have access to relic (either public, owner, or admin)
-    is_admin = await is_admin_client_id(db, client_id)
+    is_admin = await is_admin_user_id(db, user_id)
 
     # Must have edit access to space
-    if not await check_space_access(space, client_id, db, "editor", is_admin=is_admin):
+    if not await check_space_access(space, user_id, db, "editor", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to edit this space")
     if relic.access_level in ("private", "restricted"):
         if space.visibility == "public":
             raise HTTPException(status_code=400, detail="Cannot add private or restricted relics to a public space")
-        if relic.client_id != client_id and not is_admin:
+        if relic.user_id != user_id and not is_admin:
             raise HTTPException(status_code=403, detail="Not authorized to access this relic")
 
     await db.execute(pg_insert(space_relics).values(space_id=space_id, relic_id=relic_id).on_conflict_do_nothing())
@@ -502,12 +502,12 @@ async def remove_relic_from_space(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a relic from a space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -522,7 +522,7 @@ async def remove_relic_from_space(
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Must have edit access to space
-    if not await check_space_access(space, client_id, db, "editor"):
+    if not await check_space_access(space, user_id, db, "editor"):
         raise HTTPException(status_code=403, detail="Not authorized to edit this space")
 
     # Direct DELETE on association table — avoids lazy loading space.relics
@@ -548,7 +548,7 @@ async def get_space_access(
     """Get the access list for a space with pagination and optional search."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client_id = request.headers.get("X-Client-Key")
+    user_id = request.headers.get("X-User-Key")
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -557,30 +557,30 @@ async def get_space_access(
     if not space:
         raise HTTPException(status_code=404, detail="Space not found")
 
-    if not await check_space_access(space, client_id, db, "editor"):
+    if not await check_space_access(space, user_id, db, "editor"):
         raise HTTPException(status_code=403, detail="Not authorized to view space access list")
 
-    owner_result = await db.execute(select(ClientKey).where(ClientKey.id == space.owner_client_id))
+    owner_result = await db.execute(select(User).where(User.id == space.owner_id))
     owner = owner_result.scalar_one_or_none()
     owner_row = {
         "id": space.id,
         "space_id": space.id,
         "public_id": owner.public_id if owner else None,
-        "client_name": owner.name if owner else None,
+        "user_name": owner.name if owner else None,
         "role": "owner",
         "created_at": space.created_at,
     }
 
     access_stmt = (
         select(SpaceAccess)
-        .join(SpaceAccess.client)
-        .options(contains_eager(SpaceAccess.client))
+        .join(SpaceAccess.user)
+        .options(contains_eager(SpaceAccess.user))
         .where(SpaceAccess.space_id == space_id)
     )
     if search:
         term = like_term(search)
         access_stmt = access_stmt.where(
-            or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
+            or_(User.name.ilike(term), User.public_id.ilike(term))
         )
 
     access_total_result = await db.execute(select(func.count()).select_from(access_stmt.subquery()))
@@ -595,8 +595,8 @@ async def get_space_access(
         {
             "id": access.id,
             "space_id": access.space_id,
-            "public_id": access.client.public_id if access.client else None,
-            "client_name": access.client.name if access.client else None,
+            "public_id": access.user.public_id if access.user else None,
+            "user_name": access.user.name if access.user else None,
             "role": access.role,
             "created_at": access.created_at,
         }
@@ -619,12 +619,12 @@ async def add_space_access(
     db: AsyncSession = Depends(get_db)
 ):
     """Add or update a user's access to a space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -634,26 +634,26 @@ async def add_space_access(
         raise HTTPException(status_code=404, detail="Space not found")
 
     # Only owner or admin can modify access list
-    if not await check_space_access(space, client_id, db, "admin"):
+    if not await check_space_access(space, user_id, db, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to modify space access list")
 
-    # Look up target client by public_id
+    # Look up target user by public_id
     target_result = await db.execute(
-        select(ClientKey).where(ClientKey.public_id == access_in.public_id)
+        select(User).where(User.public_id == access_in.public_id)
     )
-    target_client = target_result.scalar_one_or_none()
-    if not target_client:
+    target_user = target_result.scalar_one_or_none()
+    if not target_user:
         raise HTTPException(status_code=404, detail="No user found with that Public ID")
 
     # Prevent modifying owner's own access
-    if target_client.id == space.owner_client_id:
+    if target_user.id == space.owner_id:
         raise HTTPException(status_code=400, detail="Cannot modify owner access")
 
     # Check if access already exists
     access_result = await db.execute(
         select(SpaceAccess).where(
             SpaceAccess.space_id == space_id,
-            SpaceAccess.client_id == target_client.id
+            SpaceAccess.user_id == target_user.id
         )
     )
     access = access_result.scalar_one_or_none()
@@ -665,7 +665,7 @@ async def add_space_access(
         # Create new
         access = SpaceAccess(
             space_id=space_id,
-            client_id=target_client.id,
+            user_id=target_user.id,
             role=access_in.role
         )
         db.add(access)
@@ -676,8 +676,8 @@ async def add_space_access(
     return {
         "id": access.id,
         "space_id": access.space_id,
-        "public_id": target_client.public_id,
-        "client_name": target_client.name,
+        "public_id": target_user.public_id,
+        "user_name": target_user.name,
         "role": access.role,
         "created_at": access.created_at,
     }
@@ -690,12 +690,12 @@ async def remove_space_access(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a user's access from a space."""
-    client = await get_client_key(request, db)
-    if not client:
-        if request.headers.get("X-Client-Key"):
-            raise HTTPException(status_code=401, detail="Invalid client key")
-        raise HTTPException(status_code=401, detail="Client key required")
-    client_id = client.id
+    user = await get_current_user(request, db)
+    if not user:
+        if request.headers.get("X-User-Key"):
+            raise HTTPException(status_code=401, detail="Invalid user key")
+        raise HTTPException(status_code=401, detail="User key required")
+    user_id = user.id
 
     space_result = await db.execute(
         select(Space).options(selectinload(Space.access_list)).where(Space.id == space_id)
@@ -716,7 +716,7 @@ async def remove_space_access(
         raise HTTPException(status_code=404, detail="Access record not found")
 
     # Only owner, admin, or the user themselves can remove access
-    if access.client_id != client_id and not await check_space_access(space, client_id, db, "admin"):
+    if access.user_id != user_id and not await check_space_access(space, user_id, db, "admin"):
         raise HTTPException(status_code=403, detail="Not authorized to remove space access")
 
     await db.delete(access)

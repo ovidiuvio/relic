@@ -1,5 +1,5 @@
 import api, { waitForAuth } from './core'
-import { usingSw, getClientKey } from './auth'
+import { usingSw, getUserKey } from './auth'
 
 export async function createRelic(formData) {
     // Raw-body upload: the file streams straight from disk to the server
@@ -71,9 +71,9 @@ export async function getRelicRaw(relicId) {
     // if the SW was restarted it re-reads the key from IDB before responding.
     const headers = {}
     if (!usingSw) {
-        const key = getClientKey()
-        if (!key) throw new Error('No client key available')
-        headers['X-Client-Key'] = key
+        const key = getUserKey()
+        if (!key) throw new Error('No user key available')
+        headers['X-User-Key'] = key
     }
     const response = await fetch(`/${relicId}/raw`, { headers })
     if (!response.ok) throw new Error(`Raw fetch failed: ${response.status}`)

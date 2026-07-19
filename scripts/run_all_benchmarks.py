@@ -3,7 +3,7 @@
 Run all benchmarks and generate combined results.
 
 Usage:
-    python3 scripts/run_all_benchmarks.py --client-key YOUR_KEY --url http://localhost
+    python3 scripts/run_all_benchmarks.py --user-key YOUR_KEY --url http://localhost
 """
 import argparse
 import asyncio
@@ -25,13 +25,13 @@ from scripts.benchmarks.test_social import SocialBenchmark
 from scripts.benchmarks.test_mixed import MixedBenchmark
 
 
-async def fetch_relic_ids(base_url: str, client_key: str, limit: int = 100) -> list[str]:
+async def fetch_relic_ids(base_url: str, user_key: str, limit: int = 100) -> list[str]:
     """Fetch relic IDs for benchmarks."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{base_url}/api/v1/relics",
-                headers={"X-Client-Key": client_key},
+                headers={"X-User-Key": user_key},
                 params={"limit": limit}
             )
             if response.status_code == 200:
@@ -42,13 +42,13 @@ async def fetch_relic_ids(base_url: str, client_key: str, limit: int = 100) -> l
     return []
 
 
-async def fetch_space_ids(base_url: str, client_key: str, limit: int = 50) -> list[str]:
+async def fetch_space_ids(base_url: str, user_key: str, limit: int = 50) -> list[str]:
     """Fetch space IDs for benchmarks."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{base_url}/api/v1/spaces",
-                headers={"X-Client-Key": client_key},
+                headers={"X-User-Key": user_key},
                 params={"limit": limit}
             )
             if response.status_code == 200:
@@ -61,7 +61,7 @@ async def fetch_space_ids(base_url: str, client_key: str, limit: int = 50) -> li
 
 async def run_benchmarks(
     base_url: str,
-    client_key: str,
+    user_key: str,
     iterations: int = 5,
     workers: int = 5,
     operations: int = 100,
@@ -78,18 +78,18 @@ async def run_benchmarks(
     print(f"   Operations per benchmark: {operations}")
     print("=" * 60)
 
-    # Ensure client key is registered before running any benchmarks
+    # Ensure user key is registered before running any benchmarks
     async with httpx.AsyncClient(timeout=10.0) as client:
-        await client.post(f"{base_url}/api/v1/client/register", headers={"X-Client-Key": client_key})
+        await client.post(f"{base_url}/api/v1/user/register", headers={"X-User-Key": user_key})
 
     # Fetch IDs for benchmarks
     print("\n📋 Fetching relic and space IDs...")
-    relic_ids = await fetch_relic_ids(base_url, client_key, relic_count)
-    space_ids = await fetch_space_ids(base_url, client_key, space_count)
+    relic_ids = await fetch_relic_ids(base_url, user_key, relic_count)
+    space_ids = await fetch_space_ids(base_url, user_key, space_count)
     print(f"   Found {len(relic_ids)} relics, {len(space_ids)} spaces")
 
     # Initialize benchmarks (skip those requiring data we don't have)
-    common = dict(iterations=iterations, workers=workers, operations=operations, base_url=base_url, client_key=client_key)
+    common = dict(iterations=iterations, workers=workers, operations=operations, base_url=base_url, user_key=user_key)
     benchmarks: list[tuple[str, Benchmark | None]] = [
         ("create", None),  # Create is handled separately
         ("search", SearchBenchmark(**common)),
@@ -159,7 +159,7 @@ def print_summary(results: dict[str, dict]):
 def main():
     parser = argparse.ArgumentParser(description="Run all Relic benchmarks")
     parser.add_argument("--url", default="http://localhost", help="Base URL")
-    parser.add_argument("--client-key", required=True, help="Client key")
+    parser.add_argument("--user-key", required=True, help="User key")
     parser.add_argument("--iterations", type=int, default=5, help="Iterations per benchmark")
     parser.add_argument("--workers", type=int, default=5, help="Concurrent workers")
     parser.add_argument("--operations", type=int, default=100, help="Operations per iteration")
@@ -173,7 +173,7 @@ def main():
     # Run benchmarks
     results = asyncio.run(run_benchmarks(
         base_url=args.url,
-        client_key=args.client_key,
+        user_key=args.user_key,
         iterations=args.iterations,
         workers=args.workers,
         operations=args.operations,

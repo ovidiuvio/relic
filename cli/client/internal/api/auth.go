@@ -8,8 +8,8 @@ import (
 	"github.com/relic/cli/internal/config"
 )
 
-// GenerateClientKey generates a new random client key
-func GenerateClientKey() (string, error) {
+// GenerateUserKey generates a new random user key
+func GenerateUserKey() (string, error) {
 	bytes := make([]byte, 16) // 32 hex characters
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate random key: %w", err)
@@ -17,22 +17,22 @@ func GenerateClientKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// EnsureClientKey ensures a client key exists, generating one in memory if needed.
+// EnsureUserKey ensures a user key exists, generating one in memory if needed.
 // It does NOT persist a newly generated key to disk - the caller must do that
 // (via config.Save) only after the key has been successfully registered with the
 // server, so a failed registration doesn't leave an unregistered key permanently
 // cached in the local config.
-func EnsureClientKey(cfg *config.Config) (string, bool, error) {
-	// If client key already exists, return it
-	if cfg.ClientKey != "" {
-		return cfg.ClientKey, false, nil
+func EnsureUserKey(cfg *config.Config) (string, bool, error) {
+	// If user key already exists, return it
+	if cfg.UserKey != "" {
+		return cfg.UserKey, false, nil
 	}
 
-	// Generate new client key
-	clientKey, err := GenerateClientKey()
+	// Generate new user key
+	userKey, err := GenerateUserKey()
 	if err != nil {
 		return "", false, err
 	}
 
-	return clientKey, true, nil
+	return userKey, true, nil
 }

@@ -50,8 +50,8 @@ This creates `~/.relic/config` with default settings.
 
 You'll see:
 ```
-ℹ Generated new client key: f47ac10b...
-✓ Client key saved to config
+ℹ Generated new user key: f47ac10b...
+✓ User key saved to config
 Uploading: 100% |████████████████████| 2.1 KB/2.1 KB
 ✓ Created relic: f47ac10b58cc4372a5670e02b2c3d479
   URL: http://localhost/f47ac10b58cc4372a5670e02b2c3d479
@@ -282,7 +282,7 @@ Shows HTTP requests/responses.
 ./bin/relic large-file.zip --no-progress
 ```
 
-### Check Your Client Info
+### Check Your User Info
 
 ```bash
 ./bin/relic whoami
@@ -290,7 +290,7 @@ Shows HTTP requests/responses.
 
 Output:
 ```
-Client ID: f47ac10b58cc4372a5670e02b2c3d479
+User ID: f47ac10b58cc4372a5670e02b2c3d479
 Server: http://localhost
 Registered: 2024-01-15 14:20:00 UTC
 Relics: 5

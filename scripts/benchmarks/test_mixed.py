@@ -34,7 +34,7 @@ class MixedBenchmark(Benchmark):
 
     async def run_operation(self, client, operation_id):
         """Run operation based on weighted distribution."""
-        headers = {"X-Client-Key": self.client_key}
+        headers = {"X-User-Key": self.user_key}
 
         # Build weighted operation pool based on available data
         ops = []

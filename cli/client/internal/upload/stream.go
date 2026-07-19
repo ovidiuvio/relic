@@ -31,7 +31,7 @@ type UploadOptions struct {
 }
 
 // UploadFile uploads a file to the Relic server
-func UploadFile(cfg *config.Config, clientKey, filename string, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
+func UploadFile(cfg *config.Config, userKey, filename string, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
 	// Check file exists and get size
 	fileInfo, err := os.Stat(filename)
 	if err != nil {
@@ -73,11 +73,11 @@ func UploadFile(cfg *config.Config, clientKey, filename string, opts *UploadOpti
 	}
 
 	// Upload with progress
-	return upload(cfg, clientKey, file, name, contentType, language, fileInfo.Size(), opts)
+	return upload(cfg, userKey, file, name, contentType, language, fileInfo.Size(), opts)
 }
 
 // UploadStdin uploads content from stdin to the Relic server
-func UploadStdin(cfg *config.Config, clientKey string, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
+func UploadStdin(cfg *config.Config, userKey string, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
 	// Read stdin into buffer
 	var buf bytes.Buffer
 	size, err := io.Copy(&buf, os.Stdin)
@@ -111,11 +111,11 @@ func UploadStdin(cfg *config.Config, clientKey string, opts *UploadOptions) (*re
 	}
 
 	// Upload - create a new reader from the bytes so we can read from the beginning
-	return upload(cfg, clientKey, bytes.NewReader(content), name, contentType, opts.Language, size, opts)
+	return upload(cfg, userKey, bytes.NewReader(content), name, contentType, opts.Language, size, opts)
 }
 
 // upload performs the actual upload with multipart form data
-func upload(cfg *config.Config, clientKey string, reader io.Reader, name, contentType, language string, size int64, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
+func upload(cfg *config.Config, userKey string, reader io.Reader, name, contentType, language string, size int64, opts *UploadOptions) (*relic.RelicCreateResponse, error) {
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -204,16 +204,16 @@ func upload(cfg *config.Config, clientKey string, reader io.Reader, name, conten
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if clientKey != "" {
-		req.Header.Set("X-Client-Key", clientKey)
+	if userKey != "" {
+		req.Header.Set("X-User-Key", userKey)
 	}
 
 	// Verbose logging
 	if opts.Verbose {
 		fmt.Printf("[DEBUG] POST %s\n", url)
 		fmt.Printf("[DEBUG] Content-Type: %s\n", writer.FormDataContentType())
-		if clientKey != "" {
-			fmt.Printf("[DEBUG] X-Client-Key: %s...\n", clientKey[:8])
+		if userKey != "" {
+			fmt.Printf("[DEBUG] X-User-Key: %s...\n", userKey[:8])
 		}
 	}
 

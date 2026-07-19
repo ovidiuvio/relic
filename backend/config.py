@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Admin Configuration
     RELIC_CLEANUP_INTERVAL: int = int(os.getenv("RELIC_CLEANUP_INTERVAL", "60"))  # Minutes
-    ADMIN_CLIENT_IDS: str = os.getenv("ADMIN_CLIENT_IDS", "")
+    ADMIN_USER_IDS: str = os.getenv("ADMIN_USER_IDS", "")
 
     # CORS - accept as string from env, parse in validator
     ALLOWED_ORIGINS: str = '["http://localhost:3000", "http://localhost:8000"]'
@@ -92,18 +92,18 @@ class Settings(BaseSettings):
                 times.append((int(hour), int(minute)))
         return times
 
-    def get_admin_client_ids(self) -> List[str]:
+    def get_admin_user_ids(self) -> List[str]:
         """
-        Get list of admin client IDs.
+        Get list of admin user IDs.
 
-        Parses ADMIN_CLIENT_IDS env var which contains comma-separated client IDs.
+        Parses ADMIN_USER_IDS env var which contains comma-separated user IDs.
 
         Returns:
-            List of admin client ID strings
+            List of admin user ID strings
         """
-        if not self.ADMIN_CLIENT_IDS:
+        if not self.ADMIN_USER_IDS:
             return []
-        return [cid.strip() for cid in self.ADMIN_CLIENT_IDS.split(",") if cid.strip()]
+        return [uid.strip() for uid in self.ADMIN_USER_IDS.split(",") if uid.strip()]
 
 
 settings = Settings()

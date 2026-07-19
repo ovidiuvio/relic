@@ -6,7 +6,7 @@
         checkAdminStatus,
         getAdminStats,
         getAdminRelics,
-        getAdminClients,
+        getAdminUsers,
         getAdminConfig,
         getAdminBackups,
         createAdminBackup,
@@ -15,7 +15,7 @@
         restoreFromUpload,
         createRelic,
         deleteRelic,
-        deleteClient,
+        deleteUser,
         grantAdmin,
         revokeAdmin,
         getAdmins,
@@ -66,7 +66,7 @@
     // Stats
     let stats = {
         total_relics: 0,
-        total_clients: 0,
+        total_users: 0,
         total_size_bytes: 0,
         public_relics: 0,
         private_relics: 0,
@@ -90,15 +90,15 @@
     let relicsSortBy = 'created_at';
     let relicsSortOrder = 'desc';
 
-    // Clients state
-    let clients = [];
-    let clientsLoading = false;
-    let clientsTotal = 0;
-    let clientsPage = 1;
-    let clientsLimit = 25;
-    let clientsSortBy = 'created_at';
-    let clientsSortOrder = 'desc';
-    let clientsSearch = '';
+    // Users state
+    let users = [];
+    let usersLoading = false;
+    let usersTotal = 0;
+    let usersPage = 1;
+    let usersLimit = 25;
+    let usersSortBy = 'created_at';
+    let usersSortOrder = 'desc';
+    let usersSearch = '';
     let revealedKeys = new Set();
 
     // Config state
@@ -157,8 +157,8 @@
     $: jobsHistoryTotalPages = Math.ceil(filteredHistory.length / jobsHistoryLimit);
     $: paginatedHistory = filteredHistory.slice().reverse().slice((jobsHistoryPage - 1) * jobsHistoryLimit, jobsHistoryPage * jobsHistoryLimit);
 
-    // Selected client for viewing their relics
-    let selectedClient = null;
+    // Selected user for viewing their relics
+    let selectedUser = null;
 
     // Confirm modal state
     let showConfirm = false;
@@ -166,7 +166,7 @@
     let confirmMessage = '';
     let confirmAction = null;
     let showDeleteRelicsConfirm = false;
-    let confirmClientToDelete = null;
+    let confirmUserToDelete = null;
 
     $: filteredRelics = relics;
 
@@ -181,15 +181,15 @@
         loadRelics();
     }
 
-    function handleClientsSort(column) {
-        if (clientsSortBy === column) {
-            clientsSortOrder = clientsSortOrder === 'asc' ? 'desc' : 'asc';
+    function handleUsersSort(column) {
+        if (usersSortBy === column) {
+            usersSortOrder = usersSortOrder === 'asc' ? 'desc' : 'asc';
         } else {
-            clientsSortBy = column;
-            clientsSortOrder = 'desc';
+            usersSortBy = column;
+            usersSortOrder = 'desc';
         }
-        clientsPage = 1;
-        loadClients();
+        usersPage = 1;
+        loadUsers();
     }
 
     function handleReportsSort(column) {
@@ -287,12 +287,12 @@
         try {
             const accessLevel = relicsFilter === "all" ? null : relicsFilter;
             const offset = (relicsPage - 1) * relicsLimit;
-            const clientId = selectedClient ? selectedClient.id : null;
+            const userId = selectedUser ? selectedUser.id : null;
             const response = await getAdminRelics(
                 relicsLimit,
                 offset,
                 accessLevel,
-                clientId,
+                userId,
                 searchTerm || null,
                 tagFilter || null,
                 relicsSortBy,
@@ -309,19 +309,19 @@
         }
     }
 
-    async function loadClients() {
-        clientsLoading = true;
+    async function loadUsers() {
+        usersLoading = true;
         try {
-            const offset = (clientsPage - 1) * clientsLimit;
-            const response = await getAdminClients(clientsLimit, offset, clientsSortBy, clientsSortOrder, clientsSearch || null);
-            clients = response.data.clients || [];
-            clientsTotal = response.data.total || 0;
+            const offset = (usersPage - 1) * usersLimit;
+            const response = await getAdminUsers(usersLimit, offset, usersSortBy, usersSortOrder, usersSearch || null);
+            users = response.data.users || [];
+            usersTotal = response.data.total || 0;
         } catch (error) {
-            console.error("Failed to load clients:", error);
-            showToast("Failed to load clients", "error");
-            clients = [];
+            console.error("Failed to load users:", error);
+            showToast("Failed to load users", "error");
+            users = [];
         } finally {
-            clientsLoading = false;
+            usersLoading = false;
         }
     }
 
@@ -361,7 +361,7 @@
             await addAdmin(publicId);
             showToast("Admin added", "success");
             newAdminPublicId = "";
-            await Promise.all([loadAdmins(), loadStats(), loadClients()]);
+            await Promise.all([loadAdmins(), loadStats(), loadUsers()]);
         } catch (error) {
             console.error("Failed to add admin:", error);
             showToast(
@@ -375,9 +375,9 @@
 
     async function handleRemoveAdmin(admin) {
         try {
-            await revokeAdmin(admin.client_id);
+            await revokeAdmin(admin.user_id);
             showToast("Admin removed", "success");
-            await Promise.all([loadAdmins(), loadStats(), loadClients()]);
+            await Promise.all([loadAdmins(), loadStats(), loadUsers()]);
         } catch (error) {
             console.error("Failed to remove admin:", error);
             showToast(
@@ -613,10 +613,10 @@
         showConfirm = true;
     }
 
-    function handleDeleteClient(client) {
+    function handleDeleteUser(user) {
         confirmTitle = 'Delete User';
-        confirmMessage = `Delete client "${client.id}"?\n\nThis client owns ${client.relic_count} relic(s).`;
-        confirmClientToDelete = client;
+        confirmMessage = `Delete user "${user.id}"?\n\nThis user owns ${user.relic_count} relic(s).`;
+        confirmUserToDelete = user;
         confirmAction = () => {
             showConfirm = false;
             showDeleteRelicsConfirm = true;
@@ -624,17 +624,17 @@
         showConfirm = true;
     }
 
-    async function handleToggleAdmin(client) {
+    async function handleToggleAdmin(user) {
         try {
-            if (client.is_admin) {
-                await revokeAdmin(client.id);
+            if (user.is_admin) {
+                await revokeAdmin(user.id);
                 showToast("Admin privileges revoked", "success");
             } else {
-                await grantAdmin(client.id);
+                await grantAdmin(user.id);
                 showToast("Admin privileges granted", "success");
             }
             // loadAdmins() only needed when the Config tab (admins table) is visible
-            const refreshes = [loadClients(), loadStats()];
+            const refreshes = [loadUsers(), loadStats()];
             if (activeTab === "config") refreshes.push(loadAdmins());
             await Promise.all(refreshes);
         } catch (error) {
@@ -646,23 +646,23 @@
         }
     }
 
-    async function performDeleteClient(deleteRelicsChoice) {
+    async function performDeleteUser(deleteRelicsChoice) {
         showDeleteRelicsConfirm = false;
-        if (!confirmClientToDelete) return;
+        if (!confirmUserToDelete) return;
 
         try {
-            await deleteClient(confirmClientToDelete.id, deleteRelicsChoice);
+            await deleteUser(confirmUserToDelete.id, deleteRelicsChoice);
             showToast("User deleted", "success");
-            await loadClients();
+            await loadUsers();
             await loadStats();
         } catch (error) {
-            console.error("Failed to delete client:", error);
+            console.error("Failed to delete user:", error);
             showToast(
-                error.response?.data?.detail || "Failed to delete client",
+                error.response?.data?.detail || "Failed to delete user",
                 "error",
             );
         } finally {
-            confirmClientToDelete = null;
+            confirmUserToDelete = null;
         }
     }
 
@@ -688,15 +688,15 @@
         window.dispatchEvent(new PopStateEvent("popstate"));
     }
 
-    function viewClientRelics(client) {
-        selectedClient = client;
+    function viewUserRelics(user) {
+        selectedUser = user;
         activeTab = "relics";
         relicsPage = 1;
         loadRelics();
     }
 
-    function clearClientFilter() {
-        selectedClient = null;
+    function clearUserFilter() {
+        selectedUser = null;
         relicsPage = 1;
         loadRelics();
     }
@@ -704,7 +704,7 @@
     function refreshAll() {
         loadStats();
         loadRelics();
-        loadClients();
+        loadUsers();
         loadConfig();
         loadAdmins();
         loadBackups();
@@ -727,12 +727,12 @@
         }, 300);
     }
 
-    let _clientsSearchDebounce;
-    $: if (clientsSearch !== undefined && isAdmin) {
-        clearTimeout(_clientsSearchDebounce);
-        _clientsSearchDebounce = setTimeout(() => {
-            clientsPage = 1;
-            loadClients();
+    let _usersSearchDebounce;
+    $: if (usersSearch !== undefined && isAdmin) {
+        clearTimeout(_usersSearchDebounce);
+        _usersSearchDebounce = setTimeout(() => {
+            usersPage = 1;
+            loadUsers();
         }, 300);
     }
 
@@ -744,14 +744,14 @@
     }
 
     $: relicsTotalPages = Math.ceil(relicsTotal / relicsLimit);
-    $: clientsTotalPages = Math.ceil(clientsTotal / clientsLimit);
+    $: usersTotalPages = Math.ceil(usersTotal / usersLimit);
     $: backupsTotalPages = Math.ceil(backupsTotal / backupsLimit);
     $: reportsTotalPages = Math.ceil(reportsTotal / reportsLimit);
 
     onMount(async () => {
         const perPage = getDefaultItemsPerPage();
         relicsLimit = perPage;
-        clientsLimit = perPage;
+        usersLimit = perPage;
         backupsLimit = perPage;
         reportsLimit = perPage;
         await checkAdmin();
@@ -759,7 +759,7 @@
             await Promise.all([
                 loadStats(),
                 loadRelics(),
-                loadClients(),
+                loadUsers(),
                 loadConfig(),
                 loadAdmins(),
                 loadBackups(),
@@ -787,7 +787,7 @@
             <p class="text-gray-600">You don't have admin privileges.</p>
             <p class="text-xs text-gray-500 mt-4">
                 Configure via <code class="bg-gray-100 px-1 rounded"
-                    >ADMIN_CLIENT_IDS</code
+                    >ADMIN_USER_IDS</code
                 > env variable.
             </p>
         </div>
@@ -818,9 +818,9 @@
                         <i class="fas fa-archive mr-2"></i>Relics
                     </button>
                     <button
-                        on:click={() => (activeTab = "clients")}
+                        on:click={() => (activeTab = "users")}
                         class="text-sm font-medium pb-1 border-b-2 transition-colors {activeTab ===
-                        'clients'
+                        'users'
                             ? 'border-[#E95420] text-[#E95420]'
                             : 'border-transparent text-gray-500 hover:text-gray-700'}"
                     >
@@ -916,14 +916,14 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-gray-600">Total Registered Users</td>
-                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_clients}</td>
+                                    <td class="px-6 py-4 font-mono font-semibold text-gray-900 text-base">{stats.total_users}</td>
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-2 text-[11px] font-medium">
                                             <span class="px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
                                                 <i class="fas fa-shield-alt mr-1"></i> {stats.admin_count} Admins
                                             </span>
                                             <span class="text-gray-400 font-normal">
-                                                {stats.total_clients - stats.admin_count} standard users
+                                                {stats.total_users - stats.admin_count} standard users
                                             </span>
                                         </div>
                                     </td>
@@ -1007,16 +1007,16 @@
                 <div
                     class="px-6 py-3 border-b border-gray-200 flex items-center gap-4 bg-gray-50"
                 >
-                    {#if selectedClient}
+                    {#if selectedUser}
                         <div
                             class="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded text-sm"
                         >
                             <i class="fas fa-user text-purple-600"></i>
                             <span class="text-purple-800 font-mono"
-                                >{selectedClient.public_id || selectedClient.id}</span
+                                >{selectedUser.public_id || selectedUser.id}</span
                             >
                             <button
-                                on:click={clearClientFilter}
+                                on:click={clearUserFilter}
                                 class="text-purple-600 hover:text-purple-800 ml-1"
                                 title="Clear"
                             >
@@ -1225,22 +1225,22 @@
                                         </td>
 
                                         <td>
-                                            {#if relic.client_id}
+                                            {#if relic.user_id}
                                                 <div class="flex flex-col">
                                                     {#if relic.owner_name}
                                                         <span class="text-xs font-semibold text-gray-700 leading-normal">{relic.owner_name}</span>
                                                     {/if}
                                                     <div class="flex items-center gap-1 group/owner">
                                                         <button
-                                                            on:click={() => viewClientRelics({ id: relic.client_id, public_id: relic.client_public_id })}
+                                                            on:click={() => viewUserRelics({ id: relic.user_id, public_id: relic.user_public_id })}
                                                             class="text-[10px] font-mono text-gray-400 hover:text-gray-600 hover:underline leading-tight"
-                                                            title="View client's relics"
+                                                            title="View user's relics"
                                                         >
-                                                            {relic.client_public_id || 'anonymous'}
+                                                            {relic.user_public_id || 'anonymous'}
                                                         </button>
-                                                        {#if relic.client_public_id}
+                                                        {#if relic.user_public_id}
                                                             <button
-                                                                on:click|stopPropagation={() => copyToClipboard(relic.client_public_id, 'Owner ID copied!')}
+                                                                on:click|stopPropagation={() => copyToClipboard(relic.user_public_id, 'Owner ID copied!')}
                                                                 class="opacity-0 group-hover/owner:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
                                                                 title="Copy owner ID"
                                                             >
@@ -1425,12 +1425,12 @@
                                                 <div class="flex flex-col">
                                                     <button
                                                         on:click={() =>
-                                                            viewClientRelics({
+                                                            viewUserRelics({
                                                                 id: report.relic_owner_id,
                                                                 public_id: report.relic_owner_public_id,
                                                             })}
                                                         class="font-medium text-purple-600 hover:text-purple-800 hover:underline text-left leading-tight"
-                                                        title="View client's relics"
+                                                        title="View user's relics"
                                                     >
                                                         {report.relic_owner_name || "Anonymous"}
                                                     </button>
@@ -1540,20 +1540,20 @@
                 {/if}
             {/if}
 
-            <!-- Clients Tab -->
-            {#if activeTab === "clients"}
+            <!-- Users Tab -->
+            {#if activeTab === "users"}
                 <div class="px-6 py-3 border-b border-gray-200 flex items-center gap-4 bg-gray-50">
                     <div class="relative flex-1 max-w-md group">
                         <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input
                             type="text"
-                            bind:value={clientsSearch}
+                            bind:value={usersSearch}
                             placeholder="Filter by name, public ID, or key..."
                             class="w-full pl-9 pr-9 py-1.5 text-sm border border-gray-300 rounded"
                         />
-                        {#if clientsSearch}
+                        {#if usersSearch}
                             <button
-                                on:click={() => clientsSearch = ''}
+                                on:click={() => usersSearch = ''}
                                 class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
                                 title="Clear search" aria-label="Clear search"
                             >
@@ -1562,58 +1562,58 @@
                         {/if}
                     </div>
                 </div>
-                {#if clientsLoading}
+                {#if usersLoading}
                     <div class="p-8 text-center">
                         <i
                             class="fas fa-spinner fa-spin text-[#772953] text-2xl"
                         ></i>
                     </div>
-                {:else if clients.length === 0}
+                {:else if users.length === 0}
                     <div class="p-8 text-center text-gray-500">
                         <i class="fas fa-users text-4xl mb-2"></i>
-                        <p>No clients found</p>
+                        <p>No users found</p>
                     </div>
                 {:else}
                     <div class="overflow-x-auto">
                         <table class="w-full maas-table text-sm">
                             <thead>
                                 <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd]">
-                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('name')}>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleUsersSort('name')}>
                                         <div class="flex items-center gap-1.5">
-                                            <span class={clientsSortBy === 'name' ? 'text-[#772953]' : ''}>User / Name</span>
-                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'name' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                            <span class={usersSortBy === 'name' ? 'text-[#772953]' : ''}>User / Name</span>
+                                            <i class="fas fa-arrow-up sort-arrow {usersSortBy === 'name' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {usersSortBy === 'name' && usersSortOrder === 'desc' ? 'desc' : ''}"></i>
                                         </div>
                                     </th>
                                     <th class="px-4 py-2.5 text-left border-none">Private Key</th>
-                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('relic_count')}>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleUsersSort('relic_count')}>
                                         <div class="flex items-center gap-1.5">
-                                            <span class={clientsSortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
-                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'relic_count' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                            <span class={usersSortBy === 'relic_count' ? 'text-[#772953]' : ''}>Relics</span>
+                                            <i class="fas fa-arrow-up sort-arrow {usersSortBy === 'relic_count' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {usersSortBy === 'relic_count' && usersSortOrder === 'desc' ? 'desc' : ''}"></i>
                                         </div>
                                     </th>
                                     <th class="px-4 py-2.5 text-left border-none">Role</th>
-                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleClientsSort('created_at')}>
+                                    <th class="cursor-pointer hover:bg-[#efefef] transition-colors group px-4 py-2.5 text-left select-none border-none" on:click={() => handleUsersSort('created_at')}>
                                         <div class="flex items-center gap-1.5">
-                                            <span class={clientsSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
-                                            <i class="fas fa-arrow-up sort-arrow {clientsSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {clientsSortBy === 'created_at' && clientsSortOrder === 'desc' ? 'desc' : ''}"></i>
+                                            <span class={usersSortBy === 'created_at' ? 'text-[#772953]' : ''}>Created</span>
+                                            <i class="fas fa-arrow-up sort-arrow {usersSortBy === 'created_at' ? 'opacity-100 text-[#772953]' : 'opacity-0 text-gray-400 group-hover:opacity-50'} {usersSortBy === 'created_at' && usersSortOrder === 'desc' ? 'desc' : ''}"></i>
                                         </div>
                                     </th>
                                     <th class="px-4 py-2.5 text-right border-none w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {#each clients as client (client.id)}
+                                {#each users as user (user.id)}
                                     <tr class="hover:bg-gray-50 group">
                                         <td>
                                             <div class="flex items-center gap-2">
                                                 <i class="fas fa-user-circle text-gray-400 text-[13px]"></i>
                                                 <div>
-                                                    <div class="font-medium text-[13px] leading-tight text-gray-900">{client.name || "Anonymous"}</div>
+                                                    <div class="font-medium text-[13px] leading-tight text-gray-900">{user.name || "Anonymous"}</div>
                                                     <div class="flex items-center gap-1 group/pid">
-                                                        <span class="text-[11px] text-gray-400 font-mono">{client.public_id || '-'}</span>
-                                                        {#if client.public_id}
+                                                        <span class="text-[11px] text-gray-400 font-mono">{user.public_id || '-'}</span>
+                                                        {#if user.public_id}
                                                             <button
-                                                                on:click|stopPropagation={() => copyToClipboard(client.public_id, "Public ID copied to clipboard!")}
+                                                                on:click|stopPropagation={() => copyToClipboard(user.public_id, "Public ID copied to clipboard!")}
                                                                 class="opacity-0 group-hover/pid:opacity-100 text-gray-400 hover:text-gray-600 transition-all"
                                                                 title="Copy Public ID"
                                                             >
@@ -1625,19 +1625,19 @@
                                             </div>
                                         </td>
                                         <td>
-                                            {#if client.id}
+                                            {#if user.id}
                                                 <div class="flex items-center gap-1">
-                                                    <span class="text-xs font-mono text-gray-600">{revealedKeys.has(client.id) ? client.id : '•'.repeat(client.id.length)}</span>
+                                                    <span class="text-xs font-mono text-gray-600">{revealedKeys.has(user.id) ? user.id : '•'.repeat(user.id.length)}</span>
                                                     <button
-                                                        on:click|stopPropagation={() => { if (revealedKeys.has(client.id)) { revealedKeys.delete(client.id); } else { revealedKeys.add(client.id); } revealedKeys = revealedKeys; }}
+                                                        on:click|stopPropagation={() => { if (revealedKeys.has(user.id)) { revealedKeys.delete(user.id); } else { revealedKeys.add(user.id); } revealedKeys = revealedKeys; }}
                                                         class="text-gray-400 hover:text-gray-600 transition-colors"
-                                                        title={revealedKeys.has(client.id) ? 'Hide key' : 'Show key'}
+                                                        title={revealedKeys.has(user.id) ? 'Hide key' : 'Show key'}
                                                     >
-                                                        <i class="fas {revealedKeys.has(client.id) ? 'fa-eye-slash' : 'fa-eye'} text-xs"></i>
+                                                        <i class="fas {revealedKeys.has(user.id) ? 'fa-eye-slash' : 'fa-eye'} text-xs"></i>
                                                     </button>
-                                                    {#if revealedKeys.has(client.id)}
+                                                    {#if revealedKeys.has(user.id)}
                                                         <button
-                                                            on:click|stopPropagation={() => copyToClipboard(client.id, "Private Key copied to clipboard!")}
+                                                            on:click|stopPropagation={() => copyToClipboard(user.id, "Private Key copied to clipboard!")}
                                                             class="text-gray-400 hover:text-gray-600 transition-colors"
                                                             title="Copy Private Key"
                                                         >
@@ -1651,19 +1651,19 @@
                                         </td>
                                         <td>
                                             <button
-                                                on:click={() => viewClientRelics(client)}
+                                                on:click={() => viewUserRelics(user)}
                                                 class="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                                 title="View relics"
                                             >
-                                                <i class="fas fa-archive mr-1"></i>{client.relic_count} relics
+                                                <i class="fas fa-archive mr-1"></i>{user.relic_count} relics
                                             </button>
                                         </td>
                                         <td>
-                                            {#if client.is_super_admin}
-                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;" title="Defined via ADMIN_CLIENT_IDS (cannot be revoked at runtime)">
+                                            {#if user.is_super_admin}
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;" title="Defined via ADMIN_USER_IDS (cannot be revoked at runtime)">
                                                     <i class="fas fa-shield-alt mr-1"></i>super admin
                                                 </span>
-                                            {:else if client.is_admin}
+                                            {:else if user.is_admin}
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style="background-color: #f3e5f5; color: #772953;">
                                                     <i class="fas fa-shield-alt mr-1"></i>admin
                                                 </span>
@@ -1671,13 +1671,13 @@
                                                 <span class="text-gray-500 text-xs">user</span>
                                             {/if}
                                         </td>
-                                        <td class="text-gray-500 text-xs">{formatTimeAgo(client.created_at)}</td>
+                                        <td class="text-gray-500 text-xs">{formatTimeAgo(user.created_at)}</td>
                                         <td class="text-right">
                                             <div class="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-200">
-                                                {#if !client.is_super_admin}
-                                                    {#if client.is_admin}
+                                                {#if !user.is_super_admin}
+                                                    {#if user.is_admin}
                                                         <button
-                                                            on:click={() => handleToggleAdmin(client)}
+                                                            on:click={() => handleToggleAdmin(user)}
                                                             class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors"
                                                             title="Remove admin"
                                                         >
@@ -1685,16 +1685,16 @@
                                                         </button>
                                                     {:else}
                                                         <button
-                                                            on:click={() => handleToggleAdmin(client)}
+                                                            on:click={() => handleToggleAdmin(user)}
                                                             class="p-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors"
                                                             title="Make admin"
                                                         >
                                                             <i class="fas fa-user-shield text-xs"></i>
                                                         </button>
                                                     {/if}
-                                                    {#if !client.is_admin}
+                                                    {#if !user.is_admin}
                                                         <button
-                                                            on:click={() => handleDeleteClient(client)}
+                                                            on:click={() => handleDeleteUser(user)}
                                                             class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                                                             title="Delete User"
                                                         >
@@ -1712,13 +1712,13 @@
                     <div class="px-4 py-[0.6rem] border-t border-[#ddd] bg-gray-50 flex justify-between items-center">
                         <div class="flex items-center gap-4">
                             <div class="text-[11px] text-[#999]">
-                                <span class="font-medium text-[#666]">{clientsTotal}</span> client{clientsTotal !== 1 ? "s" : ""}
+                                <span class="font-medium text-[#666]">{usersTotal}</span> user{usersTotal !== 1 ? "s" : ""}
                             </div>
                             <div class="flex items-center gap-2 border-l border-gray-200 pl-4 text-[11px]">
                                 <span class="text-[#999]">Show:</span>
                                 <select
-                                    bind:value={clientsLimit}
-                                    on:change={() => { clientsPage = 1; loadClients(); }}
+                                    bind:value={usersLimit}
+                                    on:change={() => { usersPage = 1; loadUsers(); }}
                                     class="text-[11px] pl-2 pr-6 py-0.5 border border-[#ddd] rounded-sm bg-white text-[#666] focus:outline-none"
                                 >
                                     <option value={10}>10</option>
@@ -1730,17 +1730,17 @@
                                 </select>
                             </div>
                         </div>
-                        {#if clientsTotalPages > 1}
+                        {#if usersTotalPages > 1}
                             <div class="flex items-center gap-0.5 whitespace-nowrap">
-                                <span class="text-[11px] text-[#999] mr-2">Page {clientsPage} of {clientsTotalPages}</span>
+                                <span class="text-[11px] text-[#999] mr-2">Page {usersPage} of {usersTotalPages}</span>
                                 <button
-                                    on:click={() => { clientsPage = Math.max(1, clientsPage - 1); loadClients(); }}
-                                    disabled={clientsPage === 1}
+                                    on:click={() => { usersPage = Math.max(1, usersPage - 1); loadUsers(); }}
+                                    disabled={usersPage === 1}
                                     class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-left text-[11px]"></i></button>
                                 <button
-                                    on:click={() => { clientsPage = Math.min(clientsTotalPages, clientsPage + 1); loadClients(); }}
-                                    disabled={clientsPage === clientsTotalPages}
+                                    on:click={() => { usersPage = Math.min(usersTotalPages, usersPage + 1); loadUsers(); }}
+                                    disabled={usersPage === usersTotalPages}
                                     class="h-[26px] min-w-[26px] flex items-center justify-center rounded hover:bg-[#e8e8e8] disabled:opacity-25 disabled:cursor-not-allowed transition-colors text-[#555]"
                                 ><i class="fas fa-chevron-right text-[11px]"></i></button>
                             </div>
@@ -2428,7 +2428,7 @@
                                                 ></tr
                                             >
                                         {:else}
-                                            {#each admins as admin (admin.client_id)}
+                                            {#each admins as admin (admin.user_id)}
                                                 <tr class="hover:bg-gray-50 group">
                                                     <td>
                                                         <div
@@ -2447,14 +2447,14 @@
                                                     <td
                                                         class="font-mono text-[11px] text-gray-500"
                                                         >{admin.public_id ||
-                                                            admin.client_id}</td
+                                                            admin.user_id}</td
                                                     >
                                                     <td>
                                                         <span
                                                             class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
                                                             style="background-color: #f3e5f5; color: #772953;"
                                                             title={admin.is_super_admin
-                                                                ? "Defined via ADMIN_CLIENT_IDS (cannot be revoked at runtime)"
+                                                                ? "Defined via ADMIN_USER_IDS (cannot be revoked at runtime)"
                                                                 : "Runtime-granted admin"}
                                                         >
                                                             <i
@@ -2490,7 +2490,7 @@
                             <p class="text-xs text-gray-400 mt-2">
                                 Super admins are set via the <code
                                     class="bg-gray-100 px-1 rounded"
-                                    >ADMIN_CLIENT_IDS</code
+                                    >ADMIN_USER_IDS</code
                                 > env var and can't be removed here. Others can be
                                 added or removed at runtime.
                             </p>
@@ -2580,13 +2580,13 @@
 />
 
 <ConfirmModal
-  show={showDeleteRelicsConfirm && !!confirmClientToDelete}
+  show={showDeleteRelicsConfirm && !!confirmUserToDelete}
   title="Delete Relics Too?"
-  message="Also delete their {confirmClientToDelete?.relic_count} relic(s)?"
+  message="Also delete their {confirmUserToDelete?.relic_count} relic(s)?"
   confirmLabel="Delete relics too"
   cancelLabel="Keep relics (become anonymous)"
-  on:confirm={() => performDeleteClient(true)}
-  on:cancel={() => performDeleteClient(false)}
+  on:confirm={() => performDeleteUser(true)}
+  on:cancel={() => performDeleteUser(false)}
 />
 
 {#if restoreModalOpen && restoreTarget}

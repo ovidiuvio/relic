@@ -3,18 +3,18 @@ import pytest
 
 
 @pytest.fixture
-def relic_with_content(http, registered_client):
-    key, _ = registered_client
+def relic_with_content(http, registered_user):
+    key, _ = registered_user
     content = b"Raw content here"
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Raw Test", "access_level": "public"},
         files={"file": ("test.txt", content, "text/plain")},
     )
     relic_id = resp.json()["id"]
     yield relic_id, content
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration

@@ -8,7 +8,7 @@ export * from './auth'
 export * from './relics'
 export * from './bookmarks'
 export * from './admin'
-export * from './clients'
+export * from './users'
 export * from './comments'
 export * from './spaces'
 

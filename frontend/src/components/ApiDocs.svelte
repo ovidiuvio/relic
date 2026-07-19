@@ -54,10 +54,10 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
-                    >/api/v1/admin/clients/{client_id}</td
+                    >/api/v1/admin/users/{user_id}</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >Delete a client</td
+                    >Delete a user</td
                   >
                 </tr>
                 <tr>
@@ -236,10 +236,10 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
-                    >/api/v1/admin/clients</td
+                    >/api/v1/admin/users</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >List clients</td
+                    >List users</td
                   >
                 </tr>
                 <tr>
@@ -340,10 +340,10 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
-                    >/api/v1/client/relics</td
+                    >/api/v1/user/relics</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >List client relics</td
+                    >List user relics</td
                   >
                 </tr>
                 <tr>
@@ -548,10 +548,10 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
-                    >/api/v1/client/register</td
+                    >/api/v1/user/register</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >Register client</td
+                    >Register user</td
                   >
                 </tr>
                 <tr>
@@ -678,10 +678,10 @@ curl -X POST http://localhost:8000/api/v1/relics \\
                   >
                   <td
                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono"
-                    >/api/v1/client/name</td
+                    >/api/v1/user/name</td
                   >
                   <td class="px-6 py-4 text-sm text-gray-500"
-                    >Update client name</td
+                    >Update user name</td
                   >
                 </tr>
                 <tr>

@@ -27,7 +27,7 @@ Key principle: Relics cannot be edited after creation - they are permanent and i
 **Database fields:**
 - `id`: 32-character hexadecimal (GitHub Gist-style), primary key
 - `fork_of`: Source relic if forked (null for original relics)
-- `client_id`: Client identification key (nullable for anonymous)
+- `user_id`: User identification key (nullable for anonymous)
 - `name`: Optional display name
 - `description`: Optional description
 - `content_type`: MIME type of the stored content
@@ -72,13 +72,13 @@ Key queries:
   - **Private**: Not listed in recents, only accessible via direct URL (which serves as the access token with 128 bits of entropy)
 - **Optional password protection**: Can be applied to any relic (public or private) for additional security
 - **Expiration options**: 1h, 24h, 7d, 30d, never (default: never)
-- **Anonymous relics**: No client association
+- **Anonymous relics**: No user association
 - **URL format**: 32-character hexadecimal (GitHub Gist-style), cryptographically secure, practically collision-proof
 
 ## Storage Architecture
 
 - **Primary storage**: S3-compatible (MinIO) - one object per relic
-- **Database**: Stores metadata (id, client_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, access_count, tags, etc.)
+- **Database**: Stores metadata (id, user_id, fork_of, content_type, language_hint, size_bytes, s3_key, created_at, expires_at, access_count, tags, etc.)
 - **Max upload**: 100MB (configurable)
 - **No S3 versioning needed**: Immutable model means each relic is independent
 
@@ -101,26 +101,26 @@ GET    /api/v1/relics                  List recent public relics
 
 ### Admin Endpoints
 
-Admin endpoints require the `X-Client-Key` header with an admin client ID (configured via `ADMIN_CLIENT_IDS` env var).
+Admin endpoints require the `X-User-Key` header with an admin user ID (configured via `ADMIN_USER_IDS` env var).
 
 ```
 GET    /api/v1/admin/check             Check admin status (no auth required)
 GET    /api/v1/admin/relics            List all relics (including private)
-GET    /api/v1/admin/clients           List all clients
+GET    /api/v1/admin/users             List all users
 GET    /api/v1/admin/stats             Get system statistics
-DELETE /api/v1/admin/clients/:id       Delete a client
+DELETE /api/v1/admin/users/:id         Delete a user
 ```
 
 **Admin Privileges:**
 - Delete any relic (not just their own)
 - View all relics including private ones via admin endpoints
-- View all registered clients
-- Delete clients (and optionally their relics)
+- View all registered users
+- Delete users (and optionally their relics)
 - View system statistics
 
 **Setting Up Admin Users:**
-1. Get client ID from browser: `localStorage.getItem('relic_client_key')`
-2. Add to `ADMIN_CLIENT_IDS` in `docker-compose.prod.yml` (comma-separated for multiple admins)
+1. Get user ID from browser: `localStorage.getItem('relic_user_key')`
+2. Add to `ADMIN_USER_IDS` in `docker-compose.prod.yml` (comma-separated for multiple admins)
 3. Restart services with `make down && make up`
 4. Admin panel will appear in navigation
 
@@ -152,12 +152,12 @@ relic/
 │   ├── routes/              # API route handlers
 │   │   ├── admin.py
 │   │   ├── bookmarks.py
-│   │   ├── clients.py
 │   │   ├── comments.py
 │   │   ├── health.py
 │   │   ├── relics.py
 │   │   ├── reports.py
-│   │   └── spaces.py
+│   │   ├── spaces.py
+│   │   └── users.py
 │   └── __init__.py
 ├── frontend/
 │   ├── src/
@@ -322,7 +322,7 @@ Not yet implemented. Plan:
 - **By content**: Full-text search (SQLite `MATCH`, PostgreSQL `tsvector`, or external index)
 - **By tags**: Many-to-many via `relic_tags` table
 - **By type**: Simple filter on `content_type` field
-- **By client**: Filter on `client_id` field
+- **By user**: Filter on `user_id` field
 - **Pagination**: Use `offset` and `limit` parameters
 
 ### Frontend Routing

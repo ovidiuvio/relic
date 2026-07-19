@@ -21,7 +21,7 @@ class SpaceBenchmark(Benchmark):
 
     async def run_operation(self, client, operation_id):
         """Randomly choose space operation."""
-        headers = {"X-Client-Key": self.client_key}
+        headers = {"X-User-Key": self.user_key}
 
         op_type = random.choice(["list", "get", "get_relics"])
 

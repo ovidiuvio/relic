@@ -126,7 +126,7 @@
             value: 'restricted',
             icon: 'fa-user-lock',
             label: 'Restricted',
-            description: 'Only you and explicitly allowed clients can view it.',
+            description: 'Only you and explicitly allowed users can view it.',
             bg: '#fef3c7', color: '#b45309', borderActive: '#b45309',
         },
     ]
@@ -188,7 +188,7 @@
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
                                 <i class="fas fa-users text-amber-500" aria-hidden="true"></i>
-                                Allowed Clients
+                                Allowed Users
                             </h3>
                             {#if accessTotal > 0}
                                 <span class="text-xs text-gray-400">{accessTotal} {accessTotal === 1 ? 'user' : 'users'}</span>
@@ -278,7 +278,7 @@
                                                             <i class="fas fa-user text-[10px]" aria-hidden="true"></i>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm font-semibold text-gray-900">{entry.client_name || 'Anonymous'}</div>
+                                                            <div class="text-sm font-semibold text-gray-900">{entry.user_name || 'Anonymous'}</div>
                                                             <div class="text-[10px] text-gray-400 font-mono">{entry.public_id || '—'}</div>
                                                         </div>
                                                     </div>

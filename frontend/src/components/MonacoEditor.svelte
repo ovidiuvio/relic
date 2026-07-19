@@ -12,7 +12,7 @@
   import { getMonacoLanguage } from '../services/typeUtils';
   import CommentEditor from './CommentEditor.svelte';
   import { processMarkdown } from '../services/processors/markdownProcessor';
-  import { clientPublicId } from '../stores/clientStore';
+  import { userPublicId } from '../stores/userStore';
 
   export let value = ''
   export let language = 'plaintext'
@@ -58,7 +58,7 @@
   let isFocused = false
 
   $: isDarkMode = darkMode
-  $: currentPublicId = $clientPublicId
+  $: currentPublicId = $userPublicId
 
   const dispatch = createEventDispatcher()
 

@@ -1237,7 +1237,7 @@ relic config core.server {serverUrl}</pre>
             <p class="text-sm text-gray-700">
               <strong>Tip:</strong> Use the <code
                 class="bg-white px-2 py-0.5 rounded text-xs font-mono border border-gray-300"
-                >X-Client-Key</code
+                >X-User-Key</code
               > header to authenticate and associate relics with your account.
             </p>
           </div>

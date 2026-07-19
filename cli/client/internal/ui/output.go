@@ -224,9 +224,9 @@ func printRelicListHuman(list *relic.RelicListResponse, serverURL string) error 
 	return nil
 }
 
-// PrintClientInfo prints information about the client
-func PrintClientInfo(info *relic.ClientInfo, server string) error {
-	fmt.Printf("Client ID: %s\n", Bold(info.ClientID))
+// PrintUserInfo prints information about the user
+func PrintUserInfo(info *relic.UserInfo, server string) error {
+	fmt.Printf("User ID: %s\n", Bold(info.UserID))
 	fmt.Printf("Server: %s\n", server)
 	fmt.Printf("Registered: %s\n", formatTime(info.CreatedAt.Time))
 	fmt.Printf("Relics: %d\n", info.RelicCount)

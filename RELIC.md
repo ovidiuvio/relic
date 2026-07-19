@@ -200,8 +200,8 @@ a1b2c3d4e5f678901234567890abcdef
 - Public: anyone can view
 - Unlisted: only via direct URL
 - Private: only owner can view (requires auth)
-- Anonymous relics (no client association)
-- Authenticated relics (with client association)
+- Anonymous relics (no user association)
+- Authenticated relics (with user association)
 
 ## Data Model
 
@@ -209,7 +209,7 @@ a1b2c3d4e5f678901234567890abcdef
 
 ```
 id              Unique identifier (32-char hex string)
-client_id       Client identification (null for anonymous)
+user_id         User identification (null for anonymous)
 name            Optional display name
 description     Optional description
 

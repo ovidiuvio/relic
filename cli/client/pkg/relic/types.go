@@ -102,9 +102,9 @@ type RelicListResponse struct {
 	Total  int             `json:"total"`
 }
 
-// ClientInfo represents information about the client
-type ClientInfo struct {
-	ClientID   string    `json:"client_id"`
+// UserInfo represents information about the user
+type UserInfo struct {
+	UserID     string    `json:"user_id"`
 	PublicID   string    `json:"public_id"`
 	Name       string    `json:"name"`
 	CreatedAt  RelicTime `json:"created_at"`
@@ -113,13 +113,13 @@ type ClientInfo struct {
 
 // SpaceInfo represents a space
 type SpaceInfo struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Visibility    string    `json:"visibility"`
-	OwnerClientID string    `json:"owner_client_id"`
-	CreatedAt     RelicTime `json:"created_at"`
-	RelicCount    int       `json:"relic_count"`
-	Role          string    `json:"role,omitempty"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Visibility string    `json:"visibility"`
+	OwnerID    string    `json:"owner_id"`
+	CreatedAt  RelicTime `json:"created_at"`
+	RelicCount int       `json:"relic_count"`
+	Role       string    `json:"role,omitempty"`
 }
 
 // SpaceListResponse represents a paginated list of spaces

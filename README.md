@@ -166,31 +166,31 @@ make dev-down
 
 ## Admin Setup
 
-Relic supports admin users with elevated privileges (view all relics, delete any relic, manage clients, view statistics).
+Relic supports admin users with elevated privileges (view all relics, delete any relic, manage users, view statistics).
 
 ### Setting Up an Admin User
 
-1. **Get your Client ID**
+1. **Get your User ID**
 
    Open your browser's Developer Tools (F12) and run this in the Console:
    ```javascript
-   localStorage.getItem('relic_client_key')
+   localStorage.getItem('relic_user_key')
    ```
 
-   This will output your client ID, which looks like: `5cdb7b79c38385db9f5b5f6ad884c8ef`
+   This will output your user ID, which looks like: `5cdb7b79c38385db9f5b5f6ad884c8ef`
 
 2. **Configure Admin in Production**
 
-   Edit `docker-compose.prod.yml` and set the `ADMIN_CLIENT_IDS` environment variable:
+   Edit `docker-compose.prod.yml` and set the `ADMIN_USER_IDS` environment variable:
    ```yaml
    backend:
      environment:
-       ADMIN_CLIENT_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef"
+       ADMIN_USER_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef"
    ```
 
    For multiple admins, use comma-separated values:
    ```yaml
-   ADMIN_CLIENT_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef,a1b2c3d4e5f6789012345678abcdef01"
+   ADMIN_USER_IDS: "5cdb7b79c38385db9f5b5f6ad884c8ef,a1b2c3d4e5f6789012345678abcdef01"
    ```
 
 3. **Restart Services**
@@ -204,8 +204,8 @@ Relic supports admin users with elevated privileges (view all relics, delete any
    After restarting, the "Admin" tab will appear in the navigation. Admin privileges include:
    - View all relics (including private ones)
    - Delete any relic (not just your own)
-   - View all registered clients
-   - Delete clients and their relics
+   - View all registered users
+   - Delete users and their relics
    - View system statistics
 
 ### Development Environment

@@ -9,7 +9,7 @@ from backend.storage import storage_service
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
 
-from backend.routes import health, clients, relics, bookmarks, comments, spaces, reports, admin
+from backend.routes import health, users, relics, bookmarks, comments, spaces, reports, admin
 
 # Configure logging
 logging.basicConfig(
@@ -79,7 +79,7 @@ async def shutdown_event():
 # so it must be included last
 app.include_router(health.router)
 app.include_router(admin.router)
-app.include_router(clients.router)
+app.include_router(users.router)
 app.include_router(bookmarks.router)
 app.include_router(comments.router)
 app.include_router(spaces.router)

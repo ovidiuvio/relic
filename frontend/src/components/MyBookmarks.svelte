@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import { showToast } from '../stores/toastStore'
-  import { getClientBookmarks, removeBookmark } from '../services/api'
+  import { getUserBookmarks, removeBookmark } from '../services/api'
   import { getDefaultItemsPerPage } from '../services/typeUtils'
   import { createReloader } from '../services/utils/paginationUtils'
   import RelicTable from './RelicTable.svelte'
@@ -43,7 +43,7 @@
     const gen = reloader.gen()
     try {
       loading = true
-      const response = await getClientBookmarks({
+      const response = await getUserBookmarks({
         tag: tagFilter || undefined,
         search: searchTerm || undefined,
         sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,

@@ -25,7 +25,7 @@ var (
 	outputFmt   string
 	quiet       bool
 	serverURL   string
-	clientKey   string
+	userKey     string
 	noProgress  bool
 
 	// Upload flags
@@ -63,7 +63,12 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "human", "output format (human, json, url)")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "quiet mode (URL only)")
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "", "API server URL")
-	rootCmd.PersistentFlags().StringVar(&clientKey, "client-key", "", "client authentication key")
+	rootCmd.PersistentFlags().StringVar(&userKey, "user-key", "", "user authentication key")
+	// Pre-rename flag name, kept as a hidden alias bound to the same variable
+	// so existing scripts don't break outright.
+	rootCmd.PersistentFlags().StringVar(&userKey, "client-key", "", "user authentication key (deprecated, use --user-key)")
+	rootCmd.PersistentFlags().MarkHidden("client-key")
+	rootCmd.PersistentFlags().MarkDeprecated("client-key", "use --user-key instead")
 
 	// Upload flags
 	rootCmd.Flags().StringVarP(&relicName, "name", "n", "", "relic name")
@@ -96,36 +101,36 @@ func main() {
 	}
 }
 
-// ensureRegisteredClientKey makes sure a client key exists and, if a new one
+// ensureRegisteredUser makes sure a user key exists and, if a new one
 // was just generated, registers it with the server before persisting it to
 // the local config. The key is only saved to disk once registration succeeds,
 // so a failed registration attempt (network error, server hiccup) doesn't
 // leave an unregistered key cached locally - which would otherwise 401 every
 // future command, since the server rejects requests bearing an unregistered
-// X-Client-Key.
-func ensureRegisteredClientKey(cfg *config.Config) (string, error) {
-	key, isNew, err := api.EnsureClientKey(cfg)
+// X-User-Key.
+func ensureRegisteredUser(cfg *config.Config) (string, error) {
+	key, isNew, err := api.EnsureUserKey(cfg)
 	if err != nil {
 		return "", err
 	}
-	cfg.ClientKey = key
+	cfg.UserKey = key
 
 	if isNew {
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "%s Generated new client key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
+			fmt.Fprintf(os.Stderr, "%s Generated new user key: %s\n", ui.Info(ui.SymbolInfo), key[:8]+"...")
 		}
 
 		apiClient := api.NewClient(cfg, verbose)
-		apiClient.ClientKey = key
-		if _, err := apiClient.RegisterClient(); err != nil {
-			return "", fmt.Errorf("failed to register client key with server: %w", err)
+		apiClient.UserKey = key
+		if _, err := apiClient.RegisterUser(); err != nil {
+			return "", fmt.Errorf("failed to register user key with server: %w", err)
 		}
 
-		if err := config.Save("client.key", key); err != nil {
-			return "", fmt.Errorf("failed to save client key: %w", err)
+		if err := config.Save("user.key", key); err != nil {
+			return "", fmt.Errorf("failed to save user key: %w", err)
 		}
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "%s Client key saved to config\n", ui.Success(ui.SymbolSuccess))
+			fmt.Fprintf(os.Stderr, "%s User key saved to config\n", ui.Success(ui.SymbolSuccess))
 		}
 	}
 
@@ -139,8 +144,8 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Ensure client key
-	key, err := ensureRegisteredClientKey(cfg)
+	// Ensure user key
+	key, err := ensureRegisteredUser(cfg)
 	if err != nil {
 		return err
 	}
@@ -184,7 +189,7 @@ func uploadCommand(cmd *cobra.Command, args []string) error {
 	var metadata *relic.RelicMetadata
 	if format == ui.FormatHuman {
 		apiClient := api.NewClient(cfg, verbose)
-		apiClient.ClientKey = key
+		apiClient.UserKey = key
 		metadata, _ = apiClient.GetRelic(resp.ID)
 	}
 
@@ -225,12 +230,12 @@ func listCmd() *cobra.Command {
 				return err
 			}
 
-			if cfg.ClientKey == "" {
-				return utils.NewCLIError("Client key required. Run a command to generate one.", utils.ExitAuthError)
+			if cfg.UserKey == "" {
+				return utils.NewCLIError("User key required. Run a command to generate one.", utils.ExitAuthError)
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
-			list, err := apiClient.ListClientRelics(limit, offset, accessLevel)
+			list, err := apiClient.ListUserRelics(limit, offset, accessLevel)
 			if err != nil {
 				return err
 			}
@@ -327,14 +332,14 @@ func forkCmd() *cobra.Command {
 				return err
 			}
 
-			// Ensure client key
-			key, err := ensureRegisteredClientKey(cfg)
+			// Ensure user key
+			key, err := ensureRegisteredUser(cfg)
 			if err != nil {
 				return err
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
-			apiClient.ClientKey = key
+			apiClient.UserKey = key
 
 			req := &relic.RelicCreateRequest{
 				Name:        relicName,
@@ -389,8 +394,8 @@ func deleteCmd() *cobra.Command {
 				return err
 			}
 
-			if cfg.ClientKey == "" {
-				return utils.NewCLIError("Client key required. You must be the owner to delete.", utils.ExitAuthError)
+			if cfg.UserKey == "" {
+				return utils.NewCLIError("User key required. You must be the owner to delete.", utils.ExitAuthError)
 			}
 
 			// Confirm deletion
@@ -423,24 +428,24 @@ func deleteCmd() *cobra.Command {
 func whoamiCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "whoami",
-		Short: "Show client information",
+		Short: "Show user information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig()
 			if err != nil {
 				return err
 			}
 
-			if cfg.ClientKey == "" {
-				return utils.NewCLIError("No client key found. Create a relic to generate one.", utils.ExitAuthError)
+			if cfg.UserKey == "" {
+				return utils.NewCLIError("No user key found. Create a relic to generate one.", utils.ExitAuthError)
 			}
 
 			apiClient := api.NewClient(cfg, verbose)
-			info, err := apiClient.RegisterClient()
+			info, err := apiClient.RegisterUser()
 			if err != nil {
 				return err
 			}
 
-			return ui.PrintClientInfo(info, cfg.Server)
+			return ui.PrintUserInfo(info, cfg.Server)
 		},
 	}
 }
@@ -480,10 +485,10 @@ func configCmd() *cobra.Command {
 				fmt.Printf("core.server = %s\n", cfg.Server)
 				fmt.Printf("core.timeout = %d\n", cfg.Timeout)
 				fmt.Printf("core.progress = %t\n", cfg.Progress)
-				if cfg.ClientKey != "" {
-					fmt.Printf("client.key = %s...\n", cfg.ClientKey[:8])
+				if cfg.UserKey != "" {
+					fmt.Printf("user.key = %s...\n", cfg.UserKey[:8])
 				} else {
-					fmt.Printf("client.key = (not set)\n")
+					fmt.Printf("user.key = (not set)\n")
 				}
 				fmt.Printf("defaults.access_level = %s\n", cfg.AccessLevel)
 				fmt.Printf("defaults.expires_in = %s\n", cfg.ExpiresIn)
@@ -505,9 +510,9 @@ func configCmd() *cobra.Command {
 				switch args[0] {
 				case "core.server", "server":
 					fmt.Println(cfg.Server)
-				case "client.key", "key":
-					if cfg.ClientKey != "" {
-						fmt.Println(cfg.ClientKey)
+				case "user.key", "client.key", "key":
+					if cfg.UserKey != "" {
+						fmt.Println(cfg.UserKey)
 					}
 				case "core.timeout", "timeout":
 					fmt.Println(cfg.Timeout)
@@ -697,8 +702,8 @@ func spacesCmd() *cobra.Command {
 				return err
 			}
 
-			if cfg.ClientKey == "" {
-				return utils.NewCLIError("Client key required. Run a command to generate one.", utils.ExitAuthError)
+			if cfg.UserKey == "" {
+				return utils.NewCLIError("User key required. Run a command to generate one.", utils.ExitAuthError)
 			}
 
 			vis := spaceVisibility
@@ -752,8 +757,8 @@ func spacesCmd() *cobra.Command {
 				return err
 			}
 
-			if cfg.ClientKey == "" {
-				return utils.NewCLIError("Client key required.", utils.ExitAuthError)
+			if cfg.UserKey == "" {
+				return utils.NewCLIError("User key required.", utils.ExitAuthError)
 			}
 
 			if !spaceSkipConfirm {
@@ -799,8 +804,8 @@ func loadConfig() (*config.Config, error) {
 	if serverURL != "" {
 		cfg.Server = serverURL
 	}
-	if clientKey != "" {
-		cfg.ClientKey = clientKey
+	if userKey != "" {
+		cfg.UserKey = userKey
 	}
 
 	return cfg, nil

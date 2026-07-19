@@ -6,11 +6,11 @@ from conftest import ADMIN_KEY
 
 @pytest.fixture
 def commenter(http):
-    """Register a client with a display name. Returns (key, headers)."""
+    """Register a user with a display name. Returns (key, headers)."""
     key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": key})
-    http.put("/api/v1/client/name", headers={"X-Client-Key": key}, json={"name": "Test Commenter"})
-    return key, {"X-Client-Key": key}
+    http.post("/api/v1/user/register", headers={"X-User-Key": key})
+    http.put("/api/v1/user/name", headers={"X-User-Key": key}, json={"name": "Test Commenter"})
+    return key, {"X-User-Key": key}
 
 
 @pytest.fixture
@@ -57,11 +57,11 @@ def test_create_comment_no_auth(http, relic_for_comments):
 
 
 @pytest.mark.integration
-def test_create_comment_no_name(http, relic_for_comments, registered_client):
-    key, _ = registered_client  # registered but no name set
+def test_create_comment_no_name(http, relic_for_comments, registered_user):
+    key, _ = registered_user  # registered but no name set
     resp = http.post(
         f"/api/v1/relics/{relic_for_comments}/comments",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"line_number": 1, "content": "I have no name"},
     )
     assert resp.status_code == 400
@@ -141,10 +141,10 @@ def test_update_comment(http, commenter, relic_for_comments):
 
 
 @pytest.mark.integration
-def test_update_comment_not_author(http, commenter, relic_for_comments, registered_client):
+def test_update_comment_not_author(http, commenter, relic_for_comments, registered_user):
     _, author_headers = commenter
     relic_id = relic_for_comments
-    other_key, _ = registered_client
+    other_key, _ = registered_user
 
     create = http.post(
         f"/api/v1/relics/{relic_id}/comments",
@@ -155,7 +155,7 @@ def test_update_comment_not_author(http, commenter, relic_for_comments, register
 
     resp = http.put(
         f"/api/v1/relics/{relic_id}/comments/{comment_id}",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
         json={"content": "Hacked"},
     )
     assert resp.status_code == 403
@@ -200,10 +200,10 @@ def test_delete_comment(http, commenter, relic_for_comments):
 
 
 @pytest.mark.integration
-def test_delete_comment_not_author(http, commenter, relic_for_comments, registered_client):
+def test_delete_comment_not_author(http, commenter, relic_for_comments, registered_user):
     _, author_headers = commenter
     relic_id = relic_for_comments
-    other_key, _ = registered_client
+    other_key, _ = registered_user
 
     create = http.post(
         f"/api/v1/relics/{relic_id}/comments",
@@ -214,7 +214,7 @@ def test_delete_comment_not_author(http, commenter, relic_for_comments, register
 
     resp = http.delete(
         f"/api/v1/relics/{relic_id}/comments/{comment_id}",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
     )
     assert resp.status_code == 403
 
@@ -249,6 +249,6 @@ def test_delete_comment_as_admin(http, commenter, relic_for_comments):
 
     resp = http.delete(
         f"/api/v1/relics/{relic_id}/comments/{comment_id}",
-        headers={"X-Client-Key": ADMIN_KEY},
+        headers={"X-User-Key": ADMIN_KEY},
     )
     assert resp.status_code == 200

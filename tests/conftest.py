@@ -10,9 +10,9 @@ ADMIN_KEY = os.getenv("RELIC_ADMIN_KEY", "09d85e5f91316a66233d97e1b5936399")
 
 @pytest.fixture(scope="session", autouse=True)
 def ensure_admin_registered():
-    """Ensure the admin client key is registered. Idempotent — safe to run locally too."""
+    """Ensure the admin user key is registered. Idempotent — safe to run locally too."""
     with httpx.Client(base_url=BASE_URL, timeout=15) as client:
-        client.post("/api/v1/client/register", headers={"X-Client-Key": ADMIN_KEY})
+        client.post("/api/v1/user/register", headers={"X-User-Key": ADMIN_KEY})
 
 
 @pytest.fixture
@@ -34,20 +34,20 @@ def admin_key():
 
 @pytest.fixture
 def admin_headers():
-    return {"X-Client-Key": ADMIN_KEY}
+    return {"X-User-Key": ADMIN_KEY}
 
 
 @pytest.fixture
-def client_key():
-    """A fresh unique client key (not registered)."""
+def user_key():
+    """A fresh unique user key (not registered)."""
     return uuid.uuid4().hex
 
 
 @pytest.fixture
-def registered_client(http):
-    """Register a fresh client. Returns (key, public_id)."""
+def registered_user(http):
+    """Register a fresh user. Returns (key, public_id)."""
     key = uuid.uuid4().hex
-    resp = http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+    resp = http.post("/api/v1/user/register", headers={"X-User-Key": key})
     assert resp.status_code == 200
     return key, resp.json()["public_id"]
 
@@ -58,16 +58,16 @@ def test_file_content():
 
 
 @pytest.fixture
-def created_relic(http, registered_client):
+def created_relic(http, registered_user):
     """Create a public relic. Cleans up after the test."""
-    key, _ = registered_client
+    key, _ = registered_user
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Test Relic", "access_level": "public"},
         files={"file": ("test.txt", b"Hello, World! This is a test relic.", "text/plain")},
     )
     assert resp.status_code == 200
     relic_id = resp.json()["id"]
-    yield {"id": relic_id, "data": resp.json(), "client_key": key}
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    yield {"id": relic_id, "data": resp.json(), "user_key": key}
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})

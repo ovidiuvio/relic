@@ -31,7 +31,7 @@ Following Git/Linux standards:
     timeout = 30
     progress = true
 
-[client]
+[user]
     key = f47ac10b58cc4372a5670e02b2c3d479
 
 [defaults]
@@ -42,7 +42,7 @@ Following Git/Linux standards:
 
 **Environment variables (override config):**
 - `RELIC_SERVER` - API server URL
-- `RELIC_CLIENT_KEY` - Client authentication key
+- `RELIC_USER_KEY` - User authentication key
 - `RELIC_TIMEOUT` - Request timeout
 - `RELIC_ACCESS_LEVEL` - Default access level (`public`/`private`)
 - `RELIC_EXPIRES_IN` - Default expiration
@@ -72,25 +72,25 @@ curl -s api/data | relic --name "api.json" # Download and store
 - Fallback to `text/plain` when content type unknown
 - Single argument simplicity - no complex subcommand structure
 
-### Authentication & Client Management
+### Authentication & User Management
 
-**Client key management following SSH/GPG patterns:**
+**User key management following SSH/GPG patterns:**
 
 ```bash
-# Auto-generate client key on first use
+# Auto-generate user key on first use
 relic file.txt
-# -> "No client key found. Generated client key: f47ac10b..."
-# -> "Client key saved to ~/.relic/config"
+# -> "No user key found. Generated user key: f47ac10b..."
+# -> "User key saved to ~/.relic/config"
 
-# Show current client identity
+# Show current user identity
 relic --whoami
-# -> "Client ID: f47ac10b58cc4372a5670e02b2c3d479"
+# -> "User ID: f47ac10b58cc4372a5670e02b2c3d479"
 # -> "Server: https://api.relic.example.com"
 # -> "Relics: 42"
 
-# Manual client key management
-relic --config client.key <new_key>
-export RELIC_CLIENT_KEY=<key>
+# Manual user key management
+relic --config user.key <new_key>
+export RELIC_USER_KEY=<key>
 ```
 
 ### User Experience & Progress Indicators
@@ -188,7 +188,7 @@ $ relic too-large.zip
 ✗ Error: File too large: 150MB (limit: 100MB)
 
 $ relic --delete a3Bk9Zx
-✗ Error: Authentication required. Run 'relic --whoami' to check client key.
+✗ Error: Authentication required. Run 'relic --whoami' to check user key.
 
 $ relic file.txt --server https://invalid.example.com
 ✗ Error: Connection failed: Unable to reach server
@@ -270,7 +270,7 @@ cli/client/
 │   ├── api/
 │   │   ├── client.go              # HTTP client wrapper
 │   │   ├── relics.go              # Relic CRUD operations
-│   │   └── auth.go                # Client key management
+│   │   └── auth.go                # User key management
 │   ├── config/
 │   │   ├── config.go              # Config file management
 │   │   ├── defaults.go            # Default values
@@ -321,7 +321,7 @@ relic [FILE]                       # Upload file or read from stdin
 relic --info ID                    # Get relic metadata
   -o, --output FORMAT              # Output format: human, json
 
-relic --list                       # List user's relics (requires client key)
+relic --list                       # List user's relics (requires user key)
   --limit N                        # Limit results (default: 20)
   --offset N                       # Pagination offset
   --access-level LEVEL             # Filter by access level
@@ -346,10 +346,10 @@ relic --fork ID                    # Fork a relic
 relic --delete ID                  # Delete relic (hard delete)
   -y, --yes                        # Skip confirmation prompt
 
-# Client Management
-relic --whoami                     # Show current client identity
+# User Management
+relic --whoami                     # Show current user identity
 relic --config KEY VALUE           # Set config value
-  relic --config client.key NEW_KEY
+  relic --config user.key NEW_KEY
   relic --config server URL
   relic --config defaults.access_level public
 
@@ -367,7 +367,7 @@ relic --config --list              # List all config values
 # Set values
 relic --config core.server https://api.relic.example.com
 relic --config core.timeout 60
-relic --config client.key abc123
+relic --config user.key abc123
 relic --config defaults.access_level public
 relic --config defaults.expires_in 24h
 
@@ -384,7 +384,7 @@ All config values can be overridden via environment variables:
 
 ```bash
 export RELIC_SERVER=https://api.relic.example.com
-export RELIC_CLIENT_KEY=abc123
+export RELIC_USER_KEY=abc123
 export RELIC_TIMEOUT=30
 export RELIC_ACCESS_LEVEL=private
 export RELIC_EXPIRES_IN=never
@@ -471,9 +471,9 @@ for attempt := 0; attempt < maxRetries; attempt++ {
 - Stream file (don't load into memory)
 
 **Authentication Errors**:
-- Generate client key automatically on first use
+- Generate user key automatically on first use
 - Save to config file
-- Prompt user to verify client key if 401/403
+- Prompt user to verify user key if 401/403
 
 ### Output Formatting
 
@@ -531,7 +531,7 @@ https://relic.example.com/a3Bk9Zx
 - [ ] Download relic
 - [ ] Fork relic
 - [ ] Delete relic
-- [ ] Client key generation
+- [ ] User key generation
 - [ ] Config file creation
 - [ ] Environment variable override
 - [ ] Progress bar display
@@ -594,7 +594,7 @@ sudo make install
 - [x] Basic file upload
 - [x] stdin support
 - [x] Configuration management
-- [x] Client key generation
+- [x] User key generation
 - [x] Progress bars
 - [x] Output formatting (human, JSON, URL)
 
@@ -624,7 +624,7 @@ sudo make install
 
 ## Security Considerations
 
-1. **Client key storage**: Plain text in config file (chmod 600)
+1. **User key storage**: Plain text in config file (chmod 600)
 2. **Password handling**: Never log passwords, use secure prompts
 3. **HTTPS only**: Warn if server URL is HTTP
 4. **File validation**: Check file size before upload

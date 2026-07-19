@@ -14,7 +14,7 @@ export async function checkBookmark(relicId) {
     return api.get(`/bookmarks/check/${relicId}`)
 }
 
-export async function getClientBookmarks(params = {}) {
+export async function getUserBookmarks(params = {}) {
     return api.get('/bookmarks', { params })
 }
 

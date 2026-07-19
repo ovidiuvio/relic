@@ -9,23 +9,23 @@ export async function getAdminStats() {
     return api.get('/admin/stats')
 }
 
-export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, clientId = null, search = null, tag = null, sortBy = 'created_at', sortOrder = 'desc') {
+export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, userId = null, search = null, tag = null, sortBy = 'created_at', sortOrder = 'desc') {
     const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
     if (accessLevel) params.access_level = accessLevel
-    if (clientId) params.client_id = clientId
+    if (userId) params.user_id = userId
     if (search) params.search = search
     if (tag) params.tag = tag
     return api.get('/admin/relics', { params })
 }
 
-export async function getAdminClients(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search = null) {
+export async function getAdminUsers(limit = 100, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search = null) {
     const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
     if (search) params.search = search
-    return api.get('/admin/clients', { params })
+    return api.get('/admin/users', { params })
 }
 
-export async function deleteClient(clientId, deleteRelics = false) {
-    return api.delete(`/admin/clients/${clientId}`, {
+export async function deleteUser(userId, deleteRelics = false) {
+    return api.delete(`/admin/users/${userId}`, {
         params: { delete_relics: deleteRelics }
     })
 }
@@ -38,12 +38,12 @@ export async function addAdmin(publicId) {
     return api.post('/admin/admins', { public_id: publicId })
 }
 
-export async function grantAdmin(clientId) {
-    return api.post(`/admin/clients/${clientId}/admin`)
+export async function grantAdmin(userId) {
+    return api.post(`/admin/users/${userId}/admin`)
 }
 
-export async function revokeAdmin(clientId) {
-    return api.delete(`/admin/clients/${clientId}/admin`)
+export async function revokeAdmin(userId) {
+    return api.delete(`/admin/users/${userId}/admin`)
 }
 
 export async function getAdminConfig() {
@@ -107,4 +107,3 @@ export async function pauseAdminJob(jobId) {
 export async function resumeAdminJob(jobId) {
     return api.post(`/admin/jobs/${encodeURIComponent(jobId)}/resume`)
 }
-

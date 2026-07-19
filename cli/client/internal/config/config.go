@@ -11,7 +11,7 @@ import (
 // Config represents the CLI configuration
 type Config struct {
 	Server      string
-	ClientKey   string
+	UserKey     string
 	Timeout     int
 	Progress    bool
 	AccessLevel string
@@ -44,6 +44,9 @@ func Load() (*Config, error) {
 
 	// Map environment variables to config keys
 	viper.BindEnv("core.server", "RELIC_SERVER")
+	viper.BindEnv("user.key", "RELIC_USER_KEY")
+	// Pre-rename key/env var name. Only read as a fallback so existing
+	// installs keep their identity without needing to regenerate a key.
 	viper.BindEnv("client.key", "RELIC_CLIENT_KEY")
 	viper.BindEnv("core.timeout", "RELIC_TIMEOUT")
 	viper.BindEnv("core.progress", "RELIC_PROGRESS")
@@ -57,10 +60,15 @@ func Load() (*Config, error) {
 		}
 	}
 
+	userKey := viper.GetString("user.key")
+	if userKey == "" {
+		userKey = viper.GetString("client.key")
+	}
+
 	// Build config struct
 	cfg := &Config{
 		Server:      viper.GetString("core.server"),
-		ClientKey:   viper.GetString("client.key"),
+		UserKey:     userKey,
 		Timeout:     viper.GetInt("core.timeout"),
 		Progress:    viper.GetBool("core.progress"),
 		AccessLevel: viper.GetString("defaults.access_level"),
@@ -144,7 +152,7 @@ func InitConfig() error {
     timeout = %d
     progress = %t
 
-[client]
+[user]
     key =
 
 [defaults]
@@ -152,7 +160,7 @@ func InitConfig() error {
     expires_in = %s
 `, DefaultServer, DefaultTimeout, DefaultProgress, DefaultAccessLevel, DefaultExpiresIn)
 
-	// Write config file with secure permissions
+	// Write code with secure permissions
 	if err := os.WriteFile(configPath, []byte(configContent), 0600); err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}

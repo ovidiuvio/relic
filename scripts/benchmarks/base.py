@@ -48,13 +48,13 @@ class Benchmark(ABC):
     def __init__(
         self,
         base_url: str,
-        client_key: str,
+        user_key: str,
         iterations: int = 5,
         workers: int = 5,
         operations: int = 100,
     ):
         self.base_url = base_url
-        self.client_key = client_key
+        self.user_key = user_key
         self.iterations = iterations
         self.workers = workers
         self.operations = operations

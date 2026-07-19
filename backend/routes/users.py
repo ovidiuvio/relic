@@ -1,4 +1,4 @@
-"""Client registration and management endpoints."""
+"""User registration and management endpoints."""
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,73 +8,73 @@ from typing import Optional
 import secrets
 
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Tag, Comment
-from backend.schemas import ClientNameUpdate
-from backend.dependencies import get_client_key
+from backend.models import Relic, User, Tag, Comment
+from backend.schemas import UserNameUpdate
+from backend.dependencies import get_current_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order
 
-router = APIRouter(prefix="/api/v1/client")
+router = APIRouter(prefix="/api/v1/user")
 
 
 async def generate_public_id(db: AsyncSession) -> str:
     """Generate a unique 16-char hex public_id, retrying on collision."""
     for _ in range(10):
         pid = secrets.token_hex(8)
-        result = await db.execute(select(ClientKey).where(ClientKey.public_id == pid))
+        result = await db.execute(select(User).where(User.public_id == pid))
         if not result.scalar_one_or_none():
             return pid
     raise RuntimeError("Failed to generate unique public_id after 10 attempts")
 
 
 @router.post("/register", response_model=dict)
-async def register_client(request: Request, db: AsyncSession = Depends(get_db)):
+async def register_user(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Register a new client key.
+    Register a new user key.
 
-    If the client key already exists, returns the existing client.
-    If not, creates a new client record.
+    If the user key already exists, returns the existing user.
+    If not, creates a new user record.
     """
-    x_client_key = request.headers.get("X-Client-Key")
-    if not x_client_key:
-        raise HTTPException(status_code=400, detail="X-Client-Key header required")
+    x_user_key = request.headers.get("X-User-Key")
+    if not x_user_key:
+        raise HTTPException(status_code=400, detail="X-User-Key header required")
 
-    # Check if client already exists
-    result = await db.execute(select(ClientKey).where(ClientKey.id == x_client_key))
-    existing_client = result.scalar_one_or_none()
-    if existing_client:
-        # Lazily generate public_id for existing clients that don't have one
-        if not existing_client.public_id:
-            existing_client.public_id = await generate_public_id(db)
+    # Check if user already exists
+    result = await db.execute(select(User).where(User.id == x_user_key))
+    existing_user = result.scalar_one_or_none()
+    if existing_user:
+        # Lazily generate public_id for existing users that don't have one
+        if not existing_user.public_id:
+            existing_user.public_id = await generate_public_id(db)
             await db.commit()
         return {
-            "client_id": existing_client.id,
-            "public_id": existing_client.public_id,
-            "name": existing_client.name,
-            "created_at": existing_client.created_at,
-            "relic_count": existing_client.relic_count,
-            "message": "Client already registered"
+            "user_id": existing_user.id,
+            "public_id": existing_user.public_id,
+            "name": existing_user.name,
+            "created_at": existing_user.created_at,
+            "relic_count": existing_user.relic_count,
+            "message": "User already registered"
         }
 
-    # Create new client
-    client = ClientKey(
-        id=x_client_key,
+    # Create new user
+    user = User(
+        id=x_user_key,
         public_id=await generate_public_id(db),
         created_at=datetime.utcnow()
     )
-    db.add(client)
+    db.add(user)
     await db.commit()
 
     return {
-        "client_id": client.id,
-        "public_id": client.public_id,
-        "created_at": client.created_at,
+        "user_id": user.id,
+        "public_id": user.public_id,
+        "created_at": user.created_at,
         "relic_count": 0,
-        "message": "Client registered successfully"
+        "message": "User registered successfully"
     }
 
 
 @router.get("/relics", response_model=dict)
-async def get_client_relics(
+async def get_user_relics(
     request: Request,
     tag: Optional[str] = None,
     search: Optional[str] = None,
@@ -86,18 +86,18 @@ async def get_client_relics(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get relics owned by this client with pagination.
+    Get relics owned by this user with pagination.
 
-    Requires valid X-Client-Key header.
+    Requires valid X-User-Key header.
     """
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Valid client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Valid user key required")
 
-    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(
-        Relic.client_id == client.id
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner)).where(
+        Relic.user_id == user.id
     )
 
     if access_level:
@@ -115,7 +115,7 @@ async def get_client_relics(
             stmt = stmt.where(Relic.tags.contains(tag_obj))
         else:
             return {
-                "client_id": client.id,
+                "user_id": user.id,
                 "relic_count": 0,
                 "relics": [],
                 "total": 0,
@@ -149,7 +149,7 @@ async def get_client_relics(
     forks_counts = await get_fork_counts(db, relic_ids)
 
     return {
-        "client_id": client.id,
+        "user_id": user.id,
         "relic_count": total,
         "total": total,
         "limit": limit,
@@ -176,17 +176,17 @@ async def get_client_relics(
 
 
 @router.put("/name", response_model=dict)
-async def update_client_name(
-    name_update: ClientNameUpdate,
+async def update_user_name(
+    name_update: UserNameUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Update the client's display name."""
-    client = await get_client_key(request, db)
-    if not client:
+    """Update the user's display name."""
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    client.name = name_update.name
+    user.name = name_update.name
     await db.commit()
 
-    return {"status": "updated", "name": client.name}
+    return {"status": "updated", "name": user.name}

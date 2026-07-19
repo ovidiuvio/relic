@@ -23,7 +23,7 @@ class SocialBenchmark(Benchmark):
             return True, None
 
         relic_id = random.choice(self.relic_ids)
-        headers = {"X-Client-Key": self.client_key}
+        headers = {"X-User-Key": self.user_key}
 
         op_type = random.choice(["check_bookmark", "get_comments", "get_forks", "get_bookmarkers"])
 

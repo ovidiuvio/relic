@@ -174,12 +174,12 @@ func TestCLI_Whoami(t *testing.T) {
 	_, env := setupTestEnv(t)
 	env["RELIC_SERVER"] = testServerURL
 
-	// Running whoami without a client key should fail
+	// Running whoami without a user key should fail
 	_, stderr, _, exitCode := runCLI(t, env, "whoami")
 	if exitCode == 0 {
-		t.Error("expected whoami to fail without client key")
+		t.Error("expected whoami to fail without user key")
 	}
-	if !strings.Contains(stderr, "No client key found") {
+	if !strings.Contains(stderr, "No user key found") {
 		t.Errorf("unexpected error message: %s", stderr)
 	}
 
@@ -198,7 +198,7 @@ func TestCLI_Whoami(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d", exitCode)
 	}
-	if !strings.Contains(stdout, "Client ID:") {
+	if !strings.Contains(stdout, "User ID:") {
 		t.Errorf("unexpected whoami output: %s", stdout)
 	}
 }
@@ -423,7 +423,7 @@ func TestCLI_Spaces(t *testing.T) {
 	_, env := setupTestEnv(t)
 	env["RELIC_SERVER"] = testServerURL
 
-	// We must register the client first (by running an upload or manual command)
+	// We must register the user first (by running an upload or manual command)
 	stdin := strings.NewReader("test")
 	runCLIWithStdin(t, stdin, env, "-", "-q")
 
@@ -707,7 +707,7 @@ func TestCLI_ForkToSpace(t *testing.T) {
 	_, env := setupTestEnv(t)
 	env["RELIC_SERVER"] = testServerURL
 
-	// Register client
+	// Register user
 	runCLIWithStdin(t, strings.NewReader("dummy"), env, "-", "-q")
 
 	// Create a space
