@@ -39,12 +39,12 @@ class Space(Base):
 
     id = Column(String(32), primary_key=True)  # 32-char hex ID
     name = Column(String, nullable=False)
-    owner_client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
+    owner_id = Column(String(32), ForeignKey('users.id'), nullable=False, index=True)
     visibility = Column(String, default="public")  # "public" or "private"
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    owner = relationship("ClientKey", backref="owned_spaces", foreign_keys=[owner_client_id], lazy="raise")
+    owner = relationship("User", backref="owned_spaces", foreign_keys=[owner_id], lazy="raise")
     relics = relationship("Relic", secondary=space_relics, back_populates="spaces", lazy="raise")
     access_list = relationship("SpaceAccess", back_populates="space", cascade="all, delete-orphan", lazy="raise")
 
@@ -52,23 +52,23 @@ class Space(Base):
 class SpaceAccess(Base):
     """
     Space access list model.
-    Tracks which clients have access to a private space, and their roles.
+    Tracks which users have access to a private space, and their roles.
     """
     __tablename__ = "space_access"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     space_id = Column(String(32), ForeignKey('space.id', ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(32), ForeignKey('client_key.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(32), ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String, default="viewer")  # "viewer" or "editor"
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     space = relationship("Space", back_populates="access_list", lazy="raise")
-    client = relationship("ClientKey", backref="space_accesses", lazy="raise")
+    user = relationship("User", backref="space_accesses", lazy="raise")
 
     # Unique constraint to prevent duplicate access entries
     __table_args__ = (
-        UniqueConstraint('space_id', 'client_id', name='unique_space_client_access'),
+        UniqueConstraint('space_id', 'user_id', name='unique_space_user_access'),
     )
 
 
@@ -83,7 +83,7 @@ class Relic(Base):
     __tablename__ = "relic"
 
     id = Column(String(32), primary_key=True)  # 32-char hex IDs
-    client_id = Column(String, ForeignKey('client_key.id'), nullable=True, index=True)
+    user_id = Column(String, ForeignKey('users.id'), nullable=True, index=True)
 
     # Content metadata
     name = Column(String, nullable=True)
@@ -118,47 +118,47 @@ class Relic(Base):
 
     @property
     def owner_name(self) -> Optional[str]:
-        return self.owner_client.name if self.owner_client else None
+        return self.owner.name if self.owner else None
 
     @property
     def owner_public_id(self) -> Optional[str]:
-        return self.owner_client.public_id if self.owner_client else None
+        return self.owner.public_id if self.owner else None
 
 class RelicAccess(Base):
     """
     Relic access list model.
-    Tracks which clients have access to a restricted relic.
+    Tracks which users have access to a restricted relic.
     """
     __tablename__ = "relic_access"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(32), ForeignKey('client_key.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(32), ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     relic = relationship("Relic", back_populates="access_list", lazy="raise")
-    client = relationship("ClientKey", backref="relic_accesses", lazy="raise")
+    user = relationship("User", backref="relic_accesses", lazy="raise")
 
     __table_args__ = (
-        UniqueConstraint('relic_id', 'client_id', name='unique_relic_client_access'),
+        UniqueConstraint('relic_id', 'user_id', name='unique_relic_user_access'),
     )
 
 
-class ClientKey(Base):
-    """Client identification key."""
-    __tablename__ = "client_key"
+class User(Base):
+    """User identification key."""
+    __tablename__ = "users"
 
-    id = Column(String(32), primary_key=True)  # 32-char hex client ID (auth secret, never exposed)
+    id = Column(String(32), primary_key=True)  # 32-char hex user ID (auth secret, never exposed)
     public_id = Column(String(16), unique=True, index=True, nullable=True)  # 16-char hex, safe to share
     name = Column(String, nullable=True)  # User's display name
     created_at = Column(DateTime, default=datetime.utcnow)
     relic_count = Column(Integer, default=0)
-    # Runtime-grantable admin flag (env ADMIN_CLIENT_IDS are immutable super-admins on top of this)
+    # Runtime-grantable admin flag (env ADMIN_USER_IDS are immutable super-admins on top of this)
     is_admin = Column(Boolean, nullable=False, server_default=text("false"), default=False, index=True)
 
     # Relationships
-    relics = relationship("Relic", backref=backref("owner_client", lazy="raise"), lazy="raise")
+    relics = relationship("Relic", backref=backref("owner", lazy="raise"), lazy="raise")
 
 
 class Tag(Base):
@@ -171,22 +171,22 @@ class Tag(Base):
     relics = relationship("Relic", secondary=relic_tags, back_populates="tags", lazy="raise")
 
 
-class ClientBookmark(Base):
-    """Client bookmark model - tracks which relics a client has bookmarked."""
-    __tablename__ = "client_bookmark"
+class UserBookmark(Base):
+    """User bookmark model - tracks which relics a user has bookmarked."""
+    __tablename__ = "user_bookmark"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    client_id = Column(String(32), ForeignKey('client_key.id'), nullable=False, index=True)
+    user_id = Column(String(32), ForeignKey('users.id'), nullable=False, index=True)
     relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    client = relationship("ClientKey", backref="bookmarks", lazy="raise")
+    user = relationship("User", backref="bookmarks", lazy="raise")
     relic = relationship("Relic", backref=backref("bookmarked_by", passive_deletes=True, lazy="raise"), lazy="raise")
 
     # Unique constraint to prevent duplicate bookmarks
     __table_args__ = (
-        UniqueConstraint('client_id', 'relic_id', name='unique_client_relic_bookmark'),
+        UniqueConstraint('user_id', 'relic_id', name='unique_user_relic_bookmark'),
     )
 
 
@@ -200,7 +200,7 @@ class RelicReport(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Optional: track reporter if authenticated (not strictly required by spec but good practice)
-    # reporter_id = Column(String, ForeignKey('client_key.id'), nullable=True)
+    # reporter_id = Column(String, ForeignKey('users.id'), nullable=True)
 
     # Relationships
     relic = relationship("Relic", backref=backref("reports", passive_deletes=True, lazy="raise"), lazy="raise")
@@ -212,7 +212,7 @@ class Comment(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(32), ForeignKey('client_key.id'), nullable=True)
+    user_id = Column(String(32), ForeignKey('users.id'), nullable=True)
     line_number = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -220,5 +220,5 @@ class Comment(Base):
 
     # Relationships
     relic = relationship("Relic", backref=backref("comments", passive_deletes=True, lazy="raise"), lazy="raise")
-    client = relationship("ClientKey", backref="comments", lazy="raise")
+    user = relationship("User", backref="comments", lazy="raise")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id], lazy="raise"), cascade="all, delete-orphan", lazy="raise")

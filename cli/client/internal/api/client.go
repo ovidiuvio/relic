@@ -16,7 +16,7 @@ import (
 // Client represents an HTTP client for the Relic API
 type Client struct {
 	BaseURL    string
-	ClientKey  string
+	UserKey    string
 	HTTPClient *http.Client
 	Verbose    bool
 }
@@ -24,8 +24,8 @@ type Client struct {
 // NewClient creates a new API client
 func NewClient(cfg *config.Config, verbose bool) *Client {
 	return &Client{
-		BaseURL:   cfg.Server,
-		ClientKey: cfg.ClientKey,
+		BaseURL: cfg.Server,
+		UserKey: cfg.UserKey,
 		HTTPClient: &http.Client{
 			Timeout: time.Duration(cfg.Timeout) * time.Second,
 		},
@@ -35,9 +35,9 @@ func NewClient(cfg *config.Config, verbose bool) *Client {
 
 // doRequest performs an HTTP request with retry logic
 func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
-	// Add client key header if available
-	if c.ClientKey != "" {
-		req.Header.Set("X-Client-Key", c.ClientKey)
+	// Add user key header if available
+	if c.UserKey != "" {
+		req.Header.Set("X-User-Key", c.UserKey)
 	}
 
 	// Verbose logging
@@ -46,7 +46,7 @@ func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
 		for key, values := range req.Header {
 			for _, value := range values {
 				// Don't log sensitive headers in full
-				if key == "X-Client-Key" && value != "" {
+				if key == "X-User-Key" && value != "" {
 					fmt.Printf("[DEBUG] %s: %s...\n", key, value[:8])
 				} else {
 					fmt.Printf("[DEBUG] %s: %s\n", key, value)
@@ -146,9 +146,9 @@ func parseErrorResponse(resp *http.Response) error {
 	return utils.GetErrorFromStatus(resp.StatusCode, errResp.Detail)
 }
 
-// RegisterClient registers the client key with the server
-func (c *Client) RegisterClient() (*relic.ClientInfo, error) {
-	resp, err := c.post("/api/v1/client/register", nil, "")
+// RegisterUser registers the user key with the server
+func (c *Client) RegisterUser() (*relic.UserInfo, error) {
+	resp, err := c.post("/api/v1/user/register", nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (c *Client) RegisterClient() (*relic.ClientInfo, error) {
 		return nil, parseErrorResponse(resp)
 	}
 
-	var info relic.ClientInfo
+	var info relic.UserInfo
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -222,9 +222,9 @@ func (c *Client) ListRelics(limit, offset int) (*relic.RelicListResponse, error)
 	return &list, nil
 }
 
-// ListClientRelics lists relics for the authenticated client
-func (c *Client) ListClientRelics(limit, offset int, accessLevel string) (*relic.RelicListResponse, error) {
-	path := fmt.Sprintf("/api/v1/client/relics?limit=%d&offset=%d", limit, offset)
+// ListUserRelics lists relics for the authenticated user
+func (c *Client) ListUserRelics(limit, offset int, accessLevel string) (*relic.RelicListResponse, error) {
+	path := fmt.Sprintf("/api/v1/user/relics?limit=%d&offset=%d", limit, offset)
 	if accessLevel != "" {
 		path += fmt.Sprintf("&access_level=%s", accessLevel)
 	}
@@ -287,7 +287,7 @@ func (c *Client) DeleteRelic(relicID string) error {
 	return nil
 }
 
-// ListSpaces lists spaces accessible to the client
+// ListSpaces lists spaces accessible to the user
 func (c *Client) ListSpaces(visibility string) (*relic.SpaceListResponse, error) {
 	path := "/api/v1/spaces"
 	if visibility != "" {

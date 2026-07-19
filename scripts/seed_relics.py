@@ -4,7 +4,7 @@ Seed script: creates a test space and populates it with N sample relics.
 Optimized version using asyncio and httpx for higher throughput.
 
 Usage:
-    python3 scripts/seed_relics.py --client-key YOUR_KEY [--count 500] [--url http://localhost] [--space-id EXISTING_ID]
+    python3 scripts/seed_relics.py --user-key YOUR_KEY [--count 500] [--url http://localhost] [--space-id EXISTING_ID]
 """
 import argparse
 import random
@@ -491,7 +491,7 @@ EXT_MAP = {
 # API helpers
 # ---------------------------------------------------------------------------
 
-async def create_relic_async(client, base_url, client_key, content, content_type, language_hint, name, tags, access_level, space_id=None):
+async def create_relic_async(client, base_url, user_key, content, content_type, language_hint, name, tags, access_level, space_id=None):
     ext = EXT_MAP.get(content_type, ".txt")
     filename = name.replace(" ", "_") + ext
     
@@ -513,18 +513,18 @@ async def create_relic_async(client, base_url, client_key, content, content_type
         f"{base_url}/api/v1/relics",
         data=data,
         files=files,
-        headers={"X-Client-Key": client_key},
+        headers={"X-User-Key": user_key},
         timeout=30.0
     )
     r.raise_for_status()
     return r.json()["id"]
 
 
-async def create_space_async(client, base_url, client_key, name):
+async def create_space_async(client, base_url, user_key, name):
     r = await client.post(
         f"{base_url}/api/v1/spaces",
         json={"name": name, "visibility": "public"},
-        headers={"X-Client-Key": client_key},
+        headers={"X-User-Key": user_key},
     )
     r.raise_for_status()
     return r.json()["id"]
@@ -544,7 +544,7 @@ async def seed_one_relic_task(client, args, space_id, semaphore):
         content = gen_fn()
 
         return await create_relic_async(
-            client, args.url, args.client_key,
+            client, args.url, args.user_key,
             content, content_type, language_hint,
             name, tags, args.access_level,
             space_id=space_id
@@ -561,8 +561,8 @@ async def main_async():
                         help="Number of relics to create (default: 100)")
     parser.add_argument("--url", default="http://localhost",
                         help="Base URL (default: http://localhost)")
-    parser.add_argument("--client-key", required=True,
-                        help="Your client key — get it from: localStorage.getItem('relic_client_key')")
+    parser.add_argument("--user-key", required=True,
+                        help="Your user key — get it from: localStorage.getItem('relic_user_key')")
     parser.add_argument("--space-id", default=None,
                         help="Use an existing space instead of creating a new one")
     parser.add_argument("--space-name", default="Seed Test Space",
@@ -579,8 +579,8 @@ async def main_async():
     limits = httpx.Limits(max_connections=args.workers, max_keepalive_connections=args.workers)
     
     async with httpx.AsyncClient(limits=limits) as client:
-        # Ensure client key is registered before seeding
-        await client.post(f"{args.url}/api/v1/client/register", headers={"X-Client-Key": args.client_key})
+        # Ensure user key is registered before seeding
+        await client.post(f"{args.url}/api/v1/user/register", headers={"X-User-Key": args.user_key})
 
         space_id = args.space_id
         if space_id:

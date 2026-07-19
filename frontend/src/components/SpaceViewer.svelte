@@ -30,7 +30,7 @@
     let accessSearchTimer = null;
     let showAccessModal = false;
     let loadingAccess = false;
-    let newAccessClientId = '';
+    let newAccessUserId = '';
     let newAccessRole = 'viewer';
     let managingAccess = false;
 
@@ -282,7 +282,7 @@
     }
 
     async function addAccess() {
-        if (!newAccessClientId.trim()) {
+        if (!newAccessUserId.trim()) {
             showToast("Public ID is required", "error");
             return;
         }
@@ -290,10 +290,10 @@
         managingAccess = true;
         try {
             await spacesApi.addAccess(spaceId, {
-                public_id: newAccessClientId.trim(),
+                public_id: newAccessUserId.trim(),
                 role: newAccessRole
             });
-            newAccessClientId = '';
+            newAccessUserId = '';
             showToast("Access granted successfully", "success");
             await loadAccessList(1);
         } catch (error) {
@@ -824,11 +824,11 @@
                         </h3>
                         <div class="flex items-end gap-3">
                             <div class="flex-1">
-                                <label for="grantClientId" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Public ID</label>
+                                <label for="grantUserId" class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Public ID</label>
                                 <input
-                                    id="grantClientId"
+                                    id="grantUserId"
                                     type="text"
-                                    bind:value={newAccessClientId}
+                                    bind:value={newAccessUserId}
                                     placeholder="Enter user's Public ID (e.g. 7f2a-3b1c-9d2e-ab4f)"
                                     class="maas-input w-full font-mono text-sm bg-white"
                                 />
@@ -844,7 +844,7 @@
                             <button
                                 on:click={addAccess}
                                 class="maas-btn-primary h-[38px] px-6 flex items-center gap-2 whitespace-nowrap mb-px"
-                                disabled={managingAccess || !newAccessClientId.trim()}
+                                disabled={managingAccess || !newAccessUserId.trim()}
                             >
                                 {#if managingAccess}
                                     <i class="fas fa-spinner fa-spin"></i>
@@ -930,7 +930,7 @@
                                                         <i class="fas fa-user text-xs"></i>
                                                     </div>
                                                     <div class="min-w-0">
-                                                        <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{ownerRow.client_name || 'Anonymous User'}</div>
+                                                        <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{ownerRow.user_name || 'Anonymous User'}</div>
                                                         <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{ownerRow.public_id || '—'}</div>
                                                     </div>
                                                 </div>
@@ -951,7 +951,7 @@
                                                         <i class="fas fa-user text-xs"></i>
                                                     </div>
                                                     <div class="min-w-0">
-                                                        <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{access.client_name || 'Anonymous User'}</div>
+                                                        <div class="text-sm font-bold text-gray-900 truncate max-w-[200px]">{access.user_name || 'Anonymous User'}</div>
                                                         <div class="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tight">{access.public_id || '—'}</div>
                                                     </div>
                                                 </div>

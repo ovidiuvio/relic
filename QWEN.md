@@ -40,8 +40,8 @@ relic/
 │   ├── migrations/             # Alembic database migrations
 │   └── routes/                 # API route handlers
 │       ├── relics.py           # Core relic CRUD + fork operations
-│       ├── admin.py            # Admin endpoints (all relics, clients, stats)
-│       ├── clients.py          # Client registration & management
+│       ├── admin.py            # Admin endpoints (all relics, users, stats)
+│       ├── users.py            # User registration & management
 │       ├── bookmarks.py        # Bookmark operations
 │       ├── comments.py         # Line-specific comment threads
 │       ├── spaces.py           # Space collections
@@ -50,7 +50,7 @@ relic/
 │
 ├── frontend/                   # Svelte + Vite application
 │   ├── src/
-│   │   ├── App.svelte          # Root component, client init, routing
+│   │   ├── App.svelte          # Root component, user init, routing
 │   │   ├── routes.js           # Route definitions (pattern → component)
 │   │   ├── main.js             # Entry point
 │   │   ├── components/         # UI components
@@ -218,7 +218,7 @@ Routes traffic:
 
 **Relic**: 32-char hex ID, content metadata, `fork_of` reference, access level, expiration, tags, spaces.
 
-**ClientKey**: 32-char hex ID (auth secret), 16-char `public_id` (safe to share), display name, relic count.
+**User**: 32-char hex ID (auth secret), 16-char `public_id` (safe to share), display name, relic count.
 
 **Space**: Groups relics into curated collections. Public or private with access lists (viewer/editor roles).
 
@@ -226,20 +226,20 @@ Routes traffic:
 
 **Tag**: Many-to-many with relics via `relic_tags` association table.
 
-**RelicAccess** / **SpaceAccess**: ACL entries tracking per-client access with roles.
+**RelicAccess** / **SpaceAccess**: ACL entries tracking per-user access with roles.
 
-**ClientBookmark**: Many-to-many bookmark tracking.
+**UserBookmark**: Many-to-many bookmark tracking.
 
 **RelicReport**: User reports for moderation.
 
 ### Key Relationships
 ```
-ClientKey ──1:N──> Relic (owner)
+User ──1:N──> Relic (owner)
 Relic ──N:M──> Tag (via relic_tags)
 Relic ──N:M──> Space (via space_relics)
 Relic ──1:N──> RelicAccess
 Space ──1:N──> SpaceAccess
-ClientKey ──1:N──> ClientBookmark
+User ──1:N──> UserBookmark
 Relic ──1:N──> Comment (with self-referencing replies)
 Relic ──1:N──> RelicReport
 ```
@@ -261,19 +261,19 @@ All prefixed with `/api/v1`.
 | DELETE | `/relics/:id` | Delete relic (owner or admin) |
 | GET | `/:id/raw` | Get raw content |
 
-### Admin (requires admin client ID in `X-Client-Key` header)
+### Admin (requires admin user ID in `X-User-Key` header)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/admin/check` | Check admin status |
 | GET | `/admin/relics` | List all relics (incl. private) |
-| GET | `/admin/clients` | List all clients |
+| GET | `/admin/users` | List all users |
 | GET | `/admin/stats` | System statistics |
-| DELETE | `/admin/clients/:id` | Delete client |
+| DELETE | `/admin/users/:id` | Delete user |
 
 ### Other
 | Method | Path | Description |
 |--------|------|-------------|
-| GET/POST | `/clients/*` | Client registration & management |
+| GET/POST | `/user/*` | User registration & management |
 | GET/POST | `/bookmarks/*` | Bookmark operations |
 | GET/POST | `/comments/*` | Comment CRUD |
 | GET/POST | `/spaces/*` | Space collections |
@@ -299,7 +299,7 @@ pytest tests/test_api.py   # Specific test file
 - `test_api.py` — Core relic API operations
 - `test_admin.py` — Admin endpoints
 - `test_bookmarks.py` — Bookmark functionality
-- `test_clients.py` — Client management
+- `test_users.py` — User management
 - `test_comments.py` — Comment system
 - `test_spaces.py` — Space collections
 - `test_reports.py` — Reporting
@@ -343,7 +343,7 @@ Environment variables (see `docker-compose.dev.yml` / `docker-compose.prod.yml`)
 | `MINIO_ENDPOINT` | MinIO/S3 endpoint |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | S3 credentials |
 | `MINIO_BUCKET` | S3 bucket name |
-| `ADMIN_CLIENT_IDS` | Comma-separated admin client IDs |
+| `ADMIN_USER_IDS` | Comma-separated admin user IDs |
 | `ALLOWED_ORIGINS` | CORS allowed origins |
 | `DEBUG` | Debug mode |
 | `BACKUP_*` | Backup scheduling configuration |
@@ -352,8 +352,8 @@ Environment variables (see `docker-compose.dev.yml` / `docker-compose.prod.yml`)
 
 ## Admin Setup
 
-1. Get client ID from browser console: `localStorage.getItem('relic_client_key')`
-2. Add to `ADMIN_CLIENT_IDS` in the relevant docker-compose file (comma-separated for multiple admins)
+1. Get user ID from browser console: `localStorage.getItem('relic_user_key')`
+2. Add to `ADMIN_USER_IDS` in the relevant docker-compose file (comma-separated for multiple admins)
 3. Restart services (`make down && make up` or `make dev-down && make dev-up`)
 
-Admin privileges: delete any relic, view all relics (incl. private), manage clients, view system stats.
+Admin privileges: delete any relic, view all relics (incl. private), manage users, view system stats.

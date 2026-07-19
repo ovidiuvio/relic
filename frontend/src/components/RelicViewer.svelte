@@ -484,7 +484,7 @@
         showToast("Already bookmarked", "info");
         isBookmarked = true;
       } else if (error.response?.status === 401) {
-        showToast("Client key required to bookmark", "error");
+        showToast("User key required to bookmark", "error");
       } else {
         showToast("Failed to update bookmark", "error");
       }

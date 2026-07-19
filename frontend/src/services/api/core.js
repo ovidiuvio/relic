@@ -4,7 +4,7 @@ const API_BASE_URL = '/api/v1'
 
 // Gate: all requests wait until auth init (SW or fallback) is complete.
 // Safety net: auto-resolve after 10s so the app never hangs permanently
-// if initClientKey() fails to call markSwReady().
+// if initUserKey() fails to call markSwReady().
 let _swReadyResolve
 const _swReady = new Promise(resolve => { _swReadyResolve = resolve })
 let _swReadyTimeout = setTimeout(() => {
@@ -14,7 +14,7 @@ let _swReadyTimeout = setTimeout(() => {
 
 // Set by auth.js after init — true = SW intercepts fetch, false = we inject header here.
 let _fallbackMode = false
-let _getClientKey = null
+let _getUserKey = null
 
 export function markSwReady() {
     clearTimeout(_swReadyTimeout)
@@ -27,7 +27,7 @@ export function waitForAuth() {
 
 export function enableFallbackAuth(getKeyFn) {
     _fallbackMode = true
-    _getClientKey = getKeyFn
+    _getUserKey = getKeyFn
 }
 
 // Use the fetch adapter so the Service Worker can intercept requests.
@@ -44,9 +44,9 @@ const api = axios.create({
 // ourselves when running in localStorage-fallback mode.
 api.interceptors.request.use(async (config) => {
     await _swReady
-    if (_fallbackMode && _getClientKey) {
-        const key = _getClientKey()
-        if (key) config.headers['X-Client-Key'] = key
+    if (_fallbackMode && _getUserKey) {
+        const key = _getUserKey()
+        if (key) config.headers['X-User-Key'] = key
     }
     return config
 })

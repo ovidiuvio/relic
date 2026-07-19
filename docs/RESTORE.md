@@ -366,7 +366,7 @@ cat /tmp/relic_insert.sql
 
 **Example output**:
 ```sql
-INSERT INTO relic VALUES('abc123def456', NULL, 'client_123', 'MyDocument', 'A backup file', 'application/pdf', NULL, 1024000, 'relics/abc123def456', 'public', NULL, '2024-01-15 10:30:00', NULL, NULL, 0);
+INSERT INTO relic VALUES('abc123def456', NULL, 'user_123', 'MyDocument', 'A backup file', 'application/pdf', NULL, 1024000, 'relics/abc123def456', 'public', NULL, '2024-01-15 10:30:00', NULL, NULL, 0);
 ```
 
 ### Step 3: Execute in Current Database

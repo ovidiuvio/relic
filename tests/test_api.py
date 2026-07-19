@@ -22,13 +22,13 @@ def test_get_version(http):
 # ── Create ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_create_relic(http, registered_client):
-    key, _ = registered_client
+def test_create_relic(http, registered_user):
+    key, _ = registered_user
     content = b"Integration test content"
 
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Create Test", "access_level": "public"},
         files={"file": ("test.txt", content, "text/plain")},
     )
@@ -39,7 +39,7 @@ def test_create_relic(http, registered_client):
     assert "created_at" in data
     assert data["size_bytes"] == len(content)
 
-    http.delete(f"/api/v1/relics/{data['id']}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{data['id']}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
@@ -60,11 +60,11 @@ def test_create_relic_invalid_access_level(http):
 
 
 @pytest.mark.integration
-def test_create_relic_with_tags(http, registered_client):
-    key, _ = registered_client
+def test_create_relic_with_tags(http, registered_user):
+    key, _ = registered_user
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Tagged", "access_level": "public", "tags": "python,code"},
         files={"file": ("test.py", b"print('hi')", "text/plain")},
     )
@@ -76,7 +76,7 @@ def test_create_relic_with_tags(http, registered_client):
     assert "python" in tag_names
     assert "code" in tag_names
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 # ── Get ───────────────────────────────────────────────────────────────────────
@@ -130,12 +130,12 @@ def test_list_relics(http, created_relic):
 
 
 @pytest.mark.integration
-def test_list_relics_with_tag_filter(http, registered_client):
-    key, _ = registered_client
+def test_list_relics_with_tag_filter(http, registered_user):
+    key, _ = registered_user
     tag = f"tag-{uuid.uuid4().hex[:8]}"
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Tagged Relic", "access_level": "public", "tags": tag},
         files={"file": ("test.txt", b"content", "text/plain")},
     )
@@ -149,16 +149,16 @@ def test_list_relics_with_tag_filter(http, registered_client):
     assert resp_none.status_code == 200
     assert resp_none.json()["total"] == 0
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
-def test_list_relics_with_search(http, registered_client):
-    key, _ = registered_client
+def test_list_relics_with_search(http, registered_user):
+    key, _ = registered_user
     unique_name = f"SearchTarget-{uuid.uuid4().hex[:8]}"
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": unique_name, "access_level": "public"},
         files={"file": ("test.txt", b"content", "text/plain")},
     )
@@ -168,7 +168,7 @@ def test_list_relics_with_search(http, registered_client):
     assert resp_search.status_code == 200
     assert resp_search.json()["total"] >= 1
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 # ── Update ────────────────────────────────────────────────────────────────────
@@ -176,11 +176,11 @@ def test_list_relics_with_search(http, registered_client):
 @pytest.mark.integration
 def test_edit_relic(http, created_relic):
     relic_id = created_relic["id"]
-    key = created_relic["client_key"]
+    key = created_relic["user_key"]
 
     resp = http.put(
         f"/api/v1/relics/{relic_id}",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "Updated Name"},
     )
     assert resp.status_code == 200
@@ -191,17 +191,17 @@ def test_edit_relic(http, created_relic):
 # ── Delete ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_delete_relic(http, registered_client):
-    key, _ = registered_client
+def test_delete_relic(http, registered_user):
+    key, _ = registered_user
     create = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"access_level": "public"},
         files={"file": ("test.txt", b"to delete", "text/plain")},
     )
     relic_id = create.json()["id"]
 
-    resp = http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    resp = http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
     assert resp.status_code == 200
 
     assert http.get(f"/api/v1/relics/{relic_id}").status_code == 404
@@ -216,20 +216,20 @@ def test_delete_relic_no_auth(http, created_relic):
 @pytest.mark.integration
 def test_delete_relic_non_owner(http, created_relic):
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
     resp = http.delete(
         f"/api/v1/relics/{created_relic['id']}",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
     )
     assert resp.status_code == 403
 
 
 @pytest.mark.integration
-def test_delete_relic_not_found(http, registered_client):
-    key, _ = registered_client
+def test_delete_relic_not_found(http, registered_user):
+    key, _ = registered_user
     resp = http.delete(
         "/api/v1/relics/nonexistent_relic_id_del",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
     )
     assert resp.status_code == 404
 
@@ -237,13 +237,13 @@ def test_delete_relic_not_found(http, registered_client):
 # ── Fork ──────────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_fork_relic(http, created_relic, registered_client):
-    key, _ = registered_client
+def test_fork_relic(http, created_relic, registered_user):
+    key, _ = registered_user
     original_id = created_relic["id"]
 
     resp = http.post(
         f"/api/v1/relics/{original_id}/fork",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         files={"file": ("fork.txt", b"Forked content", "text/plain")},
     )
     assert resp.status_code == 200
@@ -251,7 +251,7 @@ def test_fork_relic(http, created_relic, registered_client):
     assert fork["fork_of"] == original_id
     assert "created_at" in fork
 
-    http.delete(f"/api/v1/relics/{fork['id']}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{fork['id']}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
@@ -266,13 +266,13 @@ def test_fork_nonexistent_relic(http):
 # ── Lineage ───────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_get_relic_lineage(http, created_relic, registered_client):
-    key, _ = registered_client
+def test_get_relic_lineage(http, created_relic, registered_user):
+    key, _ = registered_user
     original_id = created_relic["id"]
 
     fork_resp = http.post(
         f"/api/v1/relics/{original_id}/fork",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         files={"file": ("fork.txt", b"Forked", "text/plain")},
     )
     fork_id = fork_resp.json()["id"]
@@ -284,7 +284,7 @@ def test_get_relic_lineage(http, created_relic, registered_client):
     assert data["root"]["id"] == original_id
     assert any(c["id"] == fork_id for c in data["root"]["children"])
 
-    http.delete(f"/api/v1/relics/{fork_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{fork_id}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
@@ -296,12 +296,12 @@ def test_get_lineage_not_found(http):
 # ── Access level: restricted ──────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_access_level_restricted(http, registered_client):
-    key, _ = registered_client
+def test_access_level_restricted(http, registered_user):
+    key, _ = registered_user
 
     create = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Restricted", "access_level": "restricted"},
         files={"file": ("test.txt", b"secret", "text/plain")},
     )
@@ -313,105 +313,105 @@ def test_access_level_restricted(http, registered_client):
 
     # Wrong key → 403
     other_key, _ = (uuid.uuid4().hex, None)
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
-    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": other_key}).status_code == 403
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
+    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": other_key}).status_code == 403
 
     # Owner → 200
-    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key}).status_code == 200
+    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key}).status_code == 200
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 # ── Relic access list (restricted access management) ─────────────────────────
 
 @pytest.mark.integration
-def test_relic_access_crud(http, registered_client):
-    owner_key, _ = registered_client
+def test_relic_access_crud(http, registered_user):
+    owner_key, _ = registered_user
 
     create = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": owner_key},
+        headers={"X-User-Key": owner_key},
         data={"name": "Access Test", "access_level": "restricted"},
         files={"file": ("test.txt", b"secret", "text/plain")},
     )
     relic_id = create.json()["id"]
 
-    # Register a second client
+    # Register a second user
     target_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": target_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": target_key})
     target_public_id = reg.json()["public_id"]
 
     # GET — empty list
-    resp = http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": owner_key})
+    resp = http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": owner_key})
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
 
     # POST — add target
     resp = http.post(
         f"/api/v1/relics/{relic_id}/access",
-        headers={"X-Client-Key": owner_key},
+        headers={"X-User-Key": owner_key},
         json={"public_id": target_public_id},
     )
     assert resp.status_code == 200
     assert resp.json()["public_id"] == target_public_id
 
     # Target can now access
-    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": target_key}).status_code == 200
+    assert http.get(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": target_key}).status_code == 200
 
     # GET — 1 entry
-    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": owner_key}).json()["total"] == 1
+    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": owner_key}).json()["total"] == 1
 
     # DELETE — remove target
     resp = http.delete(
         f"/api/v1/relics/{relic_id}/access/{target_public_id}",
-        headers={"X-Client-Key": owner_key},
+        headers={"X-User-Key": owner_key},
     )
     assert resp.status_code == 200
 
     # GET — empty again
-    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": owner_key}).json()["total"] == 0
+    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": owner_key}).json()["total"] == 0
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": owner_key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": owner_key})
 
 
 @pytest.mark.integration
 def test_relic_access_unauthorized(http, created_relic):
     relic_id = created_relic["id"]
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
 
     assert http.get(f"/api/v1/relics/{relic_id}/access").status_code == 401
-    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": other_key}).status_code == 403
+    assert http.get(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": other_key}).status_code == 403
 
 
 @pytest.mark.integration
-def test_relic_access_duplicate(http, registered_client):
-    key, _ = registered_client
+def test_relic_access_duplicate(http, registered_user):
+    key, _ = registered_user
     create = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"access_level": "restricted"},
         files={"file": ("test.txt", b"content", "text/plain")},
     )
     relic_id = create.json()["id"]
 
     target_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": target_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": target_key})
     target_public_id = reg.json()["public_id"]
 
-    http.post(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": key}, json={"public_id": target_public_id})
-    resp = http.post(f"/api/v1/relics/{relic_id}/access", headers={"X-Client-Key": key}, json={"public_id": target_public_id})
+    http.post(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": key}, json={"public_id": target_public_id})
+    resp = http.post(f"/api/v1/relics/{relic_id}/access", headers={"X-User-Key": key}, json={"public_id": target_public_id})
     assert resp.status_code == 409
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
-def test_relic_access_client_not_found(http, registered_client):
-    key, _ = registered_client
+def test_relic_access_user_not_found(http, registered_user):
+    key, _ = registered_user
     create = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"access_level": "restricted"},
         files={"file": ("test.txt", b"content", "text/plain")},
     )
@@ -419,9 +419,9 @@ def test_relic_access_client_not_found(http, registered_client):
 
     resp = http.post(
         f"/api/v1/relics/{relic_id}/access",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"public_id": "nonexistent_public_id_xyz"},
     )
     assert resp.status_code == 404
 
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})

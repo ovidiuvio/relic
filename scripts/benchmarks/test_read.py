@@ -25,7 +25,7 @@ class ReadBenchmark(Benchmark):
         else:
             url = f"{self.base_url}/api/v1/relics/{relic_id}"
 
-        headers = {"X-Client-Key": self.client_key}
+        headers = {"X-User-Key": self.user_key}
         response = await client.get(url, headers=headers)
 
         if response.status_code in (200, 404, 410):

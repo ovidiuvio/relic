@@ -22,7 +22,7 @@ class SearchBenchmark(Benchmark):
     async def run_operation(self, client, operation_id):
         """Randomly choose search, tag filter, or list operation."""
         op_type = random.choice(["search", "tag", "list", "sort"])
-        headers = {"X-Client-Key": self.client_key}
+        headers = {"X-User-Key": self.user_key}
 
         if op_type == "search":
             term = random.choice(self.search_terms)

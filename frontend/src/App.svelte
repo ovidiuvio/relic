@@ -4,10 +4,10 @@
   import KeyRevealModal from "./components/KeyRevealModal.svelte";
   import { toastStore } from "./stores/toastStore";
   import { matchRoute, sectionToPath } from "./routes";
-  import { initClientKey, swSetKey, checkAdminStatus, updateClientName, registerClient, getVersion } from "./services/api";
-  import { usingSw, getClientKey } from "./services/api/auth";
+  import { initUserKey, swSetKey, checkAdminStatus, updateUserName, registerUser, getVersion } from "./services/api";
+  import { usingSw, getUserKey } from "./services/api/auth";
   import { showToast } from "./stores/toastStore";
-  import { clientPublicId as clientPublicIdStore } from "./stores/clientStore";
+  import { userPublicId as userPublicIdStore } from "./stores/userStore";
 
   let currentSection = null;
   let routeComponent = null;
@@ -17,11 +17,11 @@
   let relicViewerFullWidth = false;
   let relicFormFullWidth = false;
   let isAdmin = false;
-  let clientName = "";
-  let clientPublicId = "";
+  let userName = "";
+  let userPublicId = "";
   let isNameSaving = false;
   let appVersion = "loading...";
-  let clientKeyOnce = null;
+  let userKeyOnce = null;
   let showKeyReveal = false;
 
   function updateRouting() {
@@ -49,8 +49,8 @@
   onMount(async () => {
     // Initialise SW vault and migrate key from localStorage if needed.
     // Returns the key only on first creation or migration — null for returning users.
-    clientKeyOnce = await initClientKey();
-    if (clientKeyOnce) showKeyReveal = true;
+    userKeyOnce = await initUserKey();
+    if (userKeyOnce) showKeyReveal = true;
 
     // Fetch app version
     try {
@@ -61,16 +61,16 @@
       appVersion = "unknown";
     }
 
-    // Register/Fetch client info (SW injects X-Client-Key automatically)
+    // Register/Fetch user info (SW injects X-User-Key automatically)
     try {
-        const clientInfo = await registerClient();
-        if (clientInfo && clientInfo.name) clientName = clientInfo.name;
-        if (clientInfo && clientInfo.public_id) {
-          clientPublicId = clientInfo.public_id;
-          clientPublicIdStore.set(clientInfo.public_id);
+        const userInfo = await registerUser();
+        if (userInfo && userInfo.name) userName = userInfo.name;
+        if (userInfo && userInfo.public_id) {
+          userPublicId = userInfo.public_id;
+          userPublicIdStore.set(userInfo.public_id);
         }
     } catch (e) {
-        console.error("Failed to fetch client info", e);
+        console.error("Failed to fetch user info", e);
     }
 
     // Check admin status
@@ -96,7 +96,7 @@
 
     // Close credentials dropdown when clicking outside
     function handleDocumentClick(e) {
-      if (showKeyDropdown && !e.target.closest(".client-key-dropdown")) {
+      if (showKeyDropdown && !e.target.closest(".user-key-dropdown")) {
         showKeyDropdown = false;
       }
     }
@@ -111,11 +111,11 @@
     };
   });
 
-  async function saveClientName() {
-    if (!clientName.trim()) return;
+  async function saveUserName() {
+    if (!userName.trim()) return;
     isNameSaving = true;
     try {
-        await updateClientName(clientName);
+        await updateUserName(userName);
         showToast("Name updated successfully", "success");
     } catch (error) {
         console.error("Failed to update name:", error);
@@ -145,18 +145,18 @@
     updateRouting();
   }
 
-  function uploadClientKey(event) {
+  function uploadUserKey(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const clientKey = e.target.result.trim();
+      const userKey = e.target.result.trim();
 
-      // Validate client key format (32 hex characters)
-      if (!/^[a-f0-9]{32}$/i.test(clientKey)) {
+      // Validate user key format (32 hex characters)
+      if (!/^[a-f0-9]{32}$/i.test(userKey)) {
         showToast(
-          "Invalid client key format. Please use a valid 32-character hexadecimal key.",
+          "Invalid user key format. Please use a valid 32-character hexadecimal key.",
           "error",
         );
         return;
@@ -164,22 +164,22 @@
 
       try {
         // Store key in SW vault (or localStorage in fallback mode)
-        await swSetKey(clientKey);
+        await swSetKey(userKey);
         const headers = { "Content-Type": "application/json" };
-        if (!usingSw) headers["X-Client-Key"] = clientKey;
-        const response = await fetch("/api/v1/client/register", {
+        if (!usingSw) headers["X-User-Key"] = userKey;
+        const response = await fetch("/api/v1/user/register", {
           method: "POST",
           headers,
         });
         const data = await response.json();
         if (data.message?.includes("successfully") || data.message?.includes("already registered")) {
-          showToast("Client key imported successfully! Reloading...", "success");
+          showToast("User key imported successfully! Reloading...", "success");
           setTimeout(() => window.location.reload(), 1500);
         } else {
-          showToast("Failed to import client key", "error");
+          showToast("Failed to import user key", "error");
         }
       } catch {
-        showToast("Failed to import client key", "error");
+        showToast("Failed to import user key", "error");
       }
     };
     reader.readAsText(file);
@@ -275,9 +275,9 @@
           {/if}
         </nav>
 
-        <!-- Client Key Menu -->
+        <!-- User Key Menu -->
         <div class="flex items-center gap-4">
-          <div class="client-key-dropdown relative">
+          <div class="user-key-dropdown relative">
             <button
               on:click={() => (showKeyDropdown = !showKeyDropdown)}
               class="p-2 text-white/80 hover:text-white transition-colors"
@@ -300,12 +300,12 @@
                     <div class="flex gap-2">
                         <input
                             type="text"
-                            bind:value={clientName}
+                            bind:value={userName}
                             placeholder="Anonymous"
                             class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
                         />
                         <button
-                            on:click={saveClientName}
+                            on:click={saveUserName}
                             disabled={isNameSaving}
                             class="w-8 h-[30px] flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
                             title="Save Name"
@@ -324,10 +324,10 @@
                     <label class="block text-xs font-medium text-gray-700 mb-1">Your Public ID</label>
                     <div class="flex gap-2 items-center">
                         <span class="flex-1 text-sm font-mono text-gray-900 select-all">
-                            {clientPublicId || '...'}
+                            {userPublicId || '...'}
                         </span>
                         <button
-                            on:click={() => navigator.clipboard.writeText(clientPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
+                            on:click={() => navigator.clipboard.writeText(userPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
                             class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
                             title="Copy Public ID"
                         >
@@ -346,7 +346,7 @@
                     <input
                       type="file"
                       accept=".txt"
-                      on:change={uploadClientKey}
+                      on:change={uploadUserKey}
                       class="hidden"
                     />
                   </label>
@@ -400,8 +400,8 @@
   <Toast />
   <KeyRevealModal
     show={showKeyReveal}
-    clientKey={clientKeyOnce || ''}
-    on:confirm={() => { showKeyReveal = false; clientKeyOnce = null; }}
+    userKey={userKeyOnce || ''}
+    on:confirm={() => { showKeyReveal = false; userKeyOnce = null; }}
   />
 </div>
 

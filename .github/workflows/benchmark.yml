@@ -83,7 +83,7 @@ jobs:
             --count 500 \
             --workers 10 \
             --url http://localhost \
-            --client-key "$RELIC_ADMIN_KEY" \
+            --user-key "$RELIC_ADMIN_KEY" \
             --access-level public
           echo "Seed complete"
 
@@ -105,7 +105,7 @@ jobs:
               --count 1000 \
               --workers "$WORKERS" \
               --url http://localhost \
-              --client-key "$RELIC_ADMIN_KEY" \
+              --user-key "$RELIC_ADMIN_KEY" \
               --output "benchmark-results/runs/create-run-${i}.json" \
               --git-hash "$GITHUB_SHA"
 
@@ -140,7 +140,7 @@ jobs:
 
           python3 scripts/run_all_benchmarks.py \
             --url http://localhost \
-            --client-key "$RELIC_ADMIN_KEY" \
+            --user-key "$RELIC_ADMIN_KEY" \
             --iterations "$ITERATIONS" \
             --workers "$WORKERS" \
             --operations "$OPERATIONS" \

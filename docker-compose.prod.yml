@@ -30,7 +30,7 @@ services:
       MINIO_USE_SSL: "false"
       DEBUG: "false"
       ALLOWED_ORIGINS: "http://localhost"
-      ADMIN_CLIENT_IDS:
+      ADMIN_USER_IDS:
       # Database Backup Configuration
       BACKUP_ENABLED: "true"
       BACKUP_TIMES: "02:00,14:00"

@@ -18,7 +18,7 @@ Comprehensive benchmark suite for Relic performance testing.
 ### Run All Benchmarks
 ```bash
 python3 scripts/run_all_benchmarks.py \
-  --client-key YOUR_KEY \
+  --user-key YOUR_KEY \
   --url http://localhost \
   --iterations 5 \
   --workers 5 \
@@ -30,7 +30,7 @@ python3 scripts/run_all_benchmarks.py \
 python3 scripts/benchmark_relics.py \
   --count 1000 \
   --workers 5 \
-  --client-key YOUR_KEY
+  --user-key YOUR_KEY
 ```
 
 ## GitHub Actions

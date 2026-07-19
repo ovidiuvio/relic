@@ -11,10 +11,10 @@ from typing import Optional
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, ClientBookmark, RelicReport, Comment, Tag, Space
+from backend.models import Relic, User, UserBookmark, RelicReport, Comment, Tag, Space
 from backend.schemas import AdminGrant
 from backend.storage import storage_service
-from backend.dependencies import get_client_key, get_admin_client, is_admin_client
+from backend.dependencies import get_current_user, get_admin_user, is_admin_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
 
 router = APIRouter(prefix="/api/v1/admin")
@@ -23,14 +23,14 @@ router = APIRouter(prefix="/api/v1/admin")
 @router.get("/check")
 async def admin_check(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Check if current client has admin privileges.
+    Check if current user has admin privileges.
 
     Returns admin status without throwing error.
     """
-    client = await get_client_key(request, db)
+    user = await get_current_user(request, db)
     return {
-        "client_id": client.id if client else None,
-        "is_admin": is_admin_client(client)
+        "user_id": user.id if user else None,
+        "is_admin": is_admin_user(user)
     }
 
 
@@ -40,7 +40,7 @@ async def admin_list_all_relics(
     limit: int = 100,
     offset: int = 0,
     access_level: Optional[str] = None,
-    client_id: Optional[str] = None,
+    user_id: Optional[str] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
     sort_by: Optional[str] = "created_at",
@@ -51,19 +51,19 @@ async def admin_list_all_relics(
     [ADMIN] List all relics including private ones.
 
     Requires admin privileges.
-    Optional filters: access_level, client_id, search, tag
+    Optional filters: access_level, user_id, search, tag
     """
     limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
-    await get_admin_client(request, db)  # Verify admin
+    await get_admin_user(request, db)  # Verify admin
 
-    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client))
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner))
 
     if access_level:
         stmt = stmt.where(Relic.access_level == access_level)
 
-    if client_id:
-        stmt = stmt.where(Relic.client_id == client_id)
+    if user_id:
+        stmt = stmt.where(Relic.user_id == user_id)
 
     if search:
         stmt = apply_relic_search(stmt, search)
@@ -109,13 +109,13 @@ async def admin_list_all_relics(
         "total": total,
         "limit": limit,
         "offset": offset,
-        "client_id": client_id,
+        "user_id": user_id,
         "relics": [
             {
                 "id": r.id,
                 "name": r.name,
-                "client_id": r.client_id,
-                "client_public_id": r.owner_client.public_id if r.owner_client else None,
+                "user_id": r.user_id,
+                "user_public_id": r.owner.public_id if r.owner else None,
                 "owner_name": r.owner_name,
                 "owner_public_id": r.owner_public_id,
                 "content_type": r.content_type,
@@ -134,8 +134,8 @@ async def admin_list_all_relics(
     }
 
 
-@router.get("/clients", response_model=dict)
-async def admin_list_clients(
+@router.get("/users", response_model=dict)
+async def admin_list_users(
     request: Request,
     limit: int = 100,
     offset: int = 0,
@@ -145,76 +145,76 @@ async def admin_list_clients(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    [ADMIN] List all registered clients.
+    [ADMIN] List all registered users.
 
     Requires admin privileges.
     """
     limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
-    stmt = select(ClientKey)
+    stmt = select(User)
 
     if search:
         term = f"%{search.strip()}%"
         stmt = stmt.where(
-            ClientKey.name.ilike(term) |
-            ClientKey.public_id.ilike(term) |
-            ClientKey.id.ilike(term)
+            User.name.ilike(term) |
+            User.public_id.ilike(term) |
+            User.id.ilike(term)
         )
 
     actual_count_subq = (
-        select(Relic.client_id, func.count(Relic.id).label("cnt"))
-        .group_by(Relic.client_id)
+        select(Relic.user_id, func.count(Relic.id).label("cnt"))
+        .group_by(Relic.user_id)
         .subquery()
     )
 
     if sort_by == "relic_count":
-        stmt = stmt.outerjoin(actual_count_subq, ClientKey.id == actual_count_subq.c.client_id)
+        stmt = stmt.outerjoin(actual_count_subq, User.id == actual_count_subq.c.user_id)
         sort_col = func.coalesce(actual_count_subq.c.cnt, 0)
     else:
         sort_field_map = {
-            "created_at": ClientKey.created_at,
-            "name": ClientKey.name,
+            "created_at": User.created_at,
+            "name": User.name,
         }
-        sort_col = sort_field_map.get(sort_by, ClientKey.created_at)
+        sort_col = sort_field_map.get(sort_by, User.created_at)
 
     order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()
 
-    clients_result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
-    clients = clients_result.scalars().all()
+    users_result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
+    users = users_result.scalars().all()
 
     # Compute actual relic counts from Relic table (cached counter can drift)
-    client_ids = [c.id for c in clients]
+    user_ids = [u.id for u in users]
     actual_relic_counts = {}
-    if client_ids:
+    if user_ids:
         rc_result = await db.execute(
-            select(Relic.client_id, func.count(Relic.id))
-            .where(Relic.client_id.in_(client_ids))
-            .group_by(Relic.client_id)
+            select(Relic.user_id, func.count(Relic.id))
+            .where(Relic.user_id.in_(user_ids))
+            .group_by(Relic.user_id)
         )
         actual_relic_counts = dict(rc_result.all())
 
-    admin_ids = settings.get_admin_client_ids()
+    admin_ids = settings.get_admin_user_ids()
 
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
-        "clients": [
+        "users": [
             {
-                "id": c.id,
-                "public_id": c.public_id,
-                "name": c.name,
-                "created_at": c.created_at,
-                "relic_count": actual_relic_counts.get(c.id, 0),
-                "is_admin": bool(c.is_admin) or c.id in admin_ids,
-                "is_super_admin": c.id in admin_ids
+                "id": u.id,
+                "public_id": u.public_id,
+                "name": u.name,
+                "created_at": u.created_at,
+                "relic_count": actual_relic_counts.get(u.id, 0),
+                "is_admin": bool(u.is_admin) or u.id in admin_ids,
+                "is_super_admin": u.id in admin_ids
             }
-            for c in clients
+            for u in users
         ]
     }
 
@@ -229,7 +229,7 @@ async def admin_get_stats(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     # Consolidate stats queries into a single database query to reduce roundtrips (excluding initial admin check)
     stmt = select(
@@ -238,18 +238,18 @@ async def admin_get_stats(
         func.sum(case((Relic.access_level == 'public', 1), else_=0)).label("public_relics"),
         func.sum(case((Relic.access_level == 'private', 1), else_=0)).label("private_relics"),
         func.sum(case((Relic.access_level == 'restricted', 1), else_=0)).label("restricted_relics"),
-        select(func.count(ClientKey.id)).scalar_subquery().label("total_clients"),
+        select(func.count(User.id)).scalar_subquery().label("total_users"),
         select(func.count(Comment.id)).scalar_subquery().label("total_comments"),
-        select(func.count(ClientBookmark.id)).scalar_subquery().label("total_bookmarks"),
+        select(func.count(UserBookmark.id)).scalar_subquery().label("total_bookmarks"),
         select(func.count(RelicReport.id)).scalar_subquery().label("total_reports"),
         select(func.count(Space.id)).scalar_subquery().label("total_spaces")
     )
     result = await db.execute(stmt)
     stats = result.first()
 
-    # Effective admins = env super-admins ∪ clients with the runtime is_admin flag
-    env_admin_ids = set(settings.get_admin_client_ids())
-    db_admin_result = await db.execute(select(ClientKey.id).where(ClientKey.is_admin.is_(True)))
+    # Effective admins = env super-admins ∪ users with the runtime is_admin flag
+    env_admin_ids = set(settings.get_admin_user_ids())
+    db_admin_result = await db.execute(select(User.id).where(User.is_admin.is_(True)))
     admin_ids = env_admin_ids | {row[0] for row in db_admin_result.all()}
 
     return {
@@ -258,7 +258,7 @@ async def admin_get_stats(
         "public_relics": stats.public_relics or 0,
         "private_relics": stats.private_relics or 0,
         "restricted_relics": stats.restricted_relics or 0,
-        "total_clients": stats.total_clients or 0,
+        "total_users": stats.total_users or 0,
         "total_comments": stats.total_comments or 0,
         "total_bookmarks": stats.total_bookmarks or 0,
         "total_reports": stats.total_reports or 0,
@@ -267,67 +267,67 @@ async def admin_get_stats(
     }
 
 
-@router.delete("/clients/{client_id}")
-async def admin_delete_client(
-    client_id: str,
+@router.delete("/users/{user_id}")
+async def admin_delete_user(
+    user_id: str,
     request: Request,
     delete_relics: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    [ADMIN] Delete a client and optionally their relics.
+    [ADMIN] Delete a user and optionally their relics.
 
     Requires admin privileges.
 
     Args:
-        delete_relics: If True, also delete all relics owned by this client
+        delete_relics: If True, also delete all relics owned by this user
     """
-    admin = await get_admin_client(request, db)
+    admin = await get_admin_user(request, db)
 
-    result = await db.execute(select(ClientKey).where(ClientKey.id == client_id))
-    client = result.scalar_one_or_none()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    # Prevent deleting admin clients (env super-admins or runtime-granted)
-    if is_admin_client(client):
+    # Prevent deleting admin users (env super-admins or runtime-granted)
+    if is_admin_user(user):
         raise HTTPException(
             status_code=403,
-            detail="Cannot delete admin client"
+            detail="Cannot delete admin user"
         )
 
     if delete_relics:
-        # Delete all relics owned by this client
-        relics_result = await db.execute(select(Relic).where(Relic.client_id == client_id))
-        client_relics = relics_result.scalars().all()
-        for relic in client_relics:
+        # Delete all relics owned by this user
+        relics_result = await db.execute(select(Relic).where(Relic.user_id == user_id))
+        user_relics = relics_result.scalars().all()
+        for relic in user_relics:
             try:
                 await storage_service.delete(relic.s3_key)
             except Exception as e:
                 logger.error(f"Failed to delete file from S3: {e}")
             await db.delete(relic)
     else:
-        # Just disassociate relics from client
+        # Just disassociate relics from user
         await db.execute(
-            update(Relic).where(Relic.client_id == client_id).values(client_id=None)
+            update(Relic).where(Relic.user_id == user_id).values(user_id=None)
         )
 
     # Delete bookmarks
-    await db.execute(delete(ClientBookmark).where(ClientBookmark.client_id == client_id))
+    await db.execute(delete(UserBookmark).where(UserBookmark.user_id == user_id))
 
     # Transfer space ownership to the admin performing the deletion
     await db.execute(
-        update(Space).where(Space.owner_client_id == client_id).values(owner_client_id=admin.id)
+        update(Space).where(Space.owner_id == user_id).values(owner_id=admin.id)
     )
 
-    # Disassociate comments from client
-    await db.execute(update(Comment).where(Comment.client_id == client_id).values(client_id=None))
+    # Disassociate comments from user
+    await db.execute(update(Comment).where(Comment.user_id == user_id).values(user_id=None))
 
-    # Delete client
-    await db.delete(client)
+    # Delete user
+    await db.delete(user)
     await db.commit()
 
-    return {"message": f"Client {client_id} deleted successfully"}
+    return {"message": f"User {user_id} deleted successfully"}
 
 
 @router.get("/admins", response_model=dict)
@@ -338,36 +338,36 @@ async def admin_list_admins(
     """
     [ADMIN] List all effective admins.
 
-    Combines env super-admins (ADMIN_CLIENT_IDS) with runtime-granted admins
-    (ClientKey.is_admin). Env admins are flagged is_super_admin and cannot be
+    Combines env super-admins (ADMIN_USER_IDS) with runtime-granted admins
+    (User.is_admin). Env admins are flagged is_super_admin and cannot be
     revoked at runtime. Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
-    env_ids = set(settings.get_admin_client_ids())
+    env_ids = set(settings.get_admin_user_ids())
 
     # Runtime (DB-flagged) admins
-    db_result = await db.execute(select(ClientKey).where(ClientKey.is_admin.is_(True)))
+    db_result = await db.execute(select(User).where(User.is_admin.is_(True)))
     db_admins = db_result.scalars().all()
 
-    # Client rows for any env admins (some may never have created a client row)
+    # User rows for any env admins (some may never have created a user row)
     env_rows = {}
     if env_ids:
-        er = await db.execute(select(ClientKey).where(ClientKey.id.in_(env_ids)))
-        env_rows = {c.id: c for c in er.scalars().all()}
+        er = await db.execute(select(User).where(User.id.in_(env_ids)))
+        env_rows = {u.id: u for u in er.scalars().all()}
 
     admins = {}
-    for c in db_admins:
-        admins[c.id] = {
-            "client_id": c.id,
-            "public_id": c.public_id,
-            "name": c.name,
-            "is_super_admin": c.id in env_ids,
+    for u in db_admins:
+        admins[u.id] = {
+            "user_id": u.id,
+            "public_id": u.public_id,
+            "name": u.name,
+            "is_super_admin": u.id in env_ids,
         }
-    for cid in env_ids:
-        row = env_rows.get(cid)
-        admins[cid] = {
-            "client_id": cid,
+    for uid in env_ids:
+        row = env_rows.get(uid)
+        admins[uid] = {
+            "user_id": uid,
             "public_id": row.public_id if row else None,
             "name": row.name if row else None,
             "is_super_admin": True,
@@ -376,7 +376,7 @@ async def admin_list_admins(
     # Super-admins first, then by display name / id
     admin_list = sorted(
         admins.values(),
-        key=lambda a: (not a["is_super_admin"], (a["name"] or a["public_id"] or a["client_id"]).lower())
+        key=lambda a: (not a["is_super_admin"], (a["name"] or a["public_id"] or a["user_id"]).lower())
     )
 
     return {"admins": admin_list, "total": len(admin_list)}
@@ -391,93 +391,93 @@ async def admin_add_admin(
     """
     [ADMIN] Grant admin privileges to a user identified by Public ID.
 
-    Takes effect immediately without a restart. To grant by raw client_id
-    (e.g. copied from localStorage), use POST /admin/clients/{client_id}/admin
+    Takes effect immediately without a restart. To grant by raw user_id
+    (e.g. copied from localStorage), use POST /admin/users/{user_id}/admin
     instead. Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     identifier = body.public_id.strip()
     if not identifier:
         raise HTTPException(status_code=400, detail="A Public ID is required")
 
-    result = await db.execute(select(ClientKey).where(ClientKey.public_id == identifier))
-    client = result.scalar_one_or_none()
-    if not client:
+    result = await db.execute(select(User).where(User.public_id == identifier))
+    user = result.scalar_one_or_none()
+    if not user:
         raise HTTPException(status_code=404, detail="No user found with that Public ID")
 
-    client.is_admin = True
+    user.is_admin = True
     await db.commit()
 
     return {
-        "message": f"Admin privileges granted to {client.public_id}",
-        "client_id": client.id,
-        "public_id": client.public_id,
+        "message": f"Admin privileges granted to {user.public_id}",
+        "user_id": user.id,
+        "public_id": user.public_id,
         "is_admin": True,
     }
 
 
-@router.post("/clients/{client_id}/admin")
+@router.post("/users/{user_id}/admin")
 async def admin_grant_admin(
-    client_id: str,
+    user_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    [ADMIN] Grant runtime admin privileges to a client.
+    [ADMIN] Grant runtime admin privileges to a user.
 
-    Sets the ClientKey.is_admin flag. Takes effect immediately without a restart.
+    Sets the User.is_admin flag. Takes effect immediately without a restart.
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
-    result = await db.execute(select(ClientKey).where(ClientKey.id == client_id))
-    client = result.scalar_one_or_none()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    client.is_admin = True
+    user.is_admin = True
     await db.commit()
 
-    return {"message": f"Client {client_id} granted admin privileges", "is_admin": True}
+    return {"message": f"User {user_id} granted admin privileges", "is_admin": True}
 
 
-@router.delete("/clients/{client_id}/admin")
+@router.delete("/users/{user_id}/admin")
 async def admin_revoke_admin(
-    client_id: str,
+    user_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    [ADMIN] Revoke runtime admin privileges from a client.
+    [ADMIN] Revoke runtime admin privileges from a user.
 
-    Clears the ClientKey.is_admin flag. Env super-admins (ADMIN_CLIENT_IDS) cannot
+    Clears the User.is_admin flag. Env super-admins (ADMIN_USER_IDS) cannot
     be revoked at runtime, and an admin cannot revoke their own privileges.
     Requires admin privileges.
     """
-    admin = await get_admin_client(request, db)
+    admin = await get_admin_user(request, db)
 
-    if client_id in settings.get_admin_client_ids():
+    if user_id in settings.get_admin_user_ids():
         raise HTTPException(
             status_code=400,
-            detail="Cannot revoke a super-admin defined via ADMIN_CLIENT_IDS"
+            detail="Cannot revoke a super-admin defined via ADMIN_USER_IDS"
         )
 
-    if client_id == admin.id:
+    if user_id == admin.id:
         raise HTTPException(
             status_code=400,
             detail="You cannot revoke your own admin privileges"
         )
 
-    result = await db.execute(select(ClientKey).where(ClientKey.id == client_id))
-    client = result.scalar_one_or_none()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    client.is_admin = False
+    user.is_admin = False
     await db.commit()
 
-    return {"message": f"Client {client_id} admin privileges revoked", "is_admin": False}
+    return {"message": f"User {user_id} admin privileges revoked", "is_admin": False}
 
 
 @router.get("/config", response_model=dict)
@@ -490,7 +490,7 @@ async def admin_get_config(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     return {
         "app": {
@@ -523,7 +523,7 @@ async def admin_get_config(
             "BACKUP_ON_SHUTDOWN": settings.BACKUP_ON_SHUTDOWN
         },
         "admin": {
-            "ADMIN_CLIENT_IDS": settings.get_admin_client_ids()
+            "ADMIN_USER_IDS": settings.get_admin_user_ids()
         },
         "cors": {
             "ALLOWED_ORIGINS": settings.get_allowed_origins()
@@ -547,7 +547,7 @@ async def admin_list_backups(
     offset = max(0, offset)
     from backend.backup import list_all_backups
 
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     try:
         backups = await list_all_backups()
@@ -601,7 +601,7 @@ async def admin_create_backup(
     """
     from backend.backup import perform_backup
 
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     try:
         success = await perform_backup(backup_type='manual')
@@ -625,7 +625,7 @@ async def admin_download_backup(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     # Validate filename format
     if not filename.startswith('backup-') or not filename.endswith('.sql.gz'):
@@ -669,7 +669,7 @@ async def admin_restore_backup(
     from backend.backup import perform_restore
     from backend.database import sync_engine
 
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     if not filename.startswith('backup-') or not filename.endswith('.sql.gz'):
         raise HTTPException(status_code=400, detail="Invalid backup filename")
@@ -704,7 +704,7 @@ async def admin_restore_from_upload(
     from backend.backup import perform_restore_upload
     from backend.database import sync_engine
 
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     if not file.filename or not file.filename.endswith('.sql.gz'):
         raise HTTPException(status_code=400, detail="File must be a .sql.gz backup")
@@ -741,7 +741,7 @@ async def admin_list_reports(
     """
     limit = clamp_limit(limit, default=100)
     offset = max(0, offset)
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     sort_field_map = {
         "created_at": RelicReport.created_at,
@@ -755,7 +755,7 @@ async def admin_list_reports(
 
     reports_result = await db.execute(
         select(RelicReport).options(
-            joinedload(RelicReport.relic).joinedload(Relic.owner_client)
+            joinedload(RelicReport.relic).joinedload(Relic.owner)
         ).order_by(order).offset(offset).limit(limit)
     )
     reports = reports_result.unique().scalars().all()
@@ -770,9 +770,9 @@ async def admin_list_reports(
             "reason": r.reason,
             "created_at": r.created_at,
             "relic_name": relic.name if relic else "Unknown (Deleted)",
-            "relic_owner_id": relic.client_id if relic else None,
-            "relic_owner_public_id": relic.owner_client.public_id if relic and relic.owner_client else None,
-            "relic_owner_name": relic.owner_client.name if relic and relic.owner_client else "Anonymous"
+            "relic_owner_id": relic.user_id if relic else None,
+            "relic_owner_public_id": relic.owner.public_id if relic and relic.owner else None,
+            "relic_owner_name": relic.owner.name if relic and relic.owner else "Anonymous"
         })
 
     return {
@@ -794,7 +794,7 @@ async def admin_delete_report(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     result = await db.execute(select(RelicReport).where(RelicReport.id == report_id))
     report = result.scalar_one_or_none()
@@ -818,7 +818,7 @@ async def admin_list_jobs(
     Requires admin privileges. Returns: registered jobs, scheduler status,
     in-memory execution history (bounded by scheduler to ~500 runs).
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     from backend.scheduler import scheduler, job_history, paused_job_ids, serialize_trigger
 
@@ -861,7 +861,7 @@ async def admin_run_job(
     the actual execution happens in BackgroundTasks under a per-job lock that
     prevents concurrent manual triggers (returns 409 if already running).
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     from backend.scheduler import (
         scheduler, create_manual_run_entry, run_manual_job_wrapper, manual_run_locked,
@@ -903,7 +903,7 @@ async def admin_pause_job(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     from backend.scheduler import scheduler, paused_job_ids
 
@@ -930,7 +930,7 @@ async def admin_resume_job(
 
     Requires admin privileges.
     """
-    await get_admin_client(request, db)
+    await get_admin_user(request, db)
 
     from backend.scheduler import scheduler, paused_job_ids
 

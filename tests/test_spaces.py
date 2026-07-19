@@ -6,9 +6,9 @@ from conftest import ADMIN_KEY
 
 @pytest.fixture
 def space_owner(http):
-    """Register a client and return (key, public_id)."""
+    """Register a user and return (key, public_id)."""
     key = uuid.uuid4().hex
-    resp = http.post("/api/v1/client/register", headers={"X-Client-Key": key})
+    resp = http.post("/api/v1/user/register", headers={"X-User-Key": key})
     return key, resp.json()["public_id"]
 
 
@@ -18,13 +18,13 @@ def public_space(http, space_owner):
     key, _ = space_owner
     resp = http.post(
         "/api/v1/spaces",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "Public Test Space", "visibility": "public"},
     )
     assert resp.status_code == 200
     space_id = resp.json()["id"]
     yield space_id
-    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-User-Key": key})
 
 
 @pytest.fixture
@@ -33,12 +33,12 @@ def private_space(http, space_owner):
     key, _ = space_owner
     resp = http.post(
         "/api/v1/spaces",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "Private Test Space", "visibility": "private"},
     )
     space_id = resp.json()["id"]
     yield space_id
-    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-User-Key": key})
 
 
 @pytest.fixture
@@ -47,13 +47,13 @@ def relic_in_space(http, space_owner):
     key, _ = space_owner
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Space Relic", "access_level": "public"},
         files={"file": ("test.txt", b"space content", "text/plain")},
     )
     relic_id = resp.json()["id"]
     yield relic_id
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 # ── POST /api/v1/spaces ───────────────────────────────────────────────────────
@@ -63,18 +63,18 @@ def test_create_space(http, space_owner):
     key, _ = space_owner
     resp = http.post(
         "/api/v1/spaces",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "My New Space", "visibility": "public"},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "My New Space"
     assert data["visibility"] == "public"
-    assert data["owner_client_id"] == key
+    assert data["owner_id"] == key
     assert data["role"] == "owner"
     assert "id" in data
 
-    http.delete(f"/api/v1/spaces/{data['id']}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/spaces/{data['id']}", headers={"X-User-Key": key})
 
 
 @pytest.mark.integration
@@ -88,7 +88,7 @@ def test_create_space_unauthorized(http):
 @pytest.mark.integration
 def test_list_spaces(http, space_owner, public_space):
     key, _ = space_owner
-    resp = http.get("/api/v1/spaces", headers={"X-Client-Key": key})
+    resp = http.get("/api/v1/spaces", headers={"X-User-Key": key})
     assert resp.status_code == 200
     data = resp.json()
     assert "spaces" in data
@@ -102,7 +102,7 @@ def test_list_spaces(http, space_owner, public_space):
 @pytest.mark.integration
 def test_get_space(http, space_owner, public_space):
     key, _ = space_owner
-    resp = http.get(f"/api/v1/spaces/{public_space}", headers={"X-Client-Key": key})
+    resp = http.get(f"/api/v1/spaces/{public_space}", headers={"X-User-Key": key})
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == public_space
@@ -118,8 +118,8 @@ def test_get_space_not_found(http):
 @pytest.mark.integration
 def test_get_private_space_no_access(http, space_owner, private_space):
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
-    resp = http.get(f"/api/v1/spaces/{private_space}", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
+    resp = http.get(f"/api/v1/spaces/{private_space}", headers={"X-User-Key": other_key})
     assert resp.status_code == 403
 
 
@@ -130,7 +130,7 @@ def test_update_space(http, space_owner, public_space):
     key, _ = space_owner
     resp = http.put(
         f"/api/v1/spaces/{public_space}",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "Renamed Space"},
     )
     assert resp.status_code == 200
@@ -146,10 +146,10 @@ def test_update_space_unauthorized(http, public_space):
 @pytest.mark.integration
 def test_update_space_non_owner(http, space_owner, public_space):
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
     resp = http.put(
         f"/api/v1/spaces/{public_space}",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
         json={"name": "Hacked"},
     )
     assert resp.status_code == 403
@@ -162,12 +162,12 @@ def test_delete_space(http, space_owner):
     key, _ = space_owner
     create = http.post(
         "/api/v1/spaces",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "To Delete", "visibility": "public"},
     )
     space_id = create.json()["id"]
 
-    resp = http.delete(f"/api/v1/spaces/{space_id}", headers={"X-Client-Key": key})
+    resp = http.delete(f"/api/v1/spaces/{space_id}", headers={"X-User-Key": key})
     assert resp.status_code == 200
     assert http.get(f"/api/v1/spaces/{space_id}").status_code == 404
 
@@ -181,8 +181,8 @@ def test_delete_space_unauthorized(http, public_space):
 @pytest.mark.integration
 def test_delete_space_non_owner(http, space_owner, public_space):
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
-    resp = http.delete(f"/api/v1/spaces/{public_space}", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
+    resp = http.delete(f"/api/v1/spaces/{public_space}", headers={"X-User-Key": other_key})
     assert resp.status_code == 403
 
 
@@ -194,35 +194,35 @@ def test_transfer_space_ownership(http, space_owner):
 
     create = http.post(
         "/api/v1/spaces",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"name": "Transfer Space", "visibility": "public"},
     )
     space_id = create.json()["id"]
 
     new_owner_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": new_owner_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": new_owner_key})
     new_owner_public_id = reg.json()["public_id"]
 
     resp = http.post(
         f"/api/v1/spaces/{space_id}/transfer-ownership",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"public_id": new_owner_public_id},
     )
     assert resp.status_code == 200
-    assert resp.json()["owner_client_id"] == new_owner_key
+    assert resp.json()["owner_id"] == new_owner_key
 
-    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-Client-Key": new_owner_key})
+    http.delete(f"/api/v1/spaces/{space_id}", headers={"X-User-Key": new_owner_key})
 
 
 @pytest.mark.integration
 def test_transfer_ownership_not_owner(http, space_owner, public_space):
     other_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
     other_public_id = reg.json()["public_id"]
 
     resp = http.post(
         f"/api/v1/spaces/{public_space}/transfer-ownership",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
         json={"public_id": other_public_id},
     )
     assert resp.status_code == 403
@@ -233,7 +233,7 @@ def test_transfer_ownership_target_not_found(http, space_owner, public_space):
     key, _ = space_owner
     resp = http.post(
         f"/api/v1/spaces/{public_space}/transfer-ownership",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"public_id": "nonexistent_public_id_xyz"},
     )
     assert resp.status_code == 404
@@ -259,7 +259,7 @@ def test_add_relic_to_space(http, space_owner, public_space, relic_in_space):
 
     resp = http.post(
         f"/api/v1/spaces/{public_space}/relics?relic_id={relic_id}",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "Relic added to space successfully"
@@ -282,11 +282,11 @@ def test_remove_relic_from_space(http, space_owner, public_space, relic_in_space
     key, _ = space_owner
     relic_id = relic_in_space
 
-    http.post(f"/api/v1/spaces/{public_space}/relics?relic_id={relic_id}", headers={"X-Client-Key": key})
+    http.post(f"/api/v1/spaces/{public_space}/relics?relic_id={relic_id}", headers={"X-User-Key": key})
 
     resp = http.delete(
         f"/api/v1/spaces/{public_space}/relics/{relic_id}",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "Relic removed from space successfully"
@@ -297,7 +297,7 @@ def test_remove_relic_from_space(http, space_owner, public_space, relic_in_space
 @pytest.mark.integration
 def test_get_space_access_list(http, space_owner, private_space):
     key, _ = space_owner
-    resp = http.get(f"/api/v1/spaces/{private_space}/access", headers={"X-Client-Key": key})
+    resp = http.get(f"/api/v1/spaces/{private_space}/access", headers={"X-User-Key": key})
     assert resp.status_code == 200
     data = resp.json()
     assert "owner" in data
@@ -308,8 +308,8 @@ def test_get_space_access_list(http, space_owner, private_space):
 @pytest.mark.integration
 def test_get_space_access_list_unauthorized(http, space_owner, private_space):
     other_key = uuid.uuid4().hex
-    http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
-    resp = http.get(f"/api/v1/spaces/{private_space}/access", headers={"X-Client-Key": other_key})
+    http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
+    resp = http.get(f"/api/v1/spaces/{private_space}/access", headers={"X-User-Key": other_key})
     assert resp.status_code == 403
 
 
@@ -320,12 +320,12 @@ def test_add_space_access(http, space_owner, private_space):
     key, _ = space_owner
 
     target_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": target_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": target_key})
     target_public_id = reg.json()["public_id"]
 
     resp = http.post(
         f"/api/v1/spaces/{private_space}/access",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"public_id": target_public_id, "role": "viewer"},
     )
     assert resp.status_code == 200
@@ -337,12 +337,12 @@ def test_add_space_access(http, space_owner, private_space):
 @pytest.mark.integration
 def test_add_space_access_not_authorized(http, space_owner, private_space):
     other_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": other_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": other_key})
     other_public_id = reg.json()["public_id"]
 
     resp = http.post(
         f"/api/v1/spaces/{private_space}/access",
-        headers={"X-Client-Key": other_key},
+        headers={"X-User-Key": other_key},
         json={"public_id": other_public_id, "role": "viewer"},
     )
     assert resp.status_code == 403
@@ -355,19 +355,19 @@ def test_remove_space_access(http, space_owner, private_space):
     key, _ = space_owner
 
     target_key = uuid.uuid4().hex
-    reg = http.post("/api/v1/client/register", headers={"X-Client-Key": target_key})
+    reg = http.post("/api/v1/user/register", headers={"X-User-Key": target_key})
     target_public_id = reg.json()["public_id"]
 
     add_resp = http.post(
         f"/api/v1/spaces/{private_space}/access",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         json={"public_id": target_public_id, "role": "viewer"},
     )
     access_id = add_resp.json()["id"]
 
     resp = http.delete(
         f"/api/v1/spaces/{private_space}/access/{access_id}",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "Access removed successfully"

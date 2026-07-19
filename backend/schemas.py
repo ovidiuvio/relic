@@ -64,12 +64,12 @@ class SpaceTransferOwnership(BaseModel):
 
 class AdminGrant(BaseModel):
     """Schema for granting admin privileges by a user's public_id."""
-    public_id: str  # target user's public_id (safe to share); resolved to client_id server-side
+    public_id: str  # target user's public_id (safe to share); resolved to user_id server-side
 
 
 class SpaceAccessBase(BaseModel):
     """Base space access schema."""
-    public_id: str  # target user's public_id (safe to share); resolved to client_id server-side
+    public_id: str  # target user's public_id (safe to share); resolved to user_id server-side
     role: Literal["viewer", "editor", "admin"] = "viewer"
 
 
@@ -78,7 +78,7 @@ class SpaceAccessResponse(BaseModel):
     id: str
     space_id: str
     public_id: Optional[str] = None  # target user's public_id (safe to display)
-    client_name: Optional[str] = None
+    user_name: Optional[str] = None
     role: Literal["owner", "viewer", "editor", "admin"]
     created_at: datetime
 
@@ -89,7 +89,7 @@ class SpaceAccessResponse(BaseModel):
 class SpaceResponse(SpaceBase):
     """Space response schema."""
     id: str
-    owner_client_id: str
+    owner_id: str
     created_at: datetime
     relic_count: int = 0
     role: Optional[str] = None  # Role of the current user in this space (e.g., owner, editor, viewer)
@@ -205,20 +205,20 @@ class CommentResponse(CommentBase):
 
 
 class RelicAccessAdd(BaseModel):
-    """Schema for adding a client to a relic's access list."""
+    """Schema for adding a user to a relic's access list."""
     public_id: str
 
 
 class RelicAccessEntry(BaseModel):
     """Schema for a relic access list entry."""
     public_id: Optional[str] = None
-    client_name: Optional[str] = None
+    user_name: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class ClientNameUpdate(BaseModel):
-    """Schema for updating client name."""
+class UserNameUpdate(BaseModel):
+    """Schema for updating user name."""
     name: str

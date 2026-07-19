@@ -141,7 +141,7 @@ relic info f47ac10b58cc4372a5670e02b2c3d479 --output json
 relic list
 ```
 
-List your relics (requires client key).
+List your relics (requires user key).
 
 **Flags:**
 - `--limit N` - Limit results (default: 20)
@@ -250,7 +250,7 @@ relic delete f47ac10b58cc4372a5670e02b2c3d479 --yes
 relic whoami
 ```
 
-Show current client information including client ID, server URL, and relic count.
+Show current user information including user ID, server URL, and relic count.
 
 ### Config Command
 
@@ -275,7 +275,7 @@ relic config core.server
 # Set value
 relic config core.server https://api.relic.example.com
 relic config defaults.access_level public
-relic config client.key abc123def456
+relic config user.key abc123def456
 ```
 
 ### Init Command
@@ -307,7 +307,7 @@ Format (INI-style):
     timeout = 30
     progress = true
 
-[client]
+[user]
     key = f47ac10b58cc4372a5670e02b2c3d479
 
 [defaults]
@@ -319,7 +319,7 @@ Format (INI-style):
 
 ```bash
 export RELIC_SERVER=http://localhost:8000
-export RELIC_CLIENT_KEY=abc123
+export RELIC_USER_KEY=abc123
 export RELIC_TIMEOUT=30
 export RELIC_ACCESS_LEVEL=private
 export RELIC_EXPIRES_IN=never
@@ -334,7 +334,7 @@ These flags work with all commands:
 - `-o, --output FORMAT` - Output format: `human`, `json`, `url` (default: human)
 - `-q, --quiet` - Quiet mode (URL only for create/fork, minimal output for other commands)
 - `--server URL` - Override API server URL
-- `--client-key KEY` - Override client key
+- `--user-key KEY` - Override user key
 
 ## Output Formats
 
@@ -446,26 +446,26 @@ relic info "$ID" --output json | jq '.size_bytes'
 relic delete "$ID" --yes
 ```
 
-## Client Key Management
+## User Key Management
 
-On first use, the CLI automatically generates a random client key and saves it to your config file. This key identifies you to the server and allows you to:
+On first use, the CLI automatically generates a random user key and saves it to your config file. This key identifies you to the server and allows you to:
 
 - List your relics
 - Delete your relics
 - View your relic count
 
-**View your client info:**
+**View your user info:**
 
 ```bash
 relic whoami
 ```
 
-**Manually set a client key:**
+**Manually set a user key:**
 
 ```bash
-relic config client.key YOUR_KEY_HERE
+relic config user.key YOUR_KEY_HERE
 # or
-export RELIC_CLIENT_KEY=YOUR_KEY_HERE
+export RELIC_USER_KEY=YOUR_KEY_HERE
 ```
 
 ## Access Levels
@@ -525,9 +525,9 @@ make clean
 
 ## Troubleshooting
 
-### "No client key found"
+### "No user key found"
 
-Generate a client key by creating a relic:
+Generate a user key by creating a relic:
 
 ```bash
 echo "test" | relic

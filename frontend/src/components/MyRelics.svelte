@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { showToast } from '../stores/toastStore';
-  import { getClientRelics, deleteRelic } from '../services/api';
+  import { getUserRelics, deleteRelic } from '../services/api';
   import { getDefaultItemsPerPage } from '../services/typeUtils';
   import { createReloader } from '../services/utils/paginationUtils';
   import RelicTable from './RelicTable.svelte';
@@ -56,7 +56,7 @@
     const gen = reloader.gen()
     try {
       loading = true
-      const response = await getClientRelics({
+      const response = await getUserRelics({
         tag: tagFilter || undefined,
         search: searchTerm || undefined,
         sort_by: sortBy === 'date' ? 'created_at' : sortBy === 'title' ? 'name' : sortBy,
@@ -70,7 +70,7 @@
       currentPage = page
     } catch (error) {
       if (reloader.stale(gen)) return
-      console.error('Failed to load client relics:', error)
+      console.error('Failed to load user relics:', error)
       showToast('Failed to load your relics', 'error')
       relics = []
     } finally {

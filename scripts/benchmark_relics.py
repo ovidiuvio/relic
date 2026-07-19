@@ -4,7 +4,7 @@ Benchmark script: creates relics with controlled concurrency and collects perfor
 Outputs results as JSON for historical tracking and visualization.
 
 Usage:
-    python3 scripts/benchmark_relics.py --client-key YOUR_KEY --count 1000 --workers 5 --output results/benchmark-2026-03-30.json
+    python3 scripts/benchmark_relics.py --user-key YOUR_KEY --count 1000 --workers 5 --output results/benchmark-2026-03-30.json
 """
 import argparse
 import json
@@ -78,7 +78,7 @@ class BenchmarkMetrics:
 async def benchmark_relic_task(
     client: httpx.AsyncClient,
     base_url: str,
-    client_key: str,
+    user_key: str,
     space_id: str | None,
     access_level: str,
     semaphore: asyncio.Semaphore,
@@ -97,7 +97,7 @@ async def benchmark_relic_task(
             content = gen_fn()
             
             await create_relic_async(
-                client, base_url, client_key,
+                client, base_url, user_key,
                 content, content_type, language_hint,
                 name, tags, access_level,
                 space_id=space_id
@@ -136,8 +136,8 @@ async def main_async():
                         help="Number of concurrent requests (default: 5)")
     parser.add_argument("--url", default="http://localhost",
                         help="Base URL (default: http://localhost)")
-    parser.add_argument("--client-key", required=True,
-                        help="Your client key")
+    parser.add_argument("--user-key", required=True,
+                        help="Your user key")
     parser.add_argument("--space-id", default=None,
                         help="Use an existing space instead of creating a new one")
     parser.add_argument("--space-name", default="Benchmark Test Space",
@@ -164,8 +164,8 @@ async def main_async():
     limits = httpx.Limits(max_connections=args.workers, max_keepalive_connections=args.workers)
     
     async with httpx.AsyncClient(limits=limits) as client:
-        # Ensure client key is registered before benchmarking
-        await client.post(f"{args.url}/api/v1/client/register", headers={"X-Client-Key": args.client_key})
+        # Ensure user key is registered before benchmarking
+        await client.post(f"{args.url}/api/v1/user/register", headers={"X-User-Key": args.user_key})
 
         space_id = args.space_id
         if not space_id:
@@ -179,7 +179,7 @@ async def main_async():
         tasks = []
         for i in range(args.count):
             tasks.append(benchmark_relic_task(
-                client, args.url, args.client_key,
+                client, args.url, args.user_key,
                 space_id, args.access_level,
                 semaphore, metrics, i
             ))

@@ -5,9 +5,9 @@ from sqlalchemy import select, func
 from typing import List, Optional
 
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Comment
+from backend.models import Relic, User, Comment
 from backend.schemas import CommentCreate, CommentResponse, CommentUpdate
-from backend.dependencies import get_client_key, is_admin_client
+from backend.dependencies import get_current_user, is_admin_user
 from backend.utils import clamp_limit
 
 router = APIRouter(prefix="/api/v1/relics")
@@ -27,19 +27,19 @@ async def create_comment(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    # Get client key (optional but recommended)
-    client = await get_client_key(request, db)
-    if not client:
+    # Get user key (optional but recommended)
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required to comment")
 
-    if not client.name:
+    if not user.name:
         raise HTTPException(status_code=400, detail="You must set a display name in your profile to comment")
 
-    client_id = client.id
+    user_id = user.id
 
     db_comment = Comment(
         relic_id=relic_id,
-        client_id=client_id,
+        user_id=user_id,
         line_number=comment.line_number,
         content=comment.content,
         parent_id=comment.parent_id
@@ -50,8 +50,8 @@ async def create_comment(
 
     # Add author name and public_id to response
     response = CommentResponse.from_orm(db_comment)
-    response.author_name = client.name
-    response.public_id = client.public_id
+    response.author_name = user.name
+    response.public_id = user.public_id
     return response
 
 
@@ -72,8 +72,8 @@ async def get_relic_comments(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    stmt = select(Comment, ClientKey.name, ClientKey.public_id).outerjoin(
-        ClientKey, Comment.client_id == ClientKey.id
+    stmt = select(Comment, User.name, User.public_id).outerjoin(
+        User, Comment.user_id == User.id
     ).where(Comment.relic_id == relic_id)
 
     if line_number is not None:
@@ -105,8 +105,8 @@ async def update_comment(
     db: AsyncSession = Depends(get_db)
 ):
     """Update a comment (only by the author)."""
-    client = await get_client_key(request, db)
-    if not client:
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(
@@ -118,7 +118,7 @@ async def update_comment(
         raise HTTPException(status_code=404, detail="Comment not found")
 
     # Check ownership
-    if comment.client_id != client.id:
+    if comment.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to edit this comment")
 
     comment.content = comment_update.content
@@ -126,8 +126,8 @@ async def update_comment(
     await db.refresh(comment)
 
     response = CommentResponse.from_orm(comment)
-    response.author_name = client.name
-    response.public_id = client.public_id
+    response.author_name = user.name
+    response.public_id = user.public_id
     return response
 
 
@@ -139,8 +139,8 @@ async def delete_comment(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a comment (only by the author or admin)."""
-    client = await get_client_key(request, db)
-    if not client:
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(
@@ -152,8 +152,8 @@ async def delete_comment(
         raise HTTPException(status_code=404, detail="Comment not found")
 
     # Check ownership or admin status
-    is_owner = comment.client_id == client.id
-    is_admin = is_admin_client(client)
+    is_owner = comment.user_id == user.id
+    is_admin = is_admin_user(user)
 
     if not (is_owner or is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")

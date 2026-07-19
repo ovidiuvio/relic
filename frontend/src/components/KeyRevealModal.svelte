@@ -3,7 +3,7 @@
     import { triggerDownload } from '../services/utils/download';
 
     export let show = false;
-    export let clientKey = '';
+    export let userKey = '';
 
     const dispatch = createEventDispatcher();
 
@@ -11,14 +11,14 @@
     let copied = false;
 
     function download() {
-        triggerDownload(clientKey, `relic-client-key-${clientKey.substring(0, 8)}.txt`, 'text/plain');
+        triggerDownload(userKey, `relic-user-key-${userKey.substring(0, 8)}.txt`, 'text/plain');
         keySaved = true;
     }
 
     let copyFailed = false;
 
     function copy() {
-        navigator.clipboard.writeText(clientKey).then(() => {
+        navigator.clipboard.writeText(userKey).then(() => {
             copied = true;
             copyFailed = false;
             keySaved = true;
@@ -51,7 +51,7 @@
       <div class="p-6">
         <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
           <label class="block text-xs font-medium text-gray-500 mb-1">Your Key</label>
-          <code class="text-sm font-mono text-gray-900 break-all select-all">{clientKey}</code>
+          <code class="text-sm font-mono text-gray-900 break-all select-all">{userKey}</code>
         </div>
 
         <div class="flex gap-3">

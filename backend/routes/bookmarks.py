@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import Optional
 
 from backend.database import get_db
-from backend.models import Relic, ClientBookmark, Comment, ClientKey, Tag
-from backend.dependencies import get_client_key
+from backend.models import Relic, UserBookmark, Comment, User, Tag
+from backend.dependencies import get_current_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order
 
 router = APIRouter(prefix="/api/v1/bookmarks")
@@ -21,14 +21,14 @@ async def add_bookmark(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Add a bookmark for the authenticated client.
+    Add a bookmark for the authenticated user.
 
-    Requires valid X-Client-Key header.
+    Requires valid X-User-Key header.
     Returns bookmark details or error if already bookmarked.
     """
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Valid client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Valid user key required")
 
     # Verify relic exists and is not deleted
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
@@ -38,17 +38,17 @@ async def add_bookmark(
 
     # Check if already bookmarked
     existing_result = await db.execute(
-        select(ClientBookmark).where(
-            ClientBookmark.client_id == client.id,
-            ClientBookmark.relic_id == relic_id
+        select(UserBookmark).where(
+            UserBookmark.user_id == user.id,
+            UserBookmark.relic_id == relic_id
         )
     )
     if existing_result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Relic already bookmarked")
 
     # Create bookmark
-    bookmark = ClientBookmark(
-        client_id=client.id,
+    bookmark = UserBookmark(
+        user_id=user.id,
         relic_id=relic_id,
         created_at=datetime.utcnow()
     )
@@ -77,19 +77,19 @@ async def remove_bookmark(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Remove a bookmark for the authenticated client.
+    Remove a bookmark for the authenticated user.
 
-    Requires valid X-Client-Key header.
+    Requires valid X-User-Key header.
     """
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Valid client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Valid user key required")
 
     # Find bookmark
     result = await db.execute(
-        select(ClientBookmark).where(
-            ClientBookmark.client_id == client.id,
-            ClientBookmark.relic_id == relic_id
+        select(UserBookmark).where(
+            UserBookmark.user_id == user.id,
+            UserBookmark.relic_id == relic_id
         )
     )
     bookmark = result.scalar_one_or_none()
@@ -116,19 +116,19 @@ async def check_bookmark(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Check if a relic is bookmarked by the authenticated client.
+    Check if a relic is bookmarked by the authenticated user.
 
-    Requires valid X-Client-Key header.
+    Requires valid X-User-Key header.
     Returns bookmarked status.
     """
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Valid client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Valid user key required")
 
     result = await db.execute(
-        select(ClientBookmark).where(
-            ClientBookmark.client_id == client.id,
-            ClientBookmark.relic_id == relic_id
+        select(UserBookmark).where(
+            UserBookmark.user_id == user.id,
+            UserBookmark.relic_id == relic_id
         )
     )
     bookmark = result.scalar_one_or_none()
@@ -141,7 +141,7 @@ async def check_bookmark(
 
 
 @router.get("", response_model=dict)
-async def get_client_bookmarks(
+async def get_user_bookmarks(
     request: Request,
     tag: Optional[str] = None,
     search: Optional[str] = None,
@@ -152,25 +152,25 @@ async def get_client_bookmarks(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get bookmarks for the authenticated client with pagination.
+    Get bookmarks for the authenticated user with pagination.
 
-    Requires valid X-Client-Key header.
+    Requires valid X-User-Key header.
     Returns list of bookmarked relics with bookmark metadata.
     sort_by: created_at (bookmarked date), name, size, access_count, bookmark_count
     """
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Valid client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Valid user key required")
 
-    stmt = select(ClientBookmark, Relic).join(
-        Relic, ClientBookmark.relic_id == Relic.id
+    stmt = select(UserBookmark, Relic).join(
+        Relic, UserBookmark.relic_id == Relic.id
     ).options(
         selectinload(Relic.tags),
-        joinedload(Relic.owner_client)
+        joinedload(Relic.owner)
     ).where(
-        ClientBookmark.client_id == client.id
+        UserBookmark.user_id == user.id
     )
 
     if tag:
@@ -180,7 +180,7 @@ async def get_client_bookmarks(
             stmt = stmt.where(Relic.tags.contains(tag_obj))
         else:
             return {
-                "client_id": client.id,
+                "user_id": user.id,
                 "bookmark_count": 0,
                 "bookmarks": [],
                 "total": 0,
@@ -191,7 +191,7 @@ async def get_client_bookmarks(
     if search:
         stmt = apply_relic_search(stmt, search)
 
-    order = relic_sort_order(sort_by, sort_order, {"created_at": ClientBookmark.created_at})
+    order = relic_sort_order(sort_by, sort_order, {"created_at": UserBookmark.created_at})
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()
@@ -212,7 +212,7 @@ async def get_client_bookmarks(
     forks_counts = await get_fork_counts(db, relic_ids)
 
     return {
-        "client_id": client.id,
+        "user_id": user.id,
         "bookmark_count": total,
         "total": total,
         "limit": limit,
@@ -248,21 +248,21 @@ async def get_relic_bookmarkers(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get list of clients who bookmarked a specific relic with pagination.
+    Get list of users who bookmarked a specific relic with pagination.
     Returns public_id and names, sorted by most recent first.
     """
     limit = clamp_limit(limit)
     offset = max(0, offset)
 
-    stmt = select(ClientKey, ClientBookmark).join(
-        ClientBookmark, ClientBookmark.client_id == ClientKey.id
-    ).where(ClientBookmark.relic_id == relic_id)
+    stmt = select(User, UserBookmark).join(
+        UserBookmark, UserBookmark.user_id == User.id
+    ).where(UserBookmark.relic_id == relic_id)
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()
 
     rows = (await db.execute(
-        stmt.order_by(ClientBookmark.created_at.desc()).offset(offset).limit(limit)
+        stmt.order_by(UserBookmark.created_at.desc()).offset(offset).limit(limit)
     )).all()
 
     return {
@@ -271,10 +271,10 @@ async def get_relic_bookmarkers(
         "offset": offset,
         "bookmarkers": [
             {
-                "public_id": c.public_id,
-                "name": c.name or "Anonymous",
+                "public_id": u.public_id,
+                "name": u.name or "Anonymous",
                 "bookmarked_at": b.created_at
             }
-            for c, b in rows
+            for u, b in rows
         ]
     }

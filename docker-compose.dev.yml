@@ -32,7 +32,7 @@ services:
       MINIO_BUCKET: relics
       MINIO_USE_SSL: "false"
       DEBUG: "true"
-      ADMIN_CLIENT_IDS: 09d85e5f91316a66233d97e1b5936399
+      ADMIN_USER_IDS: 09d85e5f91316a66233d97e1b5936399
       ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
       # Database Backup Configuration
       BACKUP_ENABLED: "true"

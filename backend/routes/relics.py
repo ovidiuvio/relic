@@ -12,12 +12,12 @@ import urllib.parse
 
 from backend.config import settings
 from backend.database import get_db
-from backend.models import Relic, ClientKey, Tag, Space, Comment, RelicAccess, space_relics
+from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service, FileTooLargeError
 from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
 from backend.dependencies import (
-    get_client_key, check_ownership_or_admin,
+    get_current_user, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
 )
 
@@ -29,7 +29,7 @@ router = APIRouter()
 
 async def _create_relic_record(
     db: AsyncSession,
-    client: Optional[ClientKey],
+    user: Optional[User],
     relic_id: str,
     s3_key: str,
     size_bytes: int,
@@ -48,7 +48,7 @@ async def _create_relic_record(
 
     relic = Relic(
         id=relic_id,
-        client_id=client.id if client else None,
+        user_id=user.id if user else None,
         name=name,
         content_type=content_type,
         language_hint=language_hint,
@@ -62,9 +62,9 @@ async def _create_relic_record(
     if tag_objects:
         relic.tags = tag_objects
 
-    # Update client relic count (flushed with commit)
-    if client:
-        client.relic_count += 1
+    # Update user relic count (flushed with commit)
+    if user:
+        user.relic_count += 1
 
     db.add(relic)
 
@@ -72,7 +72,7 @@ async def _create_relic_record(
     if space_id:
         space_result = await db.execute(select(Space).where(Space.id == space_id))
         space = space_result.scalar_one_or_none()
-        if space and client and await check_space_access(space, client.id, db, "editor"):
+        if space and user and await check_space_access(space, user.id, db, "editor"):
             await db.flush()
             await db.execute(pg_insert(space_relics).values(space_id=space.id, relic_id=relic.id).on_conflict_do_nothing())
 
@@ -118,10 +118,10 @@ async def create_relic(
             detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
         )
 
-    # Validate client key if provided (anonymous creation is allowed)
-    client = await get_client_key(request, db)
-    if not client and request.headers.get("X-Client-Key"):
-        raise HTTPException(status_code=401, detail="Invalid client key")
+    # Validate user key if provided (anonymous creation is allowed)
+    user = await get_current_user(request, db)
+    if not user and request.headers.get("X-User-Key"):
+        raise HTTPException(status_code=401, detail="Invalid user key")
 
     if not file:
         raise HTTPException(status_code=400, detail="No content provided")
@@ -149,7 +149,7 @@ async def create_relic(
         )
 
         return await _create_relic_record(
-            db, client, relic_id, s3_key, size_bytes,
+            db, user, relic_id, s3_key, size_bytes,
             name=name, content_type=content_type, language_hint=language_hint,
             access_level=access_level, expires_in=expires_in, tags=tags, space_id=space_id,
         )
@@ -200,10 +200,10 @@ async def create_relic_raw(
             detail="Invalid access_level. Must be 'public', 'private', or 'restricted'."
         )
 
-    # Validate client key if provided (anonymous creation is allowed)
-    client = await get_client_key(request, db)
-    if not client and request.headers.get("X-Client-Key"):
-        raise HTTPException(status_code=401, detail="Invalid client key")
+    # Validate user key if provided (anonymous creation is allowed)
+    user = await get_current_user(request, db)
+    if not user and request.headers.get("X-User-Key"):
+        raise HTTPException(status_code=401, detail="Invalid user key")
 
     # Reject oversized uploads before touching the body when the client declares a length
     declared_length = request.headers.get("content-length")
@@ -239,7 +239,7 @@ async def create_relic_raw(
             raise HTTPException(status_code=400, detail="No content provided")
 
         return await _create_relic_record(
-            db, client, relic_id, s3_key, size_bytes,
+            db, user, relic_id, s3_key, size_bytes,
             name=name, content_type=content_type, language_hint=language_hint,
             access_level=access_level, expires_in=expires_in, tags=tag_list, space_id=space_id,
         )
@@ -271,7 +271,7 @@ async def get_relic(
         select(Relic).options(
             selectinload(Relic.tags),
             selectinload(Relic.access_list),
-            joinedload(Relic.owner_client)
+            joinedload(Relic.owner)
         ).where(Relic.id == relic_id)
     )
     relic = result.scalar_one_or_none()
@@ -286,23 +286,23 @@ async def get_relic(
     # access_level only affects listing in recents:
     # - public: listed and discoverable
     # - private: not listed (URL serves as access token)
-    # - restricted: not listed, only accessible by owner/admin or explicitly allowed clients
+    # - restricted: not listed, only accessible by owner/admin or explicitly allowed users
     if relic.password_hash:
         if not password:
             raise HTTPException(status_code=403, detail="This relic requires a password")
         if hash_password(password) != relic.password_hash:
             raise HTTPException(status_code=403, detail="Invalid password")
 
-    # Check if client can edit
-    client = await get_client_key(request, db)
+    # Check if user can edit
+    user = await get_current_user(request, db)
 
     # Enforce restricted access
     if relic.access_level == "restricted":
-        if not check_ownership_or_admin(relic, client, require_auth=False):
-            allowed_ids = {a.client_id for a in relic.access_list}
-            if not client or client.id not in allowed_ids:
+        if not check_ownership_or_admin(relic, user, require_auth=False):
+            allowed_ids = {a.user_id for a in relic.access_list}
+            if not user or user.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
-    relic.can_edit = check_ownership_or_admin(relic, client, require_auth=False)
+    relic.can_edit = check_ownership_or_admin(relic, user, require_auth=False)
 
     # Increment access count atomically
     await db.execute(
@@ -345,10 +345,10 @@ async def get_relic_raw(relic_id: str, request: Request, password: Optional[str]
 
     # Enforce restricted access
     if relic.access_level == "restricted":
-        client = await get_client_key(request, db)
-        if not check_ownership_or_admin(relic, client, require_auth=False):
-            allowed_ids = {a.client_id for a in relic.access_list}
-            if not client or client.id not in allowed_ids:
+        user = await get_current_user(request, db)
+        if not check_ownership_or_admin(relic, user, require_auth=False):
+            allowed_ids = {a.user_id for a in relic.access_list}
+            if not user or user.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
 
     try:
@@ -383,7 +383,7 @@ async def fork_relic(
     Fork a relic (create new independent lineage).
 
     Creates a new relic with fork_of pointing to the original.
-    Fork belongs to forking client if key provided.
+    Fork belongs to forking user if key provided.
     """
     # Normalize tags input
     if tags and len(tags) == 1 and ',' in tags[0]:
@@ -393,10 +393,10 @@ async def fork_relic(
     if access_level and access_level not in ['public', 'private', 'restricted']:
         raise HTTPException(status_code=400, detail="Invalid access_level. Must be 'public', 'private', or 'restricted'")
 
-    # Validate client key if provided (anonymous forking is allowed)
-    client = await get_client_key(request, db)
-    if not client and request.headers.get("X-Client-Key"):
-        raise HTTPException(status_code=401, detail="Invalid client key")
+    # Validate user key if provided (anonymous forking is allowed)
+    user = await get_current_user(request, db)
+    if not user and request.headers.get("X-User-Key"):
+        raise HTTPException(status_code=401, detail="Invalid user key")
 
     result = await db.execute(
         select(Relic).options(
@@ -422,9 +422,9 @@ async def fork_relic(
 
     # Enforce restricted access
     if original.access_level == "restricted":
-        if not check_ownership_or_admin(original, client, require_auth=False):
-            allowed_ids = {a.client_id for a in original.access_list}
-            if not client or client.id not in allowed_ids:
+        if not check_ownership_or_admin(original, user, require_auth=False):
+            allowed_ids = {a.user_id for a in original.access_list}
+            if not user or user.id not in allowed_ids:
                 raise HTTPException(status_code=403, detail="Access restricted")
 
     s3_key = None
@@ -459,7 +459,7 @@ async def fork_relic(
         # Create fork
         fork = Relic(
             id=new_id,
-            client_id=client.id if client else None,  # Fork belongs to client if provided
+            user_id=user.id if user else None,  # Fork belongs to user if provided
             name=name or original.name,
             content_type=content_type,
             language_hint=original.language_hint,
@@ -474,9 +474,9 @@ async def fork_relic(
         if tag_objects:
             fork.tags = tag_objects
 
-        # Update client relic count (flushed with commit)
-        if client:
-            client.relic_count += 1
+        # Update user relic count (flushed with commit)
+        if user:
+            user.relic_count += 1
 
         db.add(fork)
         await db.commit()
@@ -577,18 +577,18 @@ async def update_relic(
 
     Only owner or admin can update.
     """
-    client = await get_client_key(request, db)
-    if not client:
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(
-        select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(Relic.id == relic_id)
+        select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner)).where(Relic.id == relic_id)
     )
     relic = result.scalar_one_or_none()
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not check_ownership_or_admin(relic, client):
+    if not check_ownership_or_admin(relic, user):
         raise HTTPException(status_code=403, detail="Not authorized to edit this relic")
 
     if update.name is not None:
@@ -621,11 +621,11 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
     """
     Delete a relic (hard delete).
 
-    Only client owner OR admin can delete.
+    Only owner OR admin can delete.
     """
-    client = await get_client_key(request, db)
-    if not client:
-        raise HTTPException(status_code=401, detail="Client key required")
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="User key required")
 
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
     relic = result.scalar_one_or_none()
@@ -633,12 +633,12 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
         raise HTTPException(status_code=404, detail="Relic not found")
 
     # Check ownership OR admin privileges
-    if not check_ownership_or_admin(relic, client, require_auth=False):
+    if not check_ownership_or_admin(relic, user, require_auth=False):
         raise HTTPException(status_code=403, detail="Not authorized to delete this relic")
 
-    # Store client_id before deletion
-    relic_client_id = relic.client_id
-    was_owner = client and client.id == relic.client_id
+    # Store user_id before deletion
+    relic_user_id = relic.user_id
+    was_owner = user and user.id == relic.user_id
 
     # Delete file from S3 storage
     try:
@@ -651,11 +651,11 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
     await db.delete(relic)
 
     # Update owner's relic count atomically (not admin's count if admin is deleting)
-    if relic_client_id:
+    if relic_user_id:
         await db.execute(
-            update(ClientKey)
-            .where(ClientKey.id == relic_client_id, ClientKey.relic_count > 0)
-            .values(relic_count=ClientKey.relic_count - 1)
+            update(User)
+            .where(User.id == relic_user_id, User.relic_count > 0)
+            .values(relic_count=User.relic_count - 1)
         )
 
     await db.commit()
@@ -678,7 +678,7 @@ async def list_relics(
     """List the most recent public relics with pagination."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner_client)).where(Relic.access_level == "public")
+    stmt = select(Relic).options(selectinload(Relic.tags), joinedload(Relic.owner)).where(Relic.access_level == "public")
 
     if tag:
         tag_result = await db.execute(select(Tag).where(Tag.name == tag.strip().lower()))
@@ -731,11 +731,11 @@ async def get_relic_access(
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
-    """List clients with explicit access to a restricted relic. Owner/admin only."""
+    """List users with explicit access to a restricted relic. Owner/admin only."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    client = await get_client_key(request, db)
-    if not client:
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
@@ -743,17 +743,17 @@ async def get_relic_access(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not check_ownership_or_admin(relic, client):
+    if not check_ownership_or_admin(relic, user):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    access_stmt = select(RelicAccess).join(RelicAccess.client).options(
-        contains_eager(RelicAccess.client)
+    access_stmt = select(RelicAccess).join(RelicAccess.user).options(
+        contains_eager(RelicAccess.user)
     ).where(RelicAccess.relic_id == relic_id)
 
     if search:
         term = like_term(search)
         access_stmt = access_stmt.where(
-            or_(ClientKey.name.ilike(term), ClientKey.public_id.ilike(term))
+            or_(User.name.ilike(term), User.public_id.ilike(term))
         )
 
     total_result = await db.execute(select(func.count()).select_from(access_stmt.subquery()))
@@ -767,8 +767,8 @@ async def get_relic_access(
     return {
         "access": [
             RelicAccessEntry(
-                public_id=e.client.public_id if e.client else None,
-                client_name=e.client.name if e.client else None,
+                public_id=e.user.public_id if e.user else None,
+                user_name=e.user.name if e.user else None,
                 created_at=e.created_at
             )
             for e in entries
@@ -786,9 +786,9 @@ async def add_relic_access(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Add a client to a relic's access list by public_id. Owner/admin only."""
-    client = await get_client_key(request, db)
-    if not client:
+    """Add a user to a relic's access list by public_id. Owner/admin only."""
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
@@ -796,31 +796,31 @@ async def add_relic_access(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not check_ownership_or_admin(relic, client):
+    if not check_ownership_or_admin(relic, user):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    target_result = await db.execute(select(ClientKey).where(ClientKey.public_id == body.public_id))
+    target_result = await db.execute(select(User).where(User.public_id == body.public_id))
     target = target_result.scalar_one_or_none()
     if not target:
-        raise HTTPException(status_code=404, detail="Client not found")
+        raise HTTPException(status_code=404, detail="User not found")
 
     # Check for duplicate
     existing_result = await db.execute(
         select(RelicAccess).where(
             RelicAccess.relic_id == relic_id,
-            RelicAccess.client_id == target.id
+            RelicAccess.user_id == target.id
         )
     )
     if existing_result.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Client already has access")
+        raise HTTPException(status_code=409, detail="User already has access")
 
-    access_entry = RelicAccess(relic_id=relic_id, client_id=target.id)
+    access_entry = RelicAccess(relic_id=relic_id, user_id=target.id)
     db.add(access_entry)
     await db.commit()
 
     return RelicAccessEntry(
         public_id=target.public_id,
-        client_name=target.name,
+        user_name=target.name,
         created_at=access_entry.created_at
     )
 
@@ -832,9 +832,9 @@ async def remove_relic_access(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Remove a client from a relic's access list by public_id. Owner/admin only."""
-    client = await get_client_key(request, db)
-    if not client:
+    """Remove a user from a relic's access list by public_id. Owner/admin only."""
+    user = await get_current_user(request, db)
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
@@ -842,18 +842,18 @@ async def remove_relic_access(
     if not relic:
         raise HTTPException(status_code=404, detail="Relic not found")
 
-    if not check_ownership_or_admin(relic, client):
+    if not check_ownership_or_admin(relic, user):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    target_result = await db.execute(select(ClientKey).where(ClientKey.public_id == public_id))
+    target_result = await db.execute(select(User).where(User.public_id == public_id))
     target = target_result.scalar_one_or_none()
     if not target:
-        raise HTTPException(status_code=404, detail="Client not found")
+        raise HTTPException(status_code=404, detail="User not found")
 
     entry_result = await db.execute(
         select(RelicAccess).where(
             RelicAccess.relic_id == relic_id,
-            RelicAccess.client_id == target.id
+            RelicAccess.user_id == target.id
         )
     )
     entry = entry_result.scalar_one_or_none()

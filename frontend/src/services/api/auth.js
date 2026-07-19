@@ -1,10 +1,13 @@
-// Client key management via Service Worker vault.
+// User key management via Service Worker vault.
 // Falls back to localStorage when SW is unavailable (Firefox private mode,
 // disabled by policy, non-secure context other than localhost, etc.).
 
 import { markSwReady, enableFallbackAuth } from './core'
 
-const LEGACY_STORAGE_KEY = 'relic_client_key'
+const STORAGE_KEY = 'relic_user_key'
+// Pre-rename key name. Only read as a one-time migration fallback for
+// browsers that already had an identity stored under the old name.
+const OLD_LEGACY_STORAGE_KEY = 'relic_client_key'
 
 // True when the SW vault is active; false when using localStorage fallback.
 export let usingSw = false
@@ -35,14 +38,14 @@ export async function swHasKey() {
 
 export async function swSetKey(key) {
   if (!usingSw) {
-    localStorage.setItem(LEGACY_STORAGE_KEY, key)
+    localStorage.setItem(STORAGE_KEY, key)
     return
   }
   await swMessage('SET_KEY', { key })
 }
 export async function swClearKey() {
   if (!usingSw) {
-    localStorage.removeItem(LEGACY_STORAGE_KEY)
+    localStorage.removeItem(STORAGE_KEY)
     return
   }
   await swMessage('CLEAR_KEY')
@@ -50,19 +53,27 @@ export async function swClearKey() {
 
 // ─── localStorage fallback ────────────────────────────────────────────────────
 
-export function getClientKey() {
+export function getUserKey() {
   if (typeof localStorage === 'undefined') return null
-  return localStorage.getItem(LEGACY_STORAGE_KEY)
+  return localStorage.getItem(STORAGE_KEY)
 }
 
 function initFallback() {
   console.warn('[Auth] Service Worker unavailable — using localStorage fallback')
   usingSw = false
-  enableFallbackAuth(getClientKey)
-  let key = localStorage.getItem(LEGACY_STORAGE_KEY)
+  enableFallbackAuth(getUserKey)
+  let key = localStorage.getItem(STORAGE_KEY)
   if (!key) {
+    // One-time migration from the pre-rename key name, if present.
+    const old = localStorage.getItem(OLD_LEGACY_STORAGE_KEY)
+    if (old) {
+      localStorage.setItem(STORAGE_KEY, old)
+      localStorage.removeItem(OLD_LEGACY_STORAGE_KEY)
+      markSwReady()
+      return null         // existing key migrated — no reveal needed
+    }
     key = _generateKey()
-    localStorage.setItem(LEGACY_STORAGE_KEY, key)
+    localStorage.setItem(STORAGE_KEY, key)
     markSwReady()
     return key           // new key — caller should show it once
   }
@@ -72,7 +83,7 @@ function initFallback() {
 
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
-export async function initClientKey() {
+export async function initUserKey() {
   // Bail out early if SW API is missing entirely
   if (!('serviceWorker' in navigator)) return initFallback()
 
@@ -104,14 +115,15 @@ export async function initClientKey() {
   }
 
   try {
-    // Migrate legacy key from localStorage → SW vault
+    // Migrate key from localStorage → SW vault (current or pre-rename key name)
     // Note: usingSw is still false here, so call swMessage directly
     // to talk to the SW without going through the usingSw guard.
-    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    const legacy = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_LEGACY_STORAGE_KEY)
     if (legacy) {
-      console.log('[Auth] Migrating client key to SW vault')
+      console.log('[Auth] Migrating user key to SW vault')
       await swMessage('SET_KEY', { key: legacy })
-      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(OLD_LEGACY_STORAGE_KEY)
       usingSw = true
       markSwReady()
       return legacy

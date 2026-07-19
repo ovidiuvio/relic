@@ -5,18 +5,18 @@ from conftest import ADMIN_KEY
 
 
 @pytest.fixture
-def reportable_relic(http, registered_client):
+def reportable_relic(http, registered_user):
     """Create a relic to report against. Cleans up after."""
-    key, _ = registered_client
+    key, _ = registered_user
     resp = http.post(
         "/api/v1/relics",
-        headers={"X-Client-Key": key},
+        headers={"X-User-Key": key},
         data={"name": "Reportable Relic", "access_level": "public"},
         files={"file": ("test.txt", b"bad content", "text/plain")},
     )
     relic_id = resp.json()["id"]
     yield relic_id
-    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-Client-Key": key})
+    http.delete(f"/api/v1/relics/{relic_id}", headers={"X-User-Key": key})
 
 
 # ── POST /api/v1/reports ─────────────────────────────────────────────────────
