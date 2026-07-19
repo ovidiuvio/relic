@@ -1,4 +1,8 @@
-<h1 align="center">🗿 Relic</h1>
+<p align="center">
+  <img src="assets/logo.svg" width="90" alt="Relic logo">
+</p>
+
+<h1 align="center">Relic</h1>
 
 <p align="center">
   <strong>Self-hosted artifact storage for developers.</strong><br>
