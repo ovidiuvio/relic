@@ -1,18 +1,18 @@
 # Container-Based Development Setup
 
-Relic now runs entirely in Docker containers for development, making it easy to start, stop, and manage all services.
+Relic runs entirely in Docker containers for development, making it easy to start, stop, and manage all services.
 
 ## Quick Start
 
 ```bash
 # Start all services (nginx, backend, frontend, database, storage)
-make up
+make dev-up
 
 # View logs
-make logs
+make dev-logs
 
 # Stop all services
-make down
+make dev-down
 ```
 
 ## Services
@@ -31,33 +31,33 @@ All services run in Docker containers and communicate via a shared network:
 
 ### Quick Start
 ```bash
-make up              # Start all containers
-make down            # Stop all containers
-make restart         # Restart all containers
+make dev-up              # Start all containers
+make dev-down            # Stop all containers
+make dev-restart         # Restart all containers
 ```
 
 ### Development
 ```bash
-make logs            # View logs from all containers
-make logs-backend    # View backend logs only
-make logs-frontend   # View frontend logs only
-make logs-nginx      # View nginx logs only
-make rebuild         # Rebuild images and start fresh
+make dev-logs            # View logs from all containers
+make dev-logs-backend    # View backend logs only
+make dev-logs-frontend   # View frontend logs only
+make dev-logs-nginx      # View nginx logs only
+make dev-rebuild         # Rebuild images and start fresh
 ```
 
 ### Debugging
 ```bash
-make shell-backend   # Open bash shell in backend container
-make shell-frontend  # Open shell in frontend container
-make db-init         # Initialize database
-make test            # Run tests in backend container
+make dev-shell-backend   # Open bash shell in backend container
+make dev-shell-frontend  # Open shell in frontend container
+make db-init             # Initialize database
+make dev-test            # Run tests in backend container
 ```
 
 ### Maintenance
 ```bash
-make build           # Build images without starting
-make clean           # Stop and remove all containers/volumes
-make backup-now      # Trigger manual database backup
+make dev-build           # Build images without starting
+make clean               # Stop and remove all containers/volumes
+make backup-now          # Trigger manual database backup
 ```
 
 ## Service URLs
@@ -68,14 +68,13 @@ Once running, access services at:
 - **Backend API**: http://localhost/api
 - **API Docs**: http://localhost/api/docs
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
-- **Database**: localhost:5432
 
 ## Development Workflow
 
 ### 1. Start Development
 ```bash
-make up
-make logs  # In another terminal to watch logs
+make dev-up
+make dev-logs  # In another terminal to watch logs
 ```
 
 ### 2. Make Code Changes
@@ -85,7 +84,7 @@ make logs  # In another terminal to watch logs
 
 ### 3. Stop Development
 ```bash
-make down
+make dev-down
 ```
 
 ## Mount Paths
@@ -104,58 +103,58 @@ Code directories are mounted into containers for live development:
 ### View Container Logs
 ```bash
 # All containers
-make logs
+make dev-logs
 
 # Specific service
-make logs-backend
-make logs-frontend
-make logs-nginx
+make dev-logs-backend
+make dev-logs-frontend
+make dev-logs-nginx
 
 # With docker command
-docker compose logs -f backend
-docker compose logs -f frontend
+docker compose -f docker-compose.dev.yml logs -f backend
+docker compose -f docker-compose.dev.yml logs -f frontend
 ```
 
 ### Access Container Shell
 ```bash
 # Backend (Python)
-make shell-backend
-python -m pytest
+make dev-shell-backend
+pytest
 exit
 
 # Frontend (Node)
-make shell-frontend
+make dev-shell-frontend
 npm run build
 exit
 ```
 
 ### Connect to Database
 ```bash
-# From host machine
+# From host machine (if port exposed)
 psql -h localhost -U relic_user -d relic_db
 
 # Or from backend container
-docker compose exec backend psql -h postgres -U relic_user -d relic_db
+docker compose -f docker-compose.dev.yml exec backend psql -h postgres -U relic_user -d relic_db
 ```
 
 ## Troubleshooting
 
 ### Port Already in Use
-If port 80 is in use, you might need to stop other web servers or change the port mapping in `docker-compose.yml` for the nginx service.
+If port 80 is in use, you might need to stop other web servers or change the port mapping in `docker-compose.dev.yml` for the nginx service.
 
 ### Database Connection Issues
 Wait for PostgreSQL to be healthy before running operations:
 ```bash
-docker compose logs postgres  # Check if it's ready
-make db-init                  # Initialize database
+docker compose -f docker-compose.dev.yml logs postgres  # Check if it's ready
+make db-init                                             # Initialize database
 ```
 
 ### Container Won't Start
 Check the logs and rebuild:
 ```bash
-make logs
-make clean    # Remove everything
-make rebuild  # Start fresh
+make dev-logs
+make clean          # Remove everything
+make dev-rebuild    # Start fresh
 ```
 
 ### Frontend Not Updating
@@ -164,33 +163,27 @@ The frontend container uses volumes for live updates. If changes aren't reflecte
 1. Check if the file was saved
 2. Verify the volume is mounted:
    ```bash
-   docker compose exec frontend mount | grep /app
+   docker compose -f docker-compose.dev.yml exec frontend mount | grep /app
    ```
 3. Restart the frontend:
    ```bash
-   docker compose restart frontend
+   docker compose -f docker-compose.dev.yml restart frontend
    ```
 
 ## Environment Variables
 
-Environment variables are set in `docker-compose.yml`. To customize:
+Environment variables are set in `docker-compose.dev.yml` and `docker-compose.prod.yml`. To customize:
 
-1. Edit `docker-compose.yml`
-2. Restart containers: `make restart`
+1. Edit the relevant compose file
+2. Restart containers: `make dev-restart` or `make down && make up`
 
 Key variables:
 - `DATABASE_URL`: PostgreSQL connection string
-- `MINIO_ENDPOINT`: MinIO endpoint
+- `S3_ENDPOINT_URL`: S3-compatible storage endpoint
+- `S3_BUCKET_NAME`: Storage bucket name
 - `DEBUG`: Enable debug mode
 - `ALLOWED_ORIGINS`: CORS allowed origins
 - `BACKUP_ENABLED`: Enable automated backups
-
-## Performance Notes
-
-- First build takes ~2-3 minutes (downloading base images)
-- Subsequent starts are instant
-- Hot reload works for both backend and frontend
-- File I/O in containers may be slower on some systems (Docker Desktop on Mac/Windows)
 
 ## Network Communication
 
@@ -206,12 +199,9 @@ All services communicate via the `Relic` Docker network:
 To create production images:
 
 ```bash
-# Build without development dependencies
-docker build -f backend/Dockerfile.prod -t Relic-backend:latest backend/
-docker build -f frontend/Dockerfile.prod -t Relic-frontend:latest frontend/
+make up              # Start production services
+make build           # Build production images
 
-# Or use production docker-compose file
-docker compose -f docker-compose.prod.yml up
+# Or directly with docker compose
+docker compose -f docker-compose.prod.yml up -d --build
 ```
-
-See `docker-compose.prod.yml` (when created) for production configuration.
