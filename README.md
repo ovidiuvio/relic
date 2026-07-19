@@ -6,16 +6,21 @@ A modern, feature-rich artifact service with immutable relics, complete version 
 
 ## Quick Start
 
+### Clone & Deploy
+ * Clone repo
+ * `make up`
+
+OR
+
+### Use prebuilt images
 ```bash
 curl -O https://raw.githubusercontent.com/ovidiuvio/relic/main/deploy/docker-compose.yml
 docker compose up -d
 ```
 
-Open **http://localhost**. No cloning, no building, no `.env` required.
-
-- Pin a version: `RELIC_VERSION=v0.6.1 docker compose up -d` (default `latest`)
-- Update: `docker compose pull && docker compose up -d`
 - Details: [`deploy/README.md`](deploy/README.md) · Building from source: [Development Setup](#development-setup)
+
+Open `http://localhost`.
 
 ## Overview
 
