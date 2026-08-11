@@ -123,8 +123,12 @@
 
                 <!-- Language / Syntax -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                        title="Sets syntax highlighting. Auto-detected from the file extension if left empty."
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-help"
+                    >
                         Language / Syntax
+                        <i class="fas fa-question-circle text-gray-400 text-xs ml-1"></i>
                     </label>
                     <Select
                         items={syntaxOptions}
