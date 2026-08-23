@@ -68,6 +68,14 @@
     const UNIT_SUFFIXES = {
         per_minute: "/ min",
         per_hour: "/ hr",
+        bytes: "bytes",
+        tags: "tags",
+        characters: "chars",
+        relics: "relics",
+        relics_per_day: "/ day",
+        comments_per_day: "/ day",
+        items: "items",
+        nodes: "nodes",
     };
 
     // Inputs match the Config tab: gray-300 border, rounded, mono values.
@@ -113,6 +121,11 @@
         if (setting.unit === "bytes")
             return value ? formatBytes(value) : "unlimited";
         return String(value);
+    }
+
+    function formatBytesValue(value) {
+        const num = Number(value);
+        return num ? formatBytes(num) : "unlimited";
     }
 
     async function load() {
@@ -413,7 +426,7 @@
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     {setting.help}
                                 </p>
-                                {#if setting.overridden || (setting.unit === "bytes" && Number(edited[setting.key]) > 0)}
+                                {#if setting.overridden || setting.unit === "bytes"}
                                     <p
                                         class="text-[11px] text-gray-400 mt-0.5 font-mono truncate"
                                     >
@@ -421,11 +434,11 @@
                                             Default: {formatDefault(
                                                 setting,
                                             )}{/if}
-                                        {#if setting.unit === "bytes" && Number(edited[setting.key]) > 0}
+                                        {#if setting.unit === "bytes"}
                                             {#if setting.overridden}
                                                 ·
-                                            {/if}= {formatBytes(
-                                                Number(edited[setting.key]),
+                                            {/if}= {formatBytesValue(
+                                                edited[setting.key],
                                             )}
                                         {/if}
                                     </p>

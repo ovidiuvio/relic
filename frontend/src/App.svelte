@@ -5,15 +5,17 @@
   import { toastStore } from "./stores/toastStore";
   import { matchRoute, sectionToPath } from "./routes";
   import { initUserKey, swSetKey, checkAdminStatus, updateUserName, registerUser, getVersion } from "./services/api";
+  import { onMaintenance } from "./services/api/core";
   import { usingSw, getUserKey } from "./services/api/auth";
   import { showToast } from "./stores/toastStore";
   import { userPublicId as userPublicIdStore } from "./stores/userStore";
-  import { loadPublicSettings } from "./stores/settingsStore";
+  import { publicSettings, loadPublicSettings } from "./stores/settingsStore";
 
   let currentSection = null;
   let routeLoader = null;
   let routeProps = {};
 
+  let appLoading = true;
   let showKeyDropdown = false;
   let relicViewerFullWidth = false;
   let relicFormFullWidth = false;
@@ -53,38 +55,62 @@
     userKeyOnce = await initUserKey();
     if (userKeyOnce) showKeyReveal = true;
 
-    // Load runtime policy the UI needs (render toggles, size limits).
-    // Failures are non-fatal: the server enforces all of it anyway.
-    loadPublicSettings();
-
-    // Fetch app version
     try {
-      const response = await getVersion();
-      appVersion = response.data.version;
-    } catch (error) {
-      console.error("[App] Failed to fetch version:", error);
-      appVersion = "unknown";
-    }
+      // Load runtime policy the UI needs (render toggles, size limits)
+      const settings = await loadPublicSettings();
 
-    // Register/Fetch user info (SW injects X-User-Key automatically)
-    try {
-        const userInfo = await registerUser();
-        if (userInfo && userInfo.name) userName = userInfo.name;
-        if (userInfo && userInfo.public_id) {
+      // If maintenance mode is active, show the maintenance page immediately
+      // before any other API calls happen and without waiting for the Axios
+      // interceptor to fire (which requires a separate blocked request).
+      if (settings?.maintenance_mode) {
+        maintenanceMessage = settings.maintenance_message || 'Relic is temporarily unavailable for maintenance.';
+        // Still need to check admin status to potentially bypass maintenance
+        try {
+          const adminResponse = await checkAdminStatus();
+          isAdmin = adminResponse.data.is_admin;
+          // If admin, load remaining app data normally
+          if (isAdmin) {
+            const [versionResponse, userInfo] = await Promise.all([
+              getVersion().catch(() => ({ data: { version: "unknown" } })),
+              registerUser().catch(() => null),
+            ]);
+            appVersion = versionResponse.data.version;
+            if (userInfo) {
+              if (userInfo.name) userName = userInfo.name;
+              if (userInfo.public_id) {
+                userPublicId = userInfo.public_id;
+                userPublicIdStore.set(userInfo.public_id);
+              }
+            }
+          }
+        } catch {
+          isAdmin = false;
+        }
+        return; // appLoading cleared in finally
+      }
+
+      // Normal (non-maintenance) startup: load everything in parallel
+      const [versionResponse, userInfo, adminResponse] = await Promise.all([
+        getVersion().catch(() => ({ data: { version: "unknown" } })),
+        registerUser().catch(() => null),
+        checkAdminStatus().catch(() => ({ data: { is_admin: false } }))
+      ]);
+
+      appVersion = versionResponse.data.version;
+
+      if (userInfo) {
+        if (userInfo.name) userName = userInfo.name;
+        if (userInfo.public_id) {
           userPublicId = userInfo.public_id;
           userPublicIdStore.set(userInfo.public_id);
         }
-    } catch (e) {
-        console.error("Failed to fetch user info", e);
-    }
+      }
 
-    // Check admin status
-    try {
-      const response = await checkAdminStatus();
-      isAdmin = response.data.is_admin;
+      isAdmin = adminResponse.data.is_admin;
     } catch (error) {
-      console.error("[App] Failed to check admin status:", error);
-      isAdmin = false;
+      console.error("[App] Initial loading failed:", error);
+    } finally {
+      appLoading = false;
     }
 
     // Load full-width preference from localStorage
@@ -131,9 +157,15 @@
     // Listen for popstate to handle browser back/forward
     window.addEventListener("popstate", updateRouting);
 
+    const unsubscribeMaintenance = onMaintenance((msg) => {
+      maintenanceMessage = msg;
+      appLoading = false;
+    });
+
     return () => {
       window.removeEventListener("popstate", updateRouting);
       document.removeEventListener("click", handleDocumentClick);
+      unsubscribeMaintenance();
     };
   });
 
@@ -215,6 +247,48 @@
     showKeyDropdown = false;
   }
 
+  let maintenanceMessage = null;
+  let showAdminKeyInput = false;
+  let adminKeyInput = "";
+
+  async function submitAdminKey() {
+    const key = adminKeyInput.trim();
+    if (!/^[a-f0-9]{32}$/i.test(key)) {
+      showToast("Invalid key format. Expected 32 hex characters.", "error");
+      return;
+    }
+
+    try {
+      await swSetKey(key);
+      showToast("Key saved! Attempting to reload...", "success");
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      showToast("Failed to save key", "error");
+    }
+  }
+
+  function importAdminKeyFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const userKey = e.target.result.trim();
+      if (!/^[a-f0-9]{32}$/i.test(userKey)) {
+        showToast("Invalid key format. Expected 32 hex characters.", "error");
+        return;
+      }
+      try {
+        await swSetKey(userKey);
+        showToast("Admin key imported! Reloading...", "success");
+        setTimeout(() => window.location.reload(), 1000);
+      } catch {
+        showToast("Failed to import key", "error");
+      }
+    };
+    reader.readAsText(file);
+  }
+
   function handleFullWidthToggle(event) {
     if (currentSection === 'relic') {
         relicViewerFullWidth = event.detail.isFullWidth;
@@ -224,226 +298,362 @@
   }
 </script>
 
-<div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
-  <!-- Header with Navigation -->
-  <header class="bg-[#772953] text-white shadow-lg">
-    <div class="max-w-7xl mx-auto px-6">
-      <div class="flex items-center justify-between h-14">
-        <!-- Logo and Brand -->
-        <div class="flex items-center gap-3">
-          <button
-            on:click={() => handleNavigation("recent")}
-            class="logo-button flex items-center hover:opacity-80 transition-opacity"
-            title="Go to Recent Relics"
-          >
-            <div class="font-bold text-xl tracking-tight">
-              RELIC <span class="font-light opacity-80">Bin</span>
-            </div>
-          </button>
-          
-          <a
-            href="https://github.com/ovidiuvio/relic"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-xs bg-black/20 px-2 py-0.5 rounded text-white/70 hover:bg-black/30 hover:text-white transition-all"
-            title="View Source on GitHub"
-          >
-            {appVersion}
-          </a>
+{#if appLoading}
+  <div class="h-screen w-screen bg-[#fcfbfc] flex items-center justify-center">
+    <svg class="animate-spin h-8 w-8 text-[#772953]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  </div>
+{:else if maintenanceMessage && !isAdmin}
+  <div class="min-h-screen bg-[#fcfbfc] flex flex-col justify-between py-12 px-4 sm:px-6 lg:px-8 font-ubuntu text-[#333333]">
+    <div class="my-auto max-w-3xl w-full mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      
+      <!-- Status Page Header -->
+      <div class="bg-[#772953] text-white px-8 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-lg tracking-tight">RELIC <span class="font-light opacity-80">Bin</span></span>
+          <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white/90 font-mono font-semibold uppercase tracking-wider">Status</span>
+        </div>
+        <div class="text-xs text-white/70 font-mono">
+          503 SERVICE UNAVAILABLE
+        </div>
+      </div>
+
+      <div class="p-8 space-y-8">
+        <!-- Main Alert -->
+        <div class="bg-amber-50 border-l-4 border-[#E95420] p-6 rounded-r-lg text-left">
+          <h3 class="text-lg font-bold text-gray-900 leading-tight">Instance Undergoing Maintenance</h3>
+          <p class="text-sm text-gray-600 mt-1">
+            This Relic Bin instance is temporarily offline for non-administrator traffic.
+          </p>
         </div>
 
-        <!-- Top Navigation -->
-        <nav class="hidden md:flex items-center space-x-1 ml-auto">
-          <button
-            on:click={() => handleNavigation("new")}
-            class="maas-nav-top {currentSection === 'new' ? 'active' : ''}"
-          >
-            <i class="fas fa-plus mr-2"></i>New Relic
-          </button>
-          <button
-            on:click={() => handleNavigation("recent")}
-            class="maas-nav-top {currentSection === 'recent' ? 'active' : ''}"
-          >
-            <i class="fas fa-clock mr-2"></i>Recent
-          </button>
-          <button
-            on:click={() => handleNavigation("spaces")}
-            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view' ? 'active' : ''}"
-          >
-            <i class="fas fa-layer-group mr-2"></i>Spaces
-          </button>
-          <button
-            on:click={() => handleNavigation("my-relics")}
-            class="maas-nav-top {currentSection === 'my-relics' ? 'active' : ''}"
-          >
-            <i class="fas fa-user mr-2"></i>My Relics
-          </button>
-          <button
-            on:click={() => handleNavigation("my-bookmarks")}
-            class="maas-nav-top {currentSection === 'my-bookmarks' ? 'active' : ''}"
-          >
-            <i class="fas fa-bookmark mr-2"></i>Bookmarks
-          </button>
-          {#if isAdmin}
+        <!-- Administrator Notice (Real Configured Message) -->
+        <div class="space-y-3 text-left">
+          <h4 class="text-xs font-semibold text-[#772953] uppercase tracking-wider">Message from Administrator</h4>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 font-mono text-sm text-gray-800 leading-relaxed italic">
+            "{maintenanceMessage}"
+          </div>
+        </div>
+
+        <!-- Diagnostics (Factual Metadata) -->
+        <div class="space-y-3 text-left">
+          <h4 class="text-xs font-semibold text-[#772953] uppercase tracking-wider">Diagnostics</h4>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 font-mono text-xs space-y-2 text-gray-700">
+            <div class="flex justify-between border-b border-gray-200 pb-1.5">
+              <span>Timestamp:</span>
+              <span class="text-gray-900 font-semibold">{new Date().toISOString()}</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-200 pb-1.5">
+              <span>Service URL:</span>
+              <span class="text-gray-900 font-semibold">{window.location.origin}</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-200 pb-1.5">
+              <span>Client Vault:</span>
+              <span class="text-gray-900 font-semibold">{usingSw ? 'Active (Service Worker)' : 'Fallback (LocalStorage)'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>App Version:</span>
+              <span class="text-gray-900 font-semibold">{appVersion}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Login Section -->
+        <div class="border-t border-gray-150 pt-8 mt-8">
+          {#if showAdminKeyInput}
+            <div class="max-w-md mx-auto space-y-4 text-left">
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1">
+                Admin Authentication
+              </span>
+              <div class="flex gap-2">
+                <input
+                  id="admin-key"
+                  type="password"
+                  placeholder="Enter 32-character hex key"
+                  bind:value={adminKeyInput}
+                  class="flex-1 text-sm font-mono border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-[#E95420] focus:ring-1 focus:ring-[#E95420]"
+                />
+                <button
+                  on:click={submitAdminKey}
+                  class="maas-btn-primary whitespace-nowrap"
+                >
+                  Submit
+                </button>
+              </div>
+              <div class="flex justify-between items-center text-xs text-gray-500 mt-1">
+                <span>Or import key file (.txt):</span>
+                <label class="text-[#772953] hover:underline cursor-pointer font-semibold">
+                  Choose File
+                  <input
+                    type="file"
+                    accept=".txt"
+                    on:change={importAdminKeyFile}
+                    class="hidden"
+                  />
+                </label>
+              </div>
+              <button
+                on:click={() => showAdminKeyInput = false}
+                class="text-xs text-gray-500 hover:text-gray-700 block text-center w-full mt-4 hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          {:else}
             <button
-              on:click={() => handleNavigation("admin")}
-              class="maas-nav-top {currentSection === 'admin' ? 'active' : ''}"
+              on:click={() => showAdminKeyInput = true}
+              class="text-xs font-medium text-[#772953] hover:text-[#5e1f42] hover:underline transition-colors block mx-auto"
             >
-              <i class="fas fa-shield-alt mr-2"></i>Admin
+              Are you an administrator? Authenticate
             </button>
           {/if}
-        </nav>
-
-        <!-- User Key Menu -->
-        <div class="flex items-center gap-4">
-          <div class="user-key-dropdown relative">
-            <button
-              on:click={() => (showKeyDropdown = !showKeyDropdown)}
-              class="p-2 text-white/80 hover:text-white transition-colors"
-              title="Profile"
-            >
-              <i class="fas fa-user-circle"></i>
-            </button>
-
-            {#if showKeyDropdown}
-              <div
-                class="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
-                on:click={e => e.stopPropagation()}
-              >
-                <div class="p-3 border-b border-gray-200">
-                  <p class="text-sm font-medium text-gray-900">Profile</p>
-                </div>
-
-                <div class="p-3 border-b border-gray-200">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Display Name</label>
-                    <div class="flex gap-2">
-                        <input
-                            type="text"
-                            bind:value={userName}
-                            placeholder="Anonymous"
-                            class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-                        />
-                        <button
-                            on:click={saveUserName}
-                            disabled={isNameSaving}
-                            class="w-8 h-[30px] flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
-                            title="Save Name"
-                        >
-                            {#if isNameSaving}
-                                <i class="fas fa-spinner fa-spin text-xs"></i>
-                            {:else}
-                                <i class="fas fa-check text-xs"></i>
-                            {/if}
-                        </button>
-                    </div>
-                    <p class="text-[10px] text-gray-500 mt-1">Required for commenting</p>
-                </div>
-
-                <div class="p-3 border-b border-gray-200">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Your Public ID</label>
-                    <div class="flex gap-2 items-center">
-                        <span class="flex-1 text-sm font-mono text-gray-900 select-all">
-                            {userPublicId || '...'}
-                        </span>
-                        <button
-                            on:click={() => navigator.clipboard.writeText(userPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
-                            class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
-                            title="Copy Public ID"
-                        >
-                            <i class="fas fa-copy text-xs text-gray-600"></i>
-                        </button>
-                    </div>
-                    <p class="text-[10px] text-gray-500 mt-1">Share this ID so others can add you to spaces</p>
-                </div>
-
-                <div class="py-2">
-                  <label
-                    class="maas-dropdown-item block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
-                  >
-                    <i class="fas fa-upload w-5 text-purple-600"></i>
-                    <span>Import Key</span>
-                    <input
-                      type="file"
-                      accept=".txt"
-                      on:change={uploadUserKey}
-                      class="hidden"
-                    />
-                  </label>
-                </div>
-
-                <div class="px-4 py-3 bg-gray-50 rounded-b-lg">
-                  <p class="text-xs text-gray-500">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    {#if usingSw}
-                      Your key is stored securely and cannot be displayed again.
-                      Use Import to restore from a backup.
-                    {:else}
-                      Your key is stored in browser local storage.
-                      Use Import to restore from a backup on another device.
-                    {/if}
-                  </p>
-                </div>
-              </div>
-            {/if}
-          </div>
         </div>
       </div>
     </div>
-  </header>
-
-  <!-- Main Content -->
-  <main class="flex-1 overflow-auto flex flex-col">
-    <div
-      class="w-full {((currentSection === 'relic' && relicViewerFullWidth) || (currentSection === 'new' && relicFormFullWidth))
-        ? ''
-        : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
-    >
-      {#if routeLoader}
-        {#await routeLoader()}
-          <div class="flex items-center justify-center py-12 text-gray-500">
-            <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          </div>
-        {:then { default: Component }}
-          <svelte:component
-            this={Component}
-            {...routeProps}
-            on:fullwidth-toggle={handleFullWidthToggle}
-            on:tag-click={handleTagClick}
-            on:navigate={(e) => handleNavigation(e.detail.path)}
-            on:clear-tag-filter={() => {
-              if (currentSection === 'space-view') {
-                window.history.pushState({}, "", `/spaces/${routeProps.spaceId}`);
-                updateRouting();
-              }
-            }}
-          />
-        {:catch error}
-          <!-- Usually a stale chunk hash after a deploy; a reload fetches the new manifest. -->
-          <div class="text-center py-12">
-            <p class="text-gray-700 font-medium">Failed to load this page.</p>
-            <p class="text-sm text-gray-500 mt-1">{error.message}</p>
-            <button
-              on:click={() => window.location.reload()}
-              class="mt-4 px-4 py-2 bg-[#772953] text-white rounded hover:bg-[#5e1f42] transition-colors"
-            >
-              Reload
-            </button>
-          </div>
-        {/await}
-      {/if}
+    
+    <div class="text-center text-xs text-gray-400 mt-8 font-mono">
+      RELIC_BIN_VERSION: {appVersion}
     </div>
-  </main>
-
+  </div>
   <Toast />
-  <KeyRevealModal
-    show={showKeyReveal}
-    userKey={userKeyOnce || ''}
-    on:confirm={() => { showKeyReveal = false; userKeyOnce = null; }}
-  />
-</div>
+{:else}
+  <div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
+    <!-- Admin Maintenance Warning Banner -->
+    {#if $publicSettings.maintenance_mode}
+      <div class="bg-amber-600 text-white px-6 py-2 text-center text-xs font-semibold flex items-center justify-center gap-2 relative z-50 shadow-md">
+        <i class="fas fa-exclamation-triangle animate-pulse"></i>
+        <span>Maintenance Mode is active. Normal traffic is blocked. You are bypassing this as an administrator.</span>
+        <button
+          on:click={() => handleNavigation("admin")}
+          class="ml-3 underline hover:text-white/80 transition-colors font-bold uppercase tracking-wider text-[10px]"
+        >
+          Manage Limits
+        </button>
+      </div>
+    {/if}
+
+    <!-- Header with Navigation -->
+    <header class="bg-[#772953] text-white shadow-lg">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="flex items-center justify-between h-14">
+          <!-- Logo and Brand -->
+          <div class="flex items-center gap-3">
+            <button
+              on:click={() => handleNavigation("recent")}
+              class="logo-button flex items-center hover:opacity-80 transition-opacity"
+              title="Go to Recent Relics"
+            >
+              <div class="font-bold text-xl tracking-tight">
+                RELIC <span class="font-light opacity-80">Bin</span>
+              </div>
+            </button>
+            
+            <a
+              href="https://github.com/ovidiuvio/relic"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-xs bg-black/20 px-2 py-0.5 rounded text-white/70 hover:bg-black/30 hover:text-white transition-all"
+              title="View Source on GitHub"
+            >
+              {appVersion}
+            </a>
+          </div>
+
+          <!-- Top Navigation -->
+          <nav class="hidden md:flex items-center space-x-1 ml-auto">
+            <button
+              on:click={() => handleNavigation("new")}
+              class="maas-nav-top {currentSection === 'new' ? 'active' : ''}"
+            >
+              <i class="fas fa-plus mr-2"></i>New Relic
+            </button>
+            <button
+              on:click={() => handleNavigation("recent")}
+              class="maas-nav-top {currentSection === 'recent' ? 'active' : ''}"
+            >
+              <i class="fas fa-clock mr-2"></i>Recent
+            </button>
+            <button
+              on:click={() => handleNavigation("spaces")}
+              class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view' ? 'active' : ''}"
+            >
+              <i class="fas fa-layer-group mr-2"></i>Spaces
+            </button>
+            <button
+              on:click={() => handleNavigation("my-relics")}
+              class="maas-nav-top {currentSection === 'my-relics' ? 'active' : ''}"
+            >
+              <i class="fas fa-user mr-2"></i>My Relics
+            </button>
+            <button
+              on:click={() => handleNavigation("my-bookmarks")}
+              class="maas-nav-top {currentSection === 'my-bookmarks' ? 'active' : ''}"
+            >
+              <i class="fas fa-bookmark mr-2"></i>Bookmarks
+            </button>
+            {#if isAdmin}
+              <button
+                on:click={() => handleNavigation("admin")}
+                class="maas-nav-top {currentSection === 'admin' ? 'active' : ''}"
+              >
+                <i class="fas fa-shield-alt mr-2"></i>Admin
+              </button>
+            {/if}
+          </nav>
+
+          <!-- User Key Menu -->
+          <div class="flex items-center gap-4">
+            <div class="user-key-dropdown relative">
+              <button
+                on:click={() => (showKeyDropdown = !showKeyDropdown)}
+                class="p-2 text-white/80 hover:text-white transition-colors"
+                title="Profile"
+              >
+                <i class="fas fa-user-circle"></i>
+              </button>
+
+              {#if showKeyDropdown}
+                <div
+                  class="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                  on:click={e => e.stopPropagation()}
+                >
+                  <div class="p-3 border-b border-gray-200">
+                    <p class="text-sm font-medium text-gray-900">Profile</p>
+                  </div>
+
+                  <div class="p-3 border-b border-gray-200">
+                      <label class="block text-xs font-medium text-gray-700 mb-1">Display Name</label>
+                      <div class="flex gap-2">
+                          <input
+                              type="text"
+                              bind:value={userName}
+                              placeholder="Anonymous"
+                              class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                          />
+                          <button
+                              on:click={saveUserName}
+                              disabled={isNameSaving}
+                              class="w-8 h-[30px] flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
+                              title="Save Name"
+                          >
+                              {#if isNameSaving}
+                                  <i class="fas fa-spinner fa-spin text-xs"></i>
+                              {:else}
+                                  <i class="fas fa-check text-xs"></i>
+                              {/if}
+                          </button>
+                      </div>
+                      <p class="text-[10px] text-gray-500 mt-1">Required for commenting</p>
+                  </div>
+
+                  <div class="p-3 border-b border-gray-200">
+                      <label class="block text-xs font-medium text-gray-700 mb-1">Your Public ID</label>
+                      <div class="flex gap-2 items-center">
+                          <span class="flex-1 text-sm font-mono text-gray-900 select-all">
+                              {userPublicId || '...'}
+                          </span>
+                          <button
+                              on:click={() => navigator.clipboard.writeText(userPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
+                              class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
+                              title="Copy Public ID"
+                          >
+                              <i class="fas fa-copy text-xs text-gray-600"></i>
+                          </button>
+                      </div>
+                      <p class="text-[10px] text-gray-500 mt-1">Share this ID so others can add you to spaces</p>
+                  </div>
+
+                  <div class="py-2">
+                    <label
+                      class="maas-dropdown-item block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
+                    >
+                      <i class="fas fa-upload w-5 text-purple-600"></i>
+                      <span>Import Key</span>
+                      <input
+                        type="file"
+                        accept=".txt"
+                        on:change={uploadUserKey}
+                        class="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div class="px-4 py-3 bg-gray-50 rounded-b-lg">
+                    <p class="text-xs text-gray-500">
+                      <i class="fas fa-info-circle mr-1"></i>
+                      {#if usingSw}
+                        Your key is stored securely and cannot be displayed again.
+                        Use Import to restore from a backup.
+                      {:else}
+                        Your key is stored in browser local storage.
+                        Use Import to restore from a backup on another device.
+                      {/if}
+                    </p>
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto flex flex-col">
+      <div
+        class="w-full {((currentSection === 'relic' && relicViewerFullWidth) || (currentSection === 'new' && relicFormFullWidth))
+          ? ''
+          : 'max-w-7xl mx-auto'} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300{(currentSection === 'relic' || currentSection === 'new') ? ' flex-1 flex flex-col min-h-0' : ''}"
+      >
+        {#if routeLoader}
+          {#await routeLoader()}
+            <div class="flex items-center justify-center py-12 text-gray-500">
+              <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          {:then { default: Component }}
+            <svelte:component
+              this={Component}
+              {...routeProps}
+              on:fullwidth-toggle={handleFullWidthToggle}
+              on:tag-click={handleTagClick}
+              on:navigate={(e) => handleNavigation(e.detail.path)}
+              on:clear-tag-filter={() => {
+                if (currentSection === 'space-view') {
+                  window.history.pushState({}, "", `/spaces/${routeProps.spaceId}`);
+                  updateRouting();
+                }
+              }}
+            />
+          {:catch error}
+            <!-- Usually a stale chunk hash after a deploy; a reload fetches the new manifest. -->
+            <div class="text-center py-12">
+              <p class="text-gray-700 font-medium">Failed to load this page.</p>
+              <p class="text-sm text-gray-500 mt-1">{error.message}</p>
+              <button
+                on:click={() => window.location.reload()}
+                class="mt-4 px-4 py-2 bg-[#772953] text-white rounded hover:bg-[#5e1f42] transition-colors"
+              >
+                Reload
+              </button>
+            </div>
+          {/await}
+        {/if}
+      </div>
+    </main>
+
+    <Toast />
+    <KeyRevealModal
+      show={showKeyReveal}
+      userKey={userKeyOnce || ''}
+      on:confirm={() => { showKeyReveal = false; userKeyOnce = null; }}
+    />
+  </div>
+{/if}
 
 
 <style global>

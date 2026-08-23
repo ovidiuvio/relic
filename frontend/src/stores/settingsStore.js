@@ -13,6 +13,8 @@ const DEFAULTS = {
     allow_forking: true,
     allow_spaces: true,
     allow_reports: true,
+    maintenance_mode: false,
+    maintenance_message: "",
 }
 
 export const publicSettings = writable(DEFAULTS)
@@ -20,14 +22,16 @@ export const publicSettings = writable(DEFAULTS)
 let loaded = false
 
 export async function loadPublicSettings() {
-    if (loaded) return
+    if (loaded) return null
     try {
         const { data } = await api.get('/settings')
         publicSettings.set({ ...DEFAULTS, ...data })
         loaded = true
+        return data
     } catch (error) {
         // Keep permissive defaults: the server still enforces the real limits,
         // so a failed fetch should not make the UI refuse valid actions.
         console.warn('[settings] Could not load public settings:', error)
+        return null
     }
 }

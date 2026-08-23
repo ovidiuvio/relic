@@ -179,6 +179,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum tags per relic",
         help=UNLIMITED_HELP,
         min=0,
+        unit="tags",
     ),
     SettingDef(
         key="max_tag_length",
@@ -188,6 +189,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum tag length",
         help=UNLIMITED_HELP,
         min=0,
+        unit="characters",
     ),
 
     # ── quotas ──────────────────────────────────────────────────────────
@@ -199,6 +201,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum relics per user",
         help=f"Default for every user; can be overridden per user. {UNLIMITED_HELP}",
         min=0,
+        unit="relics",
     ),
     SettingDef(
         key="max_relics_per_user_per_day",
@@ -208,6 +211,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum relics per user per day",
         help=f"Rolling 24-hour window. {UNLIMITED_HELP}",
         min=0,
+        unit="relics_per_day",
     ),
     SettingDef(
         key="max_storage_bytes_per_user",
@@ -227,6 +231,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum comments per user per day",
         help=f"Rolling 24-hour window. {UNLIMITED_HELP}",
         min=0,
+        unit="comments_per_day",
     ),
 
     # ── rate_limits ─────────────────────────────────────────────────────
@@ -328,6 +333,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum comment length",
         help=UNLIMITED_HELP,
         min=0,
+        unit="characters",
     ),
     SettingDef(
         key="max_name_length",
@@ -337,6 +343,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum name length",
         help=UNLIMITED_HELP,
         min=0,
+        unit="characters",
     ),
     SettingDef(
         key="max_description_length",
@@ -346,6 +353,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum description length",
         help=UNLIMITED_HELP,
         min=0,
+        unit="characters",
     ),
 
     # ── api ─────────────────────────────────────────────────────────────
@@ -357,6 +365,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum page size",
         help="Upper bound on the limit parameter for any paginated endpoint.",
         min=1,
+        unit="items",
     ),
     SettingDef(
         key="max_lineage_nodes",
@@ -366,6 +375,7 @@ SETTING_DEFS: List[SettingDef] = [
         label="Maximum lineage nodes",
         help="Upper bound on how much of a fork tree one request may walk.",
         min=1,
+        unit="nodes",
     ),
 ]
 

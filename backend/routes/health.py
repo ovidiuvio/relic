@@ -18,6 +18,8 @@ PUBLIC_SETTING_KEYS = (
     "allow_forking",
     "allow_spaces",
     "allow_reports",
+    "maintenance_mode",
+    "maintenance_message",
 )
 
 

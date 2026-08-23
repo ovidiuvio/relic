@@ -51,6 +51,36 @@ api.interceptors.request.use(async (config) => {
     return config
 })
 
+// Maintenance mode listeners
+const maintenanceCallbacks = new Set()
+
+export function onMaintenance(callback) {
+    maintenanceCallbacks.add(callback)
+    return () => {
+        maintenanceCallbacks.delete(callback)
+    }
+}
+
+function triggerMaintenance(message) {
+    for (const cb of maintenanceCallbacks) {
+        cb(message)
+    }
+}
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 503) {
+            const detail = error.response.data?.detail
+            const isReadOnly = detail === 'This instance is currently read-only'
+            if (!isReadOnly) {
+                triggerMaintenance(detail || 'Relic is temporarily unavailable for maintenance.')
+            }
+        }
+        return Promise.reject(error)
+    }
+)
+
 export async function getVersion() {
     return api.get('/version')
 }

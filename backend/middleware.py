@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 # Admin routes are exempt so an admin can always undo a restriction they just
 # applied — without this, switching on maintenance or read-only mode would lock
 # the dashboard and leave a restart as the only recovery.
-BYPASS_PREFIXES = ("/api/v1/admin", "/health")
+# /api/v1/settings and /api/v1/version are always reachable so the client
+# can read maintenance_mode on startup and display the maintenance page.
+BYPASS_PREFIXES = ("/api/v1/admin", "/health", "/api/v1/settings", "/api/v1/version")
 
 # Requests that create stored content, limited separately from ordinary writes.
 UPLOAD_PATH_PATTERN = re.compile(r"^/api/v1/relics(/raw|/[a-f0-9]{32}/fork)?/?$")
