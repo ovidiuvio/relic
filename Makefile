@@ -1,8 +1,14 @@
-.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test cli-test db-init backup-now backup-list backup-cleanup backup-status
+.PHONY: help up down logs build rebuild clean dev-up dev-down dev-logs dev-logs-backend dev-logs-frontend dev-logs-nginx dev-restart dev-build dev-rebuild dev-shell-backend dev-shell-frontend dev-test cli-test deps-lock deps-upgrade db-init backup-now backup-list backup-cleanup backup-status
 
 # Docker Compose files
 COMPOSE_DEV := docker-compose.dev.yml
 COMPOSE_PROD := docker-compose.prod.yml
+
+# Python dependency lock: requirements.in (direct deps) -> requirements.txt (all pins)
+UV_VERSION := 0.12.18
+UV_COMPILE := docker run --rm -v "$(CURDIR):/src:z" -w /src -u $$(id -u):$$(id -g) -e HOME=/tmp python:3.13-slim \
+	sh -c 'pip install -q --no-cache-dir --root-user-action=ignore uv==$(UV_VERSION) && python -m uv pip compile requirements.in \
+	--python-version 3.13 --python-platform x86_64-manylinux_2_28 --custom-compile-command "make deps-lock" -o requirements.txt -q
 
 help:
 	@echo "Relic Commands"
@@ -28,6 +34,10 @@ help:
 	@echo "  make dev-shell-frontend - Open shell in frontend container"
 	@echo "  make dev-test           - Run tests in backend container"
 	@echo "  make cli-test           - Run CLI tests on host"
+	@echo ""
+	@echo "Dependencies:"
+	@echo "  make deps-lock          - Re-pin requirements.txt after editing requirements.in"
+	@echo "  make deps-upgrade       - Upgrade all Python pins to latest allowed versions"
 	@echo ""
 	@echo "Database & Maintenance:"
 	@echo "  make db-init            - Initialize database"
@@ -154,6 +164,16 @@ dev-test:
 # Run CLI tests on host
 cli-test:
 	cd cli/client && $(MAKE) test
+
+# ===== Dependency Commands =====
+
+# Re-pin after editing requirements.in (keeps existing pins where possible)
+deps-lock:
+	$(UV_COMPILE)'
+
+# Bump every pin to the latest version allowed by requirements.in; rebuild and run tests after
+deps-upgrade:
+	$(UV_COMPILE) --upgrade'
 
 # ===== Database Commands =====
 
