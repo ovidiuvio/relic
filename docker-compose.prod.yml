@@ -49,7 +49,7 @@ services:
 
   # MinIO Object Storage
   minio:
-    image: minio/minio:latest
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     container_name: Relic-minio
     expose:
       - "9000"
