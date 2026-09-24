@@ -13,7 +13,9 @@ def _async_url(url: str) -> str:
 
 
 def _sync_url(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    # Name the driver explicitly: SQLAlchemy 2.1 defaults bare postgresql:// to psycopg (v3)
+    return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1) \
+              .replace("postgresql://", "postgresql+psycopg2://", 1)
 
 
 # Async engine — used by all FastAPI request handlers
