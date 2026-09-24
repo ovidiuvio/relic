@@ -76,14 +76,14 @@
 <div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if excalidrawLoading}
     <div class="flex items-center justify-center p-12">
-      <div class="text-center">
+      <div class="text-center min-w-0 max-w-full break-words">
         <i class="fas fa-spinner fa-spin text-blue-600 text-4xl mb-4"></i>
         <p class="text-gray-600">Loading Excalidraw...</p>
       </div>
     </div>
   {:else if excalidrawError}
     <div class="flex items-center justify-center p-12">
-      <div class="text-center">
+      <div class="text-center min-w-0 max-w-full break-words">
         <i class="fas fa-exclamation-triangle text-red-600 text-4xl mb-4"></i>
         <p class="text-gray-600 mb-2">Failed to load Excalidraw editor</p>
         <p class="text-sm text-gray-500">{excalidrawError}</p>
@@ -91,7 +91,7 @@
     </div>
   {:else if processed.error}
     <div class="flex items-center justify-center p-12">
-      <div class="text-center">
+      <div class="text-center min-w-0 max-w-full break-words">
         <i class="fas fa-exclamation-circle text-yellow-600 text-4xl mb-4"></i>
         <p class="text-gray-600 mb-2">Invalid Excalidraw file</p>
         <p class="text-sm text-gray-500">{processed.error}</p>
@@ -99,7 +99,7 @@
     </div>
   {:else}
     <!-- Excalidraw Viewer (read-only) -->
-    <div class="flex-1 min-h-0" bind:clientHeight={viewContainerHeight}>
+    <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={viewContainerHeight}>
       {#if viewContainerHeight > 0}
         <div bind:this={viewContainer} style="height: {viewContainerHeight}px; width: 100%;"></div>
       {/if}

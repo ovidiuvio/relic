@@ -1,4 +1,5 @@
 <script>
+  import { modal } from '../utils/modal';
   import { getCommentsPaginated } from '../services/api/comments';
   import { getRelic, getRelicRaw } from '../services/api/relics';
   import { showToast } from '../stores/toastStore';
@@ -138,11 +139,6 @@
     }
   }
 
-  function handleKeydown(e) {
-    if (e.key.toLowerCase() === 'escape' && open) {
-      closeModal();
-    }
-  }
 
   $: language = relicMetadata ? (relicMetadata.language_hint || (relicMetadata.name ? getSyntaxFromExtension(relicMetadata.name.split('.').pop()) : 'plaintext')) : 'plaintext';
   
@@ -151,17 +147,14 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if open}
   <div
     class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 transition-opacity backdrop-blur-sm"
     on:click={handleBackdropClick}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="comments-summary-title"
   >
     <div
+      use:modal={{ onClose: closeModal }}
+      aria-labelledby="comments-summary-title"
       class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col transform transition-all border border-gray-200"
       on:click|stopPropagation
     >

@@ -1,4 +1,5 @@
 <script>
+  import { modal } from '../utils/modal';
   import { onMount, onDestroy } from 'svelte'
   import { renderPDFPage,processPDF } from '../services/processors/pdfProcessor.js'
   import { getRelicRaw } from '../services/api'
@@ -228,7 +229,7 @@
 <!-- Password Modal -->
 {#if showPasswordModal}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+    <div use:modal={{ onClose: cancelPassword }} class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
       <div class="flex items-center gap-3 mb-4">
         <i class="fas fa-lock text-red-600 text-2xl"></i>
         <h3 class="text-lg font-bold text-gray-900">Password Protected PDF</h3>
@@ -260,7 +261,7 @@
         <button
           on:click={submitPassword}
           disabled={processingPassword}
-          class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="btn-primary flex-1"
         >
           {#if processingPassword}
             <i class="fas fa-spinner fa-spin mr-2"></i>

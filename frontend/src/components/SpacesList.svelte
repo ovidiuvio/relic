@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { onMount, createEventDispatcher } from 'svelte';
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
@@ -198,10 +199,10 @@
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
             <div class="flex items-center gap-3">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                <h1 class="text-lg font-semibold text-gray-900 flex items-center">
                     <i class="fas fa-layer-group text-blue-600 mr-2"></i>
                     Spaces
-                </h2>
+                </h1>
             </div>
             
             <div class="flex items-center gap-3 flex-1 max-w-2xl ml-8">
@@ -228,7 +229,7 @@
                 <div class="flex items-center gap-2">
                     <button
                         on:click={() => dispatch('navigate', { path: 'new' })}
-                        class="maas-btn-secondary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
+                        class="btn-secondary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
                         title="Create a new relic globally"
                     >
                         <i class="fas fa-plus"></i>
@@ -236,7 +237,7 @@
                     </button>
                     <button
                         on:click={() => showCreateModal = true}
-                        class="maas-btn-primary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
+                        class="btn-primary flex items-center gap-2 px-4 py-1.5 whitespace-nowrap"
                         title="Create a new space to organize relics"
                     >
                         <i class="fas fa-layer-group"></i>
@@ -289,7 +290,7 @@
                     <p class="text-sm mt-2">Create a space to start organizing your relics.</p>
                     <button
                         on:click={() => showCreateModal = true}
-                        class="mt-6 maas-btn-primary px-6"
+                        class="mt-6 btn-primary px-6"
                     >
                         Create Space
                     </button>
@@ -334,10 +335,10 @@
                                 <td class="px-4">
                                     <div class="flex items-center gap-3">
                                         <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 transition-colors">
-                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-[#217db1]' : 'fa-lock text-[#76306c]'} text-[13px]"></i>
+                                            <i class="fas {space.visibility === 'public' ? 'fa-globe text-public' : 'fa-lock text-private'} text-[13px]"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight" title={space.name}>{space.name}</div>
+                                            <div class="font-medium text-link hover:underline truncate text-[13px] leading-tight" title={space.name}>{space.name}</div>
                                             <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono mt-0.5 leading-tight">
                                                 <span>{space.id}</span>
                                                 <button 
@@ -530,7 +531,7 @@
 <!-- Create Space Modal -->
 {#if showCreateModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div use:modal={{ onClose: () => (showCreateModal = false) }} class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 class="text-xl font-bold mb-4">Create New Space</h2>
 
             <div class="space-y-4">
@@ -572,14 +573,14 @@
             <div class="mt-6 flex justify-end gap-3">
                 <button
                     on:click={() => showCreateModal = false}
-                    class="maas-btn-secondary"
+                    class="btn-secondary"
                     disabled={creating}
                 >
                     Cancel
                 </button>
                 <button
                     on:click={createSpace}
-                    class="maas-btn-primary"
+                    class="btn-primary"
                     disabled={creating || !newSpaceName.trim()}
                 >
                     {#if creating}

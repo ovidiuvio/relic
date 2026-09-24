@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { onMount, createEventDispatcher } from 'svelte';
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
@@ -8,6 +9,7 @@
     import RelicTable from './RelicTable.svelte';
     import RelicDropModal from './RelicDropModal.svelte';
     import ConfirmModal from './ConfirmModal.svelte';
+    import { pageTitle } from '../stores/pageTitle';
 
     export let spaceId;
     export let tagFilter = null;
@@ -15,6 +17,8 @@
     const dispatch = createEventDispatcher();
 
     let space = null;
+
+    $: if (space?.name) pageTitle.set(space.name);
     let relics = [];
     let loading = true;
     let loadingRelics = true;
@@ -397,10 +401,10 @@
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-1">
-                        <h2 class="text-lg font-semibold text-gray-900 flex items-center truncate">
+                        <h1 class="text-lg font-semibold text-gray-900 flex items-center truncate">
                             <i class="fas fa-layer-group text-blue-600 mr-2"></i>
                             {space.name}
-                        </h2>
+                        </h1>
                             {#if tagFilter}
                                 <div class="flex items-center animate-fade-in">
                                     <div class="h-4 w-[1px] bg-gray-300 mx-1"></div>
@@ -482,14 +486,14 @@
                         {#if canEdit}
                             <button
                                 on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
-                                class="maas-btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
+                                class="btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
                                 title="New Relic"
                             >
                                 <i class="fas fa-plus"></i>
                             </button>
                             <button
                                 on:click={() => showAddRelicModal = true}
-                                class="maas-btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
+                                class="btn-primary w-[36px] h-[36px] flex items-center justify-center !p-0 shadow-sm"
                                 title="Add Existing"
                             >
                                 <i class="fas fa-link"></i>
@@ -502,7 +506,7 @@
                                     showToast('Space link copied to clipboard!', 'success');
                                 });
                             }}
-                            class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
+                            class="btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
                             title="Share Space"
                         >
                             <i class="fas fa-share text-gray-400 group-hover:text-indigo-600 transition-colors"></i>
@@ -516,7 +520,7 @@
                                     showAccessModal = true;
                                     loadAccessList(1);
                                 }}
-                                class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
+                                class="btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
                                 title="Manage Access"
                             >
                                 <i class="fas fa-users-cog text-gray-400 group-hover:text-purple-600 transition-colors"></i>
@@ -526,7 +530,7 @@
                         {#if isOwner || space.role === 'admin'}
                             <button
                                 on:click={openEditModal}
-                                class="maas-btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
+                                class="btn-secondary w-[36px] h-[36px] flex items-center justify-center group shadow-sm bg-white"
                                 title="Space Settings"
                             >
                                 <i class="fas fa-cog text-gray-400 group-hover:text-blue-600 transition-colors"></i>
@@ -554,13 +558,13 @@
                             <div class="flex gap-4 justify-center">
                                 <button
                                     on:click={() => dispatch('navigate', { path: `new?space=${spaceId}` })}
-                                    class="maas-btn-primary px-8 py-2.5"
+                                    class="btn-primary px-8 py-2.5"
                                 >
                                     <i class="fas fa-plus mr-2"></i> New Relic
                                 </button>
                                 <button
                                     on:click={() => showAddRelicModal = true}
-                                    class="maas-btn-secondary px-8 py-2.5"
+                                    class="btn-secondary px-8 py-2.5"
                                 >
                                     <i class="fas fa-link mr-2"></i> Add Existing
                                 </button>
@@ -655,7 +659,7 @@
 <!-- Edit Space Modal -->
 {#if showEditModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div use:modal={{ onClose: () => (showEditModal = false) }} class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 class="text-xl font-bold mb-4">Space Settings</h2>
 
             <div class="space-y-4">
@@ -698,7 +702,7 @@
                         <button
                             on:click={transferOwnership}
                             disabled={transferring || !transferPublicId.trim()}
-                            class="maas-btn-secondary px-3 text-sm whitespace-nowrap disabled:opacity-50"
+                            class="btn-secondary px-3 text-sm whitespace-nowrap disabled:opacity-50"
                         >
                             {#if transferring}
                                 <i class="fas fa-spinner fa-spin"></i>
@@ -722,14 +726,14 @@
                 <div class="flex gap-3">
                     <button
                         on:click={() => showEditModal = false}
-                        class="maas-btn-secondary"
+                        class="btn-secondary"
                         disabled={updating}
                     >
                         Cancel
                     </button>
                     <button
                         on:click={updateSpace}
-                        class="maas-btn-primary"
+                        class="btn-primary"
                         disabled={updating || !editName.trim()}
                     >
                         {#if updating}
@@ -748,7 +752,7 @@
 <!-- Add Relic Modal -->
 {#if showAddRelicModal}
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div use:modal={{ onClose: () => (showAddRelicModal = false) }} class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 class="text-xl font-bold mb-4">Add Relic to Space</h2>
 
             <div class="space-y-4">
@@ -771,14 +775,14 @@
             <div class="mt-6 flex justify-end gap-3">
                 <button
                     on:click={() => showAddRelicModal = false}
-                    class="maas-btn-secondary"
+                    class="btn-secondary"
                     disabled={addingRelic}
                 >
                     Cancel
                 </button>
                 <button
                     on:click={addRelicToSpace}
-                    class="maas-btn-primary"
+                    class="btn-primary"
                     disabled={addingRelic || !newRelicId.trim()}
                 >
                     {#if addingRelic}
@@ -795,7 +799,7 @@
 <!-- Manage Access Modal -->
 {#if showAccessModal}
     <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+        <div use:modal={{ onClose: () => (showAccessModal = false) }} class="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div class="flex items-center gap-3">
@@ -843,7 +847,7 @@
                             </div>
                             <button
                                 on:click={addAccess}
-                                class="maas-btn-primary h-[38px] px-6 flex items-center gap-2 whitespace-nowrap mb-px"
+                                class="btn-primary h-[38px] px-6 flex items-center gap-2 whitespace-nowrap mb-px"
                                 disabled={managingAccess || !newAccessUserId.trim()}
                             >
                                 {#if managingAccess}
@@ -1017,7 +1021,7 @@
             <div class="px-6 py-4 bg-gray-50 border-t border-[#ddd] flex justify-end">
                 <button
                     on:click={() => showAccessModal = false}
-                    class="maas-btn-secondary px-8 font-semibold shadow-sm"
+                    class="btn-secondary px-8 font-semibold shadow-sm"
                 >
                     Close
                 </button>

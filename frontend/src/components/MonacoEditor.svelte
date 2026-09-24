@@ -58,6 +58,7 @@
   let commentDecorations = []
   let commentViewZones = new Map() // lineNumber -> zoneId
   let commentResizeObservers = new Map() // zoneId -> ResizeObserver
+  const commentHtmlCache = new Map() // comment content -> rendered markdown HTML
   let activeCommentInputs = new Set() // lineNumbers with active input
   let collapsedThreads = new Set() // lineNumbers with collapsed threads
   let collapsedComments = new Set() // commentIds with collapsed state
@@ -139,8 +140,9 @@
         overviewRulerBorder: false,
         hideCursorInOverviewRuler: true,
         scrollbar: {
-          vertical: 'visible',
-          horizontal: 'visible',
+          // Only show scrollbars when the content overflows.
+          vertical: 'auto',
+          horizontal: 'auto',
           useShadows: false,
           verticalScrollbarSize: 8,
           horizontalScrollbarSize: 8
@@ -218,12 +220,8 @@
     injectAnsiStyles() // Colors might need adjustment if theme changes
   }
 
-  $: if (editor && comments) {
-    updateCommentDecorations()
-    updateCommentZones()
-  }
-
-  $: if (editor && (showComments !== undefined)) {
+  // One block for both inputs so the initial render builds the zones once.
+  $: if (editor && comments && showComments !== undefined) {
     updateCommentDecorations()
     updateCommentZones()
   }
@@ -529,6 +527,19 @@
   function updateCommentZones() {
     if (!editor) return
 
+    // Render comment markdown before building zones so each zone is measured
+    // with its final content. Filling it in after insertion grew the zones one
+    // by one, resizing the editor's scrollbar several times while loading.
+    const unrendered = showComments ? comments.filter(c => !commentHtmlCache.has(c.content)) : []
+    if (unrendered.length) {
+      Promise.all(unrendered.map(c =>
+        processMarkdown(c.content)
+          .then(result => commentHtmlCache.set(c.content, result.html))
+          .catch(() => commentHtmlCache.set(c.content, null))
+      )).then(() => updateCommentZones())
+      return
+    }
+
     editor.changeViewZones(changeAccessor => {
       // Remove all existing zones
       commentViewZones.forEach(zoneId => {
@@ -689,16 +700,9 @@
                                 ` : ''}
                             </div>
                         </div>
-                        ${!isCollapsed ? `<div class="comment-content markdown-body" style="padding-left: 16px;"></div>` : ''}
+                        ${!isCollapsed ? `<div class="comment-content markdown-body" style="padding-left: 16px;">${commentHtmlCache.get(comment.content) ?? content}</div>` : ''}
                     </div>
                 `
-                
-                if (!isCollapsed) {
-                    processMarkdown(comment.content).then(result => {
-                        const contentDiv = commentEl.querySelector('.comment-content');
-                        if (contentDiv) contentDiv.innerHTML = result.html;
-                    });
-                }
                 
                 const toggleBtn = commentEl.querySelector('.comment-collapse-toggle');
                 if (toggleBtn) {
@@ -844,10 +848,15 @@
         
         wrapper.appendChild(threadContainer)
 
-        // Calculate height
-        document.body.appendChild(domNode)
+        // Measure inside the editor at the zone's width so editor-scoped CSS
+        // applies; measuring under <body> gave heights that were later
+        // corrected, resizing the scrollbar while the page loaded.
+        const measureHost = editor.getDomNode()
+        domNode.style.cssText = `position:absolute;visibility:hidden;top:0;left:0;width:${editor.getLayoutInfo().contentWidth}px`
+        measureHost.appendChild(domNode)
         const height = wrapper.offsetHeight
-        document.body.removeChild(domNode)
+        measureHost.removeChild(domNode)
+        domNode.style.cssText = ''
 
         const zone = {
           afterLineNumber: lineNumber,
@@ -861,6 +870,9 @@
         commentWidgets.set(zoneId, domNode)
         
         const observer = new ResizeObserver(() => {
+            // Monaco hides zones scrolled out of view; a hidden zone measures 0
+            // and must keep its last real height.
+            if (wrapper.offsetWidth === 0) return
             const newHeight = wrapper.offsetHeight
             if (Math.abs(newHeight - zone.heightInPx) > 2) {
                 editor.changeViewZones(accessor => {
@@ -1273,8 +1285,11 @@
     pointer-events: none;
   }
 
+  /* Match the editor background so a dark editor doesn't flash white while
+     the monaco chunk loads. */
   .monaco-loading.relic-dark-mode {
     color: #858585;
+    background-color: #1e1e1e;
   }
 
   .monaco-placeholder {

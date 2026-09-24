@@ -1,4 +1,5 @@
 <script>
+  import { modal } from '../utils/modal';
   import { getRelicBookmarkers } from '../services/api/bookmarks';
   import { showToast } from '../stores/toastStore';
   import { formatTimeAgo } from '../services/typeUtils';
@@ -53,24 +54,16 @@
     }
   }
 
-  function handleKeydown(e) {
-    if (e.key.toLowerCase() === 'escape' && open) {
-      closeModal();
-    }
-  }
 </script>
-
-<svelte:window on:keydown={handleKeydown} />
 
 {#if open}
   <div
     class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 transition-opacity backdrop-blur-sm"
     on:click={handleBackdropClick}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="bookmarkers-modal-title"
   >
     <div
+      use:modal={{ onClose: closeModal }}
+      aria-labelledby="bookmarkers-modal-title"
       class="bg-white rounded-2xl shadow-3xl w-full max-w-xl max-h-[80vh] flex flex-col transform transition-all border border-gray-100 overflow-hidden"
       on:click|stopPropagation
     >
@@ -93,7 +86,7 @@
         </div>
         <div class="flex items-center gap-4">
             {#if total > 0}
-                <div class="px-3 py-1 bg-amber-50/50 text-amber-600 rounded-full text-[9px] font-black border border-amber-100 uppercase tracking-widest shadow-inner leading-none">
+                <div class="px-3 py-1 bg-amber-50/50 text-amber-600 rounded-full text-2xs font-black border border-amber-100 uppercase tracking-widest shadow-inner leading-none">
                     {total} saved
                 </div>
             {/if}
@@ -220,7 +213,7 @@
                     </div>
                 {/each}
             </div>
-            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Collective Activity</span>
+            <span class="text-2xs font-black text-gray-400 uppercase tracking-widest leading-none">Collective Activity</span>
           {/if}
         </div>
         <button

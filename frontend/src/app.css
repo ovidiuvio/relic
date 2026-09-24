@@ -8,6 +8,56 @@ body {
   background-size: 20px 20px;
 }
 
+/* Keyboard focus: one consistent ring everywhere; mouse clicks stay clean. */
+:focus-visible {
+  outline: 2px solid theme('colors.brand.500');
+  outline-offset: 2px;
+}
+
+/* Many controls carry `focus:outline-none`; keep a visible keyboard focus on
+   them anyway. Text inputs are excluded — they show focus via their border. */
+:is(a, button, summary, select, [role="button"], [role="tab"], [role="option"],
+    input[type="checkbox"], input[type="radio"], input[type="file"]):focus-visible {
+  outline: 2px solid theme('colors.brand.500') !important;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* Buttons: one primary (brand), one secondary, one danger. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-colors;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply border border-gray-300 bg-white text-gray-800 hover:border-gray-400 hover:bg-gray-50;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .link {
+    @apply text-link hover:text-link-hover hover:underline;
+  }
+
+  .sr-only-focusable:not(:focus) {
+    @apply sr-only;
+  }
+}
+
 code {
   @apply font-mono;
 }
@@ -101,6 +151,14 @@ code {
 }
 
 /* Tables */
+.prose .table-scroll {
+  @apply overflow-x-auto mb-6;
+}
+
+.prose .table-scroll > table {
+  @apply mb-0;
+}
+
 .prose table {
   @apply w-full border-collapse border border-gray-200 rounded-lg overflow-hidden mb-6;
 }
@@ -264,7 +322,7 @@ code {
 }
 
 .svelte-select.focused {
-  box-shadow: 0 0 0 1px #E95420 !important;
+  box-shadow: 0 0 0 1px theme('colors.brand.500') !important;
 }
 
 .svelte-select input {

@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../../utils/navigation';
   import { createEventDispatcher, setContext } from 'svelte'
   import { writable } from 'svelte/store'
   import TreeNode from './TreeNode.svelte'
@@ -68,7 +69,7 @@
     try {
       const response = await createRelic({ file, name, access_level: 'public', expires_in: 'never' })
       showToast('Node forked as new relic!', 'success')
-      window.location.href = `/${response.data.id}`
+      navigate(`/${response.data.id}`)
     } catch (e) {
       showToast('Failed to fork node', 'error')
     }

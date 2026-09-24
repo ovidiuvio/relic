@@ -6,6 +6,16 @@ const backendUrl = process.env.VITE_API_URL || 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [svelte()],
+  resolve: {
+    alias: [
+      // @excalidraw/excalidraw picks its bundle via process.env.NODE_ENV, which the
+      // `process.env` define below leaves undefined, so dev got the webpack
+      // development bundle; its css-loader interop throws under Vite ("..._default(...)
+      // is not a function"). Production builds already resolve to the minified
+      // bundle, so use it everywhere.
+      { find: /^@excalidraw\/excalidraw$/, replacement: '@excalidraw/excalidraw/dist/excalidraw.production.min.js' },
+    ],
+  },
   define: {
     'process.env': {}
   },

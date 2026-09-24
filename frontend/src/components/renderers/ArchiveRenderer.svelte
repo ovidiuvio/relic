@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../../utils/navigation';
   import { onDestroy } from 'svelte';
   import { processContent } from '../../services/processors/index.js';
   import CodeRenderer from './CodeRenderer.svelte';
@@ -184,8 +185,7 @@
   // Open file in full viewer mode (navigates to dedicated URL)
   function openInFullView(file) {
     const newUrl = `/${relicId}/${file.path}`
-    window.history.pushState({}, '', newUrl)
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    navigate(newUrl);
   }
 
   // Render file tree recursively
@@ -507,7 +507,7 @@
                 <i class="fas fa-eye-slash text-gray-300 text-4xl mb-4"></i>
                 <p class="text-gray-600 mb-4">Preview not available for this file type</p>
                 <button
-                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  class="btn-primary"
                   on:click={() => downloadFile(selectedFile)}
                 >
                   <i class="fas fa-download mr-2"></i>

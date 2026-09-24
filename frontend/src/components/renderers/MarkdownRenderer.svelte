@@ -28,7 +28,7 @@
     </div>
   {:else}
     <!-- Markdown Source Editor - fixed height for editor -->
-    <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+    <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={monacoHeight}>
     {#if monacoHeight > 0}
     <MonacoEditor
       value={processed.preview || ''}

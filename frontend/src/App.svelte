@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import Toast from "./components/Toast.svelte";
   import KeyRevealModal from "./components/KeyRevealModal.svelte";
   import { toastStore } from "./stores/toastStore";
@@ -8,6 +8,27 @@
   import { usingSw, getUserKey } from "./services/api/auth";
   import { showToast } from "./stores/toastStore";
   import { userPublicId as userPublicIdStore } from "./stores/userStore";
+  import { pageTitle } from "./stores/pageTitle";
+  import { navigate, internalLinkTarget } from "./utils/navigation";
+
+  // Default titles; RelicViewer / SpaceViewer replace them with real names.
+  const SECTION_TITLES = {
+    new: "New relic",
+    recent: "Recent relics",
+    spaces: "Spaces",
+    "space-view": "Space",
+    "my-relics": "My relics",
+    "my-bookmarks": "Bookmarks",
+    admin: "Admin",
+    relic: "Relic",
+  };
+
+  const NAV_ITEMS = [
+    { section: "recent", label: "Recent", icon: "fa-clock", path: "/recent" },
+    { section: "spaces", label: "Spaces", icon: "fa-layer-group", path: "/spaces", alsoActive: ["space-view"] },
+    { section: "my-relics", label: "My Relics", icon: "fa-user", path: "/my-relics" },
+    { section: "my-bookmarks", label: "Bookmarks", icon: "fa-bookmark", path: "/my-bookmarks" },
+  ];
 
   let currentSection = null;
   let routeLoader = null;
@@ -23,6 +44,15 @@
   let appVersion = "loading...";
   let userKeyOnce = null;
   let showKeyReveal = false;
+  let mobileNavOpen = false;
+  let mainEl;
+  let lastPathname = null;
+
+  $: navItems = isAdmin
+    ? [...NAV_ITEMS, { section: "admin", label: "Admin", icon: "fa-shield-alt", path: "/admin" }]
+    : NAV_ITEMS;
+  $: isActive = (item) => currentSection === item.section || item.alsoActive?.includes(currentSection);
+  $: document.title = $pageTitle ? `${$pageTitle} · Relic` : "Relic";
 
   function updateRouting() {
     const path = window.location.pathname;
@@ -34,6 +64,9 @@
     routeLoader = matched.loader;
     routeProps = matched.props;
     currentSection = matched.section;
+    pageTitle.set(SECTION_TITLES[currentSection] || "");
+    mobileNavOpen = false;
+    showKeyDropdown = false;
 
     console.log(
       "[App] Routing result - section:",
@@ -41,6 +74,31 @@
       "props:",
       routeProps
     );
+
+    // On a real page change (not a query-only update such as a tag filter),
+    // reset scroll and move focus to the content so screen readers follow.
+    const pageChanged = lastPathname !== null && lastPathname !== path;
+    lastPathname = path;
+    if (pageChanged) {
+      tick().then(() => {
+        mainEl?.scrollTo(0, 0);
+        mainEl?.focus({ preventScroll: true });
+      });
+    }
+  }
+
+  // Route same-origin links through the SPA instead of reloading the page.
+  function handleLinkClick(event) {
+    const path = internalLinkTarget(event);
+    if (path === null) return;
+    event.preventDefault();
+    navigate(path);
+  }
+
+  function handleGlobalKeydown(event) {
+    if (event.key !== "Escape") return;
+    if (showKeyDropdown) showKeyDropdown = false;
+    if (mobileNavOpen) mobileNavOpen = false;
   }
 
   // Initial routing on page load - call it before onMount to prevent flicker
@@ -102,6 +160,7 @@
     }
 
     document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("click", handleLinkClick);
 
     // Warm the monaco chunk once the app is idle. Nearly every route ends up
     // rendering an editor (the "/" form included), so this trades a little
@@ -129,6 +188,7 @@
     return () => {
       window.removeEventListener("popstate", updateRouting);
       document.removeEventListener("click", handleDocumentClick);
+      document.removeEventListener("click", handleLinkClick);
     };
   });
 
@@ -147,8 +207,7 @@
   }
 
   function handleNavigation(section) {
-    window.history.pushState({}, "", sectionToPath(section));
-    updateRouting();
+    navigate(sectionToPath(section));
   }
 
   function handleTagClick(event) {
@@ -219,23 +278,27 @@
   }
 </script>
 
-<div class="h-screen overflow-hidden flex flex-col font-ubuntu text-[#333333]">
-  <!-- Header with Navigation -->
-  <header class="bg-[#772953] text-white shadow-lg">
-    <div class="max-w-7xl mx-auto px-6">
+<svelte:window on:keydown={handleGlobalKeydown} />
+
+<div class="h-screen overflow-hidden flex flex-col text-gray-900">
+  <a
+    href="#main-content"
+    on:click|preventDefault={() => mainEl?.focus()}
+    class="sr-only-focusable fixed left-2 top-2 z-[300] rounded bg-white px-3 py-2 text-sm font-medium text-brand-700 shadow"
+  >
+    Skip to content
+  </a>
+
+  <header class="relative z-40 bg-brand-600 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
       <div class="flex items-center justify-between h-14">
         <!-- Logo and Brand -->
-        <div class="flex items-center gap-3">
-          <button
-            on:click={() => handleNavigation("recent")}
-            class="logo-button flex items-center hover:opacity-80 transition-opacity"
-            title="Go to Recent Relics"
-          >
-            <div class="font-bold text-xl tracking-tight">
+        <div class="flex items-center gap-3 flex-shrink-0">
+          <a href="/recent" class="flex items-center hover:opacity-80 transition-opacity rounded" aria-label="Relic home">
+            <span class="font-bold text-xl tracking-tight">
               RELIC <span class="font-light opacity-80">Bin</span>
-            </div>
-          </button>
-          
+            </span>
+          </a>
           <a
             href="https://github.com/ovidiuvio/relic"
             target="_blank"
@@ -248,60 +311,40 @@
         </div>
 
         <!-- Top Navigation -->
-        <nav class="hidden md:flex items-center space-x-1 ml-auto">
-          <button
-            on:click={() => handleNavigation("new")}
-            class="maas-nav-top {currentSection === 'new' ? 'active' : ''}"
-          >
-            <i class="fas fa-plus mr-2"></i>New Relic
-          </button>
-          <button
-            on:click={() => handleNavigation("recent")}
-            class="maas-nav-top {currentSection === 'recent' ? 'active' : ''}"
-          >
-            <i class="fas fa-clock mr-2"></i>Recent
-          </button>
-          <button
-            on:click={() => handleNavigation("spaces")}
-            class="maas-nav-top {currentSection === 'spaces' || currentSection === 'space-view' ? 'active' : ''}"
-          >
-            <i class="fas fa-layer-group mr-2"></i>Spaces
-          </button>
-          <button
-            on:click={() => handleNavigation("my-relics")}
-            class="maas-nav-top {currentSection === 'my-relics' ? 'active' : ''}"
-          >
-            <i class="fas fa-user mr-2"></i>My Relics
-          </button>
-          <button
-            on:click={() => handleNavigation("my-bookmarks")}
-            class="maas-nav-top {currentSection === 'my-bookmarks' ? 'active' : ''}"
-          >
-            <i class="fas fa-bookmark mr-2"></i>Bookmarks
-          </button>
-          {#if isAdmin}
-            <button
-              on:click={() => handleNavigation("admin")}
-              class="maas-nav-top {currentSection === 'admin' ? 'active' : ''}"
+        <nav aria-label="Main" class="hidden md:flex items-stretch self-stretch ml-auto">
+          <a href="/" aria-current={currentSection === "new" ? "page" : undefined} class="nav-link {currentSection === 'new' ? 'active' : ''}">
+            <i class="fas fa-plus mr-2" aria-hidden="true"></i>New Relic
+          </a>
+          {#each navItems as item (item.section)}
+            <a
+              href={item.path}
+              aria-current={isActive(item) ? "page" : undefined}
+              class="nav-link {isActive(item) ? 'active' : ''}"
             >
-              <i class="fas fa-shield-alt mr-2"></i>Admin
-            </button>
-          {/if}
+              <i class="fas {item.icon} mr-2" aria-hidden="true"></i>{item.label}
+            </a>
+          {/each}
         </nav>
 
-        <!-- User Key Menu -->
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 md:ml-2">
+
+          <!-- Profile menu -->
           <div class="user-key-dropdown relative">
             <button
               on:click={() => (showKeyDropdown = !showKeyDropdown)}
-              class="p-2 text-white/80 hover:text-white transition-colors"
-              title="Profile"
+              class="w-9 h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white transition-colors"
+              aria-label="Profile"
+              aria-haspopup="true"
+              aria-expanded={showKeyDropdown}
+              aria-controls="profile-menu"
             >
-              <i class="fas fa-user-circle"></i>
+              <i class="fas fa-user-circle text-lg" aria-hidden="true"></i>
             </button>
 
             {#if showKeyDropdown}
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
               <div
+                id="profile-menu"
                 class="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                 on:click={e => e.stopPropagation()}
               >
@@ -310,65 +353,69 @@
                 </div>
 
                 <div class="p-3 border-b border-gray-200">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Display Name</label>
+                    <label for="profile-display-name" class="block text-xs font-medium text-gray-700 mb-1">Display name</label>
                     <div class="flex gap-2">
                         <input
+                            id="profile-display-name"
                             type="text"
                             bind:value={userName}
                             placeholder="Anonymous"
-                            class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                            on:keydown={(e) => e.key === "Enter" && saveUserName()}
+                            class="flex-1 text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                         />
                         <button
                             on:click={saveUserName}
                             disabled={isNameSaving}
-                            class="w-8 h-[30px] flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
-                            title="Save Name"
+                            class="btn-primary w-8 h-[30px] !p-0 flex-shrink-0"
+                            aria-label="Save name"
+                            title="Save name"
                         >
                             {#if isNameSaving}
-                                <i class="fas fa-spinner fa-spin text-xs"></i>
+                                <i class="fas fa-spinner fa-spin text-xs" aria-hidden="true"></i>
                             {:else}
-                                <i class="fas fa-check text-xs"></i>
+                                <i class="fas fa-check text-xs" aria-hidden="true"></i>
                             {/if}
                         </button>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-1">Required for commenting</p>
+                    <p class="text-2xs text-gray-500 mt-1">Required for commenting</p>
                 </div>
 
                 <div class="p-3 border-b border-gray-200">
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Your Public ID</label>
+                    <div class="block text-xs font-medium text-gray-700 mb-1">Your public ID</div>
                     <div class="flex gap-2 items-center">
-                        <span class="flex-1 text-sm font-mono text-gray-900 select-all">
+                        <span class="flex-1 text-sm font-mono text-gray-900 select-all break-all">
                             {userPublicId || '...'}
                         </span>
                         <button
                             on:click={() => navigator.clipboard.writeText(userPublicId).then(() => { showToast('Public ID copied', 'success'); showKeyDropdown = false; })}
-                            class="w-8 h-[30px] flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors flex-shrink-0"
-                            title="Copy Public ID"
+                            class="btn-secondary w-8 h-[30px] !p-0 flex-shrink-0"
+                            aria-label="Copy public ID"
+                            title="Copy public ID"
                         >
-                            <i class="fas fa-copy text-xs text-gray-600"></i>
+                            <i class="fas fa-copy text-xs text-gray-600" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-1">Share this ID so others can add you to spaces</p>
+                    <p class="text-2xs text-gray-500 mt-1">Share this ID so others can add you to spaces</p>
                 </div>
 
                 <div class="py-2">
                   <label
-                    class="maas-dropdown-item block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer flex items-center"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus-within:bg-gray-50 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand-500 transition-colors cursor-pointer flex items-center"
                   >
-                    <i class="fas fa-upload w-5 text-purple-600"></i>
-                    <span>Import Key</span>
+                    <i class="fas fa-upload w-5 text-gray-500" aria-hidden="true"></i>
+                    <span>Import key</span>
                     <input
                       type="file"
                       accept=".txt"
                       on:change={uploadUserKey}
-                      class="hidden"
+                      class="sr-only"
                     />
                   </label>
                 </div>
 
                 <div class="px-4 py-3 bg-gray-50 rounded-b-lg">
                   <p class="text-xs text-gray-500">
-                    <i class="fas fa-info-circle mr-1"></i>
+                    <i class="fas fa-info-circle mr-1" aria-hidden="true"></i>
                     {#if usingSw}
                       Your key is stored securely and cannot be displayed again.
                       Use Import to restore from a backup.
@@ -381,13 +428,43 @@
               </div>
             {/if}
           </div>
+
+          <!-- Mobile menu toggle -->
+          <button
+            class="md:hidden w-9 h-9 flex items-center justify-center rounded text-white/80 hover:text-white hover:bg-white/10"
+            on:click={() => (mobileNavOpen = !mobileNavOpen)}
+            aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-nav"
+          >
+            <i class="fas {mobileNavOpen ? 'fa-times' : 'fa-bars'}" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
     </div>
+
+    {#if mobileNavOpen}
+      <nav id="mobile-nav" aria-label="Main" class="md:hidden absolute inset-x-0 top-full bg-white border-b border-gray-200 shadow-lg">
+        <ul class="px-2 py-2">
+          <li>
+            <a href="/" class="mobile-nav-link {currentSection === 'new' ? 'active' : ''}" aria-current={currentSection === "new" ? "page" : undefined}>
+              <i class="fas fa-plus w-5 text-center" aria-hidden="true"></i>New Relic
+            </a>
+          </li>
+          {#each navItems as item (item.section)}
+            <li>
+              <a href={item.path} class="mobile-nav-link {isActive(item) ? 'active' : ''}" aria-current={isActive(item) ? "page" : undefined}>
+                <i class="fas {item.icon} w-5 text-center" aria-hidden="true"></i>{item.label}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </nav>
+    {/if}
   </header>
 
   <!-- Main Content -->
-  <main class="flex-1 overflow-auto flex flex-col">
+  <main id="main-content" bind:this={mainEl} tabindex="-1" class="flex-1 overflow-auto flex flex-col focus:outline-none">
     <div
       class="w-full {((currentSection === 'relic' && relicViewerFullWidth) || (currentSection === 'new' && relicFormFullWidth))
         ? ''
@@ -422,7 +499,7 @@
             <p class="text-sm text-gray-500 mt-1">{error.message}</p>
             <button
               on:click={() => window.location.reload()}
-              class="mt-4 px-4 py-2 bg-[#772953] text-white rounded hover:bg-[#5e1f42] transition-colors"
+              class="btn-primary mt-4"
             >
               Reload
             </button>
@@ -445,8 +522,6 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: "Ubuntu", sans-serif;
-    color: #333333;
   }
 
   :global(*) {
@@ -460,39 +535,6 @@
     font-family: "Ubuntu Mono", monospace;
   }
 
-  /* MAAS-style button primary */
-  :global(.maas-btn-primary) {
-    background-color: #0e8420;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: background-color 0.2s;
-  }
-
-  :global(.maas-btn-primary:hover) {
-    background-color: #0a6b19;
-  }
-
-  /* MAAS-style button secondary */
-  :global(.maas-btn-secondary) {
-    background-color: white;
-    border: 1px solid #cdcdcd;
-    color: #333;
-    padding: 0.5rem 1rem;
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-
-  :global(.maas-btn-secondary:hover) {
-    background-color: #f9f9f9;
-    border-color: #999;
-  }
-
   /* MAAS-style inputs */
   :global(.maas-input) {
     border: 1px solid #aea79f;
@@ -503,17 +545,9 @@
   }
 
   :global(.maas-input:focus) {
-    border-color: #e95420;
+    border-color: theme('colors.brand.500');
     outline: none;
-    box-shadow: 0 0 0 1px #e95420;
-  }
-
-  /* Card styling */
-  :global(.maas-card) {
-    background-color: white;
-    border: 1px solid #dfdcd9;
-    border-radius: 2px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 0 1px theme('colors.brand.500');
   }
 
   /* Table styling */
@@ -536,53 +570,63 @@
     background-color: #fcfcfc;
   }
 
-  /* Top Navigation Styles */
-  :global(.maas-nav-top) {
-    color: rgba(255, 255, 255, 0.7);
-    transition: all 0.2s;
+  /* Header navigation: underline tab for the active page (no pill overlay). */
+  .nav-link {
     position: relative;
-    font-size: 13.5px;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
     display: flex;
     align-items: center;
-  }
-
-  :global(.maas-nav-top:hover) {
-    color: white;
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  :global(.maas-nav-top.active) {
-    color: white;
-    background-color: rgba(255, 255, 255, 0.15);
+    padding: 0 1rem;
+    font-size: 13.5px;
     font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.15s;
   }
 
-  :global(.maas-nav-top.active::after) {
+  .nav-link::after {
     content: "";
     position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 2px;
-    background-color: #e95420;
-    border-radius: 1px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background-color: transparent;
+    transition: background-color 0.15s;
   }
 
-  :global(.maas-nav-top:focus) {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  .nav-link:hover {
+    color: white;
   }
 
-  /* Logo button styling */
-  :global(.logo-button) {
-    background: none;
-    border: none;
-    padding: 0;
-    font-family: inherit;
-    cursor: pointer;
+  .nav-link:hover::after {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .nav-link.active {
+    color: white;
+  }
+
+  .nav-link.active::after {
+    background-color: white;
+  }
+
+  .mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 15px;
+    font-weight: 500;
+    color: theme('colors.gray.700');
+  }
+
+  .mobile-nav-link:hover {
+    background-color: theme('colors.gray.50');
+  }
+
+  .mobile-nav-link.active {
+    color: theme('colors.brand.700');
+    background-color: theme('colors.brand.50');
   }
 </style>

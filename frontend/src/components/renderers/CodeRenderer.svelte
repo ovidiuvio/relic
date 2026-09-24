@@ -1,4 +1,5 @@
 <script>
+  import { modal } from '../../utils/modal';
   import MonacoEditor from '../MonacoEditor.svelte'
   import { createEventDispatcher } from 'svelte'
   import { createEventForwarder } from '../../services/utils/eventUtils'
@@ -222,7 +223,10 @@
       </div>
     </div>
   {/if}
-  <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+  <!-- overflow-hidden: clientHeight is rounded, so the editor can end up a
+       fraction of a pixel taller than this box; unclipped, that gives the
+       viewer's scroll container a near-full-height native scrollbar in Chrome. -->
+  <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={monacoHeight}>
   {#if monacoHeight > 0}
   <MonacoEditor
     value={filteredValue}
@@ -265,7 +269,7 @@
     on:click={() => showCheatsheet = false}
   >
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-    <div
+    <div use:modal={{ onClose: () => (showCheatsheet = false) }}
       class="w-96 rounded-xl shadow-2xl border overflow-hidden {darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}"
       on:click|stopPropagation
     >

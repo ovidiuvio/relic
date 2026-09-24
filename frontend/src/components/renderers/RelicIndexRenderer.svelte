@@ -112,6 +112,7 @@
     {/if}
 
     <RelicTable
+        headingTag="h2"
         data={sortedRelics}
         {loading}
         bind:searchTerm

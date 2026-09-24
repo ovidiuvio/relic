@@ -1,4 +1,6 @@
 <script>
+    import { navigate } from '../utils/navigation';
+    import { modal } from '../utils/modal';
     import { onMount, onDestroy } from "svelte";
     import { showToast } from "../stores/toastStore";
     import ConfirmModal from "./ConfirmModal.svelte";
@@ -684,8 +686,7 @@
     }
 
     function navigateToRelic(relicId) {
-        window.history.pushState({}, "", `/${relicId}`);
-        window.dispatchEvent(new PopStateEvent("popstate"));
+        navigate(`/${relicId}`);
     }
 
     function viewUserRelics(user) {
@@ -931,7 +932,7 @@
                                 <tr class="hover:bg-gray-50/50 transition-colors">
                                     <td class="px-6 py-4 font-medium text-gray-900">
                                         <div class="flex items-center gap-3">
-                                            <i class="fas fa-layer-group text-[#217db1] w-5 text-center"></i>
+                                            <i class="fas fa-layer-group text-public w-5 text-center"></i>
                                             <span>Spaces</span>
                                         </div>
                                     </td>
@@ -1120,8 +1121,7 @@
                                             >
                                                 {#if relic.access_level === "private"}
                                                     <i
-                                                        class="fas fa-lock text-[13px]"
-                                                        style="color: #76306c;"
+                                                        class="fas fa-lock text-[13px] text-private"
                                                         title="Private"
                                                     ></i>
                                                 {:else if relic.access_level === "restricted"}
@@ -1132,8 +1132,7 @@
                                                     ></i>
                                                 {:else}
                                                     <i
-                                                        class="fas fa-globe text-[13px]"
-                                                        style="color: #217db1;"
+                                                        class="fas fa-globe text-[13px] text-public"
                                                         title="Public"
                                                     ></i>
                                                 {/if}
@@ -1150,7 +1149,7 @@
                                                 {#if hasViewer(relic.content_type)}
                                                     <a
                                                         href="/{relic.id}"
-                                                        class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight"
+                                                        class="font-medium text-link hover:underline truncate text-[13px] leading-tight"
                                                         >{relic.name ||
                                                             "Untitled"}</a
                                                     >
@@ -1409,7 +1408,7 @@
                                             <div class="flex flex-col">
                                                 <a
                                                     href="/{report.relic_id}"
-                                                    class="font-medium text-[#0066cc] hover:underline"
+                                                    class="font-medium text-link hover:underline"
                                                 >
                                                     {report.relic_name ||
                                                         "Unknown Relic"}
@@ -2598,7 +2597,7 @@
     >
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div
+        <div use:modal={{ onClose: closeRestoreModal }}
             class="bg-white rounded-lg shadow-xl w-full {restoreLogs !== null ? 'max-w-4xl' : 'max-w-md'}"
             on:click|stopPropagation
         >

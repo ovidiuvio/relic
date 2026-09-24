@@ -1,6 +1,7 @@
 <script>
     import { createEventDispatcher } from 'svelte';
     import { triggerDownload } from '../services/utils/download';
+    import { modal } from '../utils/modal';
 
     export let show = false;
     export let userKey = '';
@@ -34,11 +35,12 @@
 
 {#if show}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-[200] flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <!-- No onClose: the key must be saved before this can be dismissed. -->
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full" use:modal>
       <div class="p-6 border-b border-gray-200">
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-            <i class="fas fa-key text-amber-600"></i>
+            <i class="fas fa-key text-amber-600" aria-hidden="true"></i>
           </div>
           <h3 class="text-lg font-semibold text-gray-900">Save Your Relic Key</h3>
         </div>
@@ -50,23 +52,23 @@
 
       <div class="p-6">
         <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-          <label class="block text-xs font-medium text-gray-500 mb-1">Your Key</label>
+          <div class="block text-xs font-medium text-gray-500 mb-1">Your Key</div>
           <code class="text-sm font-mono text-gray-900 break-all select-all">{userKey}</code>
         </div>
 
         <div class="flex gap-3">
           <button
             on:click={download}
-            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            class="btn-primary flex-1 py-2.5"
           >
-            <i class="fas fa-download"></i>
+            <i class="fas fa-download" aria-hidden="true"></i>
             Download
           </button>
           <button
             on:click={copy}
-            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            class="btn-secondary flex-1 py-2.5"
           >
-            <i class="fas fa-copy"></i>
+            <i class="fas fa-copy" aria-hidden="true"></i>
             {copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy'}
           </button>
         </div>

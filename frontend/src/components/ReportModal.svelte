@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { createEventDispatcher } from "svelte";
     import { submitReport } from "../services/api";
     import { showToast } from "../stores/toastStore";
@@ -55,7 +56,7 @@
         on:click={handleBackdropClick}
     >
         <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-        <div
+        <div use:modal={{ onClose: closeModal }}
             class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300"
             on:click|stopPropagation
             role="dialog"

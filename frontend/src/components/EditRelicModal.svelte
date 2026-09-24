@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { createEventDispatcher } from 'svelte'
     import { updateRelic } from '../services/api/relics'
     import Toast from './Toast.svelte'
@@ -104,7 +105,7 @@
 
 {#if show}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={close}>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+        <div use:modal={{ onClose: close }} class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Edit Relic</h2>
 
             <div class="space-y-4">
@@ -224,14 +225,14 @@
             <div class="flex justify-end space-x-3 mt-6">
                 <button
                     on:click={close}
-                    class="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                    class="btn-secondary"
                 >
                     Cancel
                 </button>
                 <button
                     on:click={handleSubmit}
                     disabled={loading}
-                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                    class="btn-primary"
                 >
                     {#if loading}
                         <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

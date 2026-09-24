@@ -1,4 +1,5 @@
 <script>
+  import { modal } from '../utils/modal';
   import { getRelicLineage } from '../services/api/relics';
   import { showToast } from '../stores/toastStore';
 
@@ -116,26 +117,20 @@
     if (e.target === e.currentTarget) closeModal();
   }
 
-  function handleKeydown(e) {
-    if (e.key.toLowerCase() === 'escape' && open) closeModal();
-  }
 
   function fmtDate(dt) {
     return dt ? new Date(dt).toLocaleDateString() : '';
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if open}
   <div
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity"
     on:click={handleBackdropClick}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="lineage-modal-title"
   >
     <div
+      use:modal={{ onClose: closeModal }}
+      aria-labelledby="lineage-modal-title"
       class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col transform transition-all"
       on:click|stopPropagation
     >

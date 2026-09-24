@@ -18,6 +18,7 @@
   import ReportModal from "./ReportModal.svelte";
   import EditRelicModal from "./EditRelicModal.svelte";
   import AddToSpaceModal from "./AddToSpaceModal.svelte";
+  import IconButton from "./IconButton.svelte";
   import { createEventDispatcher } from "svelte";
 
   export let relic;
@@ -118,10 +119,10 @@
             relic.content_type,
           )} text-[15px] flex-shrink-0"
         ></i>
-        <h2 class="text-[15px] font-bold text-gray-800 truncate max-w-[500px] leading-tight" title={relic.name || "Untitled"}>
+        <h1 class="text-[15px] font-bold text-gray-800 truncate max-w-[500px] leading-tight" title={relic.name || "Untitled"}>
           {relic.name || "Untitled"}
-        </h2>
-        <span class="ml-1.5 px-1.5 py-0.5 bg-gray-200/60 text-gray-500 rounded text-[9px] font-bold uppercase tracking-wider leading-none">
+        </h1>
+        <span class="ml-1.5 px-1.5 py-0.5 bg-gray-200/60 text-gray-500 rounded text-2xs font-bold uppercase tracking-wider leading-none">
           {getTypeLabel(relic.content_type)}
         </span>
       </div>
@@ -129,124 +130,43 @@
       <!-- Second Line: ID (Now only ID) -->
       <div class="flex items-center">
         <div class="text-[11px] text-gray-400 font-mono flex items-center gap-1.5 group cursor-default">
-          <button on:click={copyRelicId} class="hover:text-blue-600 transition-colors">
+          <button on:click={copyRelicId} class="hover:text-link transition-colors" aria-label="Copy relic ID {relicId}">
             {relicId}
           </button>
-          <i class="fas fa-copy text-[10px] opacity-0 group-hover:opacity-70 transition-opacity"></i>
+          <i class="fas fa-copy text-[10px] opacity-0 group-hover:opacity-70 group-focus-within:opacity-70 transition-opacity" aria-hidden="true"></i>
         </div>
       </div>
     </div>
 
-    <!-- Action Toolbar (Simplified) -->
-    <div class="flex items-center gap-1 flex-shrink-0 -mt-1">
+    <!-- Action Toolbar -->
+    <div class="flex items-center gap-0.5 flex-shrink-0 -mt-1" role="group" aria-label="Relic actions">
       {#if !isArchiveFile}
-        <button
+        <IconButton
+          label={isBookmarked ? "Remove bookmark" : "Bookmark"}
+          icon="{isBookmarked ? 'fas' : 'far'} fa-bookmark"
+          pressed={isBookmarked}
+          loading={bookmarkLoading}
+          disabled={checkingBookmark}
+          align="end"
           on:click={() => dispatch("toggle-bookmark")}
-          disabled={checkingBookmark || bookmarkLoading}
-          class="p-1.5 rounded transition-colors {isBookmarked
-            ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-            : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}"
-          title={isBookmarked ? "Remove bookmark" : "Bookmark this relic"}
-          aria-label={isBookmarked ? "Remove bookmark" : "Bookmark this relic"}
-        >
-          {#if bookmarkLoading}
-            <i class="fas fa-spinner fa-spin text-[13px] w-[14px] text-center"></i>
-          {:else if isBookmarked}
-            <i class="fas fa-bookmark text-[13px] w-[14px] text-center"></i>
-          {:else}
-            <i class="far fa-bookmark text-[13px] w-[14px] text-center"></i>
-          {/if}
-        </button>
+        />
       {/if}
-      <button
-        on:click={() => (showReportModal = true)}
-        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-        title="Report relic"
-        aria-label="Report relic"
-      >
-        <i class="fas fa-flag text-[13px] w-[14px] text-center"></i>
-      </button>
-      <button
-        on:click={handleShare}
-        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-        title="Share relic"
-        aria-label="Share relic"
-      >
-        <i class="fas fa-share text-[13px] w-[14px] text-center"></i>
-      </button>
+      <IconButton label="Report" icon="fas fa-flag" align="end" on:click={() => (showReportModal = true)} />
+      <IconButton label="Share link" icon="fas fa-share" align="end" on:click={handleShare} />
       {#if !isArchiveFile}
-        <button
-          on:click={() => (showAddToSpaceModal = true)}
-          class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-          title="Add to Space"
-          aria-label="Add to Space"
-        >
-          <i class="fas fa-layer-group text-[13px] w-[14px] text-center"></i>
-        </button>
+        <IconButton label="Add to space" icon="fas fa-layer-group" align="end" on:click={() => (showAddToSpaceModal = true)} />
       {/if}
-      <div class="w-px h-4 bg-gray-300 mx-1"></div>
-      <button
-        on:click={handleCopyContent}
-        class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-        title="Copy content to clipboard"
-        aria-label="Copy content to clipboard"
-      >
-        <i class="fas fa-copy text-[13px] w-[14px] text-center"></i>
-      </button>
-      <button
-        on:click={handleViewRaw}
-        class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
-        title="View raw content"
-        aria-label="View raw content"
-      >
-        <i class="fas fa-code text-[13px] w-[14px] text-center"></i>
-      </button>
-      <button
-        on:click={() => dispatch("fork")}
-        disabled={forkLoading}
-        class="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-        title="Create fork"
-        aria-label="Create fork"
-      >
-        {#if forkLoading}
-          <i class="fas fa-spinner fa-spin text-[13px] w-[14px] text-center"></i>
-        {:else}
-          <i class="fas fa-code-branch text-[13px] w-[14px] text-center"></i>
-        {/if}
-      </button>
-      <button
-        on:click={handleDownload}
-        class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-        title="Download relic"
-        aria-label="Download relic"
-      >
-        <i class="fas fa-download text-[13px] w-[14px] text-center"></i>
-      </button>
+      <div class="w-px h-4 bg-gray-300 mx-1" aria-hidden="true"></div>
+      <IconButton label="Copy content" icon="fas fa-copy" align="end" on:click={handleCopyContent} />
+      <IconButton label="View raw" icon="fas fa-code" align="end" on:click={handleViewRaw} />
+      <IconButton label="Fork" icon="fas fa-code-branch" loading={forkLoading} align="end" on:click={() => dispatch("fork")} />
+      <IconButton label="Download" icon="fas fa-download" align="end" on:click={handleDownload} />
       {#if relic.can_edit && !isArchiveFile}
-        <button
-          on:click={() => (showEditModal = true)}
-          class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-          title="Edit relic"
-          aria-label="Edit relic"
-        >
-          <i class="fas fa-edit text-[13px] w-[14px] text-center"></i>
-        </button>
+        <IconButton label="Edit details" icon="fas fa-edit" align="end" on:click={() => (showEditModal = true)} />
       {/if}
       {#if isAdmin && !isArchiveFile}
-        <div class="w-px h-4 bg-gray-300 mx-1"></div>
-        <button
-          on:click={() => dispatch("delete")}
-          disabled={deleteLoading}
-          class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-          title="Delete relic (Admin)"
-          aria-label="Delete relic (Admin)"
-        >
-          {#if deleteLoading}
-            <i class="fas fa-spinner fa-spin text-[13px] w-[14px] text-center"></i>
-          {:else}
-            <i class="fas fa-trash text-[13px] w-[14px] text-center"></i>
-          {/if}
-        </button>
+        <div class="w-px h-4 bg-gray-300 mx-1" aria-hidden="true"></div>
+        <IconButton label="Delete relic (admin)" icon="fas fa-trash" tone="danger" loading={deleteLoading} align="end" on:click={() => dispatch("delete")} />
       {/if}
     </div>
   </div>
@@ -302,10 +222,11 @@
                 {#if relic.can_edit}
                   <button
                     on:click|stopPropagation={() => dispatch('remove-tag', tag.name || tag)}
-                    class="ml-1 opacity-0 group-hover/tag:opacity-100 hover:text-red-500 transition-all text-[9px]"
+                    class="ml-1 opacity-0 group-hover/tag:opacity-100 focus-visible:opacity-100 hover:text-red-500 transition-all text-[9px]"
                     title="Remove tag"
+                    aria-label="Remove tag {tag.name || tag}"
                   >
-                    <i class="fas fa-times"></i>
+                    <i class="fas fa-times" aria-hidden="true"></i>
                   </button>
                 {/if}
               </div>

@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../utils/navigation';
   import { onMount } from 'svelte';
   import { showToast } from '../stores/toastStore';
   import { getUserRelics, deleteRelic } from '../services/api';
@@ -190,8 +191,7 @@
     on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
-      window.history.pushState({}, "", "/my-relics");
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      navigate("/my-relics");
     }}
     {goToPage}
   />

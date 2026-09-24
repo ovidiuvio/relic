@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../utils/navigation';
   import { onMount, onDestroy } from "svelte";
   import {
     getRelic,
@@ -21,6 +22,7 @@
   import { downloadRelic, fastForkArchiveFile } from '../services/relicActions';
   import ForkModal from './ForkModal.svelte';
   import ConfirmModal from './ConfirmModal.svelte';
+  import { pageTitle } from '../stores/pageTitle';
   import PDFViewer from './PDFViewer.svelte';
   import { createEventDispatcher } from 'svelte';
   import { getCurrentLineNumberFragment } from '../utils/lineNumbers';
@@ -331,16 +333,27 @@
     }
   }
 
+  // Navigating between relics reuses this component, so a slow response for a
+  // previous relic must not overwrite the current one.
+  let _loadGen = 0;
+
   async function loadRelic(id) {
     if (!id) return;
+    const gen = ++_loadGen;
     loading = true;
     errorStatus = null;
     relic = null;
     processed = null;
     showSource = false;
+    isArchiveFile = false;
+    archiveContext = null;
+    hasLineage = false;
+    isBookmarked = false;
+    comments = [];
 
     try {
       const relicResponse = await getRelic(id);
+      if (gen !== _loadGen) return;
       relic = relicResponse.data;
 
       // Fetch lineage to determine if we should show the lineage button
@@ -358,12 +371,15 @@
       // Fetch and process raw content
       const rawResponse = await getRelicRaw(id);
       const content = await rawResponse.data.arrayBuffer();
+      if (gen !== _loadGen) return;
 
-      processed = await processContent(
+      const result = await processContent(
         new Uint8Array(content),
         relic.content_type,
         relic.language_hint,
       );
+      if (gen !== _loadGen) return;
+      processed = result;
 
       // Check bookmark status
       await checkBookmarkStatus(id);
@@ -372,15 +388,17 @@
       await loadComments(id);
 
     } catch (error) {
+      if (gen !== _loadGen) return;
       console.error("[RelicViewer] Error loading relic:", error);
       errorStatus = error.response?.status || 'unknown';
     } finally {
-      loading = false;
+      if (gen === _loadGen) loading = false;
     }
   }
 
   async function loadArchiveFile(archiveId, filepath) {
     if (!archiveId || !filepath) return;
+    const gen = ++_loadGen;
     loading = true;
     relic = null;
     processed = null;
@@ -413,11 +431,13 @@
 
 
       // Process the extracted file content
-      processed = await processContent(
+      const result = await processContent(
         fileContent,
         fileMetadata.contentType,
         fileMetadata.languageHint,
       );
+      if (gen !== _loadGen) return;
+      processed = result;
 
       // Create a virtual relic object for the extracted file
       relic = {
@@ -444,10 +464,11 @@
       };
 
     } catch (error) {
+      if (gen !== _loadGen) return;
       console.error("[RelicViewer] Error loading archive file:", error);
       showToast("Failed to load file from archive: " + error.message, "error");
     } finally {
-      loading = false;
+      if (gen === _loadGen) loading = false;
     }
   }
 
@@ -525,8 +546,7 @@
       await deleteRelic(relicId);
       showToast("Relic deleted successfully", "success");
       // Navigate back to home
-      window.history.pushState({}, "", "/");
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      navigate("/");
     } catch (error) {
       console.error("[RelicViewer] Error deleting relic:", error);
       const message = error.response?.data?.detail || "Failed to delete relic";
@@ -572,6 +592,12 @@
       console.error("Error removing tag:", error);
       showToast("Failed to remove tag", "error");
     }
+  }
+
+  $: if (relic && !loading) {
+    pageTitle.set(archiveContext
+      ? `${archiveContext.fileName} · ${archiveContext.archiveName || "Archive"}`
+      : relic.name || "Untitled relic");
   }
 
   $: if (relicId) {
@@ -849,7 +875,7 @@
             <button
               on:click={() =>
                 downloadRelic(relicId, relic.name, relic.content_type)}
-              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              class="btn-primary"
             >
               <i class="fas fa-download mr-2"></i>
               Download File

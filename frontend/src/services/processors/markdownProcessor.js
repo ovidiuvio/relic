@@ -116,7 +116,11 @@ export async function processMarkdown(content) {
 
     // Process the markdown
     const file = await processor.process(text)
+    // Wrap tables so a wide table scrolls on its own instead of making the whole
+    // document scroll sideways. Runs after sanitization; the wrapper is ours.
     const html = String(file)
+      .replace(/<table>/g, '<div class="table-scroll"><table>')
+      .replace(/<\/table>/g, '</table></div>')
 
     return {
       type: 'markdown',

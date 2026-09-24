@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { createEventDispatcher } from 'svelte'
     import { updateRelic } from '../services/api/relics'
     import { getRelicAccess, addRelicAccess, removeRelicAccess } from '../services/api/relics'
@@ -136,7 +137,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" on:click|self={close}>
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col" role="dialog" aria-modal="true">
+        <div use:modal={{ onClose: close }} class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col" role="dialog" aria-modal="true">
 
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -207,7 +208,7 @@
                             <button
                                 on:click={addAccess}
                                 disabled={managingAccess || !newPublicId.trim()}
-                                class="maas-btn-primary px-4 flex items-center gap-1.5 whitespace-nowrap"
+                                class="btn-primary px-4 flex items-center gap-1.5 whitespace-nowrap"
                             >
                                 {#if managingAccess}
                                     <i class="fas fa-spinner fa-spin text-xs" aria-hidden="true"></i>
@@ -332,11 +333,11 @@
 
             <!-- Footer -->
             <div class="px-6 py-4 bg-gray-50 border-t border-[#ddd] flex justify-end gap-3">
-                <button on:click={close} class="maas-btn-secondary px-6">Cancel</button>
+                <button on:click={close} class="btn-secondary px-6">Cancel</button>
                 <button
                     on:click={save}
                     disabled={saving}
-                    class="maas-btn-primary px-6 flex items-center gap-2"
+                    class="btn-primary px-6 flex items-center gap-2"
                 >
                     {#if saving}
                         <i class="fas fa-spinner fa-spin text-xs" aria-hidden="true"></i> Saving...

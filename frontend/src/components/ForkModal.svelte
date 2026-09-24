@@ -1,4 +1,6 @@
 <script>
+  import { navigate } from '../utils/navigation';
+  import { modal } from '../utils/modal';
   import { onDestroy } from 'svelte';
   import { forkRelic, getRelicRaw } from "../services/api";
   import { showToast } from "../stores/toastStore";
@@ -128,7 +130,7 @@
       showToast("Relic forked successfully!", "success");
 
       // Navigate to the new forked relic
-      window.location.href = forkedRelicUrl;
+      navigate(forkedRelicUrl);
 
       // Reset form and close modal
       resetForm();
@@ -196,7 +198,7 @@
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     on:click={handleBackdropClick}
   >
-    <div
+    <div use:modal={{ onClose: closeModal }}
       class="bg-white rounded-lg shadow-xl w-full h-[90vh] overflow-hidden flex flex-col transition-all duration-300"
       style="max-width: {isExpanded ? '98vw' : 'min(1200px, 95vw)'};"
       on:click|stopPropagation
@@ -257,10 +259,10 @@
           <div class="flex justify-between items-center">
             <div class="text-xs text-gray-500">
               {#if forkAccessLevel === "public"}
-                <i class="fas fa-globe mr-1" style="color: #217db1;"></i>
+                <i class="fas fa-globe mr-1 text-public"></i>
                 Public fork - anyone can view
               {:else}
-                <i class="fas fa-lock mr-1" style="color: #76306c;"></i>
+                <i class="fas fa-lock mr-1 text-private"></i>
                 Private fork - URL-only access
               {/if}
             </div>
@@ -276,7 +278,7 @@
               <button
                 type="submit"
                 disabled={isLoading}
-                class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {#if isLoading}
                   <i class="fas fa-spinner fa-spin mr-1"></i>

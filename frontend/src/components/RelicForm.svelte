@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../utils/navigation';
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
   import Select from "svelte-select";
@@ -409,7 +410,7 @@
           }
 
           if (shouldAutoOpen(relic.content_type, relic.size_bytes)) {
-            window.location.href = `/${relic.id}`;
+            navigate(`/${relic.id}`);
           } else {
             // Summary view instead of redirect for no-viewer/oversized relics
             creationResult = { success: createdRelics, errors };
@@ -485,7 +486,7 @@
       class="px-6 h-14 border-b border-gray-200 flex items-center justify-between"
     >
       <div class="flex items-center h-full">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center mr-8">
+        <h1 class="text-lg font-semibold text-gray-900 flex items-center mr-8">
           {#if creationResult}
             <i class="fas fa-check-circle text-green-600 mr-2 text-base"></i>
             Relics Created Successfully
@@ -493,7 +494,7 @@
             <i class="fas fa-plus text-blue-600 mr-2 text-base"></i>
             Create New Relic
           {/if}
-        </h2>
+        </h1>
  
         {#if !creationResult}
           <!-- Tab Navigation -->
@@ -563,7 +564,7 @@
             {:else if activeTab === "editor"}
               {content.length} characters
               {#if lastSavedAt}
-                <span class="ml-2 text-green-500 text-[9px] uppercase font-bold flex items-center gap-1">
+                <span class="ml-2 text-green-500 text-2xs uppercase font-bold flex items-center gap-1">
                   <i class="fas fa-check text-[8px]"></i>
                   Saved {formatTimeAgo(lastSavedAt)}
                 </span>
@@ -654,7 +655,7 @@
           <div class="flex justify-end pt-4">
             <button
               on:click={resetForm}
-              class="maas-btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm"
+              class="btn-primary px-6 py-2 text-sm rounded font-medium shadow-sm"
             >
               <i class="fas fa-plus mr-1"></i>
               Create More
@@ -816,7 +817,7 @@
                    type="submit"
                    on:click|preventDefault={handleSubmit}
                    disabled={isLoading}
-                   class="h-[36px] px-5 bg-[#0e8420] hover:bg-[#0a6b19] text-white rounded shadow-sm hover:shadow transition-all active:scale-[0.98] border border-[#0a6b19] flex items-center justify-center gap-2 text-sm font-bold"
+                   class="h-[36px] px-5 bg-brand-600 hover:bg-brand-700 text-white rounded shadow-sm hover:shadow transition-all active:scale-[0.98] border border-brand-700 flex items-center justify-center gap-2 text-sm font-bold"
                  >
                    {#if isLoading}
                      <i class="fas fa-spinner fa-spin"></i>
@@ -1062,11 +1063,11 @@
                   </button>
                 {/if}
                 
-                <div class="flex items-center bg-[#0e8420] rounded shadow-sm hover:shadow-md transition-all overflow-hidden border border-[#0a6b19] h-[36px]">
+                <div class="flex items-center bg-brand-600 rounded shadow-sm hover:shadow-md transition-all overflow-hidden border border-brand-700 h-[36px]">
                   <button
                     type="submit"
                     disabled={isLoading}
-                    class="h-full px-5 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#0a6b19] transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    class="h-full px-5 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-brand-700 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {#if isLoading}
                       <i class="fas fa-spinner fa-spin"></i>
@@ -1084,11 +1085,12 @@
                   <div class="relative h-full group flex items-center">
                     <select
                       bind:value={expiry}
+                      aria-label="Expiry"
                       class="h-full font-bold border-none focus:outline-none focus:ring-0 transition-colors appearance-none cursor-pointer outline-none text-center leading-[34px] py-0"
                       style="background-image: none;"
-                      class:bg-[#0e8420]={expiry === 'never'}
+                      class:bg-brand-600={expiry === 'never'}
                       class:text-transparent={expiry === 'never'}
-                      class:hover:bg-[#0a6b19]={expiry === 'never'}
+                      class:hover:bg-brand-700={expiry === 'never'}
                       class:text-[10px]={expiry === 'never'}
                       class:px-1.5={expiry === 'never'}
                       class:bg-orange-100={expiry !== 'never'}

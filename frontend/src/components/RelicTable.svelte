@@ -13,6 +13,8 @@
   export let currentPage = 1
   export let totalPages = 1
   export let itemsPerPage = 20
+  // Page-level lists are the page's h1; lists nested in a relic use h2.
+  export let headingTag = 'h1'
   export let paginatedData = []
   export let title = 'Relics'
   export let titleIcon = 'fa-clock'
@@ -136,10 +138,10 @@
   {#if showHeader}
     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+      <svelte:element this={headingTag} class="text-lg font-semibold text-gray-900 flex items-center">
         <i class="fas {titleIcon} {titleIconColor} mr-2"></i>
         {title}
-      </h2>
+      </svelte:element>
 
       {#if tagFilter}
         <div class="flex items-center animate-fade-in">
@@ -234,17 +236,17 @@
                   {#if tableId !== 'recent-relics'}
                     <div class="flex items-center gap-0.5 flex-shrink-0">
                       {#if relic.access_level === 'private'}
-                        <i class="fas fa-lock text-[13px] translate-y-[1px]" style="color: #76306c;" title="Private - accessible only via URL"></i>
+                        <i class="fas fa-lock text-[13px] translate-y-[1px] text-private" title="Private - accessible only via URL"></i>
                       {:else if relic.access_level === 'restricted'}
                         <i class="fas fa-user-lock text-[13px] translate-y-[1px]" style="color: #b45309;" title="Restricted - allowlist only"></i>
                       {:else if relic.access_level === 'public'}
-                        <i class="fas fa-globe text-[13px] translate-y-[1px]" style="color: #217db1;" title="Public - discoverable"></i>
+                        <i class="fas fa-globe text-[13px] translate-y-[1px] text-public" title="Public - discoverable"></i>
                       {/if}
                     </div>
                   {/if}
                   <i class="fas {getTypeIcon(relic.content_type)} {getTypeIconColor(relic.content_type)} text-[13px] flex-shrink-0 translate-y-[1px]" title={getTypeLabel(relic.content_type)}></i>
                   {#if relicHasViewer}
-                    <a href="/{relic.id}" class="font-medium text-[#0066cc] hover:underline truncate text-[13px] leading-tight">
+                    <a href="/{relic.id}" class="font-medium text-link hover:underline truncate text-[13px] leading-tight">
                       {relic.name || 'Untitled'}
                     </a>
                   {:else}

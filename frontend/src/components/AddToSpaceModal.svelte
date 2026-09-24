@@ -1,4 +1,5 @@
 <script>
+    import { modal } from '../utils/modal';
     import { spaces as spacesApi } from '../services/api';
     import { showToast } from '../stores/toastStore';
 
@@ -144,7 +145,7 @@
 {#if open}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div role="presentation" class="fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4 transition-opacity" on:click|self={() => open = false}>
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full flex flex-col overflow-hidden max-h-[90vh]">
+        <div use:modal={{ onClose: () => (open = false) }} class="bg-white rounded-lg shadow-xl max-w-md w-full flex flex-col overflow-hidden max-h-[90vh]">
 
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/30">
@@ -255,10 +256,10 @@
 
             <!-- Footer -->
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-lg">
-                <button on:click={() => open = false} class="maas-btn-secondary" disabled={adding}>
+                <button on:click={() => open = false} class="btn-secondary" disabled={adding}>
                     Cancel
                 </button>
-                <button on:click={handleAdd} class="maas-btn-primary" disabled={adding || !selectedSpaceId}>
+                <button on:click={handleAdd} class="btn-primary" disabled={adding || !selectedSpaceId}>
                     {#if adding}
                         <i class="fas fa-spinner fa-spin mr-2"></i> Adding...
                     {:else}

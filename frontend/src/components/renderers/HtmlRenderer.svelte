@@ -24,7 +24,7 @@
 <div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
   {#if !showSource}
     <!-- HTML Preview Frame -->
-    <div class="flex-1 min-h-0" bind:clientHeight={iframeHeight}>
+    <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={iframeHeight}>
       {#if iframeHeight > 0}
         <iframe
           srcdoc={processed.html}
@@ -37,7 +37,7 @@
     </div>
   {:else}
     <!-- HTML Source Editor -->
-    <div class="flex-1 min-h-0" bind:clientHeight={monacoHeight}>
+    <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={monacoHeight}>
     {#if monacoHeight > 0}
     <MonacoEditor
       value={processed.html || ''}

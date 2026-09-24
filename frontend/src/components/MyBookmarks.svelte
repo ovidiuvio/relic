@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../utils/navigation';
   import { onMount } from 'svelte'
   import { showToast } from '../stores/toastStore'
   import { getUserBookmarks, removeBookmark } from '../services/api'
@@ -126,8 +127,7 @@
     on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
-      window.history.pushState({}, "", "/my-bookmarks");
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      navigate("/my-bookmarks");
     }}
     {goToPage}
   />

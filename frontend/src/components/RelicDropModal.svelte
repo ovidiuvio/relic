@@ -1,4 +1,6 @@
 <script>
+  import { navigate } from '../utils/navigation';
+  import { modal } from '../utils/modal';
   import { createEventDispatcher } from "svelte";
   import { createRelic } from "../services/api";
   import { showToast } from "../stores/toastStore";
@@ -127,7 +129,7 @@
           // Single successful upload with a viewer, small enough to render inline:
           // redirect straight to it, mirroring RelicForm's "classic behavior" so
           // drag-and-drop uploads open the same way form uploads do.
-          window.location.href = `/${createdRelics[0].id}`;
+          navigate(`/${createdRelics[0].id}`);
         } else {
           showToast(`Successfully uploaded ${createdRelics.length} relic(s) to ${spaceName || 'space'}!`, "success");
           dispatch("success", { relics: createdRelics });
@@ -154,20 +156,14 @@
   }
 </script>
 
-<div 
-  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200" 
-  on:click={() => !isLoading && dispatch('close')}
-  on:keydown={(e) => !isLoading && (e.key === 'Escape' || e.key === 'Enter') && dispatch('close')}
-  role="button"
-  tabindex="0"
-  aria-label="Close modal"
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<div
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200"
+  on:click|self={() => !isLoading && dispatch('close')}
 >
-  <section 
-    class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" 
-    on:click|stopPropagation
-    on:keydown|stopPropagation
-    role="document"
-    tabindex="-1"
+  <section
+    class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+    use:modal={{ onClose: () => !isLoading && dispatch('close') }}
   >
     <!-- Header -->
     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -224,7 +220,7 @@
                 <div class="min-w-0">
                   <div class="font-bold text-gray-700 truncate text-[13px]">{path || file.name}</div>
                   <div class="flex items-center gap-2 mt-0.5">
-                    <span class="text-[9px] text-gray-400 font-bold px-1.5 py-0.5 bg-white rounded border border-gray-100 uppercase tracking-tighter shadow-sm">{formatBytes(file.size)}</span>
+                    <span class="text-2xs text-gray-400 font-bold px-1.5 py-0.5 bg-white rounded border border-gray-100 uppercase tracking-tighter shadow-sm">{formatBytes(file.size)}</span>
                   </div>
                 </div>
               </div>
@@ -328,14 +324,14 @@
       <div class="flex justify-end gap-3">
         <button
           on:click={() => dispatch("close")}
-          class="maas-btn-secondary px-6 text-xs font-bold uppercase tracking-widest hover:bg-white transition-colors"
+          class="btn-secondary px-6 text-xs font-bold uppercase tracking-widest hover:bg-white transition-colors"
           disabled={isLoading}
         >
           Cancel
         </button>
         <button
           on:click={handleUpload}
-          class="maas-btn-primary px-10 text-xs font-bold uppercase tracking-widest shadow-md shadow-green-200/50 group overflow-hidden relative active:scale-95 transition-all"
+          class="btn-primary px-10 text-xs font-bold uppercase tracking-widest group overflow-hidden relative active:scale-95 transition-all"
           disabled={isLoading || files.length === 0}
         >
           {#if isLoading}

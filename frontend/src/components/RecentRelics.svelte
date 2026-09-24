@@ -1,4 +1,5 @@
 <script>
+  import { navigate } from '../utils/navigation';
   import { onMount } from 'svelte';
   import { listRelics } from '../services/api';
   import { getDefaultItemsPerPage } from '../services/typeUtils';
@@ -140,8 +141,7 @@
     on:sort={handleSort}
     on:tag-click
     on:clear-tag-filter={() => {
-      window.history.pushState({}, "", "/recent");
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      navigate("/recent");
     }}
     {goToPage}
   />
