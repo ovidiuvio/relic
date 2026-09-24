@@ -4,7 +4,9 @@
 
 # Binary name
 BINARY_NAME=relic
-VERSION?=0.1.0
+# Derived from the nearest git tag (e.g. v0.6.1 -> 0.6.1); override with VERSION=x.y.z
+GIT_VERSION:=$(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
+VERSION?=$(if $(GIT_VERSION),$(GIT_VERSION),dev)
 BUILD_DIR=bin
 
 # Go build flags

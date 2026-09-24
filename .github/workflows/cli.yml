@@ -21,7 +21,7 @@ jobs:
           go-version: '1.21'
 
       - name: Build all binaries
-        run: make -C cli/client build-all
+        run: make -C cli/client build-all VERSION="${GITHUB_REF_NAME#v}"
 
       - name: Verify static linking
         run: |

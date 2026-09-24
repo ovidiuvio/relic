@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	// Version is the CLI version (set during build)
-	Version = "0.1.0"
+	// Version is the CLI version (set during build via -ldflags)
+	Version = "dev"
 
 	// Global flags
 	verbose     bool
