@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from "svelte";
-  import Toast from "./components/Toast.svelte";
+  import Toasts from "./lib/ui/Toasts.svelte";
   import KeyRevealModal from "./components/KeyRevealModal.svelte";
   import { toastStore } from "./stores/toastStore";
   import { matchRoute, sectionToPath } from "./routes";
@@ -232,7 +232,7 @@
 
   <BottomTabs section={currentSection} />
 
-  <Toast />
+  <Toasts />
   <KeyRevealModal
     show={showKeyReveal}
     userKey={userKeyOnce || ''}
