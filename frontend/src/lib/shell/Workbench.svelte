@@ -9,6 +9,7 @@
   let {
     panel,
     hasSelection = true, // a drawer only opens when there's something to inspect
+    phoneDrawer = false, // let phones open the inspector as a drawer (the viewer does; lists open rows instead)
     label = "List",
     pagebar, // snippet({ inspectorOpen, toggleInspector })
     children, // the list
@@ -19,7 +20,7 @@
     dropLabel = "Drop files to upload",
   } = $props();
 
-  const open = $derived(!$layout.phone && panel.isOpen($layout.dock, hasSelection));
+  const open = $derived((phoneDrawer || !$layout.phone) && panel.isOpen($layout.dock, hasSelection));
   const toggleInspector = () => panel.toggle($layout.dock);
 
   function typing(target) {
@@ -69,7 +70,7 @@
 <div class="wb" role="region" aria-label={label} ondragenter={onDragEnter} ondragleave={onDragLeave} ondragover={onDragOver} ondrop={onDrop}>
   <div class="wb-row">
     <div class="wb-main">
-      {@render pagebar?.({ inspectorOpen: $layout.phone ? null : open, toggleInspector })}
+      {@render pagebar?.({ inspectorOpen: $layout.phone && !phoneDrawer ? null : open, toggleInspector })}
       {@render children()}
     </div>
 
@@ -160,6 +161,12 @@
   @media (max-width: 767px) {
     .wb-status {
       display: none;
+    }
+    .wb-inspector.is-drawer {
+      left: 0;
+    }
+    .wb-inspector.is-drawer :global(.r-inspector) {
+      width: 100%;
     }
   }
 </style>

@@ -32,15 +32,15 @@
   // legacy pages still sit in the centred content column until they are rebuilt.
   let fullBleed = false;
 
-  let relicViewerFullWidth = false;
   let relicFormFullWidth = false;
   let userKeyOnce = null;
   let showKeyReveal = false;
   let mainEl;
   let lastPathname = null;
 
-  $: wideLegacy = (currentSection === "relic" && relicViewerFullWidth) || (currentSection === "new" && relicFormFullWidth);
-  $: fillsHeight = currentSection === "relic" || currentSection === "new";
+  // Legacy pages (the new relic form) still sit in a centred column unless widened.
+  $: wideLegacy = currentSection === "new" && relicFormFullWidth;
+  $: fillsHeight = currentSection === "new";
   $: contentClass = fullBleed
     ? "flex-1 min-h-0 flex flex-col"
     : `w-full ${wideLegacy ? "" : "max-w-7xl mx-auto"} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300${fillsHeight ? " flex-1 flex flex-col min-h-0" : ""}`;
@@ -100,11 +100,7 @@
     // not awaited, so link handling and back/forward don't wait on three API calls.
     loadSession();
 
-    // Load full-width preference from localStorage
-    const savedViewer = localStorage.getItem("relic_viewer_fullwidth");
-    if (savedViewer !== null) {
-      relicViewerFullWidth = savedViewer === "true";
-    }
+    // Load the form's full-width preference from localStorage
     const savedForm = localStorage.getItem("relic_form_fullwidth");
     if (savedForm !== null) {
       relicFormFullWidth = savedForm === "true";
@@ -163,11 +159,7 @@
   }
 
   function handleFullWidthToggle(event) {
-    if (currentSection === 'relic') {
-        relicViewerFullWidth = event.detail.isFullWidth;
-    } else if (currentSection === 'new') {
-        relicFormFullWidth = event.detail.isFullWidth;
-    }
+    if (currentSection === 'new') relicFormFullWidth = event.detail.isFullWidth;
   }
 </script>
 

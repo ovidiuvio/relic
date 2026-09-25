@@ -10,6 +10,8 @@
   import CommentsSection from "./CommentsSection.svelte";
   import AccessSection from "./AccessSection.svelte";
   import EditForm from "./EditForm.svelte";
+  import SpacesSection from "./SpacesSection.svelte";
+  import ReportForm from "./ReportForm.svelte";
   import { checkBookmark, addBookmark, removeBookmark, deleteRelic } from "../../../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../../../services/relicActions";
   import { isBinaryType } from "../../../services/typeUtils";
@@ -20,6 +22,8 @@
     relic = null,
     focus = null, // { id, n }: a section to open, or "edit" / "delete" to start those
     editable = false,
+    deletable = editable, // owners, and Relic admins for any relic
+    onfork = null, // (relic) instead of a fast fork (the viewer opens the fork form)
     ontag,
     onclose,
     onupdated, // (relic) after an edit
@@ -30,20 +34,22 @@
   let mode = $state("view"); // "view" | "edit"
   let confirming = $state(false);
   let deleting = $state(false);
+  let reporting = $state(false);
 
   // A different relic starts in view mode.
   $effect(() => {
     relic?.id;
     mode = "view";
     confirming = false;
+    reporting = false;
   });
 
   // Requests from the list: the Edit and Delete row actions.
   $effect(() => {
-    if (!focus || !editable) return;
+    if (!focus) return;
     focus.n;
-    if (focus.id === "edit") mode = "edit";
-    if (focus.id === "delete") {
+    if (focus.id === "edit" && editable) mode = "edit";
+    if (focus.id === "delete" && deletable) {
       mode = "view";
       confirming = true;
     }
@@ -177,7 +183,7 @@
         <button class="r-btn r-btn-secondary r-btn-md r-btn-icon" onclick={() => downloadRelic(relic.id, relic.name, relic.content_type)} title="Download" aria-label="Download">
           <Icon name="download" />
         </button>
-        <button class="r-btn r-btn-secondary r-btn-md" onclick={() => fastForkRelic(relic)} title="Fork: make your own copy">
+        <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (onfork ? onfork(relic) : fastForkRelic(relic))} title="Fork: make your own copy">
           <Icon name="fork" />Fork
         </button>
         <button
@@ -255,12 +261,25 @@
           </InsSection>
         {/if}
 
-        {#if editable}
-          <InsSection id="more" focus={confirming ? { id: "more", n: focus?.n ?? 0 } : focus} title="More" aside="edit · delete">
+        <InsSection id="spaces" {focus} title="Spaces" aside="add to a space">
+          <SpacesSection relicId={relic.id} />
+        </InsSection>
+
+        <InsSection id="more" focus={confirming ? { id: "more", n: focus?.n ?? 0 } : focus} title="More" aside={[editable && "edit", deletable && "delete", !editable && "report"].filter(Boolean).join(" · ")}>
             <div class="ins-more-actions">
-              <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (mode = "edit")}><Icon name="edit" />Edit details</button>
-              <button class="r-btn r-btn-danger-text r-btn-md" onclick={() => (confirming = true)} disabled={confirming}><Icon name="trash" />Delete</button>
+              {#if editable}
+                <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (mode = "edit")}><Icon name="edit" />Edit details</button>
+              {/if}
+              {#if !editable}
+                <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (reporting = true)} disabled={reporting}><Icon name="flag" />Report</button>
+              {/if}
+              {#if deletable}
+                <button class="r-btn r-btn-danger-text r-btn-md" onclick={() => (confirming = true)} disabled={confirming}><Icon name="trash" />Delete</button>
+              {/if}
             </div>
+            {#if reporting}
+              <ReportForm relicId={relic.id} ondone={() => (reporting = false)} />
+            {/if}
             {#if confirming}
               <div class="r-confirm ins-confirm">
                 <b>Delete “{relic.name || "Untitled"}”?</b>
@@ -271,8 +290,7 @@
                 </div>
               </div>
             {/if}
-          </InsSection>
-        {/if}
+        </InsSection>
       {/key}
     </div>
 

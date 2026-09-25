@@ -78,8 +78,9 @@ const routes = [
     // Requires that the first part is NOT one of our predefined root paths.
     // e.g. /relic_id/some/path
     pattern: /^\/([^\/]+)(?:\/(.*))?$/,
-    loader: () => import("./components/RelicViewer.svelte"),
+    loader: () => import("./pages/RelicView.svelte"),
     section: "relic",
+    fullBleed: true,
     getProps: (match) => {
       // Validate that the first param is not a known root-level route path.
       // "new" is included even though there's no /new route: old links to /new?space=id must
