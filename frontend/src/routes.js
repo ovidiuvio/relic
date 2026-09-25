@@ -18,8 +18,9 @@ const routes = [
   },
   {
     pattern: /^\/recent$/,
-    loader: () => import("./components/RecentRelics.svelte"),
+    loader: () => import("./pages/Recent.svelte"),
     section: "recent",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search')
