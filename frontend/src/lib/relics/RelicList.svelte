@@ -24,6 +24,9 @@
     hasMore = false,
     grouped = true, // day headers; off when sorted by anything but date
     dateField = "created_at",
+    dateLabel = null, // header for the date column when it isn't "Time"/"Date" (e.g. "Bookmarked")
+    showPublic = false, // mark public relics too (lists that mix visibilities)
+    showOwner = true, // off where every relic is yours
     highlight = "", // search term to <mark> in names
     selectedId = null,
     actions = [], // [{ icon, title, run(relic) }] shown on hover
@@ -141,7 +144,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="list" bind:this={listEl} role="list" aria-busy={loading} onkeydown={onKeydown}>
   {#if relics.length}
-    <div class="list-head cols" role="presentation">
+    <div class="list-head cols" class:no-owner={!showOwner} role="presentation">
       {#snippet head(key, label, title, cls = "")}
         <button class="head-sort {cls}" class:is-on={sortedBy(key)} aria-label={sortLabel(key, title)} onclick={() => onsort?.(key)} title="Sort by {title.toLowerCase()}">
           {#if cls.includes("head-num") && sortedBy(key)}<span class="head-dir" class:is-asc={sort.dir === "asc"}><Icon name="arrowup" /></span>{/if}
@@ -149,14 +152,14 @@
           {#if !cls.includes("head-num") && sortedBy(key)}<span class="head-dir" class:is-asc={sort.dir === "asc"}><Icon name="arrowup" /></span>{/if}
         </button>
       {/snippet}
-      {#snippet dateLabel()}{grouped ? "Time" : "Date"}{/snippet}
+      {#snippet dateHead()}{dateLabel ?? (grouped ? "Time" : "Date")}{/snippet}
       {#snippet nameLabel()}Name{/snippet}
       {#snippet ownerLabel()}Owner{/snippet}
       {#snippet sizeLabel()}Size{/snippet}
-      {@render head("date", dateLabel, "Date")}
+      {@render head("date", dateHead, dateLabel ?? "Date")}
       <span></span>
       {@render head("name", nameLabel, "Name")}
-      {@render head("owner", ownerLabel, "Owner", "head-owner")}
+      {#if showOwner}{@render head("owner", ownerLabel, "Owner", "head-owner")}{/if}
       <span>ID</span>
       <span class="head-tags">Tags</span>
       {@render head("size", sizeLabel, "Size", "head-num")}
@@ -184,6 +187,7 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_click_events_have_key_events -->
     <div
       class="r-row cols"
+      class:no-owner={!showOwner}
       class:is-selected={relic.id === selectedId}
       data-id={relic.id}
       role="listitem"
@@ -201,6 +205,8 @@
             <span class="r-row-vis" title="Private: anyone with the link"><Icon name="lock" /></span>
           {:else if relic.access_level === "restricted"}
             <span class="r-row-vis" title="Restricted: only people you add"><Icon name="users" /></span>
+          {:else if showPublic}
+            <span class="r-row-vis" title="Public: listed in Recent"><Icon name="globe" /></span>
           {/if}
           {#if relic.name}
             {#each nameParts(relic.name) as part}{#if part.mark}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}
@@ -216,7 +222,7 @@
           <span class="r-marker" class:r-marker-warning={expiry.soon}><Icon name="clock" />{expiry.text}</span>
         {/if}
       </span>
-      <span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>
+      {#if showOwner}<span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>{/if}
       <button
         class="r-row-id row-id"
         tabindex="-1"
@@ -334,6 +340,9 @@
      counters. Hover actions float over the counters (the design system's default). */
   .cols {
     grid-template-columns: 38px 34px minmax(0, 1fr) 130px 64px 150px 44px repeat(4, 38px);
+  }
+  .cols.no-owner {
+    grid-template-columns: 38px 34px minmax(0, 1fr) 64px 150px 44px repeat(4, 38px);
   }
   .r-row:focus-within :global(.r-row-actions) {
     display: flex;
@@ -510,7 +519,8 @@
 
   /* Narrower lists drop columns from the right-hand metadata first; the name always stays. */
   @media (max-width: 1180px) {
-    .cols {
+    .cols,
+    .cols.no-owner {
       grid-template-columns: 38px 34px minmax(0, 1fr) 64px 44px repeat(4, 34px);
     }
     .r-row-tags,
@@ -521,7 +531,8 @@
     }
   }
   @media (max-width: 767px) {
-    .cols {
+    .cols,
+    .cols.no-owner {
       grid-template-columns: 44px 34px minmax(0, 1fr) 44px;
     }
     .r-row {

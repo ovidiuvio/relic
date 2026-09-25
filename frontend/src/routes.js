@@ -28,8 +28,9 @@ const routes = [
   },
   {
     pattern: /^\/my-relics$/,
-    loader: () => import("./components/MyRelics.svelte"),
+    loader: () => import("./pages/MyRelics.svelte"),
     section: "my-relics",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search')
@@ -37,8 +38,9 @@ const routes = [
   },
   {
     pattern: /^\/my-bookmarks$/,
-    loader: () => import("./components/MyBookmarks.svelte"),
+    loader: () => import("./pages/Bookmarks.svelte"),
     section: "my-bookmarks",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search')

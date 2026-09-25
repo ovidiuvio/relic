@@ -36,6 +36,11 @@ export class RelicFeed {
     return this.#load(0);
   }
 
+  /** Merge fresh fields into a loaded row (after an edit) without reloading. */
+  update(relic) {
+    this.relics = this.relics.map((r) => (r.id === relic.id ? { ...r, ...relic } : r));
+  }
+
   /** Drop a relic from the loaded rows (after delete or un-bookmark) without reloading. */
   remove(id) {
     const before = this.relics.length;

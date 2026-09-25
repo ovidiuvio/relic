@@ -1,18 +1,69 @@
 <script>
   // The inspector for a relic selected in a list: identity, actions, meta, and sections
   // (Details, Tags, Lineage, Bookmarked by, Comments) that replace the old modals.
+  // With `editable` (your own relics) it adds the Edit details mode, the Access section for
+  // restricted relics, and Delete with an inline confirmation.
   import Icon from "../../ui/Icon.svelte";
   import InsSection from "./InsSection.svelte";
   import BookmarkersSection from "./BookmarkersSection.svelte";
   import LineageSection from "./LineageSection.svelte";
   import CommentsSection from "./CommentsSection.svelte";
-  import { checkBookmark, addBookmark, removeBookmark } from "../../../services/api";
+  import AccessSection from "./AccessSection.svelte";
+  import EditForm from "./EditForm.svelte";
+  import { checkBookmark, addBookmark, removeBookmark, deleteRelic } from "../../../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../../../services/relicActions";
   import { isBinaryType } from "../../../services/typeUtils";
   import { showToast } from "../../../stores/toastStore";
   import { typeBadge, tagName, fullDate, shortDate, clockTime, expiryMarker, dayGroup } from "../format";
 
-  let { relic = null, focus = null, ontag, onclose } = $props();
+  let {
+    relic = null,
+    focus = null, // { id, n }: a section to open, or "edit" / "delete" to start those
+    editable = false,
+    ontag,
+    onclose,
+    onupdated, // (relic) after an edit
+    ondeleted, // (relic) after a delete
+    onbookmark, // (relic, bookmarked) after the bookmark toggle
+  } = $props();
+
+  let mode = $state("view"); // "view" | "edit"
+  let confirming = $state(false);
+  let deleting = $state(false);
+
+  // A different relic starts in view mode.
+  $effect(() => {
+    relic?.id;
+    mode = "view";
+    confirming = false;
+  });
+
+  // Requests from the list: the Edit and Delete row actions.
+  $effect(() => {
+    if (!focus || !editable) return;
+    focus.n;
+    if (focus.id === "edit") mode = "edit";
+    if (focus.id === "delete") {
+      mode = "view";
+      confirming = true;
+    }
+  });
+
+  async function remove() {
+    if (deleting) return;
+    deleting = true;
+    const gone = relic;
+    try {
+      await deleteRelic(gone.id);
+      showToast(`Deleted “${gone.name || "Untitled"}”`, "success");
+      confirming = false;
+      ondeleted?.(gone);
+    } catch (error) {
+      showToast(error.response?.data?.detail || "Couldn’t delete the relic", "error");
+    } finally {
+      deleting = false;
+    }
+  }
 
   const VISIBILITY = {
     public: { icon: "globe", label: "Public", hint: "Listed in Recent" },
@@ -46,7 +97,9 @@
       else await addBookmark(relic.id);
       bookmarked = !was;
       bookmarkDelta += was ? -1 : 1;
-      showToast(was ? "Removed from bookmarks" : "Bookmarked", "success");
+      // A page that reacts to bookmark changes reports them itself (Bookmarks offers Undo).
+      if (onbookmark) onbookmark(relic, !was);
+      else showToast(was ? "Removed from bookmarks" : "Bookmarked", "success");
     } catch {
       showToast("Couldn’t update the bookmark", "error");
     } finally {
@@ -72,7 +125,18 @@
 </script>
 
 <aside class="r-inspector" aria-label="Relic details">
-  {#if !relic}
+  {#if relic && mode === "edit"}
+    {#key relic.id}
+      <EditForm
+        {relic}
+        oncancel={() => (mode = "view")}
+        onsaved={(updated) => {
+          mode = "view";
+          onupdated?.(updated);
+        }}
+      />
+    {/key}
+  {:else if !relic}
     <div class="ins-empty">
       <Icon name="panel" size={22} />
       <p>Select a relic to see its details.</p>
@@ -83,6 +147,11 @@
       <div class="r-ins-name">
         <span class="r-badge r-t-{badge.cls}" title={badge.name}>{badge.label}</span>
         <h2><a href="/{relic.id}" title="Open">{relic.name || "Untitled"}</a></h2>
+        {#if editable}
+          <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={() => (mode = "edit")} title="Edit details (e)" aria-label="Edit details">
+            <Icon name="edit" />
+          </button>
+        {/if}
         {#if onclose}
           <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={onclose} title="Hide inspector ( ] )" aria-label="Hide inspector">
             <Icon name="x" />
@@ -129,7 +198,7 @@
         {:else}
           <span class="r-pill"><Icon name="clock" />never expires</span>
         {/if}
-        <span>{relic.owner_name || "Anonymous"} · {when}</span>
+        <span>{editable ? "You" : relic.owner_name || "Anonymous"} · {when}</span>
       </div>
     </div>
 
@@ -179,6 +248,31 @@
         <InsSection id="comments" {focus} title="Comments" aside={relic.comments_count ? plural(relic.comments_count, "comment") : "none"}>
           <CommentsSection relicId={relic.id} />
         </InsSection>
+
+        {#if editable && relic.access_level === "restricted"}
+          <InsSection id="access" {focus} title="Access" aside="restricted">
+            <AccessSection relicId={relic.id} />
+          </InsSection>
+        {/if}
+
+        {#if editable}
+          <InsSection id="more" focus={confirming ? { id: "more", n: focus?.n ?? 0 } : focus} title="More" aside="edit · delete">
+            <div class="ins-more-actions">
+              <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (mode = "edit")}><Icon name="edit" />Edit details</button>
+              <button class="r-btn r-btn-danger-text r-btn-md" onclick={() => (confirming = true)} disabled={confirming}><Icon name="trash" />Delete</button>
+            </div>
+            {#if confirming}
+              <div class="r-confirm ins-confirm">
+                <b>Delete “{relic.name || "Untitled"}”?</b>
+                <span>It will be deleted for everyone, with its comments and bookmarks. Forks made from it stay. This can’t be undone.</span>
+                <div class="r-confirm-actions">
+                  <button class="r-btn r-btn-secondary r-btn-sm" onclick={() => (confirming = false)}>Cancel</button>
+                  <button class="r-btn r-btn-danger r-btn-sm" onclick={remove} disabled={deleting}>{deleting ? "Deleting…" : "Delete relic"}</button>
+                </div>
+              </div>
+            {/if}
+          </InsSection>
+        {/if}
       {/key}
     </div>
 
@@ -186,6 +280,7 @@
       <span><kbd class="r-kbd">]</kbd>hide</span>
       <span><kbd class="r-kbd">↵</kbd>open</span>
       <span><kbd class="r-kbd">y</kbd>copy link</span>
+      {#if editable}<span><kbd class="r-kbd">e</kbd>edit</span>{/if}
     </div>
   {/if}
 </aside>
@@ -217,6 +312,13 @@
     border: 0;
     background: none;
     cursor: pointer;
+  }
+  .ins-more-actions {
+    display: flex;
+    gap: var(--space-1\.5);
+  }
+  .ins-confirm {
+    margin-top: var(--space-2\.5);
   }
   .ins-empty {
     display: grid;
@@ -298,7 +400,8 @@
     color: var(--accent);
   }
   .r-inspector :global(.ins-tree li) {
-    padding-left: calc(var(--depth) * 14px);
+    /* Long fork chains stop indenting after eight levels so names stay readable. */
+    padding-left: calc(min(var(--depth), 8) * 14px);
   }
   .r-inspector :global(.ins-tree a) {
     min-width: 0;

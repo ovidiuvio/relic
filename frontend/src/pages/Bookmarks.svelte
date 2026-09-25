@@ -1,33 +1,59 @@
 <script>
-  // Recent: every public relic, newest first, as the compact day-grouped log.
-  // Search comes from the navbar (?search=), tag filters from ?tag=; both show as chips.
+  // Bookmarks: relics you saved, grouped by when you bookmarked them. Removing a bookmark
+  // (row action or the inspector's toggle) drops the row at once, with Undo in the toast.
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
-  import RelicDropModal from "../components/RelicDropModal.svelte";
   import { RelicFeed, DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/feed.svelte.js";
-  import { listRelics } from "../services/api";
-  import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
-  import { getFilesFromDrop } from "../services/utils/fileProcessing";
-  import { navigate } from "../utils/navigation";
   import { filterUrl } from "../lib/relics/filters";
+  import { refreshSidebar } from "../lib/shell/sidebarData";
+  import { getUserBookmarks, addBookmark, removeBookmark } from "../services/api";
+  import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
+  import { showToast } from "../stores/toastStore";
+  import { navigate } from "../utils/navigation";
 
   let { tagFilter = null, search = null } = $props();
 
-  const feed = new RelicFeed((params) => listRelics(params).then((r) => r.data));
+  const feed = new RelicFeed((params) =>
+    getUserBookmarks(params).then((r) => ({ relics: r.data.bookmarks, total: r.data.total }))
+  );
   let sort = $state(DEFAULT_SORT);
 
+  // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
   $effect(() => {
-    const params = {
-      tag: tagFilter || undefined,
-      search: search || undefined,
-      ...sortParams(sort),
-    };
+    const params = { tag: tagFilter || undefined, search: search || undefined, ...sortParams(sort) };
     untrack(() => feed.reset(params));
   });
 
-  const withParams = (changes) => filterUrl("/recent", changes);
+  const withParams = (changes) => filterUrl("/my-bookmarks", changes);
+
+  // Undo puts the bookmark back and reloads, so the row returns to its place.
+  function removed(relic) {
+    feed.remove(relic.id);
+    refreshSidebar();
+    showToast(`Removed “${relic.name || "Untitled"}” from bookmarks`, "success", 3000, {
+      label: "Undo",
+      run: async () => {
+        try {
+          await addBookmark(relic.id);
+          feed.reload();
+          refreshSidebar();
+        } catch {
+          showToast("Couldn’t restore the bookmark", "error");
+        }
+      },
+    });
+  }
+
+  async function removeRow(relic) {
+    try {
+      await removeBookmark(relic.id);
+      removed(relic);
+    } catch {
+      showToast("Couldn’t remove the bookmark", "error");
+    }
+  }
 
   const actions = [
     { icon: "link", title: "Copy link", run: (r) => copyToClipboard(`${location.origin}/${r.id}`, "Link copied") },
@@ -35,14 +61,8 @@
     { icon: "raw", title: "View raw", run: (r) => window.open(`/${r.id}/raw`, "_blank", "noopener") },
     { icon: "fork", title: "Fast fork", run: (r) => fastForkRelic(r) },
     { icon: "download", title: "Download", run: (r) => downloadRelic(r.id, r.name, r.content_type) },
+    { icon: "bookmark", title: "Remove bookmark", run: removeRow },
   ];
-
-  // Dropped files open the upload form (still a dialog; it moves into the inspector later).
-  let droppedFiles = $state(null);
-  async function onDropFiles(dataTransfer) {
-    const files = await getFilesFromDrop(dataTransfer);
-    if (files.length) droppedFiles = files;
-  }
 
   const filtered = $derived(!!(search || tagFilter));
 </script>
@@ -50,18 +70,20 @@
 <RelicWorkbench
   {feed}
   grouped={sort.key === "date"}
+  dateField="bookmarked_at"
+  dateLabel="Bookmarked"
   highlight={search || ""}
   {actions}
   {sort}
   onsort={(key) => (sort = nextSort(sort, key))}
-  emptyText={filtered ? "No public relics match these filters." : "No public relics yet."}
-  emptyAction={filtered ? { href: "/recent", label: "Clear filters" } : { href: "/", label: "Create the first one" }}
+  showPublic
+  emptyText={filtered ? "None of your bookmarks match these filters." : "No bookmarks yet. Bookmark a relic to keep it here."}
+  emptyAction={filtered ? { href: "/my-bookmarks", label: "Clear filters" } : { href: "/recent", label: "Browse recent relics" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}
-  ondropfiles={onDropFiles}
-  dropLabel="Drop files to upload them as public relics"
+  onbookmark={(relic, bookmarked) => !bookmarked && removed(relic)}
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={filtered ? "Results" : "Recent"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={filtered ? "Results" : "Bookmarks"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -74,21 +96,10 @@
   {/snippet}
 
   {#snippet status()}
-    <span><Icon name="globe" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} public relics</span>
+    <span><Icon name="bookmark" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} bookmarks</span>
     <span>{feed.relics.length.toLocaleString("en-US")} loaded</span>
     {#if feed.error}<span class="status-error">Couldn’t load more. <button class="r-link" onclick={() => feed.reload()}>Retry</button></span>{/if}
     <span class="r-gap"></span>
     <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>move</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>
   {/snippet}
 </RelicWorkbench>
-
-{#if droppedFiles}
-  <RelicDropModal
-    files={droppedFiles}
-    on:close={() => (droppedFiles = null)}
-    on:success={() => {
-      droppedFiles = null;
-      feed.reload();
-    }}
-  />
-{/if}

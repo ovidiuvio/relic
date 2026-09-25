@@ -10,13 +10,17 @@
   import { layout } from "../shell/layout";
   import { navigate } from "../../utils/navigation";
   import { copyToClipboard } from "../../services/relicActions";
+  import { refreshSidebar } from "../shell/sidebarData";
 
   let {
     feed,
     grouped = true,
     dateField = "created_at",
+    dateLabel = null,
+    showPublic = false,
+    showOwner = true,
     highlight = "",
-    actions = [],
+    actions = [], // [{ icon, title, run(relic) }] or { icon, title, request: "edit" | "delete" }
     emptyText,
     emptyAction = null,
     sort = null, // { key, dir }, shown and changed by the list's column headers
@@ -24,6 +28,8 @@
     ontag,
     pagebar, // snippet({ inspectorOpen, toggleInspector })
     status, // snippet for the status bar
+    editable = false, // your own relics: Edit, Access and Delete in the inspector
+    onbookmark, // (relic, bookmarked) after the inspector's bookmark toggle
     ondropfiles = null, // (files) => void; enables dropping files onto the list
     dropLabel = "Drop files to upload",
   } = $props();
@@ -82,6 +88,19 @@
     focus = { id: section, n: (focus?.n ?? 0) + 1 };
   }
 
+  // Row actions that open an inspector mode instead of running on their own.
+  const rowActions = $derived(
+    actions.map((a) => (a.request ? { ...a, run: (relic) => showSection(relic, a.request) } : a))
+  );
+
+  // After a delete, select the row that took its place (or the one above, at the end).
+  function onDeleted(relic) {
+    const i = feed.relics.findIndex((r) => r.id === relic.id);
+    feed.remove(relic.id);
+    selectedId = feed.relics[Math.min(i, feed.relics.length - 1)]?.id ?? null;
+    refreshSidebar();
+  }
+
   function open(relic) {
     navigate(`/${relic.id}`);
   }
@@ -95,6 +114,9 @@
     if (event.key === "]") {
       event.preventDefault();
       toggleInspector();
+    } else if (event.key === "e" && editable && selected) {
+      event.preventDefault();
+      showSection(selected, "edit");
     } else if (event.key === "y" && selected) {
       copyToClipboard(`${location.origin}/${selected.id}`, "Link copied");
     } else if (event.key === "Escape" && drawer) {
@@ -138,8 +160,11 @@
         hasMore={feed.hasMore}
         {grouped}
         {dateField}
+        {dateLabel}
+        {showPublic}
+        {showOwner}
         {highlight}
-        {actions}
+        actions={rowActions}
         {emptyText}
         {emptyAction}
         {selectedId}
@@ -155,7 +180,16 @@
 
     {#if inspectorOpen}
       <div class="wb-inspector" class:is-drawer={!$layout.dock}>
-        <RelicInspector relic={selected} {focus} {ontag} onclose={$layout.dock ? null : () => (drawer = false)} />
+        <RelicInspector
+          relic={selected}
+          {focus}
+          {editable}
+          {ontag}
+          {onbookmark}
+          onupdated={(relic) => feed.update(relic)}
+          ondeleted={onDeleted}
+          onclose={$layout.dock ? null : () => (drawer = false)}
+        />
       </div>
     {/if}
 
@@ -227,6 +261,15 @@
   }
   .wb-status {
     flex: none;
+  }
+  .wb-status :global(.status-error) {
+    color: var(--danger);
+  }
+  .wb-status :global(.status-error button) {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
   }
   @media (max-width: 767px) {
     .wb-status {

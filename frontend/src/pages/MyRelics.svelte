@@ -1,33 +1,30 @@
 <script>
-  // Recent: every public relic, newest first, as the compact day-grouped log.
-  // Search comes from the navbar (?search=), tag filters from ?tag=; both show as chips.
+  // My relics: everything you created, any visibility, with editing and deleting in the
+  // inspector (no dialogs). Search comes from the navbar (?search=), tag filters from ?tag=.
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import RelicDropModal from "../components/RelicDropModal.svelte";
   import { RelicFeed, DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/feed.svelte.js";
-  import { listRelics } from "../services/api";
+  import { filterUrl } from "../lib/relics/filters";
+  import { refreshSidebar } from "../lib/shell/sidebarData";
+  import { getUserRelics } from "../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
   import { navigate } from "../utils/navigation";
-  import { filterUrl } from "../lib/relics/filters";
 
   let { tagFilter = null, search = null } = $props();
 
-  const feed = new RelicFeed((params) => listRelics(params).then((r) => r.data));
+  const feed = new RelicFeed((params) => getUserRelics(params).then((r) => r.data));
   let sort = $state(DEFAULT_SORT);
 
   $effect(() => {
-    const params = {
-      tag: tagFilter || undefined,
-      search: search || undefined,
-      ...sortParams(sort),
-    };
+    const params = { tag: tagFilter || undefined, search: search || undefined, ...sortParams(sort) };
     untrack(() => feed.reset(params));
   });
 
-  const withParams = (changes) => filterUrl("/recent", changes);
+  const withParams = (changes) => filterUrl("/my-relics", changes);
 
   const actions = [
     { icon: "link", title: "Copy link", run: (r) => copyToClipboard(`${location.origin}/${r.id}`, "Link copied") },
@@ -35,6 +32,8 @@
     { icon: "raw", title: "View raw", run: (r) => window.open(`/${r.id}/raw`, "_blank", "noopener") },
     { icon: "fork", title: "Fast fork", run: (r) => fastForkRelic(r) },
     { icon: "download", title: "Download", run: (r) => downloadRelic(r.id, r.name, r.content_type) },
+    { icon: "edit", title: "Edit details", request: "edit" },
+    { icon: "trash", title: "Delete", request: "delete" },
   ];
 
   // Dropped files open the upload form (still a dialog; it moves into the inspector later).
@@ -54,14 +53,17 @@
   {actions}
   {sort}
   onsort={(key) => (sort = nextSort(sort, key))}
-  emptyText={filtered ? "No public relics match these filters." : "No public relics yet."}
-  emptyAction={filtered ? { href: "/recent", label: "Clear filters" } : { href: "/", label: "Create the first one" }}
+  editable
+  showPublic
+  showOwner={false}
+  emptyText={filtered ? "None of your relics match these filters." : "You haven’t made any relics yet."}
+  emptyAction={filtered ? { href: "/my-relics", label: "Clear filters" } : { href: "/", label: "Create your first relic" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}
   ondropfiles={onDropFiles}
-  dropLabel="Drop files to upload them as public relics"
+  dropLabel="Drop files to add them to your relics"
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={filtered ? "Results" : "Recent"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={filtered ? "Results" : "My relics"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -74,11 +76,11 @@
   {/snippet}
 
   {#snippet status()}
-    <span><Icon name="globe" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} public relics</span>
+    <span><Icon name="user" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} of your relics</span>
     <span>{feed.relics.length.toLocaleString("en-US")} loaded</span>
     {#if feed.error}<span class="status-error">Couldn’t load more. <button class="r-link" onclick={() => feed.reload()}>Retry</button></span>{/if}
     <span class="r-gap"></span>
-    <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>move</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>
+    <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">e</kbd>edit</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>
   {/snippet}
 </RelicWorkbench>
 
@@ -89,6 +91,7 @@
     on:success={() => {
       droppedFiles = null;
       feed.reload();
+      refreshSidebar();
     }}
   />
 {/if}
