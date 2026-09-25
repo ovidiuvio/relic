@@ -48,8 +48,9 @@ const routes = [
   },
   {
     pattern: /^\/spaces$/,
-    loader: () => import("./components/SpacesList.svelte"),
+    loader: () => import("./pages/Spaces.svelte"),
     section: "spaces",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
       search: urlParams.get('search'),
       create: urlParams.get('create') === '1'
@@ -57,8 +58,9 @@ const routes = [
   },
   {
     pattern: /^\/spaces\/([^\/]+)$/,
-    loader: () => import("./components/SpaceViewer.svelte"),
+    loader: () => import("./pages/Space.svelte"),
     section: "space-view",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
       spaceId: match[1],
       tagFilter: urlParams.get('tag'),
@@ -80,9 +82,8 @@ const routes = [
     section: "relic",
     getProps: (match) => {
       // Validate that the first param is not a known root-level route path.
-      // "new" is included even though there's no /new route, because SpacesList and SpaceViewer
-      // dispatch navigate('new?space=id') which lands on /new. The reserved check ensures that
-      // falls through to the fallback (RelicForm) rather than matching as a relic ID.
+      // "new" is included even though there's no /new route: old links to /new?space=id must
+      // fall through to the fallback (RelicForm) rather than match as a relic ID.
       const reserved = ["api", "recent", "my-relics", "my-bookmarks", "spaces", "new", "admin"];
       if (reserved.includes(match[1])) {
         return null; // Signals this route shouldn't match

@@ -13,7 +13,7 @@
   import { layout } from "./lib/shell/layout";
   import { navigate, internalLinkTarget } from "./utils/navigation";
 
-  // Default titles; RelicViewer / SpaceViewer replace them with real names.
+  // Default titles; the relic viewer and space page replace them with real names.
   const SECTION_TITLES = {
     new: "New relic",
     recent: "Recent relics",
