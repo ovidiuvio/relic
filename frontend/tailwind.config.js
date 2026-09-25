@@ -1,3 +1,10 @@
+// Relic design system colours as Tailwind colours (`bg-surface`, `text-ink-3`,
+// `border-line`), each pointing at its CSS custom property in tokens.css.
+const tokens = require('./src/design-system/tokens.json')
+const dsColors = Object.fromEntries(
+  tokens.color.tokens.map((t) => [t.name, `var(--${t.name})`]),
+)
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -8,6 +15,8 @@ export default {
     extend: {
       // Design tokens. Prefer these over raw hex values in components.
       colors: {
+        ...dsColors,
+        // Legacy tokens below, used by components not yet moved to the design system.
         // Aubergine brand scale; 600 is the historical #772953.
         brand: {
           50: '#faf2f6',

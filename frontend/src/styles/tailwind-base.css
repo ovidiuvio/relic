@@ -1,0 +1,2 @@
+/* Tailwind preflight comes first so the design system can build on it. */
+@tailwind base;
