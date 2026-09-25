@@ -131,7 +131,7 @@ async def get_user_relics(
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()
 
-    relics_result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
+    relics_result = await db.execute(stmt.order_by(*order).offset(offset).limit(limit))
     relics = relics_result.scalars().all()
 
     # Fetch all counts in bulk (2 queries instead of N*2)

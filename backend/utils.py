@@ -102,24 +102,46 @@ def apply_relic_search(stmt, search: str):
     ).distinct()
 
 
-def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None):
-    """Return a SQLAlchemy order clause for common relic sort options.
+def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None) -> tuple:
+    """Return SQLAlchemy ORDER BY clauses for the common relic sort options.
 
+    Pass the result unpacked: ``stmt.order_by(*relic_sort_order(...))``.
+
+    sort_by: created_at, name, owner, size, access_count, bookmark_count, comments_count,
+    forks_count. Unknown keys fall back to created_at.
     overrides: dict mapping sort key names to alternative columns,
     e.g. {"created_at": ClientBookmark.created_at} for bookmarks.
+
+    Names and owners sort case-insensitively. Rows without a value (unnamed relics,
+    anonymous relics when sorting by owner) come last
+    in either direction, and ties are broken by newest first, then id, so offset
+    pagination never repeats or skips a row between pages.
     """
-    from backend.models import Relic
+    from backend.models import Relic, Comment, User
+    from sqlalchemy import select, func, nulls_last
+    from sqlalchemy.orm import aliased
+
+    fork = aliased(Relic)
     sort_map = {
         "created_at": Relic.created_at,
-        "name": Relic.name,
+        "name": func.lower(Relic.name),
+        # Owner's display name; anonymous relics and unnamed owners have none.
+        "owner": select(func.lower(User.name))
+            .where(User.id == Relic.user_id).correlate(Relic).scalar_subquery(),
         "size": Relic.size_bytes,
         "access_count": Relic.access_count,
         "bookmark_count": Relic.bookmark_count,
+        # Counted per row; comment.relic_id and relic.fork_of are indexed.
+        "comments_count": select(func.count(Comment.id))
+            .where(Comment.relic_id == Relic.id).correlate(Relic).scalar_subquery(),
+        "forks_count": select(func.count(fork.id))
+            .where(fork.fork_of == Relic.id).correlate(Relic).scalar_subquery(),
     }
     if overrides:
         sort_map.update(overrides)
     sort_col = sort_map.get(sort_by, sort_map["created_at"])
-    return sort_col.desc() if sort_order == "desc" else sort_col.asc()
+    primary = nulls_last(sort_col.desc() if sort_order == "desc" else sort_col.asc())
+    return (primary, Relic.created_at.desc(), Relic.id.desc())
 
 
 def clamp_limit(limit: int, default: int = 25) -> int:

@@ -196,7 +196,7 @@ async def get_user_bookmarks(
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()
 
-    rows = (await db.execute(stmt.order_by(order).offset(offset).limit(limit))).all()
+    rows = (await db.execute(stmt.order_by(*order).offset(offset).limit(limit))).all()
 
     relic_ids = [relic.id for _, relic in rows]
     comments_counts = {}
