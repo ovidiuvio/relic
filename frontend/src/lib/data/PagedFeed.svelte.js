@@ -8,7 +8,9 @@
 // The fetch returns { items, total }, or the API's own shape with `rows` naming the list
 // (default "relics": { relics, total }).
 export class PagedFeed {
-  items = $state([]);
+  // Raw: rows are API data, replaced whole (never edited in place), and a long scroll can hold
+  // thousands of them; deep proxies would only add cost.
+  items = $state.raw([]);
   total = $state(null);
   loading = $state(false);
   error = $state(null);
