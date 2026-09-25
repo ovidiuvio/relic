@@ -13,13 +13,19 @@
 
     let spaces = [];
     let loading = true;
+    // ?create=1 (the sidebar's "+" on Spaces) opens the create form straight away.
+    export let create = false;
     let showCreateModal = false;
+    $: if (create) showCreateModal = true;
     let newSpaceName = '';
     let newSpaceVisibility = 'public';
     let creating = false;
     let filter = 'all'; // all, my, shared, public
 
+    // Seeded from ?search= (the navbar search); the table's own box can still change it.
+    export let search = null;
     let searchTerm = '';
+    $: searchTerm = search || '';
     let sortBy = 'created_at';
     let sortOrder = 'desc';
 

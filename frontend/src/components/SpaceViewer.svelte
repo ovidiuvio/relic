@@ -52,7 +52,10 @@
     let showAddRelicModal = false;
     let newRelicId = '';
     let addingRelic = false;
+    // Seeded from ?search= (the navbar search); the table's own box can still change it.
+    export let search = null;
     let searchTerm = '';
+    $: searchTerm = search || '';
     let currentPage = 1;
     let itemsPerPage = 20;
     let sortBy = 'date';
@@ -98,7 +101,7 @@
     async function loadSpace() {
         loading = true;
         reloader.reset();
-        searchTerm = '';
+        searchTerm = search || '';
         tagFilter = null;
         errorStatus = null;
         try {

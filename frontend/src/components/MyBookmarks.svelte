@@ -12,7 +12,10 @@
 
   let bookmarks = []
   let loading = true
+  // Seeded from ?search= (the navbar search); the table's own box can still change it.
+  export let search = null
   let searchTerm = ''
+  $: searchTerm = search || ''
   let currentPage = 1
   let itemsPerPage = 20
   let total = 0

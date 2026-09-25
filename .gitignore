@@ -12,6 +12,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# ...but not the frontend's own source folder (src/lib is the Svelte convention)
+!frontend/src/lib/
 parts/
 sdist/
 var/

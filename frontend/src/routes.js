@@ -21,7 +21,8 @@ const routes = [
     loader: () => import("./components/RecentRelics.svelte"),
     section: "recent",
     getProps: (match, urlParams) => ({
-      tagFilter: urlParams.get('tag')
+      tagFilter: urlParams.get('tag'),
+      search: urlParams.get('search')
     })
   },
   {
@@ -29,7 +30,8 @@ const routes = [
     loader: () => import("./components/MyRelics.svelte"),
     section: "my-relics",
     getProps: (match, urlParams) => ({
-      tagFilter: urlParams.get('tag')
+      tagFilter: urlParams.get('tag'),
+      search: urlParams.get('search')
     })
   },
   {
@@ -37,14 +39,18 @@ const routes = [
     loader: () => import("./components/MyBookmarks.svelte"),
     section: "my-bookmarks",
     getProps: (match, urlParams) => ({
-      tagFilter: urlParams.get('tag')
+      tagFilter: urlParams.get('tag'),
+      search: urlParams.get('search')
     })
   },
   {
     pattern: /^\/spaces$/,
     loader: () => import("./components/SpacesList.svelte"),
     section: "spaces",
-    getProps: () => ({})
+    getProps: (match, urlParams) => ({
+      search: urlParams.get('search'),
+      create: urlParams.get('create') === '1'
+    })
   },
   {
     pattern: /^\/spaces\/([^\/]+)$/,
@@ -52,7 +58,8 @@ const routes = [
     section: "space-view",
     getProps: (match, urlParams) => ({
       spaceId: match[1],
-      tagFilter: urlParams.get('tag')
+      tagFilter: urlParams.get('tag'),
+      search: urlParams.get('search')
     })
   },
   {
@@ -107,6 +114,7 @@ export function sectionToPath(section) {
  *   loader   {Function} - () => Promise<module> dynamic import of the Svelte component.
  *                         Must be a stable reference (see relicFormLoader above).
  *   section  {string}   - identifier used for active nav state
+ *   fullBleed {boolean} - the page draws its own full-width frame (page bar, list, inspector)
  *   getProps {Function} - (match, urlParams) => Object | null
  *                         Return null to reject the match and fall through to the next route.
  */
@@ -124,6 +132,7 @@ export function matchRoute(path, urlParams) {
           loader: route.loader,
           props: props,
           section: route.section,
+          fullBleed: !!route.fullBleed,
         };
       }
     }

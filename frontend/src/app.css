@@ -7,6 +7,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Workbench frame widths; the tiers match lib/shell/layout.js. The inspector widens on big
+   screens, and from 1600px a sidebar (--rail-w) takes over the navbar's section tabs. */
+:root {
+  --rail-w: 232px;
+}
+@media (min-width: 1600px) {
+  :root {
+    --inspector-width: 400px;
+  }
+}
+@media (min-width: 2200px) {
+  :root {
+    --inspector-width: 440px;
+  }
+}
+
 /* @tailwindcss/forms styles bare inputs; design-system fields draw their own border and focus ring. */
 .r-input input:focus,
 .r-input textarea:focus,
