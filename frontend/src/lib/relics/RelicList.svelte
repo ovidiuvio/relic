@@ -32,7 +32,7 @@
     actions = [], // [{ icon, title, run(relic) }] shown on hover
     emptyText = "No relics yet",
     emptyAction = null, // { href, label } link under the empty message
-    sort = null, // { key, dir } (see feed.svelte.js); the column headers show and change it
+    sort = null, // { key, dir } (see relics/sort.js); the column headers show and change it
     onsort, // (column key) => void
     onselect,
     onopen,

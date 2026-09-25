@@ -5,7 +5,8 @@
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
-  import { RelicFeed, DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/feed.svelte.js";
+  import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
+  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
   import { filterUrl } from "../lib/relics/filters";
   import { refreshSidebar } from "../lib/shell/sidebarData";
   import { getUserBookmarks, addBookmark, removeBookmark } from "../services/api";
@@ -15,9 +16,7 @@
 
   let { tagFilter = null, search = null } = $props();
 
-  const feed = new RelicFeed((params) =>
-    getUserBookmarks(params).then((r) => ({ relics: r.data.bookmarks, total: r.data.total }))
-  );
+  const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks" });
   let sort = $state(DEFAULT_SORT);
 
   // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
@@ -97,7 +96,7 @@
 
   {#snippet status()}
     <span><Icon name="bookmark" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} bookmarks</span>
-    <span>{feed.relics.length.toLocaleString("en-US")} loaded</span>
+    <span>{feed.items.length.toLocaleString("en-US")} loaded</span>
     {#if feed.error}<span class="status-error">Couldn’t load more. <button class="r-link" onclick={() => feed.reload()}>Retry</button></span>{/if}
     <span class="r-gap"></span>
     <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>move</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>

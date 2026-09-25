@@ -6,7 +6,8 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import RelicDropModal from "../components/RelicDropModal.svelte";
-  import { RelicFeed, DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/feed.svelte.js";
+  import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
+  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
   import { filterUrl } from "../lib/relics/filters";
   import { refreshSidebar } from "../lib/shell/sidebarData";
   import { getUserRelics } from "../services/api";
@@ -16,7 +17,7 @@
 
   let { tagFilter = null, search = null } = $props();
 
-  const feed = new RelicFeed((params) => getUserRelics(params).then((r) => r.data));
+  const feed = new PagedFeed((params) => getUserRelics(params).then((r) => r.data));
   let sort = $state(DEFAULT_SORT);
 
   $effect(() => {
@@ -77,7 +78,7 @@
 
   {#snippet status()}
     <span><Icon name="user" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} of your relics</span>
-    <span>{feed.relics.length.toLocaleString("en-US")} loaded</span>
+    <span>{feed.items.length.toLocaleString("en-US")} loaded</span>
     {#if feed.error}<span class="status-error">Couldn’t load more. <button class="r-link" onclick={() => feed.reload()}>Retry</button></span>{/if}
     <span class="r-gap"></span>
     <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">e</kbd>edit</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>

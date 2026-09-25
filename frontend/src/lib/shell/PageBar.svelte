@@ -30,6 +30,16 @@
     flex: none;
     overflow: hidden;
   }
+  /* Phones: filters and page actions can outgrow the width; the bar scrolls sideways. */
+  @media (max-width: 767px) {
+    .r-pagebar {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .r-pagebar :global(.r-gap) {
+      flex: 1 0 var(--space-3);
+    }
+  }
   /* View options are real selects dressed as the design's sentence-style options. */
   .r-pagebar :global(.r-pagebar-opt select) {
     padding: 0 14px 0 0;

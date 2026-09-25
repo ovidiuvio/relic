@@ -3,6 +3,7 @@
 @import "./styles/tailwind-base.css";
 @import "./design-system/tokens.css";
 @import "./design-system/components.css";
+@import "./styles/inspector.css";
 
 @tailwind components;
 @tailwind utilities;

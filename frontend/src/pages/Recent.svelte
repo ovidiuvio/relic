@@ -6,7 +6,8 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import RelicDropModal from "../components/RelicDropModal.svelte";
-  import { RelicFeed, DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/feed.svelte.js";
+  import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
+  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
   import { listRelics } from "../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
@@ -15,7 +16,7 @@
 
   let { tagFilter = null, search = null } = $props();
 
-  const feed = new RelicFeed((params) => listRelics(params).then((r) => r.data));
+  const feed = new PagedFeed((params) => listRelics(params).then((r) => r.data));
   let sort = $state(DEFAULT_SORT);
 
   $effect(() => {
@@ -75,7 +76,7 @@
 
   {#snippet status()}
     <span><Icon name="globe" />{feed.total == null ? "…" : feed.total.toLocaleString("en-US")} public relics</span>
-    <span>{feed.relics.length.toLocaleString("en-US")} loaded</span>
+    <span>{feed.items.length.toLocaleString("en-US")} loaded</span>
     {#if feed.error}<span class="status-error">Couldn’t load more. <button class="r-link" onclick={() => feed.reload()}>Retry</button></span>{/if}
     <span class="r-gap"></span>
     <span class="r-hints"><span><kbd class="r-kbd">/</kbd>search</span><span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>move</span><span><kbd class="r-kbd">]</kbd>inspector</span></span>
