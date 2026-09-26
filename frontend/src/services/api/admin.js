@@ -9,8 +9,9 @@ export async function getAdminStats() {
     return api.get('/admin/stats')
 }
 
-export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, userId = null, search = null, tag = null, sortBy = 'created_at', sortOrder = 'desc') {
-    const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder }
+export async function getAdminRelics(limit = 100, offset = 0, accessLevel = null, userId = null, search = null, tag = null, sortBy = 'created_at', sortOrder = 'desc', extra = {}) {
+    // extra: { types, facets } for the type facets and top tags
+    const params = { limit, offset, sort_by: sortBy, sort_order: sortOrder, ...extra }
     if (accessLevel) params.access_level = accessLevel
     if (userId) params.user_id = userId
     if (search) params.search = search

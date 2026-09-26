@@ -26,9 +26,11 @@
 </div>
 
 <style>
+  /* A container, so what's in it (the type facets) can fold up when the bar is narrow. */
   .r-pagebar {
     flex: none;
     overflow: hidden;
+    container: pagebar / inline-size;
   }
   /* Phones: filters and page actions can outgrow the width; the bar scrolls sideways. */
   @media (max-width: 767px) {

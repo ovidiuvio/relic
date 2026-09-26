@@ -14,6 +14,9 @@ export class PagedFeed {
   total = $state(null);
   loading = $state(false);
   error = $state(null);
+  // With `facets`: counts per content type and the top tags for the list as filtered, before its
+  // type filter ({ types: { "text/x-python": 12 }, tags: [{ name, count }] }). From the first page.
+  facets = $state.raw(null);
   hasMore = $derived(this.total != null && this.items.length < this.total);
 
   #fetch;
@@ -21,11 +24,13 @@ export class PagedFeed {
   #gen = 0;
   #pageSize;
   #rows;
+  #withFacets;
 
   /** @param {(params: object) => Promise<object>} fetch */
-  constructor(fetch, { rows = "relics", pageSize = 50 } = {}) {
+  constructor(fetch, { rows = "relics", pageSize = 50, facets = false } = {}) {
     this.#fetch = fetch;
     this.#rows = rows;
+    this.#withFacets = facets;
     this.#pageSize = pageSize;
   }
 
@@ -60,7 +65,12 @@ export class PagedFeed {
     this.loading = true;
     this.error = null;
     try {
-      const data = await this.#fetch({ ...this.#params, limit: this.#pageSize, offset });
+      const data = await this.#fetch({
+        ...this.#params,
+        limit: this.#pageSize,
+        offset,
+        facets: this.#withFacets && !offset ? true : undefined,
+      });
       if (gen !== this.#gen) return;
       const rows = data.items ?? data[this.#rows] ?? [];
       if (offset) {
@@ -69,6 +79,7 @@ export class PagedFeed {
         this.items = [...this.items, ...rows.filter((r) => !seen.has(r.id))];
       } else {
         this.items = rows;
+        if (data.facets) this.facets = data.facets;
       }
       this.total = data.total ?? rows.length;
     } catch (error) {

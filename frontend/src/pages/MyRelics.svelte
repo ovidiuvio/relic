@@ -4,6 +4,9 @@
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
+  import TypeFacets from "../lib/relics/TypeFacets.svelte";
+  import TagPicker from "../lib/relics/TagPicker.svelte";
+  import { facetTypes } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -15,13 +18,16 @@
   import { uploadFiles } from "../lib/compose/pendingUpload";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null } = $props();
 
-  const feed = new PagedFeed((params) => getUserRelics(params).then((r) => r.data));
+  const feed = new PagedFeed((params) => getUserRelics(params).then((r) => r.data), { facets: true });
+
+  // The type facet as the content types to send; derived, so new counts don't reload the same list.
+  const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
   let sort = $state(DEFAULT_SORT);
 
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, ...sortParams(sort) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort) };
     untrack(() => feed.reset(params));
   });
 
@@ -43,7 +49,7 @@
     if (files.length) uploadFiles(files);
   }
 
-  const filtered = $derived(!!(search || tagFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter));
 </script>
 
 <RelicWorkbench
@@ -63,7 +69,7 @@
   dropLabel="Drop files to add them to your relics"
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={filtered ? "Results" : "My relics"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={search || tagFilter ? "Results" : "My relics"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -71,6 +77,11 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+      <span class="r-pagebar-sep"></span>
+        <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+      {/snippet}
+      {#snippet options()}
+        <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />
       {/snippet}
     </PageBar>
   {/snippet}

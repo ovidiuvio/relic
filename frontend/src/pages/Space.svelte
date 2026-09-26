@@ -5,6 +5,9 @@
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
+  import TypeFacets from "../lib/relics/TypeFacets.svelte";
+  import TagPicker from "../lib/relics/TagPicker.svelte";
+  import { facetTypes } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import SpaceInspector from "../lib/spaces/SpaceInspector.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
@@ -22,11 +25,14 @@
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
 
-  let { spaceId, tagFilter = null, search = null } = $props();
+  let { spaceId, tagFilter = null, search = null, typeFilter = null } = $props();
 
   let space = $state(null);
   let error = $state(null); // HTTP status or "unknown"
-  const feed = new PagedFeed((params) => spacesApi.getRelics(spaceId, params));
+  const feed = new PagedFeed((params) => spacesApi.getRelics(spaceId, params), { facets: true });
+
+  // The type facet as the content types to send; derived, so new counts don't reload the same list.
+  const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
   const panel = new InspectorPanel();
   let sort = $state(DEFAULT_SORT);
   let showSpace = $state(false); // the inspector shows the space instead of a relic
@@ -58,7 +64,7 @@
   // Relics load once the space has: a space you can't open shows its error, not a failed list.
   const ready = $derived(space?.id === spaceId);
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, ...sortParams(sort) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort) };
     if (ready) untrack(() => feed.reset(params));
   });
 
@@ -132,7 +138,7 @@
     if (files.length) uploadFiles(files, spaceId);
   }
 
-  const filtered = $derived(!!(search || tagFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter));
 </script>
 
 {#if error}
@@ -181,15 +187,20 @@
           {#if tagFilter}
             <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
           {/if}
+        <span class="r-pagebar-sep"></span>
+          <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+        {/snippet}
+        {#snippet options()}
+          <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />
         {/snippet}
         {#snippet actions()}
           {#if canAdd}
-            <a class="r-btn r-btn-secondary r-btn-md" href="/?space={spaceId}"><Icon name="plus" />New relic</a>
-            <button class="r-btn r-btn-secondary r-btn-md" aria-pressed={adding} onclick={() => (adding = !adding)}><Icon name="link" />Add existing</button>
+            <a class="r-btn r-btn-secondary r-btn-md space-act" href="/?space={spaceId}" title="New relic in this space" aria-label="New relic"><Icon name="plus" /><span>New relic</span></a>
+            <button class="r-btn r-btn-secondary r-btn-md space-act" aria-pressed={adding} onclick={() => (adding = !adding)} title="Add an existing relic" aria-label="Add existing"><Icon name="link" /><span>Add existing</span></button>
           {/if}
-          <button class="r-btn r-btn-secondary r-btn-md" onclick={() => copyToClipboard(`${location.origin}/spaces/${spaceId}`, "Space link copied")}><Icon name="share" />Share</button>
-          <button class="r-btn r-btn-secondary r-btn-md" aria-pressed={showSpace} onclick={() => (showSpace ? (showSpace = false) : openSpacePanel())} title="Details, people and settings">
-            <Icon name="layers" />Space
+          <button class="r-btn r-btn-secondary r-btn-md space-act" onclick={() => copyToClipboard(`${location.origin}/spaces/${spaceId}`, "Space link copied")} title="Copy the space's link" aria-label="Share"><Icon name="share" /><span>Share</span></button>
+          <button class="r-btn r-btn-secondary r-btn-md space-act" aria-pressed={showSpace} onclick={() => (showSpace ? (showSpace = false) : openSpacePanel())} title="Details, people and settings" aria-label="Space">
+            <Icon name="layers" /><span>Space</span>
           </button>
         {/snippet}
       </PageBar>
@@ -263,5 +274,16 @@
     display: flex;
     gap: var(--space-2);
     margin-top: var(--space-2);
+  }
+  /* With the type facets there's less room: below 1800px the page actions show their icons only. */
+  @media (max-width: 1800px) {
+    .space-act span {
+      display: none;
+    }
+    .space-act {
+      width: var(--control-md);
+      padding: 0;
+      justify-content: center;
+    }
   }
 </style>

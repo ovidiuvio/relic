@@ -67,7 +67,7 @@ export function dayGroup(date, now = new Date()) {
 }
 
 // File-type categories onto the design system's eight type colours.
-const CATEGORY_CLASS = {
+export const CATEGORY_CLASS = {
   code: "code",
   diff: "code",
   text: "text",
@@ -80,6 +80,9 @@ const CATEGORY_CLASS = {
   excalidraw: "image",
   html: "web",
 };
+
+/** A content type's family, as its badge colours it: code, doc, text, data, image, archive, web or binary. */
+export const typeFamily = (contentType) => CATEGORY_CLASS[getFileTypeDefinition(contentType).category] ?? "binary";
 
 /** { cls, label } for the type badge: the r-t- class and a short extension-like label. */
 export function typeBadge(relic) {

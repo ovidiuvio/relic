@@ -5,6 +5,9 @@
   import { untrack } from "svelte";
   import Icon from "../ui/Icon.svelte";
   import PageBar from "../shell/PageBar.svelte";
+  import TypeFacets from "../relics/TypeFacets.svelte";
+  import TagPicker from "../relics/TagPicker.svelte";
+  import { facetTypes } from "../relics/typeFacets";
   import RelicWorkbench from "../relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort } from "../relics/sort";
@@ -14,7 +17,7 @@
   import { copyRelicContent, downloadRelic, copyToClipboard } from "../../services/relicActions";
   import { navigate } from "../../utils/navigation";
 
-  let { search = null, tag = null, visibility = null } = $props();
+  let { search = null, tag = null, visibility = null, type = null } = $props();
 
   const PATH = "/admin/relics";
   const VISIBILITIES = [
@@ -26,9 +29,14 @@
   // What the admin endpoint sorts by: list column → API field.
   const SORT_FIELDS = { date: "created_at", name: "name", size: "size_bytes", views: "access_count" };
 
-  const feed = new PagedFeed((p) =>
-    getAdminRelics(p.limit, p.offset, p.visibility, p.user, p.search, p.tag, p.sort_by, p.sort_order).then((r) => r.data)
+  const feed = new PagedFeed(
+    (p) =>
+      getAdminRelics(p.limit, p.offset, p.visibility, p.user, p.search, p.tag, p.sort_by, p.sort_order, { types: p.types, facets: p.facets }).then(
+        (r) => r.data
+      ),
+    { facets: true }
   );
+  const typesParam = $derived(facetTypes(type, feed.facets?.types));
   let sort = $state(DEFAULT_SORT);
 
   $effect(() => {
@@ -37,6 +45,7 @@
       user: $relicOwner?.id ?? null,
       search: search || null,
       tag: tag || null,
+      types: typesParam,
       sort_by: SORT_FIELDS[sort.key],
       sort_order: sort.dir,
     };
@@ -57,7 +66,7 @@
     relicOwner.set({ id: relic.user_id, publicId: relic.user_public_id, label: relic.owner_name || "—" });
   }
 
-  const filtered = $derived(!!(search || tag || $relicOwner || visibility));
+  const filtered = $derived(!!(search || tag || $relicOwner || visibility || type));
 </script>
 
 <RelicWorkbench
@@ -89,15 +98,15 @@
           <span class="r-chip-filter">#{tag}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
         <span class="r-pagebar-sep"></span>
-        <nav class="r-facets" aria-label="Visibility">
-          {#each VISIBILITIES as v (v.label)}
-            <a
-              href={withParams({ visibility: v.key })}
-              aria-current={(visibility || null) === v.key ? "true" : undefined}
-              onclick={(e) => (e.preventDefault(), navigate(withParams({ visibility: v.key })))}>{v.label}</a
-            >
-          {/each}
-        </nav>
+        <TypeFacets active={type} types={feed.facets?.types} showCounts={filtered} hrefFor={(t) => withParams({ type: t })} />
+      {/snippet}
+      {#snippet options()}
+        <label class="r-pagebar-opt">visibility
+          <select value={visibility ?? ""} onchange={(e) => navigate(withParams({ visibility: e.currentTarget.value || null }))} aria-label="Visibility">
+            {#each VISIBILITIES as v (v.label)}<option value={v.key ?? ""}>{v.key ? v.label.toLowerCase() : "any"}</option>{/each}
+          </select>
+        </label>
+        <TagPicker active={tag} tags={feed.facets?.tags} hrefFor={(t) => withParams({ tag: t })} />
       {/snippet}
       {#snippet actions()}
         <button class="r-btn r-btn-ghost r-btn-icon" onclick={() => feed.reload()} title="Refresh" aria-label="Refresh"><Icon name="history" /></button>

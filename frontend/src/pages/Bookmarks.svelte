@@ -4,6 +4,9 @@
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
+  import TypeFacets from "../lib/relics/TypeFacets.svelte";
+  import TagPicker from "../lib/relics/TagPicker.svelte";
+  import { facetTypes } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -14,14 +17,17 @@
   import { showToast } from "../stores/toastStore";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null } = $props();
 
-  const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks" });
+  const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks", facets: true });
+
+  // The type facet as the content types to send; derived, so new counts don't reload the same list.
+  const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
   let sort = $state(DEFAULT_SORT);
 
   // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, ...sortParams(sort) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort) };
     untrack(() => feed.reset(params));
   });
 
@@ -63,7 +69,7 @@
     { icon: "bookmark", title: "Remove bookmark", run: removeRow },
   ];
 
-  const filtered = $derived(!!(search || tagFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter));
 </script>
 
 <RelicWorkbench
@@ -82,7 +88,7 @@
   onbookmark={(relic, bookmarked) => !bookmarked && removed(relic)}
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={filtered ? "Results" : "Bookmarks"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={search || tagFilter ? "Results" : "Bookmarks"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -90,6 +96,11 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+      <span class="r-pagebar-sep"></span>
+        <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+      {/snippet}
+      {#snippet options()}
+        <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />
       {/snippet}
     </PageBar>
   {/snippet}

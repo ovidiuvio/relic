@@ -32,7 +32,8 @@ const routes = [
     fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
-      search: urlParams.get('search')
+      search: urlParams.get('search'),
+      typeFilter: urlParams.get('type')
     })
   },
   {
@@ -42,7 +43,8 @@ const routes = [
     fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
-      search: urlParams.get('search')
+      search: urlParams.get('search'),
+      typeFilter: urlParams.get('type')
     })
   },
   {
@@ -52,7 +54,8 @@ const routes = [
     fullBleed: true,
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
-      search: urlParams.get('search')
+      search: urlParams.get('search'),
+      typeFilter: urlParams.get('type')
     })
   },
   {
@@ -73,7 +76,8 @@ const routes = [
     getProps: (match, urlParams) => ({
       spaceId: match[1],
       tagFilter: urlParams.get('tag'),
-      search: urlParams.get('search')
+      search: urlParams.get('search'),
+      typeFilter: urlParams.get('type')
     })
   },
   {
@@ -85,7 +89,8 @@ const routes = [
       tab: match[1] || "overview",
       search: urlParams.get('search'),
       tag: urlParams.get('tag'),
-      visibility: urlParams.get('visibility')
+      visibility: urlParams.get('visibility'),
+      type: urlParams.get('type')
     })
   },
   {
