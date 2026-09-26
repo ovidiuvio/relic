@@ -200,7 +200,7 @@ async def get_user_bookmarks(
     facet_counts = await relic_facets(db, stmt) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
-    order = relic_sort_order(sort_by, sort_order, {"created_at": UserBookmark.created_at})
+    order = relic_sort_order(sort_by, sort_order, {"created_at": UserBookmark.created_at}, search=search)
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()

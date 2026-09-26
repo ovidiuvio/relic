@@ -722,7 +722,7 @@ async def list_relics(
     facet_counts = await relic_facets(db, stmt) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
-    order = relic_sort_order(sort_by, sort_order)
+    order = relic_sort_order(sort_by, sort_order, search=search)
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = total_result.scalar()

@@ -101,15 +101,58 @@ def apply_owner_filter(stmt, owner: Optional[str]):
     return stmt.where(Relic.user_id == owner_id)
 
 
+MAX_SEARCH_TERMS = 10
+
+
+def search_terms(search: str) -> List[str]:
+    """A search's terms: its words, with "quoted phrases" kept whole (an unclosed quote runs
+    to the end). Blank terms and repeats are dropped; at most MAX_SEARCH_TERMS are kept."""
+    import re
+    terms = []
+    for quoted, word in re.findall(r'"([^"]*)"?|(\S+)', search or ""):
+        term = (quoted if quoted else word).strip()
+        if term and term.lower() not in (t.lower() for t in terms):
+            terms.append(term)
+    return terms[:MAX_SEARCH_TERMS]
+
+
 def apply_relic_search(stmt, search: str):
-    """Filter a Relic Select statement by search term across name, id, description, and tags."""
+    """Filter a Relic Select statement by a search: every term (see search_terms) must match
+    the name, ID, description or a tag name, case-insensitively and in any order. A one-word
+    search matches exactly as it always has."""
     from backend.models import Relic, Tag
     from sqlalchemy import select, or_
-    term = like_term(search)
-    tag_sq = select(Relic.id).join(Relic.tags).where(Tag.name.ilike(term)).scalar_subquery()
-    return stmt.where(
-        or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_sq))
-    ).distinct()
+    terms = search_terms(search)
+    if not terms:
+        return stmt
+    for t in terms:
+        term = like_term(t)
+        tag_sq = select(Relic.id).join(Relic.tags).where(Tag.name.ilike(term)).scalar_subquery()
+        stmt = stmt.where(
+            or_(Relic.name.ilike(term), Relic.id.ilike(term), Relic.description.ilike(term), Relic.id.in_(tag_sq))
+        )
+    return stmt.distinct()
+
+
+def relevance_order(search: str) -> tuple:
+    """ORDER BY for the best matches of a search first: a name equal to the search, then names
+    starting with it, then names containing it, then names containing every term, then the
+    rest (matches in the ID, description or tags); newest first within each."""
+    from backend.models import Relic
+    from sqlalchemy import case, and_
+    terms = search_terms(search)
+    phrase = " ".join(terms)
+    if not phrase:
+        return (Relic.created_at.desc(), Relic.id.desc())
+    esc = like_escape(phrase)
+    rank = case(
+        (Relic.name.ilike(esc), 0),
+        (Relic.name.ilike(f"{esc}%"), 1),
+        (Relic.name.ilike(f"%{esc}%"), 2),
+        (and_(*[Relic.name.ilike(like_term(t)) for t in terms]), 3),
+        else_=4,
+    )
+    return (rank, Relic.created_at.desc(), Relic.id.desc())
 
 
 MAX_TYPE_FILTER = 400  # content types in one ?types= filter (a facet sends its whole family)
@@ -175,13 +218,14 @@ async def relic_facets(db: AsyncSession, stmt, tag_limit: int = 20) -> Dict:
     return {"types": types, "tags": [{"name": name, "count": count} for name, count in tag_rows.all()]}
 
 
-def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None) -> tuple:
+def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None, search: Optional[str] = None) -> tuple:
     """Return SQLAlchemy ORDER BY clauses for the common relic sort options.
 
     Pass the result unpacked: ``stmt.order_by(*relic_sort_order(...))``.
 
     sort_by: created_at, name, owner, size, access_count, bookmark_count, comments_count,
-    forks_count. Unknown keys fall back to created_at.
+    forks_count, and relevance (best matches of `search` first; newest first without one).
+    Unknown keys fall back to created_at.
     overrides: dict mapping sort key names to alternative columns,
     e.g. {"created_at": ClientBookmark.created_at} for bookmarks.
 
@@ -193,6 +237,9 @@ def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None) -> t
     from backend.models import Relic, Comment, User
     from sqlalchemy import select, func, nulls_last
     from sqlalchemy.orm import aliased
+
+    if sort_by == "relevance":
+        return relevance_order(search or "")
 
     fork = aliased(Relic)
     sort_map = {
