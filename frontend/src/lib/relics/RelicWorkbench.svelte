@@ -12,6 +12,9 @@
   import { navigate } from "../../utils/navigation";
   import { copyToClipboard } from "../../services/relicActions";
   import { refreshSidebar } from "../shell/sidebarData";
+  import { rememberList, relicIdFromHref } from "../viewer/listContext";
+  import { pageTitle } from "../../stores/pageTitle";
+  import { get } from "svelte/store";
 
   let {
     feed,
@@ -84,7 +87,19 @@
     ondeleted?.(relic);
   }
 
+  // Opening one of this list's relics (a link in the list or inspector, Enter, double-click)
+  // remembers the list, so the viewer can step through it.
+  function remember() {
+    rememberList(get(pageTitle) || "List", location.pathname + location.search, feed);
+  }
+
+  function onDocumentClick(event) {
+    const id = relicIdFromHref(event.target.closest?.("a[href]")?.getAttribute("href"));
+    if (id && feed.items.some((r) => r.id === id)) remember();
+  }
+
   function open(relic) {
+    remember();
     navigate(`/${relic.id}`);
   }
 
@@ -97,6 +112,8 @@
     }
   }
 </script>
+
+<svelte:document onclickcapture={onDocumentClick} />
 
 <Workbench {panel} hasSelection={!!selected || !!aside} label="Relics" {pagebar} {status} onkeydown={onKeydown} {ondropfiles} {dropLabel}>
   <RelicList

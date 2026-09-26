@@ -23,6 +23,7 @@
   import { showToast } from "../stores/toastStore";
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
+  import { listContext, position, nextAfter } from "../lib/viewer/listContext";
 
   let { relicId, filePath = null } = $props();
 
@@ -220,8 +221,36 @@
   // The relic's link as it stands, keeping selected lines (#L12-L20), like the old Share link.
   const currentLink = () => `${location.origin}${location.pathname}${location.hash}`;
 
+  // The list this relic was opened from, when it's in it: previous and next, and a way back.
+  const listPos = $derived(archive ? null : position($listContext, relicId));
+  const listNav = $derived(
+    listPos && {
+      label: $listContext.label,
+      path: $listContext.path,
+      ...listPos,
+      canNext: !!listPos.next || listPos.hasMore,
+      onprev: goPrev,
+      onnext: goNext,
+    }
+  );
+
+  function goPrev() {
+    if (listPos?.prev) navigate(`/${listPos.prev.id}`);
+  }
+
+  async function goNext() {
+    const next = await nextAfter(relicId);
+    if (next) navigate(`/${next.id}`);
+  }
+
   function onKeydown(event) {
-    if (event.key === "y" && relic && !archive) {
+    if (event.key === "j" && listNav) {
+      event.preventDefault();
+      goNext();
+    } else if (event.key === "k" && listNav) {
+      event.preventDefault();
+      goPrev();
+    } else if (event.key === "y" && relic && !archive) {
       copyToClipboard(currentLink(), "Link copied");
     } else if (event.key === "f" && relic && !archive) {
       event.preventDefault();
@@ -294,6 +323,7 @@
         {treeRenderer}
         {inspectorOpen}
         ontoggleinspector={() => panel.toggle($layout.dock)}
+        {listNav}
       />
     </div>
 

@@ -19,6 +19,7 @@
     treeRenderer = null,
     inspectorOpen = null, // null hides the toggle (phones)
     ontoggleinspector,
+    listNav = null, // { label, path, index, count, prev, canNext, onprev, onnext } for the list this relic was opened from
   } = $props();
 
   const TREE_PAGES = [25, 50, 100, 250, 500];
@@ -33,6 +34,14 @@
 </script>
 
 <div class="r-statusbar viewer-status">
+  {#if listNav}
+    <span class="vs-list">
+      <button class="vs-step" onclick={listNav.onprev} disabled={!listNav.prev} title="Previous in {listNav.label} (k)" aria-label="Previous relic"><Icon name="chevl" /></button>
+      <a href={listNav.path} title="Back to {listNav.label}">{listNav.label}</a>
+      <span class="vs-pos">{listNav.index + 1} of {listNav.count}{listNav.hasMore ? "+" : ""}</span>
+      <button class="vs-step" onclick={listNav.onnext} disabled={!listNav.canNext} title="Next in {listNav.label} (j)" aria-label="Next relic"><Icon name="chevr" /></button>
+    </span>
+  {/if}
   {#if archive}
     <a class="vs-crumb" href="/{archive.archiveId}" title="Back to the archive">
       <Icon name="archive" />{archive.archiveName || "Archive"}
@@ -175,5 +184,45 @@
   }
   .vs-select select:focus {
     box-shadow: none;
+  }
+  .vs-list {
+    gap: 2px !important;
+    padding: 0 var(--space-1) !important;
+  }
+  .vs-list a {
+    max-width: 180px;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    text-overflow: ellipsis;
+  }
+  .vs-list a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .vs-pos {
+    margin: 0 2px 0 6px;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+  }
+  .vs-step {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .vs-step:hover:not(:disabled) {
+    background: var(--hover);
+    color: var(--accent);
+  }
+  .vs-step:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
 </style>

@@ -13,6 +13,7 @@
   import { getTypeLabel } from "../../services/typeUtils";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../../services/relicActions";
   import { navigate } from "../../utils/navigation";
+  import { rememberList, relicIdFromHref } from "./listContext";
 
   let {
     processed,
@@ -97,8 +98,24 @@
     return rows.sort((a, b) => (value(a) < value(b) ? -dir : value(a) > value(b) ? dir : 0));
   });
 
+  // Opening one of the index's relics remembers the index (as filtered and sorted now), so the
+  // viewer can step through it and come back.
+  function remember() {
+    rememberList(title, location.pathname + location.search, { items: shown });
+  }
+
+  function open(relic) {
+    remember();
+    navigate(`/${relic.id}`);
+  }
+
+  function onDocumentClick(event) {
+    const id = relicIdFromHref(event.target.closest?.("a[href]")?.getAttribute("href"));
+    if (id && shown.some((r) => r.id === id)) remember();
+  }
+
   function select(relic, section = null) {
-    if ($layout.phone) return navigate(`/${relic.id}`);
+    if ($layout.phone) return open(relic);
     onselect?.(relic, section);
   }
 
@@ -117,6 +134,8 @@
     }
   }
 </script>
+
+<svelte:document onclickcapture={onDocumentClick} />
 
 <div class="rix">
   <PageBar {title} count={loading ? null : relics.length}>
@@ -147,7 +166,7 @@
     onsort={(key) => (sort = nextSort(sort, key))}
     {selectedId}
     onselect={(r) => select(r)}
-    onopen={(r) => navigate(`/${r.id}`)}
+    onopen={open}
     oncounter={(r, section) => select(r, section)}
     ontag={(t) => (tag = t)}
     emptyText={search || tag ? "No relics in this index match." : loading ? "Loading…" : "No relics in this index that you can see."}
