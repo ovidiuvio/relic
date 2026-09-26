@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Relic** is a professional artifact storage service with immutable artifacts. Built with FastAPI (Python), Svelte, and Tailwind CSS.
+**Relic** is a professional artifact storage service with immutable artifacts. Built with FastAPI (Python) and Svelte 5, styled with the Relic design system.
 
 Key principle: Relics cannot be edited after creation - they are permanent and immutable. To modify content, create a fork which creates an independent copy.
 
 ### Tech Stack
 - **Infrastructure**: Docker + Nginx (Reverse Proxy)
 - **Backend**: FastAPI + SQLAlchemy + MinIO/S3
-- **Frontend**: Svelte + Tailwind CSS + Axios
+- **Frontend**: Svelte 5 + Vite + Axios, styled with the Relic design system (tokens and component classes); Tailwind remains for base styles and older markup
 - **Database**: PostgreSQL (prod/dev)
 - **Storage**: MinIO (dev), S3 (prod)
 
@@ -101,15 +101,31 @@ GET    /api/v1/relics                  List recent public relics
 
 ### Admin Endpoints
 
-Admin endpoints require the `X-User-Key` header with an admin user ID (configured via `ADMIN_USER_IDS` env var).
+Admin endpoints require the `X-User-Key` header of an admin: a super admin listed in the `ADMIN_USER_IDS` env var, or a user granted admin at runtime (`User.is_admin`).
 
 ```
-GET    /api/v1/admin/check             Check admin status (no auth required)
-GET    /api/v1/admin/relics            List all relics (including private)
-GET    /api/v1/admin/users             List all users
-GET    /api/v1/admin/stats             Get system statistics
-DELETE /api/v1/admin/users/:id         Delete a user
+GET    /api/v1/admin/check                   Check admin status (no auth required)
+GET    /api/v1/admin/stats                   System statistics
+GET    /api/v1/admin/relics                  All relics, including private (same list params as below)
+GET    /api/v1/admin/users                   All users
+DELETE /api/v1/admin/users/:id               Delete a user (?delete_relics=true to delete their relics too)
+GET    /api/v1/admin/admins                  Effective admins (super and runtime)
+POST   /api/v1/admin/admins                  Grant admin by public ID
+POST   /api/v1/admin/users/:id/admin         Grant admin
+DELETE /api/v1/admin/users/:id/admin         Revoke admin (not for super admins)
+GET    /api/v1/admin/config                  Server configuration
+GET    /api/v1/admin/reports                 Reported relics
+DELETE /api/v1/admin/reports/:id             Dismiss a report
+GET    /api/v1/admin/backups                 Database backups
+POST   /api/v1/admin/backups                 Back up now
+GET    /api/v1/admin/backups/:file/download  Download a backup
+POST   /api/v1/admin/backups/:file/restore   Restore from a stored backup
+POST   /api/v1/admin/backups/restore-upload  Restore from an uploaded .sql.gz
+GET    /api/v1/admin/jobs                    Scheduled jobs and their run history
+POST   /api/v1/admin/jobs/:id/run|pause|resume
 ```
+
+Admins see everything by design (keys, private relics, full config); don't add redaction inside the admin area.
 
 **Admin Privileges:**
 - Delete any relic (not just their own)
@@ -119,10 +135,10 @@ DELETE /api/v1/admin/users/:id         Delete a user
 - View system statistics
 
 **Setting Up Admin Users:**
-1. Get user ID from browser: `localStorage.getItem('relic_user_key')`
-2. Add to `ADMIN_USER_IDS` in `docker-compose.prod.yml` (comma-separated for multiple admins)
+1. Get the user's key: it is shown once, in the banner on the first visit (copy or download it then). The key lives in a service-worker vault (`public/vault-sw.js`), not in `localStorage`; an existing admin can also reveal it in Admin · Users.
+2. Add it to `ADMIN_USER_IDS` in `docker-compose.prod.yml` (comma-separated for multiple admins)
 3. Restart services with `make down && make up`
-4. Admin panel will appear in navigation
+4. Admin appears in the navbar and opens the admin area at `/admin`. More admins can then be granted there by public ID (Admin · Config), without a restart.
 
 ### Request/Response Pattern
 
@@ -161,64 +177,46 @@ relic/
 │   └── __init__.py
 ├── frontend/
 │   ├── src/
-│   │   ├── App.svelte       # Main app component
+│   │   ├── App.svelte       # Shell: navbar, sidebar, key banner, route outlet
 │   │   ├── main.js          # Entry point
-│   │   ├── routes.js        # Frontend routes
-│   │   ├── app.css          # Tailwind styles
-│   │   ├── utils/           # Frontend utilities
-│   │   ├── components/
-│   │   │   ├── AddToSpaceModal.svelte
-│   │   │   ├── AdminPanel.svelte
-│   │   │   ├── ApiDocs.svelte
-│   │   │   ├── BookmarkersModal.svelte
-│   │   │   ├── CommentEditor.svelte
-│   │   │   ├── CommentsSummaryModal.svelte
-│   │   │   ├── ConfirmModal.svelte
-│   │   │   ├── EditRelicModal.svelte
-│   │   │   ├── ForkEditor.svelte
-│   │   │   ├── ForkModal.svelte
-│   │   │   ├── ForkSettings.svelte
-│   │   │   ├── LineageModal.svelte
-│   │   │   ├── MonacoEditor.svelte
-│   │   │   ├── MyBookmarks.svelte
-│   │   │   ├── MyRelics.svelte
-│   │   │   ├── PDFViewer.svelte
-│   │   │   ├── RecentRelics.svelte
-│   │   │   ├── RelicDropModal.svelte
-│   │   │   ├── RelicForm.svelte
-│   │   │   ├── RelicHeader.svelte
-│   │   │   ├── RelicStatusBar.svelte
-│   │   │   ├── RelicTable.svelte
-│   │   │   ├── RelicViewer.svelte
-│   │   │   ├── ReportModal.svelte
-│   │   │   ├── SpaceViewer.svelte
-│   │   │   ├── SpacesList.svelte
-│   │   │   ├── Toast.svelte
-│   │   │   ├── VisibilityModal.svelte
-│   │   │   └── renderers/
-│   │   │       ├── ArchiveRenderer.svelte
-│   │   │       ├── CodeRenderer.svelte
-│   │   │       ├── CsvRenderer.svelte
-│   │   │       ├── DiffRenderer.svelte
-│   │   │       ├── ExcalidrawRenderer.svelte
-│   │   │       ├── HtmlRenderer.svelte
-│   │   │       ├── ImageRenderer.svelte
-│   │   │       ├── MarkdownRenderer.svelte
-│   │   │       ├── RelicIndexRenderer.svelte
-│   │   │       ├── TreeNode.svelte
-│   │   │       └── TreeRenderer.svelte
-│   │   ├── stores/
-│   │   │   └── toastStore.js
-│   │   └── services/
-│   │       ├── api.js
-│   │       ├── relicActions.js
-│   │       ├── typeUtils.js
-│   │       ├── api/
-│   │       ├── data/
-│   │       ├── processors/
-│   │       └── utils/
+│   │   ├── routes.js        # Path patterns → lazy-loaded pages
+│   │   ├── app.css          # Global styles; imports tokens, components and inspector CSS
+│   │   ├── design-system/   # Relic design system: tokens.json/.css, components.css (r-* classes), icons.json
+│   │   ├── styles/          # tailwind-base.css, inspector.css
+│   │   ├── pages/           # One component per route
+│   │   │   ├── NewRelic.svelte, Fork.svelte
+│   │   │   ├── Recent.svelte, MyRelics.svelte, Bookmarks.svelte
+│   │   │   ├── Spaces.svelte, Space.svelte
+│   │   │   ├── RelicView.svelte
+│   │   │   └── Admin.svelte
+│   │   ├── lib/
+│   │   │   ├── shell/       # Frame: NavBar, NavSearch, Sidebar, BottomTabs, PageBar, Workbench,
+│   │   │   │                #   inspectorPanel, layout tiers, KeyBanner, ProfileMenu
+│   │   │   ├── ui/          # Icon, DataList (generic list), Combobox, Toasts, RelicMark
+│   │   │   ├── data/        # PagedFeed (paged, search/sort-aware list loading, facets)
+│   │   │   ├── relics/      # RelicList, RelicWorkbench, TypeFacets, TagPicker, format, filters
+│   │   │   │   ├── inspector/  # RelicInspector and its sections (details, lineage, comments…)
+│   │   │   │   └── fields/     # Visibility, expiry, tags and space fields
+│   │   │   ├── viewer/      # ContentView, ViewerStatusBar, FilterStrip, RelicIndexView,
+│   │   │   │                #   listContext (previous/next), viewerPrefs
+│   │   │   ├── compose/     # New relic: drafts, uploads, create, ComposeInspector
+│   │   │   ├── spaces/      # SpaceList, SpaceInspector, SpaceForm, PeopleSection
+│   │   │   └── admin/       # Admin sections (overview, relics, users, reports, backups, jobs,
+│   │   │                    #   config), their inspectors, AdminNav, shared admin state
+│   │   ├── components/      # Editors and renderers kept from the old UI
+│   │   │   ├── MonacoEditor.svelte, ForkEditor.svelte, CommentEditor.svelte, PDFViewer.svelte
+│   │   │   └── renderers/   # Archive, Code, Csv, Diff, Excalidraw, Html, Image, Markdown, Tree
+│   │   ├── stores/          # session, pageTitle, toastStore, userStore
+│   │   ├── services/
+│   │   │   ├── api.js, api/ # Axios client (core.js), one module per resource
+│   │   │   ├── processors/  # Content processing per type (incl. relicIndexProcessor.js)
+│   │   │   ├── relicActions.js, typeUtils.js
+│   │   │   ├── data/, utils/
+│   │   └── utils/           # navigation, lineNumbers
+│   ├── public/              # vault-sw.js (key vault service worker), fonts, favicon
+│   ├── scripts/             # build-tokens.mjs (tokens.json → tokens.css)
 │   ├── index.html
-│   ├── vite.config.js
+│   ├── vite.config.mjs
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   └── package.json
@@ -272,7 +270,7 @@ Relic indexes are processed entirely on the frontend:
 - MIME type: `application/x-relic-index`
 - Category: `relicindex`
 
-**Content Processing** (`processors.js`):
+**Content Processing** (`services/processors/relicIndexProcessor.js`):
 - `isRelicIndex(content, contentType)`: Auto-detect if content is a relic index
   - Check for MIME type `application/x-relic-index`
   - Check for structured format signature (`relics:` and `- id:`)
@@ -283,16 +281,16 @@ Relic indexes are processed entirely on the frontend:
   - Parse relic array with overrides (title, description, tags)
   - Return `{type: 'relicindex', relics: [...], meta: {...}}`
 
-**Rendering** (`RelicIndexRenderer.svelte`):
+**Rendering** (`lib/viewer/RelicIndexView.svelte`):
 - Progressive loading in batches of 5
 - Fetch each relic via `getRelic(id)`
 - Apply metadata overrides from index
-- Display in `RelicTable` with full pagination/search
+- Display in the standard `RelicList`, with filter, tag and sort done in the page
 - Handle errors gracefully (show placeholder for failed relics)
 
 **Integration**:
-- `RelicViewer.svelte` routes to `RelicIndexRenderer` when `processed.type === 'relicindex'`
-- Uses standard `RelicTable` component for consistent UI
+- `ContentView.svelte` shows `RelicIndexView` when `processed.type === 'relicindex'`
+- Selecting a listed relic shows it in the viewer's inspector (with a "Back to …" strip); phones open it instead
 - All standard relic actions available (share, copy, fork, download)
 
 ### Handling Fork Relationships
@@ -319,20 +317,33 @@ if relic.fork_of:
 
 ### Search & Filtering
 
-Not yet implemented. Plan:
-- **By content**: Full-text search (SQLite `MATCH`, PostgreSQL `tsvector`, or external index)
-- **By tags**: Many-to-many via `relic_tags` table
-- **By type**: Simple filter on `content_type` field
-- **By user**: Filter on `user_id` field
-- **Pagination**: Use `offset` and `limit` parameters
+The relic lists (`GET /api/v1/relics`, `/api/v1/user/relics`, `/api/v1/bookmarks`, `/api/v1/spaces/:id/relics`, `/api/v1/admin/relics`) share these parameters, built from helpers in `backend/utils.py`:
+- `search`: case-insensitive match on name, ID, description and tag names (`apply_relic_search`)
+- `tag`: one tag name
+- `types`: comma-separated content types; parameters like `; charset=` are ignored on both sides (`parse_types`, `apply_type_filter`)
+- `facets=true`: adds `facets: {types: {content_type: count}, tags: [{name, count}]}`, counted before the type filter so each facet shows what it would give (`relic_facets`)
+- `sort_by` / `sort_order`: `created_at`, `name`, `owner`, `size`, `access_count`, `bookmark_count`, `comments_count`, `forks_count`; ties break by newest then ID so offset paging is stable (`relic_sort_order`)
+- `limit` / `offset`: pagination (`clamp_limit`)
+
+In the UI, search lives in the navbar (`?search=`), and type facets (`?type=`, a family such as `code` or `image`, mapped to MIME types in `lib/relics/typeFacets.js`) and the tag picker (`?tag=`) sit in the page bar.
 
 ### Frontend Routing
 
-Frontend uses simple section-based routing (not a full router). To add new pages:
-1. Create component in `frontend/src/components/`
-2. Add navigation button in `Navigation.svelte`
-3. Add section handling in `App.svelte`
-4. Emit 'navigate' event from Navigation
+`routes.js` matches the path against a list of patterns and lazy-loads the page (no router library); `utils/navigation.js` pushes history and App re-routes on `popstate`. Query parameters (`search`, `tag`, `type`, …) become page props. To add a page:
+1. Create it in `frontend/src/pages/`
+2. Add a route in `routes.js` (and its first path segment to the relic route's `reserved` list, or it will be read as a relic ID)
+3. Add a default title to `SECTION_TITLES` in `App.svelte`
+4. If it belongs in the navigation, add it to `lib/shell/navItems.js` (navbar and phone tab bar)
+
+### Frontend UI Conventions
+
+- **Layout**: list pages use `Workbench` (page bar, list, inspector, status bar). The inspector docks beside the list from 1280px, is a drawer below that; on phones selecting opens the item, or a drawer on pages that set `phoneDrawer`. `]` toggles it.
+- **No modals or dialogs.** Details, editing, confirmations and forms live in the inspector (`InsSection` sections) or inline (`r-confirm`, `r-banner-*`); the first-visit key is a banner (`KeyBanner`).
+- **Design system**: use the tokens (`--ink`, `--surface`, `--line`, `--accent`, `--type-*`, …) and `r-*` component classes from `src/design-system/`; `Icon` takes names from `icons.json`. Don't hand-edit `tokens.css`; update `tokens.json` and run `node scripts/build-tokens.mjs`.
+- **Lists**: relic lists use `RelicWorkbench` + `RelicList` with a `PagedFeed`; other lists (admin) use `DataList`. Column layout follows the list's own width (container queries), not the window's.
+- **Svelte**: new code uses Svelte 5 runes (`$state`, `$derived`, `$props`, snippets); `$state.raw` for API data. The renderers in `components/renderers/` still use `export let` and events.
+- **Times**: the API sends naive UTC datetimes; `services/api/core.js` marks them UTC on the way in, so format them as local time without further conversion.
+- **Checking a change**: `npx vite build` in `frontend/`. The images install with node 20 / npm 10 `npm ci`; don't regenerate `package-lock.json` with a newer npm.
 
 ## Performance Targets
 
