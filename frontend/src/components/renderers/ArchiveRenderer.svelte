@@ -14,6 +14,9 @@
   import { createEventDispatcher } from 'svelte';
   import { getFileTypeDefinition, getSyntaxFromExtension } from '../../services/typeUtils.js';
   import { triggerDownload } from '../../services/utils/download';
+  import Icon from '../../lib/ui/Icon.svelte';
+  import { compactBytes } from '../../lib/relics/format';
+  import { showToast } from '../../stores/toastStore';
 
   export let processed
   export let relicId
@@ -178,7 +181,7 @@
       triggerDownload(content, file.name, file.contentType)
     } catch (err) {
       console.error('Error downloading file:', err)
-      alert('Failed to download file: ' + err.message)
+      showToast(`Couldn’t extract ${file.name}: ${err.message}`, 'error')
     }
   }
 
@@ -213,311 +216,385 @@
 
   $: flatTree = flattenTree(processed.fileTree)
 
-  // Debug logging
-  $: if (processed) {
-    console.log('[ArchiveRenderer] Processed archive:', processed)
-    console.log('[ArchiveRenderer] File tree:', processed.fileTree)
-    console.log('[ArchiveRenderer] Flat tree:', flatTree)
-    console.log('[ArchiveRenderer] Total items in flat tree:', flatTree.length)
+  // A file's icon and colour, from the design system's icons and type colours.
+  const EXT_KIND = {
+    code: ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'go', 'rs', 'rb', 'php', 'css', 'scss', 'sh', 'sql', 'swift', 'kt'],
+    data: ['json', 'xml', 'yaml', 'yml', 'toml', 'csv', 'xlsx', 'xls'],
+    doc: ['md', 'txt', 'log', 'pdf', 'rst'],
+    web: ['html', 'htm', 'svg'],
+    image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'],
+    archive: ['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', '7z'],
+  }
+  const KIND_ICON = { code: 'code', data: 'braces', doc: 'file', web: 'code', image: 'image', archive: 'archive' }
+
+  function fileIcon(node) {
+    if (node.type === 'directory') return { name: 'folder', color: 'var(--ink-3)' }
+    const ext = node.name.split('.').pop()?.toLowerCase()
+    if (ext === 'diff' || ext === 'patch') return { name: 'split', color: 'var(--type-code)' }
+    if (ext === 'csv' || ext === 'xlsx' || ext === 'xls') return { name: 'table', color: 'var(--type-data)' }
+    for (const [kind, exts] of Object.entries(EXT_KIND)) {
+      if (exts.includes(ext)) return { name: KIND_ICON[kind], color: `var(--type-${kind})` }
+    }
+    return { name: 'file', color: 'var(--ink-3)' }
   }
 
-  // Get FontAwesome icon for file/directory
-  function getIcon(item) {
-    if (item.node.type === 'directory') {
-      return expandedDirs.has(item.node.path || '/') ? 'fa-folder-open' : 'fa-folder'
-    }
-
-    const ext = item.node.name.split('.').pop()?.toLowerCase()
-    const iconMap = {
-      'js': 'fa-file-code', 'ts': 'fa-file-code', 'jsx': 'fa-file-code', 'tsx': 'fa-file-code',
-      'py': 'fa-file-code', 'java': 'fa-file-code', 'cpp': 'fa-file-code', 'c': 'fa-file-code',
-      'go': 'fa-file-code', 'rs': 'fa-file-code', 'rb': 'fa-file-code', 'php': 'fa-file-code',
-      'html': 'fa-file-code', 'css': 'fa-file-code', 'scss': 'fa-file-code',
-      'json': 'fa-file-code', 'xml': 'fa-file-code', 'yaml': 'fa-file-code', 'yml': 'fa-file-code',
-      'md': 'fa-file-alt', 'txt': 'fa-file-alt', 'log': 'fa-file-alt',
-      'png': 'fa-file-image', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
-      'gif': 'fa-file-image', 'svg': 'fa-file-image', 'webp': 'fa-file-image',
-      'pdf': 'fa-file-pdf',
-      'csv': 'fa-file-csv', 'xlsx': 'fa-file-excel', 'xls': 'fa-file-excel',
-      'zip': 'fa-file-archive', 'tar': 'fa-file-archive', 'gz': 'fa-file-archive',
-      'mp4': 'fa-file-video', 'avi': 'fa-file-video', 'mov': 'fa-file-video',
-      'mp3': 'fa-file-audio', 'wav': 'fa-file-audio',
-      'diff': 'fa-code-compare', 'patch': 'fa-code-compare'
-    }
-
-    return iconMap[ext] || 'fa-file'
-  }
-
-  // Get icon color
-  function getIconColor(item) {
-    if (item.node.type === 'directory') {
-      return 'text-blue-500'
-    }
-
-    const ext = item.node.name.split('.').pop()?.toLowerCase()
-    const colorMap = {
-      'js': 'text-yellow-500', 'ts': 'text-blue-600', 'jsx': 'text-cyan-500', 'tsx': 'text-cyan-600',
-      'py': 'text-blue-400', 'java': 'text-red-500', 'cpp': 'text-blue-700', 'c': 'text-blue-700',
-      'go': 'text-cyan-600', 'rs': 'text-orange-600', 'rb': 'text-red-600', 'php': 'text-purple-500',
-      'html': 'text-orange-500', 'css': 'text-blue-500', 'scss': 'text-pink-500',
-      'json': 'text-yellow-600', 'xml': 'text-orange-400', 'yaml': 'text-purple-400', 'yml': 'text-purple-400',
-      'md': 'text-gray-600', 'txt': 'text-gray-500', 'log': 'text-gray-500',
-      'png': 'text-green-500', 'jpg': 'text-green-500', 'jpeg': 'text-green-500',
-      'gif': 'text-green-500', 'svg': 'text-green-600', 'webp': 'text-green-500',
-      'pdf': 'text-red-600',
-      'csv': 'text-green-600', 'xlsx': 'text-green-700', 'xls': 'text-green-700',
-      'zip': 'text-gray-600', 'tar': 'text-gray-600', 'gz': 'text-gray-600',
-      'diff': 'text-blue-500', 'patch': 'text-blue-500'
-    }
-
-    return colorMap[ext] || 'text-gray-400'
-  }
+  $: previewType = previewedFile?.processed?.type
+  $: isTextLike = previewType === 'code' || previewType === 'text'
+  $: fileCount = flatTree.filter((i) => i.node.type === 'file').length
 </script>
 
-<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
-  <div bind:this={containerRef} class="flex divide-x divide-gray-200 relative flex-1 min-h-0 overflow-hidden" style="user-select: {isDragging ? 'none' : 'auto'}">
-    <!-- File tree sidebar -->
-    <div class="bg-gray-50 overflow-y-auto flex-shrink-0" style="width: {sidebarWidth}px">
-      <!-- Archive metadata header -->
-      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
-        <h3 class="text-sm font-semibold text-gray-900">Archive Contents</h3>
-      </div>
+<div class="arc" bind:this={containerRef} style:user-select={isDragging ? 'none' : null}>
+  <nav class="arc-side" style:width="{sidebarWidth}px" aria-label="Files in the archive">
+    <div class="arc-side-head">Files <span>{processed.metadata?.totalFiles ?? fileCount}</span></div>
+    <div class="arc-tree">
+      {#each flatTree as item (item.node.path || '/')}
+        {@const icon = fileIcon(item.node)}
+        {@const dir = item.node.type === 'directory'}
+        <button
+          class="arc-item"
+          class:is-selected={selectedFile?.path === item.node.path}
+          class:is-dir={dir}
+          style:padding-left="{item.depth * 14 + 8}px"
+          aria-expanded={dir ? item.isExpanded : undefined}
+          on:click={() => selectFile(item.node)}
+        >
+          <span class="arc-chev" class:is-open={item.isExpanded}>{#if dir}<Icon name="chevr" size={12} />{/if}</span>
+          <span class="arc-icon" style:color={icon.color}><Icon name={icon.name} size={14} /></span>
+          <span class="arc-name">{item.node.name}</span>
+          {#if !dir && item.node.size}<span class="arc-size">{compactBytes(item.node.size)}</span>{/if}
+        </button>
+      {/each}
+    </div>
+  </nav>
 
-      <!-- File tree -->
-      <div class="py-1">
-        {#each flatTree as item}
+  <!-- svelte-ignore a11y-no-noninteractive-tabindex a11y-no-noninteractive-element-interactions -->
+  <div
+    class="arc-divider"
+    class:is-dragging={isDragging}
+    on:mousedown={startDrag}
+    on:keydown={handleKeydown}
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Resize the file list (← →)"
+    tabindex="0"
+  ></div>
+
+  <section class="arc-main">
+    {#if !selectedFile}
+      <div class="arc-state">
+        <Icon name="archive" size={26} />
+        <p>Select a file to preview it.</p>
+        <small>{fileCount} {fileCount === 1 ? 'file' : 'files'} in this archive</small>
+      </div>
+    {:else if loading}
+      <div class="arc-state" role="status"><p>Extracting {selectedFile.name}…</p></div>
+    {:else if error}
+      <div class="r-banner r-banner-danger arc-error" role="alert">
+        <Icon name="info" />
+        <span>Couldn’t extract {selectedFile.name}: {error}</span>
+        <button class="r-btn r-btn-secondary" on:click={() => downloadFile(selectedFile)}><Icon name="download" />Download it instead</button>
+      </div>
+    {:else if previewedFile}
+      {@const icon = fileIcon(selectedFile)}
+      <header class="arc-file">
+        <span class="arc-icon" style:color={icon.color}><Icon name={icon.name} size={16} /></span>
+        <div class="arc-file-name">
+          <b title={selectedFile.name}>{selectedFile.name}</b>
+          <span title={selectedFile.path}>{selectedFile.path}</span>
+        </div>
+        <span class="r-gap"></span>
+        {#if isTreeSupported && isTextLike}
+          {#if treeViewMode === 'tree'}
+            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => treeRendererRef?.expandAll()} title="Expand all" aria-label="Expand all"><Icon name="expand" /></button>
+            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => treeRendererRef?.collapseAll()} title="Collapse all" aria-label="Collapse all"><Icon name="collapse" /></button>
+            <select class="arc-select" value={treePageSize} on:change={(e) => (treePageSize = parseInt(e.currentTarget.value, 10))} aria-label="Nodes per page">
+              {#each [25, 50, 100, 250, 500] as size}<option value={size}>{size} / page</option>{/each}
+            </select>
+          {/if}
+          <div class="arc-seg" role="group" aria-label="View">
+            <button aria-pressed={treeViewMode === 'code'} on:click={() => (treeViewMode = 'code')}><Icon name="code" />Code</button>
+            <button aria-pressed={treeViewMode === 'tree'} on:click={() => (treeViewMode = 'tree')}><Icon name="tree" />Tree</button>
+          </div>
+        {/if}
+        {#if isTextLike || previewType === 'markdown' || previewType === 'html' || previewType === 'diff'}
           <button
-            class="w-full text-left px-4 py-1.5 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm
-                   {selectedFile?.path === item.node.path ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600' : 'text-gray-700'}"
-            style="padding-left: {item.depth * 16 + 16}px"
-            on:click={() => selectFile(item.node)}
-          >
-            <i class="fas {getIcon(item)} {getIconColor(item)} text-sm flex-shrink-0"></i>
-            <span class="truncate flex-1">{item.node.name}</span>
-            {#if item.node.type === 'file' && item.node.size}
-              <span class="text-xs text-gray-500 flex-shrink-0">
-                {(item.node.size / 1024).toFixed(1)}KB
-              </span>
-            {/if}
-          </button>
-        {/each}
+            class="r-btn r-btn-ghost r-btn-sm r-btn-icon"
+            aria-pressed={darkMode}
+            on:click={() => { darkMode = !darkMode; dispatch('toggle-dark-mode', darkMode) }}
+            title={darkMode ? 'Dark theme (on)' : 'Dark theme'}
+            aria-label="Dark theme"
+          ><Icon name="moon" /></button>
+        {/if}
+        <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => openInFullView(selectedFile)} title="Open on its own page" aria-label="Open on its own page"><Icon name="max" /></button>
+        <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => downloadFile(selectedFile)} title="Download this file" aria-label="Download this file"><Icon name="download" /></button>
+      </header>
+
+      <div class="arc-content">
+        {#if isTextLike && isTreeSupported && treeViewMode === 'tree'}
+          <TreeRenderer
+            bind:this={treeRendererRef}
+            processed={previewedFile.processed}
+            {darkMode}
+            {fontSize}
+            lang={effectiveLang}
+            pageSize={treePageSize}
+            on:parse-error={() => (treeViewMode = 'code')}
+          />
+        {:else if isTextLike}
+          <CodeRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {fontSize} {darkMode} />
+        {:else if previewType === 'markdown'}
+          <MarkdownRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {darkMode} />
+        {:else if previewType === 'html'}
+          <HtmlRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {darkMode} />
+        {:else if previewType === 'csv'}
+          <CsvRenderer processed={previewedFile.processed} name={selectedFile.name} />
+        {:else if previewType === 'image'}
+          <ImageRenderer processed={previewedFile.processed} relicName={selectedFile.name} />
+        {:else if previewType === 'excalidraw'}
+          <ExcalidrawRenderer processed={previewedFile.processed} />
+        {:else if previewType === 'diff'}
+          <DiffRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {fontSize} {darkMode} />
+        {:else if previewType === 'pdf'}
+          <PDFViewer
+            pdfDocument={previewedFile.processed.pdfDocument}
+            metadata={previewedFile.processed.metadata}
+            passwordRequired={previewedFile.processed.passwordRequired}
+            {relicId}
+          />
+        {:else}
+          <div class="arc-state">
+            <Icon name="eyeoff" size={24} />
+            <p>There’s no preview for this type of file.</p>
+            <button class="r-btn r-btn-primary r-btn-md" on:click={() => downloadFile(selectedFile)}><Icon name="download" />Download it</button>
+          </div>
+        {/if}
       </div>
-    </div>
-
-    <!-- Resize divider -->
-    <div
-      class="w-1 bg-gray-200 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group"
-      on:mousedown={startDrag}
-      on:keydown={handleKeydown}
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize sidebar"
-      tabindex="0"
-    >
-      <div class="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500/10"></div>
-    </div>
-
-    <!-- File preview area -->
-    <div class="flex-1 bg-white min-w-0 flex flex-col overflow-hidden">
-      {#if !selectedFile}
-        <div class="flex-1 flex items-center justify-center text-gray-500">
-          <div class="text-center">
-            <i class="fas fa-file-archive text-gray-300 text-6xl mb-4"></i>
-            <p class="text-lg font-medium text-gray-600 mb-2">Select a file to preview</p>
-            <p class="text-sm text-gray-500">Click on any file in the tree to view its contents</p>
-          </div>
-        </div>
-      {:else if loading}
-        <div class="flex-1 flex items-center justify-center text-gray-500">
-          <div class="text-center">
-            <i class="fas fa-spinner fa-spin text-blue-600 text-4xl mb-4"></i>
-            <p class="text-sm text-gray-600">Extracting file...</p>
-          </div>
-        </div>
-      {:else if error}
-        <div class="p-6">
-          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-start gap-3">
-              <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
-              <div class="flex-1">
-                <h4 class="font-semibold text-red-900 mb-1">Failed to extract file</h4>
-                <p class="text-sm text-red-700 mb-3">{error}</p>
-                <button
-                  class="text-sm px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded transition-colors"
-                  on:click={() => downloadFile(selectedFile)}
-                >
-                  <i class="fas fa-download mr-1"></i>
-                  Download file instead
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      {:else if previewedFile}
-        <div class="flex flex-col flex-1 min-h-0">
-          <!-- File header -->
-          <div class="border-b border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between flex-shrink-0">
-            <div class="flex items-center gap-3 min-w-0">
-              <i class="fas {getIcon({ node: selectedFile })} {getIconColor({ node: selectedFile })} text-lg flex-shrink-0"></i>
-              <div class="min-w-0">
-                <h4 class="font-semibold text-gray-900 truncate">{selectedFile.name}</h4>
-                <p class="text-xs text-gray-500 font-mono truncate">{selectedFile.path}</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              {#if isTreeSupported && treeViewMode === 'tree' && (previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text')}
-                <div class="flex items-center gap-1 pr-2 mr-2 border-r border-gray-300">
-                  <button
-                    on:click={() => treeRendererRef?.expandAll()}
-                    class="p-1.5 transition-colors rounded text-gray-500 hover:text-gray-700 hover:bg-gray-200"
-                    title="Expand all"
-                  >
-                    <i class="fas fa-plus-square text-sm"></i>
-                  </button>
-                  <button
-                    on:click={() => treeRendererRef?.collapseAll()}
-                    class="p-1.5 transition-colors rounded text-gray-500 hover:text-gray-700 hover:bg-gray-200"
-                    title="Collapse all"
-                  >
-                    <i class="fas fa-minus-square text-sm"></i>
-                  </button>
-                  <select
-                    value={treePageSize}
-                    on:change={(e) => (treePageSize = parseInt(e.target.value, 10))}
-                    class="text-[10px] rounded border border-gray-300 pl-1 pr-6 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    title="Nodes per page"
-                  >
-                    {#each [25, 50, 100, 250, 500] as size}
-                      <option value={size}>{size}/pg</option>
-                    {/each}
-                  </select>
-                </div>
-              {/if}
-
-              {#if previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text' || previewedFile?.processed?.type === 'markdown' || previewedFile?.processed?.type === 'html' || previewedFile?.processed?.type === 'diff'}
-                <button
-                  on:click={() => {
-                    darkMode = !darkMode;
-                    dispatch('toggle-dark-mode', darkMode);
-                  }}
-                  class="p-2 transition-colors rounded {darkMode ? 'bg-purple-100 text-[#772953]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}"
-                  title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  <i class="fas {darkMode ? 'fa-moon' : 'fa-sun'} text-sm"></i>
-                </button>
-              {/if}
-
-              {#if isTreeSupported && (previewedFile?.processed?.type === 'code' || previewedFile?.processed?.type === 'text')}
-                <div class="flex items-center bg-white border border-gray-300 rounded-md p-0.5 ml-1 mr-1">
-                  <button
-                    on:click={() => (treeViewMode = 'code')}
-                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-                    title="Code view"
-                  >
-                    Code
-                  </button>
-                  <button
-                    on:click={() => (treeViewMode = 'tree')}
-                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all {treeViewMode === 'tree' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
-                    title="Explorer tree view"
-                  >
-                    Explorer
-                  </button>
-                </div>
-              {/if}
-
-              <button
-                class="p-2 text-[#772953] hover:text-[#5a1f3f] rounded transition-colors"
-                on:click={() => openInFullView(selectedFile)}
-                title="Open in full view"
-              >
-                <i class="fas fa-expand-alt text-sm"></i>
-              </button>
-              <button
-                class="p-2 text-[#772953] hover:text-[#5a1f3f] rounded transition-colors"
-                on:click={() => downloadFile(selectedFile)}
-                title="Download file"
-              >
-                <i class="fas fa-download text-sm"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- File content -->
-          <div class="flex-1 overflow-auto flex flex-col min-h-0">
-            {#if (previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text') && isTreeSupported && treeViewMode === 'tree'}
-              <TreeRenderer
-                bind:this={treeRendererRef}
-                processed={previewedFile.processed}
-                {darkMode}
-                {fontSize}
-                lang={effectiveLang}
-                pageSize={treePageSize}
-                on:parse-error={() => (treeViewMode = 'code')}
-              />
-            {:else if previewedFile.processed.type === 'code' || previewedFile.processed.type === 'text'}
-              <CodeRenderer
-                processed={previewedFile.processed}
-                {relicId}
-                {showSyntaxHighlighting}
-                {showLineNumbers}
-                {fontSize}
-                {darkMode}
-              />
-            {:else if previewedFile.processed.type === 'markdown'}
-              <MarkdownRenderer
-                processed={previewedFile.processed}
-                {relicId}
-                {showSyntaxHighlighting}
-                {showLineNumbers}
-                {darkMode}
-              />
-            {:else if previewedFile.processed.type === 'html'}
-              <HtmlRenderer
-                processed={previewedFile.processed}
-                {relicId}
-                {showSyntaxHighlighting}
-                {showLineNumbers}
-                {darkMode}
-              />
-            {:else if previewedFile.processed.type === 'csv'}
-              <CsvRenderer processed={previewedFile.processed} />
-            {:else if previewedFile.processed.type === 'image'}
-              <ImageRenderer processed={previewedFile.processed} relicName={selectedFile.name} />
-            {:else if previewedFile.processed.type === 'excalidraw'}
-              <ExcalidrawRenderer processed={previewedFile.processed} />
-            {:else if previewedFile.processed.type === 'diff'}
-              <DiffRenderer
-                processed={previewedFile.processed}
-                {relicId}
-                {showSyntaxHighlighting}
-                {showLineNumbers}
-                {fontSize}
-                {darkMode}
-              />
-            {:else if previewedFile.processed.type === 'pdf'}
-              <PDFViewer
-                pdfDocument={previewedFile.processed.pdfDocument}
-                metadata={previewedFile.processed.metadata}
-                passwordRequired={previewedFile.processed.passwordRequired}
-                {relicId}
-              />
-            {:else}
-              <div class="p-6 text-center text-gray-500">
-                <i class="fas fa-eye-slash text-gray-300 text-4xl mb-4"></i>
-                <p class="text-gray-600 mb-4">Preview not available for this file type</p>
-                <button
-                  class="btn-primary"
-                  on:click={() => downloadFile(selectedFile)}
-                >
-                  <i class="fas fa-download mr-2"></i>
-                  Download to view
-                </button>
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/if}
-    </div>
-  </div>
+    {/if}
+  </section>
 </div>
+
+<style>
+  .arc {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+    background: var(--surface);
+    color: var(--ink);
+    font: 13px/1.45 var(--font-sans);
+  }
+  .arc-side {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--subtle);
+  }
+  .arc-side-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-3);
+    font: 700 11px var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .arc-side-head span {
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  .arc-tree {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-1) 0 var(--space-3);
+  }
+  .arc-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 28px;
+    padding-right: var(--space-3);
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: 13px var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+  }
+  .arc-item:hover {
+    background: var(--hover);
+  }
+  .arc-item.is-selected {
+    background: var(--accent-soft);
+    box-shadow: inset 2px 0 var(--accent);
+    font-weight: 500;
+  }
+  .arc-item.is-dir {
+    color: var(--ink-2);
+  }
+  .arc-chev {
+    display: inline-flex;
+    flex: none;
+    width: 12px;
+    color: var(--ink-3);
+    transition: transform 0.1s;
+  }
+  .arc-chev.is-open {
+    transform: rotate(90deg);
+  }
+  .arc-icon {
+    display: inline-flex;
+    flex: none;
+  }
+  .arc-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .arc-size {
+    flex: none;
+    color: var(--ink-3);
+    font: 12px var(--font-mono);
+  }
+  .arc-divider {
+    flex: none;
+    width: 5px;
+    margin: 0 -2px;
+    z-index: 1;
+    background: linear-gradient(to right, transparent 2px, var(--line) 2px, var(--line) 3px, transparent 3px);
+    cursor: col-resize;
+    outline: 0;
+  }
+  .arc-divider:hover,
+  .arc-divider:focus-visible,
+  .arc-divider.is-dragging {
+    background: linear-gradient(to right, transparent 1px, var(--accent) 1px, var(--accent) 4px, transparent 4px);
+  }
+  .arc-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .arc-file {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 44px;
+    padding: 0 var(--space-2) 0 var(--space-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .arc-file .arc-icon {
+    margin-right: var(--space-1\.5);
+  }
+  .arc-file-name {
+    display: grid;
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .arc-file-name b,
+  .arc-file-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .arc-file-name b {
+    font-weight: 600;
+  }
+  .arc-file-name span {
+    color: var(--ink-3);
+    font: 11.5px var(--font-mono);
+  }
+  .arc-select {
+    height: var(--control-sm);
+    padding: 0 6px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font: 12px var(--font-sans);
+  }
+  .arc-seg {
+    display: inline-flex;
+    margin: 0 var(--space-1);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .arc-seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--control-sm);
+    padding: 0 8px;
+    border: 0;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: 12px var(--font-sans);
+    cursor: pointer;
+  }
+  .arc-seg button + button {
+    border-left: 1px solid var(--line-2);
+  }
+  .arc-seg button[aria-pressed='true'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .arc-seg :global(.r-icon) {
+    width: 13px;
+    height: 13px;
+  }
+  .arc-file [aria-pressed='true'].r-btn {
+    color: var(--accent);
+  }
+  .arc-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+  .arc-state {
+    flex: 1;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    color: var(--ink-3);
+    text-align: center;
+  }
+  .arc-state p {
+    margin: 0;
+    color: var(--ink-2);
+  }
+  .arc-error {
+    flex: none;
+  }
+  .arc-error .r-btn {
+    margin-left: auto;
+  }
+  @media (max-width: 767px) {
+    .arc {
+      flex-direction: column;
+    }
+    .arc-side {
+      width: auto !important;
+      max-height: 40%;
+      border-bottom: 1px solid var(--line);
+    }
+    .arc-divider {
+      display: none;
+    }
+  }
+</style>

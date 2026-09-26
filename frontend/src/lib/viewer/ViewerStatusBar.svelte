@@ -48,7 +48,7 @@
     </a>
     <span class="vs-path" title={archive.filePath}>{archive.filePath}</span>
   {:else if type === "archive"}
-    <span><Icon name="archive" />{processed.metadata.archiveType?.toUpperCase()} · {processed.metadata.totalFiles} files</span>
+    <span><Icon name="archive" />{processed.metadata.archiveType?.toUpperCase()} · {processed.metadata.totalFiles} {processed.metadata.totalFiles === 1 ? "file" : "files"}</span>
   {/if}
   <span title={relic.content_type}>{relic.language_hint && relic.language_hint !== "auto" ? relic.language_hint : getTypeLabel(relic.content_type)}</span>
   <span>{compactBytes(relic.size_bytes)}</span>
