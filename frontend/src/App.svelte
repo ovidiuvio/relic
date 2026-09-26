@@ -38,7 +38,7 @@
   let mainEl;
   let lastPathname = null;
 
-  // Pages not rebuilt yet (Admin) still sit in the old centred column.
+  // Every page is rebuilt now, but keep the centred column for any route without fullBleed.
   $: contentClass = fullBleed ? "flex-1 min-h-0 flex flex-col" : "w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8";
 
   $: document.title = $pageTitle ? `${$pageTitle} · Relic` : "Relic";
@@ -162,7 +162,8 @@
   <NavBar section={currentSection} {routeProps} />
 
   <div class="flex-1 min-h-0 flex">
-  {#if $layout.rail}
+  <!-- The admin area brings its own side navigation. -->
+  {#if $layout.rail && currentSection !== "admin"}
     <Sidebar section={currentSection} {routeProps} />
   {/if}
 

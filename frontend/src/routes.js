@@ -77,10 +77,16 @@ const routes = [
     })
   },
   {
-    pattern: /^\/admin$/,
-    loader: () => import("./components/AdminPanel.svelte"),
+    pattern: /^\/admin(?:\/([a-z]+))?$/,
+    loader: () => import("./pages/Admin.svelte"),
     section: "admin",
-    getProps: () => ({})
+    fullBleed: true,
+    getProps: (match, urlParams) => ({
+      tab: match[1] || "overview",
+      search: urlParams.get('search'),
+      tag: urlParams.get('tag'),
+      visibility: urlParams.get('visibility')
+    })
   },
   {
     // Catch-all for relic viewing, optionally matching a file path in archives

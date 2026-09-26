@@ -126,3 +126,20 @@ export function counterLevel(value, isViews = false) {
   if (value >= low) return "low";
   return null;
 }
+
+/** Short relative time, per the design system: "just now", "14 min ago", "6 h ago", "yesterday", "3 d ago"; "in 5 min" ahead. */
+export function relativeTime(date, now = new Date()) {
+  const ms = now - new Date(date);
+  const future = ms < 0;
+  const min = Math.round(Math.abs(ms) / 60000);
+  let text;
+  if (min < 1) return future ? "in under a minute" : "just now";
+  if (min < 60) text = `${min} min`;
+  else if (min < 48 * 60) {
+    const h = Math.round(min / 60);
+    if (!future && h >= 24) return "yesterday";
+    text = `${h} h`;
+  } else if (min < 60 * 24 * 60) text = `${Math.round(min / 1440)} d`;
+  else return shortDate(date);
+  return future ? `in ${text}` : `${text} ago`;
+}
