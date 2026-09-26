@@ -7,7 +7,6 @@
   import Workbench from "../lib/shell/Workbench.svelte";
   import SpaceList from "../lib/spaces/SpaceList.svelte";
   import SpaceInspector from "../lib/spaces/SpaceInspector.svelte";
-  import RelicDropModal from "../components/RelicDropModal.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { InspectorPanel } from "../lib/shell/inspectorPanel.svelte.js";
   import { filterUrl } from "../lib/relics/filters";
@@ -18,6 +17,7 @@
   import { spaces as spacesApi } from "../services/api";
   import { copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
+  import { uploadFiles } from "../lib/compose/pendingUpload";
   import { navigate } from "../utils/navigation";
 
   let { search = null, create = false } = $props();
@@ -107,10 +107,9 @@
   }
 
   // Files dropped on a space's row upload into that space.
-  let drop = $state(null);
   async function onDropFiles(space, dataTransfer) {
     const files = await getFilesFromDrop(dataTransfer);
-    if (files.length) drop = { space, files };
+    if (files.length) uploadFiles(files, space.id);
   }
 
   function onKeydown(event) {
@@ -171,16 +170,3 @@
   {/snippet}
 </Workbench>
 
-{#if drop}
-  <RelicDropModal
-    files={drop.files}
-    spaceId={drop.space.id}
-    spaceName={drop.space.name}
-    on:close={() => (drop = null)}
-    on:success={() => {
-      drop = null;
-      feed.reload();
-      refreshSidebar();
-    }}
-  />
-{/if}

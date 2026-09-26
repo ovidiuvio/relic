@@ -9,7 +9,6 @@
   import ContentView from "../lib/viewer/ContentView.svelte";
   import ViewerStatusBar from "../lib/viewer/ViewerStatusBar.svelte";
   import ArchiveFileInspector from "../lib/viewer/ArchiveFileInspector.svelte";
-  import ForkModal from "../components/ForkModal.svelte";
   import { ViewerPrefs } from "../lib/viewer/viewerPrefs.svelte.js";
   import { InspectorPanel } from "../lib/shell/inspectorPanel.svelte.js";
   import { layout } from "../lib/shell/layout";
@@ -40,7 +39,6 @@
   let loading = $state(true);
   let showSource = $state(false);
   let comments = $state([]);
-  let forking = $state(false);
   let pdfViewer = $state(null);
   let treeRenderer = $state(null);
   let pdf = $state(null);
@@ -204,6 +202,9 @@
   function onKeydown(event) {
     if (event.key === "y" && relic && !archive) {
       copyToClipboard(currentLink(), "Link copied");
+    } else if (event.key === "f" && relic && !archive) {
+      event.preventDefault();
+      navigate(`/fork/${relic.id}`);
     }
   }
 </script>
@@ -281,7 +282,7 @@
           editable={!!relic.can_edit}
           deletable={!!relic.can_edit || $session.isAdmin}
           ontag={(tag) => navigate(`/recent?tag=${encodeURIComponent(tag)}`)}
-          onfork={() => (forking = true)}
+          onfork={() => navigate(`/fork/${relic.id}`)}
           linkUrl={currentLink}
           onupdated={onUpdated}
           ondeleted={onDeleted}
@@ -292,9 +293,6 @@
   </Workbench>
 {/if}
 
-{#if relic && !archive}
-  <ForkModal bind:open={forking} {relicId} {relic} darkMode={prefs.darkMode} />
-{/if}
 
 <style>
   .view-main {

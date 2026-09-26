@@ -2,19 +2,28 @@
 // Each route uses `loader` for dynamic import() — no eager components to avoid pulling
 // heavy transitive dependencies (monaco, highlight) into the main bundle.
 
-// Shared by the "/" route and the fallback. Must be a stable reference: App.svelte
+// Shared by the "/" route (New relic) and the fallback. Must be a stable reference: App.svelte
 // awaits the loader in the template, so a fresh closure per match would remount the
 // component (and discard in-progress form state) on every re-route.
-const relicFormLoader = () => import("./components/RelicForm.svelte");
+const relicFormLoader = () => import("./pages/NewRelic.svelte");
 
 const routes = [
   {
     pattern: /^\/$/,
     loader: relicFormLoader,
     section: "new",
+    fullBleed: true,
     getProps: (match, urlParams) => ({
-      spaceId: urlParams.get('space')
+      spaceId: urlParams.get('space'),
+      upload: urlParams.get('upload') === '1'
     })
+  },
+  {
+    pattern: /^\/fork\/([a-f0-9]{32})$/,
+    loader: () => import("./pages/Fork.svelte"),
+    section: "fork",
+    fullBleed: true,
+    getProps: (match) => ({ relicId: match[1] })
   },
   {
     pattern: /^\/recent$/,
@@ -85,7 +94,7 @@ const routes = [
       // Validate that the first param is not a known root-level route path.
       // "new" is included even though there's no /new route: old links to /new?space=id must
       // fall through to the fallback (RelicForm) rather than match as a relic ID.
-      const reserved = ["api", "recent", "my-relics", "my-bookmarks", "spaces", "new", "admin"];
+      const reserved = ["api", "recent", "my-relics", "my-bookmarks", "spaces", "new", "fork", "admin"];
       if (reserved.includes(match[1])) {
         return null; // Signals this route shouldn't match
       }
@@ -146,7 +155,8 @@ export function matchRoute(path, urlParams) {
   // Fallback to "new" if nothing matches
   return {
     loader: relicFormLoader,
-    props: { spaceId: urlParams.get('space') },
-    section: "new"
+    props: { spaceId: urlParams.get('space'), upload: false },
+    section: "new",
+    fullBleed: true,
   };
 }

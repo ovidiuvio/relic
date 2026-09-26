@@ -3,6 +3,9 @@
   // Replaces the old edit dialog. Ctrl+Enter saves, Esc cancels.
   import Icon from "../../ui/Icon.svelte";
   import Combobox from "../../ui/Combobox.svelte";
+  import VisibilityField from "../fields/VisibilityField.svelte";
+  import ExpiryField from "../fields/ExpiryField.svelte";
+  import TagsField from "../fields/TagsField.svelte";
   import { updateRelic } from "../../../services/api";
   import { getAvailableSyntaxOptions, getFileTypeDefinition, getContentType } from "../../../services/typeUtils";
   import { showToast } from "../../../stores/toastStore";
@@ -11,26 +14,6 @@
   let { relic, onsaved, oncancel } = $props();
 
   const SYNTAXES = getAvailableSyntaxOptions();
-
-  const VISIBILITY = [
-    { value: "public", icon: "globe", label: "Public", hint: "Listed in Recent and search" },
-    { value: "private", icon: "lock", label: "Private", hint: "Anyone with the link" },
-    { value: "restricted", icon: "users", label: "Restricted", hint: "Only people you add" },
-  ];
-
-  // "keep" leaves the current expiry alone; the rest are counted from now.
-  const EXPIRY = [
-    ["keep", "Keep"],
-    ["never", "Never"],
-    ["10m", "10 min"],
-    ["1h", "1 hour"],
-    ["12h", "12 hours"],
-    ["24h", "24 hours"],
-    ["3d", "3 days"],
-    ["7d", "7 days"],
-    ["30d", "30 days"],
-    ["1y", "1 year"],
-  ];
 
   // The form starts from the relic as it is now; later changes to the prop don't reset it.
   const start = () => {
@@ -45,27 +28,12 @@
     };
   };
   let form = $state(start());
-  let tagDraft = $state("");
   let saving = $state(false);
-
-  function addTag(raw) {
-    const names = raw.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
-    form.tags = [...new Set([...form.tags, ...names])];
-    tagDraft = "";
-  }
-
-  function onTagKeydown(event) {
-    if (event.key === "Enter" || event.key === ",") {
-      event.preventDefault();
-      if (tagDraft.trim()) addTag(tagDraft);
-    } else if (event.key === "Backspace" && !tagDraft && form.tags.length) {
-      form.tags = form.tags.slice(0, -1);
-    }
-  }
+  let tagsField = $state();
 
   async function save() {
     if (saving) return;
-    if (tagDraft.trim()) addTag(tagDraft);
+    tagsField?.flush();
     saving = true;
     try {
       const updates = {
@@ -113,7 +81,9 @@
   <div class="r-ins-form">
     <label class="r-field">
       <span class="r-label">Name</span>
-      <span class="r-input"><input bind:value={form.name} placeholder="Untitled" /></span>
+      <!-- Focus starts here, so Esc cancels and Ctrl+Enter saves straight away. -->
+      <!-- svelte-ignore a11y_autofocus -->
+      <span class="r-input"><input bind:value={form.name} placeholder="Untitled" autofocus /></span>
     </label>
 
     <div class="r-field">
@@ -121,45 +91,9 @@
       <Combobox id="edit-type" options={SYNTAXES} bind:value={form.syntax} placeholder="Search languages" />
     </div>
 
-    <div class="r-field" role="radiogroup" aria-labelledby="edit-vis">
-      <span class="r-label" id="edit-vis">Visibility</span>
-      <div class="r-options">
-        {#each VISIBILITY as v (v.value)}
-          <label class="r-option">
-            <input type="radio" class="r-radio" name="visibility" value={v.value} bind:group={form.access} />
-            <b><Icon name={v.icon} />{v.label}</b>
-            <small>{v.hint}</small>
-          </label>
-        {/each}
-      </div>
-      {#if form.access === "restricted"}
-        <span class="r-help">After saving, add people in the inspector’s Access section.</span>
-      {/if}
-    </div>
-
-    <div class="r-field">
-      <label class="r-label" for="edit-tags">Tags</label>
-      <span class="r-input">
-        {#each form.tags as tag (tag)}
-          <span class="r-chip-tag">
-            {tag}
-            <button type="button" class="edit-untag" onclick={() => (form.tags = form.tags.filter((t) => t !== tag))} aria-label="Remove tag {tag}">
-              <Icon name="x" />
-            </button>
-          </span>
-        {/each}
-        <input id="edit-tags" bind:value={tagDraft} onkeydown={onTagKeydown} onblur={() => tagDraft.trim() && addTag(tagDraft)} placeholder={form.tags.length ? "Add a tag…" : "config, nginx, production"} />
-      </span>
-    </div>
-
-    <div class="r-field">
-      <span class="r-label">Expires <span class="r-label-aside">now {relic.expires_at ? fullDate(relic.expires_at) : "never"}</span></span>
-      <div class="r-pills">
-        {#each EXPIRY as [value, label] (value)}
-          <button type="button" aria-pressed={form.expiry === value} onclick={() => (form.expiry = value)}>{label}</button>
-        {/each}
-      </div>
-    </div>
+    <VisibilityField bind:value={form.access} name="edit-visibility" note="After saving, add people in the inspector’s Access section." />
+    <TagsField bind:this={tagsField} bind:tags={form.tags} id="edit-tags" />
+    <ExpiryField bind:value={form.expiry} allowKeep current={relic.expires_at ? fullDate(relic.expires_at) : "never"} />
   </div>
 
   <div class="r-ins-save">
@@ -175,18 +109,6 @@
     flex-direction: column;
     flex: 1;
     min-height: 0;
-  }
-  .edit-untag {
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ink-3);
-    cursor: pointer;
-  }
-  .edit-untag:hover {
-    color: var(--danger);
   }
   .edit-hint {
     margin-right: auto;

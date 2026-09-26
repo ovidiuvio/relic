@@ -5,7 +5,6 @@
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
-  import RelicDropModal from "../components/RelicDropModal.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
   import { filterUrl } from "../lib/relics/filters";
@@ -13,6 +12,7 @@
   import { getUserRelics } from "../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
+  import { uploadFiles } from "../lib/compose/pendingUpload";
   import { navigate } from "../utils/navigation";
 
   let { tagFilter = null, search = null } = $props();
@@ -37,11 +37,10 @@
     { icon: "trash", title: "Delete", request: "delete" },
   ];
 
-  // Dropped files open the upload form (still a dialog; it moves into the inspector later).
-  let droppedFiles = $state(null);
+  // Dropped files go to the New relic page to upload.
   async function onDropFiles(dataTransfer) {
     const files = await getFilesFromDrop(dataTransfer);
-    if (files.length) droppedFiles = files;
+    if (files.length) uploadFiles(files);
   }
 
   const filtered = $derived(!!(search || tagFilter));
@@ -85,14 +84,3 @@
   {/snippet}
 </RelicWorkbench>
 
-{#if droppedFiles}
-  <RelicDropModal
-    files={droppedFiles}
-    on:close={() => (droppedFiles = null)}
-    on:success={() => {
-      droppedFiles = null;
-      feed.reload();
-      refreshSidebar();
-    }}
-  />
-{/if}

@@ -62,9 +62,11 @@ export async function getFilesFromDrop(dt) {
     const entriesToProcess = [];
     for (let i = 0; i < dt.items.length; i++) {
       const item = dt.items[i];
-      if (item.webkitGetAsEntry) {
-        const entry = item.webkitGetAsEntry();
-        if (entry) entriesToProcess.push({ entry });
+      // Entries let folders be walked; when the browser gives none for a file (some drag
+      // sources), fall back to the plain file.
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) {
+        entriesToProcess.push({ entry });
       } else if (item.kind === "file") {
         const file = item.getAsFile();
         if (file) entriesToProcess.push({ file });

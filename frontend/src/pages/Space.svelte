@@ -7,7 +7,6 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import SpaceInspector from "../lib/spaces/SpaceInspector.svelte";
-  import RelicDropModal from "../components/RelicDropModal.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { InspectorPanel } from "../lib/shell/inspectorPanel.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -18,6 +17,7 @@
   import { spaces as spacesApi } from "../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
+  import { uploadFiles } from "../lib/compose/pendingUpload";
   import { showToast } from "../stores/toastStore";
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
@@ -126,10 +126,10 @@
     ...(canAdd ? [{ icon: "x", title: "Remove from space", run: removeFromSpace }] : []),
   ]);
 
-  let droppedFiles = $state(null);
+  // Dropped files go to the New relic page to upload into this space.
   async function onDropFiles(dataTransfer) {
     const files = await getFilesFromDrop(dataTransfer);
-    if (files.length) droppedFiles = files;
+    if (files.length) uploadFiles(files, spaceId);
   }
 
   const filtered = $derived(!!(search || tagFilter));
@@ -230,19 +230,6 @@
   />
 {/snippet}
 
-{#if droppedFiles && space}
-  <RelicDropModal
-    files={droppedFiles}
-    spaceId={space.id}
-    spaceName={space.name}
-    on:close={() => (droppedFiles = null)}
-    on:success={() => {
-      droppedFiles = null;
-      feed.reload();
-      loadSpace(spaceId);
-    }}
-  />
-{/if}
 
 <style>
   .space-meta {

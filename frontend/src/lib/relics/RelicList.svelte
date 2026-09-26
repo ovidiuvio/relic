@@ -27,6 +27,7 @@
     dateLabel = null, // header for the date column when it isn't "Time"/"Date" (e.g. "Bookmarked")
     showPublic = false, // mark public relics too (lists that mix visibilities)
     showOwner = true, // off where every relic is yours
+    local = false, // items that live only in this browser (drafts): no owner, id or counters, and the name opens via onopen
     highlight = "", // search term to <mark> in names
     selectedId = null,
     actions = [], // [{ icon, title, run(relic) }] shown on hover
@@ -144,7 +145,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="list" bind:this={listEl} role="list" aria-busy={loading} onkeydown={onKeydown}>
   {#if relics.length}
-    <div class="list-head cols" class:no-owner={!showOwner} role="presentation">
+    <div class="list-head cols" class:no-owner={!showOwner} class:is-local={local} role="presentation">
       {#snippet head(key, label, title, cls = "")}
         <button class="head-sort {cls}" class:is-on={sortedBy(key)} aria-label={sortLabel(key, title)} onclick={() => onsort?.(key)} title="Sort by {title.toLowerCase()}">
           {#if cls.includes("head-num") && sortedBy(key)}<span class="head-dir" class:is-asc={sort.dir === "asc"}><Icon name="arrowup" /></span>{/if}
@@ -159,10 +160,11 @@
       {@render head("date", dateHead, dateLabel ?? "Date")}
       <span></span>
       {@render head("name", nameLabel, "Name")}
-      {#if showOwner}{@render head("owner", ownerLabel, "Owner", "head-owner")}{/if}
-      <span>ID</span>
+      {#if showOwner && !local}{@render head("owner", ownerLabel, "Owner", "head-owner")}{/if}
+      {#if !local}<span>ID</span>{/if}
       <span class="head-tags">Tags</span>
       {@render head("size", sizeLabel, "Size", "head-num")}
+      {#if !local}
       {#each COUNTERS as c (c.key)}
         {#snippet countLabel()}<Icon name={c.icon} />{/snippet}
         {#if c.sort}
@@ -171,6 +173,7 @@
           <span class="head-num head-count" title={c.name} aria-label={c.name}><Icon name={c.icon} /></span>
         {/if}
       {/each}
+      {/if}
     </div>
   {/if}
   {#each items as { relic, day, dated } (relic.id)}
@@ -183,11 +186,12 @@
     {@const badge = typeBadge(relic)}
     {@const expiry = expiryMarker(relic.expires_at)}
     {@const tags = (relic.tags ?? []).map(tagName)}
-    {@const viewable = hasViewer(relic.content_type)}
+    {@const viewable = local || hasViewer(relic.content_type)}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_click_events_have_key_events -->
     <div
       class="r-row cols"
       class:no-owner={!showOwner}
+      class:is-local={local}
       class:is-selected={relic.id === selectedId}
       data-id={relic.id}
       role="listitem"
@@ -212,7 +216,9 @@
             {#each nameParts(relic.name) as part}{#if part.mark}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}
           {:else}Untitled{/if}
         {/snippet}
-        {#if viewable}
+        {#if local}
+          <button class="r-row-link row-open" class:is-untitled={!relic.name} tabindex="-1" title="Open “{relic.name || 'Untitled'}”" onclick={() => onopen?.(relic)}>{@render name()}</button>
+        {:else if viewable}
           <a class="r-row-link" class:is-untitled={!relic.name} href="/{relic.id}" tabindex="-1" title={relic.name || "Untitled"}>{@render name()}</a>
         {:else}
           <!-- No viewer for this type: nothing to open, so the name isn't a link (download it instead). -->
@@ -222,7 +228,8 @@
           <span class="r-marker" class:r-marker-warning={expiry.soon}><Icon name="clock" />{expiry.text}</span>
         {/if}
       </span>
-      {#if showOwner}<span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>{/if}
+      {#if showOwner && !local}<span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>{/if}
+      {#if !local}
       <button
         class="r-row-id row-id"
         tabindex="-1"
@@ -231,6 +238,7 @@
         onclick={() => copyToClipboard(relic.id, "Relic ID copied")}
         ondblclick={(e) => e.stopPropagation()}
       >{relic.id.slice(0, 8)}<Icon name="copy" /></button>
+      {/if}
       <!-- Two tags as filter links, then "+N" to see the rest in the inspector. -->
       <span class="r-row-tags">
         {#each tags.slice(0, 2) as tag (tag)}
@@ -241,6 +249,7 @@
         {/if}
       </span>
       <span class="r-row-size">{compactBytes(relic.size_bytes)}</span>
+      {#if !local}
       {#each COUNTERS as c (c.key)}
         {@const n = relic[c.key] ?? 0}
         {#if c.section && n > 0}
@@ -257,6 +266,7 @@
           <span class="row-count" data-level={counterLevel(n, c.views)} title={counted(n, c.name)}>{n || (c.views ? 0 : "")}</span>
         {/if}
       {/each}
+      {/if}
       {#if actions.length}
         <span class="r-row-actions">
           {#each actions as action (action.title)}
@@ -343,6 +353,17 @@
   }
   .cols.no-owner {
     grid-template-columns: 38px 34px minmax(0, 1fr) 64px 150px 44px repeat(4, 38px);
+  }
+  /* Local items (drafts): time, type, name, tags, size; actions float over tags and size. */
+  .cols.is-local {
+    grid-template-columns: 38px 34px minmax(0, 1fr) 180px 64px;
+  }
+  .row-open {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
   }
   .r-row:focus-within :global(.r-row-actions) {
     display: flex;
@@ -523,6 +544,9 @@
     .cols.no-owner {
       grid-template-columns: 38px 34px minmax(0, 1fr) 64px 44px repeat(4, 34px);
     }
+    .cols.is-local {
+      grid-template-columns: 38px 34px minmax(0, 1fr) 64px;
+    }
     .r-row-tags,
     .head-tags,
     .row-owner,
@@ -532,7 +556,8 @@
   }
   @media (max-width: 767px) {
     .cols,
-    .cols.no-owner {
+    .cols.no-owner,
+    .cols.is-local {
       grid-template-columns: 44px 34px minmax(0, 1fr) 44px;
     }
     .r-row {

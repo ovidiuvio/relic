@@ -23,6 +23,7 @@
     "my-bookmarks": "Bookmarks",
     admin: "Admin",
     relic: "Relic",
+    fork: "Fork",
   };
 
   let currentSection = null;
@@ -32,18 +33,13 @@
   // legacy pages still sit in the centred content column until they are rebuilt.
   let fullBleed = false;
 
-  let relicFormFullWidth = false;
   let userKeyOnce = null;
   let showKeyReveal = false;
   let mainEl;
   let lastPathname = null;
 
-  // Legacy pages (the new relic form) still sit in a centred column unless widened.
-  $: wideLegacy = currentSection === "new" && relicFormFullWidth;
-  $: fillsHeight = currentSection === "new";
-  $: contentClass = fullBleed
-    ? "flex-1 min-h-0 flex flex-col"
-    : `w-full ${wideLegacy ? "" : "max-w-7xl mx-auto"} py-6 px-4 sm:px-6 lg:px-8 transition-all duration-300${fillsHeight ? " flex-1 flex flex-col min-h-0" : ""}`;
+  // Pages not rebuilt yet (Admin) still sit in the old centred column.
+  $: contentClass = fullBleed ? "flex-1 min-h-0 flex flex-col" : "w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8";
 
   $: document.title = $pageTitle ? `${$pageTitle} · Relic` : "Relic";
 
@@ -100,12 +96,6 @@
     // not awaited, so link handling and back/forward don't wait on three API calls.
     loadSession();
 
-    // Load the form's full-width preference from localStorage
-    const savedForm = localStorage.getItem("relic_form_fullwidth");
-    if (savedForm !== null) {
-      relicFormFullWidth = savedForm === "true";
-    }
-
     // Initial routing already handled at top level
 
     document.addEventListener("click", handleLinkClick);
@@ -158,9 +148,6 @@
     updateRouting();
   }
 
-  function handleFullWidthToggle(event) {
-    if (currentSection === 'new') relicFormFullWidth = event.detail.isFullWidth;
-  }
 </script>
 
 <div class="h-screen overflow-hidden flex flex-col text-gray-900">
@@ -194,7 +181,6 @@
           <svelte:component
             this={Component}
             {...routeProps}
-            on:fullwidth-toggle={handleFullWidthToggle}
             on:tag-click={handleTagClick}
             on:navigate={(e) => handleNavigation(e.detail.path)}
             on:clear-tag-filter={() => {
