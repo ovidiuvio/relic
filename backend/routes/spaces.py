@@ -19,6 +19,20 @@ from backend.dependencies import get_current_user, get_space_role, check_space_a
 router = APIRouter(prefix="/api/v1/spaces")
 
 
+def space_response(space: Space, owner: Optional[User], relic_count: int, role: Optional[str]) -> dict:
+    """A space as the API returns it. The owner is named by public ID only: users.id is their secret key."""
+    return {
+        "id": space.id,
+        "name": space.name,
+        "visibility": space.visibility,
+        "owner_public_id": owner.public_id if owner else None,
+        "owner_name": owner.name if owner else None,
+        "created_at": space.created_at,
+        "relic_count": relic_count,
+        "role": role,
+    }
+
+
 @router.post("", response_model=SpaceResponse)
 async def create_space(
     space_in: SpaceCreate,
@@ -43,15 +57,7 @@ async def create_space(
     await db.commit()
     await db.refresh(space)
 
-    return {
-        "id": space.id,
-        "name": space.name,
-        "visibility": space.visibility,
-        "owner_id": space.owner_id,
-        "created_at": space.created_at,
-        "relic_count": 0,
-        "role": "owner"
-    }
+    return space_response(space, user, 0, "owner")
 
 @router.get("", response_model=dict)
 async def list_spaces(
@@ -77,7 +83,7 @@ async def list_spaces(
     user_id = request.headers.get("X-User-Key")
     is_admin = await is_admin_user_id(db, user_id)
 
-    stmt = select(Space).options(selectinload(Space.access_list))
+    stmt = select(Space).options(selectinload(Space.access_list), selectinload(Space.owner))
 
     access_sq = (
         select(SpaceAccess.space_id).where(SpaceAccess.user_id == user_id).scalar_subquery()
@@ -163,15 +169,7 @@ async def list_spaces(
     result = []
     for space in spaces:
         role = await get_space_role(space, user_id, db, is_admin=is_admin)
-        result.append({
-            "id": space.id,
-            "name": space.name,
-            "visibility": space.visibility,
-            "owner_id": space.owner_id,
-            "created_at": space.created_at,
-            "relic_count": relic_counts.get(space.id, 0),
-            "role": role
-        })
+        result.append(space_response(space, space.owner, relic_counts.get(space.id, 0), role))
 
     return {"spaces": result, "total": total, "limit": limit, "offset": offset}
 
@@ -196,15 +194,12 @@ async def get_space(
     if not await check_space_access(space, user_id, db, "viewer", is_admin=is_admin):
         raise HTTPException(status_code=403, detail="Not authorized to view this space")
 
-    return {
-        "id": space.id,
-        "name": space.name,
-        "visibility": space.visibility,
-        "owner_id": space.owner_id,
-        "created_at": space.created_at,
-        "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
-    }
+    return space_response(
+        space,
+        await db.get(User, space.owner_id),
+        await get_space_relic_count(space.id, db),
+        await get_space_role(space, user_id, db, is_admin=is_admin),
+    )
 
 @router.put("/{space_id}", response_model=SpaceResponse)
 async def update_space(
@@ -241,15 +236,12 @@ async def update_space(
     await db.commit()
     await db.refresh(space)
 
-    return {
-        "id": space.id,
-        "name": space.name,
-        "visibility": space.visibility,
-        "owner_id": space.owner_id,
-        "created_at": space.created_at,
-        "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
-    }
+    return space_response(
+        space,
+        await db.get(User, space.owner_id),
+        await get_space_relic_count(space.id, db),
+        await get_space_role(space, user_id, db, is_admin=is_admin),
+    )
 
 @router.post("/{space_id}/transfer-ownership", response_model=SpaceResponse)
 async def transfer_space_ownership(
@@ -314,15 +306,12 @@ async def transfer_space_ownership(
     await db.commit()
     await db.refresh(space)
 
-    return {
-        "id": space.id,
-        "name": space.name,
-        "visibility": space.visibility,
-        "owner_id": space.owner_id,
-        "created_at": space.created_at,
-        "relic_count": await get_space_relic_count(space.id, db),
-        "role": await get_space_role(space, user_id, db, is_admin=is_admin)
-    }
+    return space_response(
+        space,
+        new_owner,
+        await get_space_relic_count(space.id, db),
+        await get_space_role(space, user_id, db, is_admin=is_admin),
+    )
 
 
 @router.delete("/{space_id}")

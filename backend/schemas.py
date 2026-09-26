@@ -89,7 +89,8 @@ class SpaceAccessResponse(BaseModel):
 class SpaceResponse(SpaceBase):
     """Space response schema."""
     id: str
-    owner_id: str
+    owner_public_id: Optional[str] = None
+    owner_name: Optional[str] = None
     created_at: datetime
     relic_count: int = 0
     role: Optional[str] = None  # Role of the current user in this space (e.g., owner, editor, viewer)

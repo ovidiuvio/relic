@@ -60,7 +60,7 @@ def relic_in_space(http, space_owner):
 
 @pytest.mark.integration
 def test_create_space(http, space_owner):
-    key, _ = space_owner
+    key, public_id = space_owner
     resp = http.post(
         "/api/v1/spaces",
         headers={"X-User-Key": key},
@@ -70,7 +70,8 @@ def test_create_space(http, space_owner):
     data = resp.json()
     assert data["name"] == "My New Space"
     assert data["visibility"] == "public"
-    assert data["owner_id"] == key
+    assert data["owner_public_id"] == public_id
+    assert "owner_id" not in data
     assert data["role"] == "owner"
     assert "id" in data
 
@@ -209,7 +210,7 @@ def test_transfer_space_ownership(http, space_owner):
         json={"public_id": new_owner_public_id},
     )
     assert resp.status_code == 200
-    assert resp.json()["owner_id"] == new_owner_key
+    assert resp.json()["owner_public_id"] == new_owner_public_id
 
     http.delete(f"/api/v1/spaces/{space_id}", headers={"X-User-Key": new_owner_key})
 
@@ -371,3 +372,26 @@ def test_remove_space_access(http, space_owner, private_space):
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "Access removed successfully"
+
+
+@pytest.mark.integration
+def test_space_responses_never_contain_owner_key(http, space_owner, public_space):
+    """users.id is the owner's secret key; spaces name their owner by public ID instead."""
+    key, public_id = space_owner
+
+    listed = http.get("/api/v1/spaces", params={"search": public_space})
+    assert listed.status_code == 200
+    got = http.get(f"/api/v1/spaces/{public_space}")
+    updated = http.put(
+        f"/api/v1/spaces/{public_space}",
+        headers={"X-User-Key": key},
+        json={"name": "Renamed Space"},
+    )
+
+    for resp in (listed, got, updated):
+        assert resp.status_code == 200
+        assert key not in resp.text
+
+    [space] = listed.json()["spaces"]
+    assert space["owner_public_id"] == public_id
+    assert got.json()["owner_public_id"] == public_id

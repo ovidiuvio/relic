@@ -113,13 +113,14 @@ type UserInfo struct {
 
 // SpaceInfo represents a space
 type SpaceInfo struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Visibility string    `json:"visibility"`
-	OwnerID    string    `json:"owner_id"`
-	CreatedAt  RelicTime `json:"created_at"`
-	RelicCount int       `json:"relic_count"`
-	Role       string    `json:"role,omitempty"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Visibility    string    `json:"visibility"`
+	OwnerPublicID string    `json:"owner_public_id"`
+	OwnerName     string    `json:"owner_name,omitempty"`
+	CreatedAt     RelicTime `json:"created_at"`
+	RelicCount    int       `json:"relic_count"`
+	Role          string    `json:"role,omitempty"`
 }
 
 // SpaceListResponse represents a paginated list of spaces
