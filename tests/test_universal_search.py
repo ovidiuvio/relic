@@ -133,3 +133,43 @@ def test_filters_apply(http, world):
     assert found(search(http, world["bob"], search=f"{t} space"), ids) == {"in_space"}
     assert found(search(http, world["bob"], search=t, types="application/zip"), ids) == set()
     assert search(http, world["bob"], search=t, min_size=10**9)["total"] == 0
+
+
+@pytest.mark.integration
+def test_tag_search_only_counts_what_you_can_see(http, world):
+    """A tag used only on someone's private relic stays unknown to everyone else."""
+    t, alice = world["token"], world["alice"]
+    secret_tag = f"secret-{t}"
+    public_tag = f"open-{t}"
+    ids = []
+    for access, tag in (("private", secret_tag), ("public", public_tag)):
+        resp = http.post(
+            "/api/v1/relics", headers=alice,
+            data={"name": f"{t} tagged {access}", "access_level": access, "tags": tag},
+            files={"file": ("f.txt", b"x", "text/plain")},
+        )
+        ids.append(resp.json()["id"])
+    try:
+        names = lambda who: {x["name"]: x["count"] for x in http.get("/api/v1/tags", headers=who or {}, params={"search": t}).json()["tags"]}
+        assert names(alice) == {secret_tag: 1, public_tag: 1}
+        assert names(world["carol"]) == {public_tag: 1}
+        assert names(None) == {public_tag: 1}
+    finally:
+        for relic_id in ids:
+            http.delete(f"/api/v1/relics/{relic_id}", headers=alice)
+
+
+@pytest.mark.integration
+def test_owner_by_name_and_visibility(http, world):
+    t, ids, alice, bob = world["token"], world["ids"], world["alice"], world["bob"]
+    name = f"Alice {t}"
+    assert http.put("/api/v1/user/name", headers=alice, json={"name": name}).status_code == 200
+    # by: a display name, any case; the public list only has her public relic.
+    data = http.get("/api/v1/relics", params={"search": t, "owner": name.upper(), "limit": 100}).json()
+    assert [r["id"] for r in data["relics"]] == [ids["public"]]
+    assert http.get("/api/v1/relics", params={"search": t, "owner": "Nobody At All"}).json()["total"] == 0
+    # Visibility on the Everywhere list and on bookmarks.
+    assert found(search(http, bob, search=t, access_level="restricted"), ids) == {"shared"}
+    assert found(search(http, bob, search=t, access_level="private"), ids) == {"bookmarked", "in_space"}
+    marks = http.get("/api/v1/bookmarks", headers=bob, params={"access_level": "public"}).json()
+    assert ids["bookmarked"] not in {r["id"] for r in marks["bookmarks"]}

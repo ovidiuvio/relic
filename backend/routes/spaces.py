@@ -13,7 +13,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters, hidden_parents
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters, apply_visibility_filter, hidden_parents
 from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -354,6 +354,7 @@ async def get_space_relics(
     created_before: Optional[datetime] = None,  # ISO datetime, exclusive
     min_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
     max_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
+    access_level: Optional[str] = None,  # public, private or restricted
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     tag: Optional[str] = None,
@@ -404,6 +405,7 @@ async def get_space_relics(
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
     stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    stmt = apply_visibility_filter(stmt, access_level)
     facet_counts = await relic_facets(db, stmt, parse_types(types)) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 

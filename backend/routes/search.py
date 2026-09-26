@@ -24,7 +24,7 @@ from backend.schemas import RelicResponse
 from backend.dependencies import get_current_user
 from backend.utils import (
     clamp_limit, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types,
-    apply_type_filter, relic_facets, apply_range_filters, get_fork_counts, hidden_parents,
+    apply_type_filter, relic_facets, apply_range_filters, apply_visibility_filter, get_fork_counts, hidden_parents,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -107,6 +107,7 @@ async def search_everywhere(
     created_before: Optional[datetime] = None,
     min_size: Optional[int] = Query(None, ge=0),
     max_size: Optional[int] = Query(None, ge=0),
+    access_level: Optional[str] = None,  # public, private or restricted
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type, tag and source counts
     sort_by: str = "created_at",
@@ -135,17 +136,20 @@ async def search_everywhere(
         stmt = apply_relic_search(stmt, search)
     stmt = apply_owner_filter(stmt, owner)
     stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    stmt = apply_visibility_filter(stmt, access_level)
 
     # Counts describe the list before its type and source filters, so each facet shows what it
     # would give.
     facet_counts = None
     if facets:
         facet_counts = await relic_facets(db, stmt, parse_types(types))
-        typed = apply_type_filter(stmt, parse_types(types))
-        facet_counts["sources"] = {}
-        for name, condition in conditions.items():
-            counted = typed.where(condition).with_only_columns(Relic.id).order_by(None).subquery()
-            facet_counts["sources"][name] = (await db.execute(select(func.count()).select_from(counted))).scalar() or 0
+        # All the source counts in one pass over the results (COUNT … FILTER).
+        typed = apply_type_filter(stmt, parse_types(types)).with_only_columns(Relic.id).order_by(None).subquery()
+        names = list(conditions)
+        row = (await db.execute(
+            select(*[func.count().filter(conditions[n]) for n in names]).where(Relic.id.in_(select(typed.c.id)))
+        )).one()
+        facet_counts["sources"] = {n: row[i] or 0 for i, n in enumerate(names)}
 
     if source in conditions:
         stmt = stmt.where(conditions[source])
@@ -181,3 +185,43 @@ async def search_everywhere(
         item.update(why[relic.id])
         out.append(item)
     return {"relics": out, "total": total, "limit": limit, "offset": offset, "facets": facet_counts}
+
+
+@router.get("/tags", response_model=dict)
+async def search_tags(
+    request: Request,
+    search: Optional[str] = None,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+):
+    """Tags matching a search, counted over the relics you can see (the same rule as search), so a
+    tag only on someone's private relic stays unknown. Names starting with the search come first,
+    then by how often they're used."""
+    from backend.models import relic_tags
+    from backend.utils import like_escape
+    from sqlalchemy import case
+
+    limit = max(1, min(limit, 50))
+    user = await get_current_user(request, db)
+    conditions = _source_conditions(user.id if user else None)
+    visible = (
+        select(Relic.id)
+        .where(or_(*conditions.values()))
+        .where(or_(Relic.expires_at.is_(None), Relic.expires_at > datetime.utcnow()))
+    )
+    term = (search or "").strip().lower()
+    stmt = (
+        select(Tag.name, func.count())
+        .join(relic_tags, relic_tags.c.tag_id == Tag.id)
+        .where(relic_tags.c.relic_id.in_(visible))
+        .group_by(Tag.name)
+    )
+    if term:
+        esc = like_escape(term)
+        stmt = stmt.where(Tag.name.ilike(f"%{esc}%")).order_by(
+            case((Tag.name.ilike(f"{esc}%"), 0), else_=1), func.count().desc(), Tag.name
+        )
+    else:
+        stmt = stmt.order_by(func.count().desc(), Tag.name)
+    rows = (await db.execute(stmt.limit(limit))).all()
+    return {"tags": [{"name": name, "count": count} for name, count in rows]}

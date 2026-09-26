@@ -92,13 +92,29 @@ def like_term(value: str) -> str:
 
 
 def apply_owner_filter(stmt, owner: Optional[str]):
-    """Filter a Relic Select statement to one owner, named by public ID."""
+    """Filter a Relic Select statement to one owner: a public ID (16 hex characters), or else a
+    display name, matched case-insensitively (names aren't unique, so it may be several people)."""
+    import re
     from backend.models import Relic, User
-    from sqlalchemy import select
+    from sqlalchemy import select, func
+    owner = (owner or "").strip()
     if not owner:
         return stmt
-    owner_id = select(User.id).where(User.public_id == owner.strip()).scalar_subquery()
-    return stmt.where(Relic.user_id == owner_id)
+    if re.fullmatch(r"[0-9a-fA-F]{16}", owner):
+        owner_id = select(User.id).where(User.public_id == owner.lower()).scalar_subquery()
+        return stmt.where(Relic.user_id == owner_id)
+    return stmt.where(Relic.user_id.in_(select(User.id).where(func.lower(User.name) == owner.lower())))
+
+
+VISIBILITIES = ("public", "private", "restricted")
+
+
+def apply_visibility_filter(stmt, access_level: Optional[str]):
+    """Keep relics of one visibility (public, private or restricted); anything else is no filter."""
+    from backend.models import Relic
+    if access_level not in VISIBILITIES:
+        return stmt
+    return stmt.where(Relic.access_level == access_level)
 
 
 MAX_SEARCH_TERMS = 10
