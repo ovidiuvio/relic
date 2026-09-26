@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
+  import Icon from '../../lib/ui/Icon.svelte'
 
   export let processed
 
@@ -73,36 +74,57 @@
   }
 </script>
 
-<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
+<div class="exc">
   {#if excalidrawLoading}
-    <div class="flex items-center justify-center p-12">
-      <div class="text-center min-w-0 max-w-full break-words">
-        <i class="fas fa-spinner fa-spin text-blue-600 text-4xl mb-4"></i>
-        <p class="text-gray-600">Loading Excalidraw...</p>
-      </div>
-    </div>
+    <div class="exc-state" role="status"><p>Loading the drawing…</p></div>
   {:else if excalidrawError}
-    <div class="flex items-center justify-center p-12">
-      <div class="text-center min-w-0 max-w-full break-words">
-        <i class="fas fa-exclamation-triangle text-red-600 text-4xl mb-4"></i>
-        <p class="text-gray-600 mb-2">Failed to load Excalidraw editor</p>
-        <p class="text-sm text-gray-500">{excalidrawError}</p>
-      </div>
+    <div class="exc-state" role="alert">
+      <Icon name="info" size={22} />
+      <p>The drawing viewer didn’t load.</p>
+      <small>{excalidrawError}</small>
     </div>
   {:else if processed.error}
-    <div class="flex items-center justify-center p-12">
-      <div class="text-center min-w-0 max-w-full break-words">
-        <i class="fas fa-exclamation-circle text-yellow-600 text-4xl mb-4"></i>
-        <p class="text-gray-600 mb-2">Invalid Excalidraw file</p>
-        <p class="text-sm text-gray-500">{processed.error}</p>
-      </div>
+    <div class="exc-state" role="alert">
+      <Icon name="info" size={22} />
+      <p>This isn’t a drawing Excalidraw can open.</p>
+      <small>{processed.error}</small>
     </div>
   {:else}
     <!-- Excalidraw Viewer (read-only) -->
-    <div class="flex-1 min-h-0 overflow-hidden" bind:clientHeight={viewContainerHeight}>
+    <div class="exc-view" bind:clientHeight={viewContainerHeight}>
       {#if viewContainerHeight > 0}
         <div bind:this={viewContainer} style="height: {viewContainerHeight}px; width: 100%;"></div>
       {/if}
     </div>
   {/if}
 </div>
+
+<style>
+  .exc {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .exc-view {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .exc-state {
+    flex: 1;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    color: var(--ink-3);
+    font: 13px/1.5 var(--font-sans);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .exc-state p {
+    margin: 0;
+    color: var(--ink-2);
+  }
+</style>
