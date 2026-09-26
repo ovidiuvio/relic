@@ -116,6 +116,31 @@ def search_terms(search: str) -> List[str]:
     return terms[:MAX_SEARCH_TERMS]
 
 
+def _utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
+    """A datetime as the naive UTC the database stores."""
+    from datetime import timezone
+    if dt is None or dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def apply_range_filters(stmt, created_after: Optional[datetime] = None, created_before: Optional[datetime] = None,
+                        min_size: Optional[int] = None, max_size: Optional[int] = None):
+    """Filter a Relic Select statement by when relics were created (created_after inclusive,
+    created_before exclusive; aware datetimes are converted to UTC, naive ones taken as UTC)
+    and by size in bytes (both bounds inclusive)."""
+    from backend.models import Relic
+    if created_after is not None:
+        stmt = stmt.where(Relic.created_at >= _utc_naive(created_after))
+    if created_before is not None:
+        stmt = stmt.where(Relic.created_at < _utc_naive(created_before))
+    if min_size is not None:
+        stmt = stmt.where(Relic.size_bytes >= min_size)
+    if max_size is not None:
+        stmt = stmt.where(Relic.size_bytes <= max_size)
+    return stmt
+
+
 def apply_relic_search(stmt, search: str):
     """Filter a Relic Select statement by a search: every term (see search_terms) must match
     the name, ID, description or a tag name, case-insensitively and in any order. A one-word
@@ -186,12 +211,14 @@ def apply_type_filter(stmt, types: List[str]):
     return stmt.where(or_(ct.in_(types), *[ct.like(f"{like_escape(t)};%", escape="\\") for t in types]))
 
 
-async def relic_facets(db: AsyncSession, stmt, tag_limit: int = 20) -> Dict:
+async def relic_facets(db: AsyncSession, stmt, types: Optional[List[str]] = None, tag_limit: int = 20) -> Dict:
     """Counts for a filtered relic list: relics per content type, and its most used tags.
 
-    `stmt` is the list's Select with its scope and filters (any entity columns; Relic is joined).
-    Content types are reported lowercase without parameters; the client groups them into its
-    type families, so the server needs no copy of the type catalogue.
+    `stmt` is the list's Select with its scope and filters but not its type filter (any entity
+    columns; Relic is joined); `types` is that type filter (see parse_types). Type counts ignore
+    it, so each type facet shows what it would give; tag counts apply it, so they describe the
+    list as shown. Content types are reported lowercase without parameters; the client groups
+    them into its type families, so the server needs no copy of the type catalogue.
     """
     from backend.models import Relic, Tag, relic_tags
     from sqlalchemy import select, func
@@ -202,20 +229,21 @@ async def relic_facets(db: AsyncSession, stmt, tag_limit: int = 20) -> Dict:
         .where(Relic.id.in_(select(ids.c.id)))
         .group_by(func.lower(Relic.content_type))
     )
-    types: Dict[str, int] = {}
+    type_counts: Dict[str, int] = {}
     for content_type, count in type_rows.all():
         base = (content_type or "application/octet-stream").split(";", 1)[0].strip()
-        types[base] = types.get(base, 0) + count
+        type_counts[base] = type_counts.get(base, 0) + count
 
+    tagged = apply_type_filter(stmt, types or []).with_only_columns(Relic.id).order_by(None).subquery()
     tag_rows = await db.execute(
         select(Tag.name, func.count())
         .join(relic_tags, relic_tags.c.tag_id == Tag.id)
-        .where(relic_tags.c.relic_id.in_(select(ids.c.id)))
+        .where(relic_tags.c.relic_id.in_(select(tagged.c.id)))
         .group_by(Tag.name)
         .order_by(func.count().desc(), Tag.name)
         .limit(tag_limit)
     )
-    return {"types": types, "tags": [{"name": name, "count": count} for name, count in tag_rows.all()]}
+    return {"types": type_counts, "tags": [{"name": name, "count": count} for name, count in tag_rows.all()]}
 
 
 def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None, search: Optional[str] = None) -> tuple:

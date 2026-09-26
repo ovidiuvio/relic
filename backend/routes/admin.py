@@ -1,12 +1,13 @@
 """Admin endpoints."""
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 from sqlalchemy import func, case, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
+from datetime import datetime
 from typing import Optional
 
 from backend.config import settings
@@ -15,7 +16,7 @@ from backend.models import Relic, User, UserBookmark, RelicReport, Comment, Tag,
 from backend.schemas import AdminGrant
 from backend.storage import storage_service
 from backend.dependencies import get_current_user, get_admin_user, is_admin_user
-from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, parse_types, apply_type_filter, relic_facets
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, parse_types, apply_type_filter, relic_facets, apply_range_filters
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -42,6 +43,10 @@ async def admin_list_all_relics(
     access_level: Optional[str] = None,
     user_id: Optional[str] = None,
     search: Optional[str] = None,
+    created_after: Optional[datetime] = None,  # ISO datetime, inclusive
+    created_before: Optional[datetime] = None,  # ISO datetime, exclusive
+    min_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
+    max_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     tag: Optional[str] = None,
@@ -72,7 +77,8 @@ async def admin_list_all_relics(
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
-    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    facet_counts = await relic_facets(db, stmt, parse_types(types)) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
     if tag:

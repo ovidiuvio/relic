@@ -140,3 +140,54 @@ def test_owner_filter(http):
     finally:
         for key, _, relic in users:
             http.delete(f"/api/v1/relics/{relic}", headers={"X-User-Key": key})
+
+
+@pytest.mark.integration
+def test_tag_counts_follow_the_type_filter(http, facet_user, make_relic):
+    """Tag counts describe the list as shown; type counts still ignore the type filter."""
+    make_relic("a.py", "text/x-python", tags=("shared", "py-only"))
+    make_relic("b.txt", "text/plain", tags=("shared",))
+    data = user_relics(http, facet_user, facets="true", types="text/x-python")
+    assert data["facets"]["types"] == {"text/x-python": 1, "text/plain": 1}
+    assert {t["name"]: t["count"] for t in data["facets"]["tags"]} == {"shared": 1, "py-only": 1}
+
+
+@pytest.mark.integration
+def test_size_and_date_filters(http, facet_user):
+    from datetime import datetime, timedelta, timezone
+    created = []
+    for name, size in (("small.txt", 10), ("medium.txt", 2000), ("large.txt", 50000)):
+        resp = http.post(
+            "/api/v1/relics", headers=facet_user,
+            data={"name": name, "access_level": "private"},
+            files={"file": (name, b"x" * size, "text/plain")},
+        )
+        assert resp.status_code == 200, resp.text
+        created.append(resp.json())
+    try:
+        names = lambda **p: sorted(r["name"] for r in user_relics(http, facet_user, **p)["relics"])
+        assert names(min_size=2000) == ["large.txt", "medium.txt"]  # inclusive
+        assert names(max_size=2000) == ["medium.txt", "small.txt"]  # inclusive
+        assert names(min_size=11, max_size=49999) == ["medium.txt"]
+
+        now = datetime.now(timezone.utc)
+        hour = timedelta(hours=1)
+        assert names(created_after=(now - hour).isoformat()) == ["large.txt", "medium.txt", "small.txt"]
+        assert names(created_after=(now + hour).isoformat()) == []
+        assert names(created_before=(now - hour).isoformat()) == []
+        assert names(created_before=(now + hour).isoformat(), min_size=11) == ["large.txt", "medium.txt"]
+        # A timezone offset is honoured: the same instant written in UTC+02:00.
+        plus2 = (now - hour).astimezone(timezone(timedelta(hours=2))).isoformat()
+        assert names(created_after=plus2) == ["large.txt", "medium.txt", "small.txt"]
+
+        bad = http.get("/api/v1/user/relics", headers=facet_user, params={"created_after": "not a date"})
+        assert bad.status_code == 422
+        bad = http.get("/api/v1/user/relics", headers=facet_user, params={"min_size": -1})
+        assert bad.status_code == 422
+
+        # The public list and the facets take the same filters.
+        public = http.get("/api/v1/relics", params={"limit": 1, "min_size": 10**12, "facets": "true"})
+        assert public.status_code == 200 and public.json()["total"] == 0 and public.json()["facets"]["types"] == {}
+    finally:
+        for relic in created:
+            http.delete(f"/api/v1/relics/{relic['id']}", headers=facet_user)

@@ -1,5 +1,5 @@
 """Bookmark endpoints."""
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
@@ -9,7 +9,7 @@ from typing import Optional
 from backend.database import get_db
 from backend.models import Relic, UserBookmark, Comment, User, Tag
 from backend.dependencies import get_current_user
-from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters
 
 router = APIRouter(prefix="/api/v1/bookmarks")
 
@@ -146,6 +146,10 @@ async def get_user_bookmarks(
     tag: Optional[str] = None,
     search: Optional[str] = None,
     owner: Optional[str] = None,  # an owner's public ID
+    created_after: Optional[datetime] = None,  # ISO datetime, inclusive
+    created_before: Optional[datetime] = None,  # ISO datetime, exclusive
+    min_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
+    max_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     sort_by: str = "created_at",
@@ -197,7 +201,8 @@ async def get_user_bookmarks(
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
-    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    facet_counts = await relic_facets(db, stmt, parse_types(types)) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
     order = relic_sort_order(sort_by, sort_order, {"created_at": UserBookmark.created_at}, search=search)

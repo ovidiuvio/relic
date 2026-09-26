@@ -1,5 +1,5 @@
 """Relic CRUD and content endpoints."""
-from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import selectinload, joinedload, contains_eager
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ from backend.database import get_db
 from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service, FileTooLargeError
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_relic_ids, hidden_parents
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters, hidden_relic_ids, hidden_parents
 from backend.dependencies import (
     get_current_user, check_ownership_or_admin, is_admin_user, is_admin_user_id,
     process_tags, generate_unique_relic_id, check_space_access
@@ -694,6 +694,10 @@ async def list_relics(
     tag: Optional[str] = None,
     search: Optional[str] = None,
     owner: Optional[str] = None,  # an owner's public ID
+    created_after: Optional[datetime] = None,  # ISO datetime, inclusive
+    created_before: Optional[datetime] = None,  # ISO datetime, exclusive
+    min_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
+    max_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     sort_by: str = "created_at",
@@ -719,7 +723,8 @@ async def list_relics(
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
-    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    facet_counts = await relic_facets(db, stmt, parse_types(types)) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
     order = relic_sort_order(sort_by, sort_order, search=search)

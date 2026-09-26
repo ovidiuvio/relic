@@ -1,5 +1,5 @@
 """User registration and management endpoints."""
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
@@ -11,7 +11,7 @@ from backend.database import get_db
 from backend.models import Relic, User, Tag, Comment, SavedSearch
 from backend.schemas import UserNameUpdate, SavedSearchCreate, SavedSearchUpdate
 from backend.dependencies import get_current_user
-from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters
 
 router = APIRouter(prefix="/api/v1/user")
 
@@ -78,6 +78,10 @@ async def get_user_relics(
     request: Request,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    created_after: Optional[datetime] = None,  # ISO datetime, inclusive
+    created_before: Optional[datetime] = None,  # ISO datetime, exclusive
+    min_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
+    max_size: Optional[int] = Query(None, ge=0),  # bytes, inclusive
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     access_level: Optional[str] = None,
@@ -130,7 +134,8 @@ async def get_user_relics(
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
-    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_range_filters(stmt, created_after, created_before, min_size, max_size)
+    facet_counts = await relic_facets(db, stmt, parse_types(types)) if facets else None
     stmt = apply_type_filter(stmt, parse_types(types))
 
     order = relic_sort_order(sort_by, sort_order, search=search)
