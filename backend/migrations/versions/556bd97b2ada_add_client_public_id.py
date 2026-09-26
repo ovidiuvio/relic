@@ -21,6 +21,11 @@ def upgrade() -> None:
     """Add public_id column to client_key and backfill existing rows."""
     conn = op.get_bind()
     inspector = sa.inspect(conn)
+    # A fresh install has no client_key: create_all() made the table under its later name,
+    # users, with public_id already on it.
+    if 'client_key' not in inspector.get_table_names():
+        print("Alembic Skip: table 'client_key' not found (fresh install)")
+        return
     columns = [c['name'] for c in inspector.get_columns('client_key')]
 
     if 'public_id' not in columns:
@@ -54,5 +59,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove public_id column from client_key."""
+    if 'client_key' not in sa.inspect(op.get_bind()).get_table_names():
+        print("Alembic Skip: table 'client_key' not found")
+        return
     op.drop_index(op.f('ix_client_key_public_id'), table_name='client_key')
     op.drop_column('client_key', 'public_id')

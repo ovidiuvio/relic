@@ -17,6 +17,12 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_client_key() -> bool:
+    """Return True if the client_key table exists (not on a fresh install, where create_all()
+    made it under its later name, users, with is_admin already on it)."""
+    return 'client_key' in sa.inspect(op.get_bind()).get_table_names()
+
+
 def _has_is_admin() -> bool:
     """Return True if client_key.is_admin already exists."""
     conn = op.get_bind()
@@ -26,6 +32,9 @@ def _has_is_admin() -> bool:
 
 def upgrade() -> None:
     """Add client_key.is_admin so admins can be granted/revoked at runtime without a restart."""
+    if not _has_client_key():
+        print("Alembic Skip: table 'client_key' not found (fresh install)")
+        return
     if _has_is_admin():
         print("Alembic Skip: client_key.is_admin already exists")
         return
@@ -38,6 +47,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop client_key.is_admin, reverting to env-only (ADMIN_CLIENT_IDS) admin definitions."""
+    if not _has_client_key():
+        print("Alembic Skip: table 'client_key' not found")
+        return
     if not _has_is_admin():
         print("Alembic Skip: client_key.is_admin does not exist")
         return

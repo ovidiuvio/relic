@@ -36,8 +36,13 @@ def _existing_fk_names(conn, table: str) -> set:
 def upgrade() -> None:
     """Replace relic_id FK constraints with ON DELETE CASCADE variants."""
     conn = op.get_bind()
+    tables = sa.inspect(conn).get_table_names()
 
     for table, column, old_name, new_name, ref_table in _TARGETS:
+        # A fresh install has no client_bookmark: create_all() made user_bookmark, cascading.
+        if table not in tables:
+            print(f"Alembic Skip: table '{table}' not found (fresh install)")
+            continue
         existing = _existing_fk_names(conn, table)
 
         if old_name in existing:
@@ -58,8 +63,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Restore relic_id FK constraints without ON DELETE CASCADE."""
     conn = op.get_bind()
+    tables = sa.inspect(conn).get_table_names()
 
     for table, column, old_name, new_name, ref_table in _TARGETS:
+        if table not in tables:
+            print(f"Alembic Skip: table '{table}' not found")
+            continue
         existing = _existing_fk_names(conn, table)
 
         if new_name in existing:
