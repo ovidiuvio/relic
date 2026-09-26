@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import CodeRenderer from './CodeRenderer.svelte';
+  import Icon from '../../lib/ui/Icon.svelte';
 
   export let processed;
   export let relicId;
@@ -18,12 +19,17 @@
 
   $: files = processed.files || [];
 
-  function getLineClass(type) {
-    if (type === 'add') return 'line-add';
-    if (type === 'delete') return 'line-delete';
-    if (type === 'meta') return 'line-meta';
-    return 'line-context';
+  // Lines added and removed, per file and in all.
+  function stats(file) {
+    let add = 0, del = 0;
+    for (const hunk of file.hunks || []) for (const line of hunk.lines) {
+      if (line.type === 'add') add++;
+      else if (line.type === 'delete') del++;
+    }
+    return { add, del };
   }
+  $: fileStats = files.map(stats);
+  $: totals = fileStats.reduce((t, f) => ({ add: t.add + f.add, del: t.del + f.del }), { add: 0, del: 0 });
 
   function getSign(type) {
     if (type === 'add') return '+';
@@ -108,221 +114,230 @@
     on:toggle-comments
   />
 {:else}
-  <div class="diff-container" class:dark-mode={darkMode} style="--font-size: {fontSize}px">
+  <div class="diff" class:is-dark={darkMode} style="--diff-font: {fontSize}px">
     {#if files.length === 0}
-      <div class="p-8 text-center text-gray-500">
-        <i class="fas fa-info-circle mb-2 text-2xl"></i>
-        <p>No changes found in this diff.</p>
-      </div>
+      <div class="diff-empty"><Icon name="split" size={22} /><p>No changes in this diff.</p></div>
     {:else}
-      <div class="diff-summary px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-         <span class="text-sm font-medium text-gray-700">
-            Showing {files.length} changed file{files.length !== 1 ? 's' : ''}
-         </span>
+      <div class="diff-summary">
+        <b>{files.length} {files.length === 1 ? 'file' : 'files'} changed</b>
+        <span class="diff-add">+{totals.add.toLocaleString('en-US')}</span>
+        <span class="diff-del">−{totals.del.toLocaleString('en-US')}</span>
       </div>
 
-      {#each files as file}
-        <div class="file-diff mb-6 border border-gray-200 rounded-lg overflow-hidden mx-4 my-4 shadow-sm">
-          <div class="file-header px-4 py-2 bg-gray-100 border-b border-gray-200 flex items-center sticky top-0 z-10">
-            <i class="fas fa-file-code mr-2 text-gray-500"></i>
-            <span class="text-sm font-semibold truncate text-gray-800">{file.name}</span>
-          </div>
-          
-          <div class="file-content">
-            {#if diffViewMode === 'split'}
-              <table class="w-full text-xs font-mono border-collapse table-fixed">
-                <colgroup>
-                  <col style="width: 50px;" />
-                  <col />
-                  <col style="width: 50px;" />
-                  <col />
-                </colgroup>
-                <tbody>
-                  {#each file.hunks as hunk}
-                    <tr class="hunk-header">
-                      <td colspan="4" class="line-content text-gray-500 bg-blue-50/50 py-1 px-4 italic border-b border-blue-100">
-                        {hunk.header}
-                      </td>
+      {#each files as file, fi}
+        <section class="diff-file">
+          <header class="diff-file-head">
+            <Icon name="file" size={14} />
+            <span class="diff-file-name" title={file.name}>{file.name}</span>
+            <span class="diff-add">+{fileStats[fi].add}</span>
+            <span class="diff-del">−{fileStats[fi].del}</span>
+          </header>
+
+          {#if diffViewMode === 'split'}
+            <table class="diff-table is-split">
+              <colgroup><col class="c-num" /><col /><col class="c-num" /><col /></colgroup>
+              <tbody>
+                {#each file.hunks as hunk}
+                  <tr class="hunk"><td colspan="4">{hunk.header}</td></tr>
+                  {#each getAlignedHunkLines(hunk.lines) as row}
+                    <tr>
+                      <td class="num" class:is-del={row.left?.type === 'delete'}>{row.left?.oldLine || ''}</td>
+                      <td class="code" class:is-del={row.left?.type === 'delete'} class:is-none={!row.left}>{#if row.left}<span class="sign">{getSign(row.left.type)}</span>{row.left.content.substring(1)}{/if}</td>
+                      <td class="num" class:is-add={row.right?.type === 'add'}>{row.right?.newLine || ''}</td>
+                      <td class="code" class:is-add={row.right?.type === 'add'} class:is-none={!row.right}>{#if row.right}<span class="sign">{getSign(row.right.type)}</span>{row.right.content.substring(1)}{/if}</td>
                     </tr>
-                    
-                    {#each getAlignedHunkLines(hunk.lines) as row}
-                      <tr class="split-row">
-                        <!-- Left side -->
-                        <td class="line-num select-none text-right px-2 border-r border-gray-200 {row.left?.type === 'delete' ? 'del-bg' : ''}">
-                          {row.left?.oldLine || ''}
-                        </td>
-                        <td class="line-content whitespace-pre py-0.5 px-2 border-r border-gray-200 {row.left?.type === 'delete' ? 'del-content' : (!row.left ? 'empty-line' : '')}">
-                          {#if row.left}
-                            <span class="sign">{getSign(row.left.type)}</span>{row.left.content.substring(1)}
-                          {/if}
-                        </td>
-                        <!-- Right side -->
-                        <td class="line-num select-none text-right px-2 border-r border-gray-200 {row.right?.type === 'add' ? 'add-bg' : ''}">
-                          {row.right?.newLine || ''}
-                        </td>
-                        <td class="line-content whitespace-pre py-0.5 px-2 {row.right?.type === 'add' ? 'add-content' : (!row.right ? 'empty-line' : '')}">
-                          {#if row.right}
-                            <span class="sign">{getSign(row.right.type)}</span>{row.right.content.substring(1)}
-                          {/if}
-                        </td>
-                      </tr>
-                    {/each}
                   {/each}
-                </tbody>
-              </table>
-            {:else}
-              <table class="w-full text-xs font-mono border-collapse">
-                <colgroup>
-                  <col style="width: 50px;" />
-                  <col style="width: 50px;" />
-                  <col />
-                </colgroup>
-                <tbody>
-                  {#each file.hunks as hunk}
-                    <tr class="hunk-header">
-                      <td colspan="3" class="line-content text-gray-500 bg-blue-50/50 py-1 px-4 italic border-b border-blue-100">
-                        {hunk.header}
-                      </td>
+                {/each}
+              </tbody>
+            </table>
+          {:else}
+            <table class="diff-table">
+              <colgroup><col class="c-num" /><col class="c-num" /><col /></colgroup>
+              <tbody>
+                {#each file.hunks as hunk}
+                  <tr class="hunk"><td colspan="3">{hunk.header}</td></tr>
+                  {#each hunk.lines as line}
+                    <tr class:is-add={line.type === 'add'} class:is-del={line.type === 'delete'}>
+                      <td class="num">{line.oldLine || ''}</td>
+                      <td class="num">{line.newLine || ''}</td>
+                      <td class="code"><span class="sign">{getSign(line.type)}</span>{line.content.substring(1)}</td>
                     </tr>
-                    
-                    {#each hunk.lines as line}
-                      <tr class={getLineClass(line.type)}>
-                        <td class="line-num select-none">
-                          {line.oldLine || ''}
-                        </td>
-                        <td class="line-num select-none">
-                          {line.newLine || ''}
-                        </td>
-                        <td class="line-content whitespace-pre py-0.5 px-4 relative">
-                          <span class="sign">{getSign(line.type)}</span>
-                          <span class="content">{line.content.substring(1)}</span>
-                        </td>
-                      </tr>
-                    {/each}
                   {/each}
-                </tbody>
-              </table>
-            {/if}
-          </div>
-        </div>
+                {/each}
+              </tbody>
+            </table>
+          {/if}
+        </section>
       {/each}
     {/if}
   </div>
 {/if}
 
 <style>
-  .diff-container {
-    background-color: white;
-    font-size: var(--font-size);
+  .diff {
+    --d-bg: var(--surface);
+    --d-panel: var(--subtle);
+    --d-line: var(--line);
+    --d-ink: var(--ink);
+    --d-muted: var(--ink-3);
+    --d-add: var(--success-soft);
+    --d-add-num: color-mix(in srgb, var(--success) 16%, var(--surface));
+    --d-add-ink: var(--success-ink);
+    --d-del: var(--danger-soft);
+    --d-del-num: color-mix(in srgb, var(--danger) 13%, var(--surface));
+    --d-del-ink: var(--danger);
+    --d-hunk: var(--info-soft);
+    --d-hunk-ink: var(--info-ink);
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: var(--d-bg);
+    color: var(--d-ink);
+    font: 13px/1.45 var(--font-sans);
   }
-
-  .diff-container.dark-mode {
-    background-color: #0d1117;
-    color: #c9d1d9;
+  /* Matches the editor's dark theme. */
+  .diff.is-dark {
+    --d-bg: #1e1e1e;
+    --d-panel: #252526;
+    --d-line: #333;
+    --d-ink: #d4d4d4;
+    --d-muted: #858585;
+    --d-add: rgba(46, 160, 90, 0.16);
+    --d-add-num: rgba(46, 160, 90, 0.28);
+    --d-add-ink: var(--night-green);
+    --d-del: rgba(229, 83, 75, 0.16);
+    --d-del-num: rgba(229, 83, 75, 0.28);
+    --d-del-ink: #f08c85;
+    --d-hunk: rgba(209, 151, 183, 0.08);
+    --d-hunk-ink: var(--night-accent);
   }
-
-  .dark-mode .file-diff {
-    border-color: #30363d;
+  .diff-summary {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 40px;
+    padding: 0 var(--space-4);
+    border-bottom: 1px solid var(--d-line);
+    background: var(--d-bg);
   }
-
-  .dark-mode .file-header {
-    background-color: #161b22;
-    border-color: #30363d;
-    color: #f0f6fc;
+  .diff-summary b {
+    font-weight: 600;
   }
-
-  .dark-mode .diff-summary {
-    background-color: #161b22;
-    border-color: #30363d;
-    color: #f0f6fc;
+  .diff-add,
+  .diff-del {
+    font: 12.5px var(--font-mono);
   }
-  
-  .dark-mode .diff-summary span {
-      color: #f0f6fc;
+  .diff-add {
+    color: var(--d-add-ink);
   }
-
-  .line-num {
+  .diff-del {
+    color: var(--d-del-ink);
+  }
+  /* clip, not hidden: hidden would make the card the sticky header's scroll container. */
+  .diff-file {
+    margin: var(--space-3) var(--space-4);
+    border: 1px solid var(--d-line);
+    border-radius: var(--radius-md);
+    overflow: clip;
+  }
+  .diff-file-head {
+    position: sticky;
+    top: 40px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 34px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--d-line);
+    background: var(--d-panel);
+    color: var(--d-muted);
+  }
+  .diff-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--d-ink);
+    font: 600 12.5px var(--font-mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font: var(--diff-font) / 1.55 var(--font-mono);
+  }
+  .c-num {
+    width: 52px;
+  }
+  .num {
+    padding: 0 8px;
+    border-right: 1px solid var(--d-line);
+    color: var(--d-muted);
+    font-size: 0.9em;
+    text-align: right;
     vertical-align: top;
-    color: rgba(0,0,0,0.3);
-    border-right: 1px solid rgba(0,0,0,0.05);
-    background-color: rgba(0,0,0,0.02);
+    user-select: none;
   }
-
-  .dark-mode .line-num {
-    color: #484f58;
-    background-color: #0d1117;
-    border-right-color: #30363d;
-  }
-
-  .line-content {
-    line-height: 1.5;
-    word-break: break-all;
+  .code {
+    padding: 0 12px;
+    white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-
-  .empty-line {
-      background-color: #f6f8fa !important;
+  .sign {
+    display: inline-block;
+    width: 1.3em;
+    color: var(--d-muted);
+    user-select: none;
   }
-  .dark-mode .empty-line {
-      background-color: #161b22 !important;
+  tr.is-add .code,
+  .code.is-add {
+    background: var(--d-add);
   }
-
-  /* Success/Addition Colors */
-  .line-add .line-content, .add-content {
-    background-color: #dafbe1;
+  tr.is-add .num,
+  .num.is-add {
+    background: var(--d-add-num);
   }
-  .line-add .line-num, .add-bg {
-    background-color: #ccffd8;
+  tr.is-del .code,
+  .code.is-del {
+    background: var(--d-del);
   }
-  .dark-mode .line-add .line-content, .dark-mode .add-content {
-    background-color: rgba(46, 160, 67, 0.15);
+  tr.is-del .num,
+  .num.is-del {
+    background: var(--d-del-num);
   }
-  .dark-mode .line-add .line-num, .dark-mode .add-bg {
-    background-color: rgba(46, 160, 67, 0.3);
+  tr.is-add .sign,
+  .is-add .sign {
+    color: var(--d-add-ink);
   }
-
-  /* Danger/Deletion Colors */
-  .line-delete .line-content, .del-content {
-    background-color: #ffebe9;
+  tr.is-del .sign,
+  .is-del .sign {
+    color: var(--d-del-ink);
   }
-  .line-delete .line-num, .del-bg {
-    background-color: #ffdce0;
+  .code.is-none {
+    background: var(--d-panel);
   }
-  .dark-mode .line-delete .line-content, .dark-mode .del-content {
-    background-color: rgba(248, 81, 70, 0.15);
+  .is-split .code:nth-child(2) {
+    border-right: 1px solid var(--d-line);
   }
-  .dark-mode .line-delete .line-num, .dark-mode .del-bg {
-    background-color: rgba(248, 81, 70, 0.3);
-  }
-
-  /* Hunk Header Decor */
-  .hunk-header .line-content {
-    background-color: #f1f8ff;
-    color: #0550ae;
+  .hunk td {
+    padding: 3px 12px;
+    background: var(--d-hunk);
+    color: var(--d-hunk-ink);
     font-size: 0.9em;
   }
-  .dark-mode .hunk-header .line-content {
-    background-color: rgba(56, 139, 253, 0.1);
-    color: #79c0ff;
-    border-color: rgba(56, 139, 253, 0.2);
+  .diff-empty {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    color: var(--d-muted);
   }
-
-  .sign {
-    user-select: none;
-    display: inline-block;
-    width: 1.2em;
-    opacity: 0.5;
-    margin-right: 0.2em;
-  }
-
-  .split-row td {
-      border-bottom: 1px solid rgba(0,0,0,0.03);
-  }
-  .dark-mode .split-row td {
-      border-bottom-color: rgba(255,255,255,0.03);
-  }
-
-  table {
-      table-layout: fixed;
+  .diff-empty p {
+    margin: 0;
   }
 </style>
