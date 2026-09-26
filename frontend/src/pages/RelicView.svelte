@@ -42,6 +42,9 @@
   let pdfViewer = $state(null);
   let treeRenderer = $state(null);
   let pdf = $state(null);
+  // A relic index (.rix): its list, and the row the inspector shows instead of the index itself.
+  let indexView = $state(null);
+  let indexPick = $state.raw(null); // { relic, focus }
 
   // Navigating between relics reuses this page, so a slow response for the previous one is dropped.
   let gen = 0;
@@ -98,6 +101,23 @@
     }
   }
 
+  // A .rix row selected (or one of its counters clicked): show it in the inspector.
+  function pickFromIndex(picked, section = null) {
+    indexPick = { relic: picked, focus: section ? { id: section, n: (indexPick?.focus?.n ?? 0) + 1 } : null };
+    panel.show($layout.dock);
+  }
+
+  function onIndexUpdated(updated) {
+    indexView?.update(updated);
+    indexPick = { ...indexPick, relic: { ...indexPick.relic, ...updated } };
+  }
+
+  function onIndexDeleted(deleted) {
+    indexView?.remove(deleted.id);
+    indexPick = null;
+    refreshSidebar();
+  }
+
   $effect(() => {
     const id = relicId;
     const path = filePath;
@@ -109,6 +129,7 @@
       archive = null;
       comments = [];
       showSource = false;
+      indexPick = null;
       try {
         await (path ? loadArchiveFile(id, path) : loadRelic(id));
       } catch (e) {
@@ -244,6 +265,9 @@
         bind:pdfViewer
         bind:treeRenderer
         {oncomment}
+        bind:indexView
+        indexSelectedId={indexPick?.relic.id ?? null}
+        onindexselect={pickFromIndex}
       />
 
       {#if !inspectorOpen}
@@ -276,6 +300,27 @@
     {#snippet inspector({ close })}
       {#if archive}
         <ArchiveFileInspector file={relic} {archive} onclose={close} />
+      {:else if indexPick}
+        <div class="index-pick">
+          <div class="r-strip index-back">
+            <button class="r-link" onclick={() => (indexPick = null)}><Icon name="chevl" />Back to {relic.name || "the index"}</button>
+            <span class="r-gap"></span>
+            <span>from this index</span>
+          </div>
+          {#key indexPick.relic.id}
+            <RelicInspector
+              relic={indexPick.relic}
+              focus={indexPick.focus}
+              editable={!!indexPick.relic.can_edit}
+              deletable={!!indexPick.relic.can_edit || $session.isAdmin}
+              ontag={(tag) => navigate(`/recent?tag=${encodeURIComponent(tag)}`)}
+              onfork={() => navigate(`/fork/${indexPick.relic.id}`)}
+              onupdated={onIndexUpdated}
+              ondeleted={onIndexDeleted}
+              onclose={close}
+            />
+          {/key}
+        </div>
       {:else}
         <RelicInspector
           {relic}
@@ -295,6 +340,31 @@
 
 
 <style>
+  .index-pick {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+  .index-pick :global(.r-inspector) {
+    flex: 1;
+    min-height: 0;
+  }
+  .index-back {
+    flex: none;
+    width: var(--inspector-width);
+    border-left: 1px solid var(--line);
+  }
+  .index-back .r-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+  }
   .view-main {
     position: relative;
     flex: 1;

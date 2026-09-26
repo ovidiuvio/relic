@@ -8,7 +8,7 @@
   import CsvRenderer from "../../components/renderers/CsvRenderer.svelte";
   import ArchiveRenderer from "../../components/renderers/ArchiveRenderer.svelte";
   import ExcalidrawRenderer from "../../components/renderers/ExcalidrawRenderer.svelte";
-  import RelicIndexRenderer from "../../components/renderers/RelicIndexRenderer.svelte";
+  import RelicIndexView from "./RelicIndexView.svelte";
   import DiffRenderer from "../../components/renderers/DiffRenderer.svelte";
   import TreeRenderer from "../../components/renderers/TreeRenderer.svelte";
   import PDFViewer from "../../components/PDFViewer.svelte";
@@ -30,6 +30,9 @@
     pdfViewer = $bindable(null),
     treeRenderer = $bindable(null),
     oncomment, // { create, update, delete } handlers taking the renderer's event
+    indexView = $bindable(null), // the .rix list, so the viewer can update or remove its rows
+    indexSelectedId = null, // the .rix row the viewer's inspector shows
+    onindexselect, // (relic, section?) a .rix row was selected
   } = $props();
 
   const lineCopied = (e) => showToast(`Line ${e.detail.lineNumber} link copied`, "success");
@@ -127,7 +130,7 @@
       on:toggle-dark-mode={(e) => prefs.set("darkMode", e.detail)}
     />
   {:else if processed.type === "relicindex"}
-    <RelicIndexRenderer {processed} />
+    <RelicIndexView bind:this={indexView} {processed} selectedId={indexSelectedId} onselect={onindexselect} />
   {:else if processed.type === "diff"}
     <DiffRenderer
       {processed}
