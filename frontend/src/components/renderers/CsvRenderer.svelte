@@ -1,506 +1,450 @@
 <script>
-  import { onMount } from 'svelte'
-  import { triggerDownload } from '../../services/utils/download'
+  // A CSV relic as a table: search across every column, sort by any column (numbers as numbers),
+  // pages of 25–500 rows, and export of all rows or just the filtered ones.
+  //   ← → change page while the table has focus
+  import Icon from "../../lib/ui/Icon.svelte";
+  import FilterStrip from "../../lib/viewer/FilterStrip.svelte";
+  import { triggerDownload } from "../../services/utils/download";
+  import { formatBytes } from "../../services/typeUtils";
 
-  export let processed
+  let { processed, name = "" } = $props(); // name: the relic's, for exported files
 
-  let tableRef
-  let filterText = ''
-  let currentPage = 1
-  let itemsPerPage = 50
-  let sortColumn = null
-  let sortDirection = 'asc'
+  const PAGE_SIZES = [25, 50, 100, 200, 500];
 
-  // Computed data with filtering and sorting
-  $: filteredAndSortedData = processData(processed?.rows || [], filterText, sortColumn, sortDirection)
+  let search = $state("");
+  let sortColumn = $state(null);
+  let sortDir = $state("asc");
+  let page = $state(1);
+  let pageSize = $state(50);
+  let exportOpen = $state(false);
+  let exportEl = $state();
 
-  function processData(rows, filter, sortCol, sortDir) {
-    if (!rows || !Array.isArray(rows)) return []
+  const columns = $derived(processed?.metadata?.columns ?? []);
+  // A trailing newline parses as an empty row; rows with nothing in them aren't data.
+  const allRows = $derived((processed?.rows ?? []).filter((row) => columns.some((c) => row[c] !== undefined && row[c] !== null && row[c] !== "")));
+  const total = $derived(allRows.length);
 
-    let filtered = rows
+  const rows = $derived.by(() => {
+    let out = allRows;
+    const term = search.trim().toLowerCase();
+    if (term) out = out.filter((row) => columns.some((c) => String(row[c] ?? "").toLowerCase().includes(term)));
+    if (sortColumn) {
+      const dir = sortDir === "asc" ? 1 : -1;
+      out = [...out].sort((a, b) => {
+        const x = a[sortColumn] ?? "";
+        const y = b[sortColumn] ?? "";
+        const nx = parseFloat(x);
+        const ny = parseFloat(y);
+        if (!isNaN(nx) && !isNaN(ny)) return (nx - ny) * dir;
+        return String(x).toLowerCase().localeCompare(String(y).toLowerCase()) * dir;
+      });
+    }
+    return out;
+  });
 
-    // Apply text filter
-    if (filter && filter.trim()) {
-      const searchTerm = filter.toLowerCase().trim()
-      console.log('CSV Filter Debug: Applying filter:', searchTerm)
-      filtered = rows.filter(row => {
-        return processed.metadata.columns.some(col => {
-          const value = row[col]?.toString().toLowerCase() || ''
-          return value.includes(searchTerm)
-        })
+  // Columns whose filled cells are mostly numbers get a right-aligned header, over their numbers.
+  const numericCols = $derived.by(() => {
+    const sample = allRows.slice(0, 200);
+    return new Set(
+      columns.filter((c) => {
+        const filled = sample.filter((r) => cellKind(r[c]) !== "empty");
+        return filled.length > 0 && filled.filter((r) => cellKind(r[c]) === "num").length / filled.length > 0.8;
       })
-      console.log('CSV Filter Debug: Filter result:', filtered.length, 'rows')
+    );
+  });
+
+  const pages = $derived(Math.max(1, Math.ceil(rows.length / pageSize)));
+  const pageRows = $derived(rows.slice((page - 1) * pageSize, page * pageSize));
+  const firstShown = $derived(rows.length ? (page - 1) * pageSize + 1 : 0);
+  const lastShown = $derived(Math.min(page * pageSize, rows.length));
+  const filtered = $derived(!!search.trim());
+
+  // Page numbers around the current one (up to seven).
+  const pageNumbers = $derived.by(() => {
+    const start = Math.max(1, Math.min(page - 3, pages - 6));
+    return Array.from({ length: Math.min(7, pages) }, (_, i) => start + i);
+  });
+
+  function sortBy(column) {
+    if (sortColumn === column) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else {
+      sortColumn = column;
+      sortDir = "asc";
     }
-
-    // Apply sorting
-    if (sortCol) {
-      filtered = [...filtered].sort((a, b) => {
-        const aVal = a[sortCol] || ''
-        const bVal = b[sortCol] || ''
-
-        // Try to compare as numbers
-        const aNum = parseFloat(aVal)
-        const bNum = parseFloat(bVal)
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDir === 'asc' ? aNum - bNum : bNum - aNum
-        }
-
-        // Compare as strings
-        const aStr = aVal.toString().toLowerCase()
-        const bStr = bVal.toString().toLowerCase()
-        if (sortDir === 'asc') {
-          return aStr.localeCompare(bStr)
-        } else {
-          return bStr.localeCompare(aStr)
-        }
-      })
-    }
-
-    return filtered
+    page = 1;
   }
 
-  // Pagination
-  $: totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage)
-  $: paginatedData = filteredAndSortedData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
-
-  // Sort handler
-  function handleSort(column) {
-    if (sortColumn === column) {
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-    } else {
-      sortColumn = column
-      sortDirection = 'asc'
-    }
-    currentPage = 1 // Reset to first page
+  function reset() {
+    search = "";
+    sortColumn = null;
+    sortDir = "asc";
+    page = 1;
   }
 
-  // Pagination functions
-  function goToPage(page) {
-    currentPage = page
+  function go(n) {
+    page = Math.min(pages, Math.max(1, n));
   }
 
-  function changePageSize() {
-    // Reset to first page when page size changes
-    currentPage = 1
+  function cellKind(value) {
+    if (value === undefined || value === null || value === "") return "empty";
+    const s = String(value);
+    if (!isNaN(parseFloat(s)) && !isNaN(s)) return "num";
+    if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) return "date";
+    return "text";
   }
 
-  // Export function
-  function exportToCSV() {
-    const headers = processed.metadata.columns
-    const csvContent = [
-      headers.join(','),
-      ...filteredAndSortedData.map(row =>
-        headers.map(col => {
-          const value = row[col] || ''
-          // Escape commas and quotes
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-            return `"${value.replace(/"/g, '""')}"`
-          }
-          return value
-        }).join(',')
-      )
-    ].join('\n')
-
-    triggerDownload(csvContent, processed.fileName || 'data.csv', 'text/csv')
+  function toCsv(list) {
+    const esc = (v) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    return [columns.map(esc).join(","), ...list.map((row) => columns.map((c) => esc(row[c])).join(","))].join("\n");
   }
 
-  function exportAllToCSV() {
-    const headers = processed.metadata.columns
-    const csvContent = [
-      headers.join(','),
-      ...processed.rows.map(row =>
-        headers.map(col => {
-          const value = row[col] || ''
-          // Escape commas and quotes
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-            return `"${value.replace(/"/g, '""')}"`
-          }
-          return value
-        }).join(',')
-      )
-    ].join('\n')
-
-    triggerDownload(csvContent, (processed.fileName || 'all-data').replace(/\.[^/.]+$/, '') + '.csv', 'text/csv')
+  function exportRows(which) {
+    exportOpen = false;
+    const base = (name || processed.fileName || "data").replace(/\.csv$/i, "");
+    const file = which === "all" ? `${base}.csv` : `${base}-filtered.csv`;
+    triggerDownload(toCsv(which === "all" ? allRows : rows), file, "text/csv");
   }
 
-  // Utility functions for cell styling
-  function getCellClass(value) {
-    if (!value || value === '') return 'empty-cell'
-
-    const strValue = value.toString()
-
-    // Check if it's a number
-    if (!isNaN(parseFloat(strValue)) && !isNaN(strValue)) {
-      return 'numeric-cell'
-    }
-
-    // Check if it's a date
-    if (strValue.match(/^\d{4}-\d{2}-\d{2}/) || strValue.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-      return 'date-cell'
-    }
-
-    return 'text-cell'
+  function onTableKey(event) {
+    if (event.key === "ArrowLeft" && page > 1) (event.preventDefault(), go(page - 1));
+    else if (event.key === "ArrowRight" && page < pages) (event.preventDefault(), go(page + 1));
   }
 
-  function getSortIcon(column) {
-    if (sortColumn !== column) return ''
-    return sortDirection === 'asc' ? ' ↑' : ' ↓'
-  }
-
-  onMount(() => {
-    if (!tableRef || !processed) return
-
-    // Add keyboard navigation
-    tableRef.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft' && currentPage > 1) {
-        goToPage(currentPage - 1)
-      } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
-        goToPage(currentPage + 1)
-      }
-    })
-
-    // Focus the table for keyboard events
-    tableRef.focus()
-  })
-
-  // Reset filters
-  function clearAll() {
-    filterText = ''
-    sortColumn = null
-    sortDirection = 'asc'
-    currentPage = 1
+  function onWindowClick(event) {
+    if (exportOpen && !exportEl?.contains(event.target)) exportOpen = false;
   }
 </script>
 
-<div class="border-t border-gray-200">
-  <!-- CSV Controls Bar -->
-  <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <span class="text-sm font-medium text-gray-700">
-          {processed.metadata.rowCount.toLocaleString()} rows × {processed.metadata.columnCount} columns
-        </span>
-        {#if filteredAndSortedData.length !== processed.metadata.rowCount}
-          <span class="text-sm text-blue-600">
-            ({filteredAndSortedData.length.toLocaleString()} filtered)
-          </span>
-        {/if}
-        {#if processed.metadata.fileSize}
-          <span class="text-sm text-gray-500">
-            ({Math.round(processed.metadata.fileSize / 1024)} KB)
-          </span>
-        {/if}
-      </div>
+<svelte:window onclick={onWindowClick} />
 
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Search -->
-        <div class="relative group">
-          <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-          <input
-            type="text"
-            bind:value={filterText}
-            placeholder="Search all columns..."
-            class="pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-64"
-          />
-          {#if filterText}
-            <button
-              on:click={() => filterText = ''}
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
-              title="Clear search" aria-label="Clear search"
-            >
-              <i class="fas fa-times-circle text-xs"></i>
-            </button>
-          {/if}
-        </div>
-
-        <!-- Page Size Selector -->
-        <select
-          bind:value={itemsPerPage}
-          on:change={changePageSize}
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="25">25 rows</option>
-          <option value="50">50 rows</option>
-          <option value="100">100 rows</option>
-          <option value="200">200 rows</option>
-          <option value="500">500 rows</option>
-        </select>
-
-        <div class="h-4 w-px bg-gray-300"></div>
-
-        <!-- Export -->
-        <div class="relative group">
-          <button
-            class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <i class="fas fa-download mr-1.5"></i>
-            Export
-            <i class="fas fa-chevron-down ml-1.5 text-xs"></i>
+<div class="csv">
+  <FilterStrip bind:value={search} placeholder="Search all columns" oninput={() => (page = 1)} count={filtered ? { matched: rows.length, total } : null}>
+    <label class="csv-opt" title="Rows per page">
+      <select bind:value={pageSize} onchange={() => (page = 1)} aria-label="Rows per page">
+        {#each PAGE_SIZES as n (n)}<option value={n}>{n} rows</option>{/each}
+      </select>
+    </label>
+    <div class="csv-export" bind:this={exportEl}>
+      <button class="r-btn r-btn-secondary r-btn-md" aria-expanded={exportOpen} onclick={() => (exportOpen = !exportOpen)}><Icon name="download" />Export<Icon name="chev" /></button>
+      {#if exportOpen}
+        <div class="csv-menu" role="menu">
+          <button role="menuitem" onclick={() => exportRows("all")}>All {total.toLocaleString("en-US")} rows<small>as CSV</small></button>
+          <button role="menuitem" onclick={() => exportRows("filtered")} disabled={!filtered}>
+            The {rows.length.toLocaleString("en-US")} filtered rows<small>{filtered ? "as CSV" : "search first"}</small>
           </button>
-
-          <!-- Dropdown Menu -->
-          <div class="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-            <button
-              on:click={exportAllToCSV}
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-            >
-              <i class="fas fa-file-csv mr-2"></i>
-              Export All as CSV
-            </button>
-            <button
-              on:click={exportToCSV}
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-            >
-              <i class="fas fa-filter mr-2"></i>
-              Export Filtered as CSV
-            </button>
-          </div>
         </div>
-
-        <button
-          on:click={clearAll}
-          class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i class="fas fa-redo mr-1.5"></i>
-          Reset All
-        </button>
-      </div>
+      {/if}
     </div>
-  </div>
+    <button class="r-btn r-btn-ghost r-btn-md" onclick={reset} disabled={!filtered && !sortColumn && page === 1} title="Clear the search and sorting">Reset</button>
+  </FilterStrip>
 
-  <!-- Enhanced CSV Table Container -->
-  <div class="overflow-x-auto">
-    <div class="min-w-full">
-      <table
-        bind:this={tableRef}
-        class="w-full text-sm"
-      >
-        <thead>
-          <tr class="text-[#666] uppercase text-[11px] font-semibold tracking-wider bg-gray-50 border-b-2 border-[#cdcdcd] sticky top-0 z-10">
-            <!-- Row number column -->
-            <th class="px-4 py-2.5 text-left font-semibold w-16 sticky left-0 bg-gray-50 z-10 border-r border-[#ddd] border-none">
-              #
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div class="csv-scroll" tabindex="0" role="region" aria-label="Table, ← → change page" onkeydown={onTableKey}>
+    <table>
+      <thead>
+        <tr>
+          <th class="csv-n">#</th>
+          {#each columns as col (col)}
+            <th class:is-num={numericCols.has(col)}>
+              <button class="csv-head" class:is-on={sortColumn === col} onclick={() => sortBy(col)} title="Sort by {col}">
+                <span>{col}</span>
+                {#if sortColumn === col}<span class="csv-dir" class:is-asc={sortDir === "asc"}><Icon name="arrowup" /></span>{/if}
+              </button>
             </th>
-
-            <!-- Data columns -->
-            {#each processed.metadata.columns as col}
-              <th
-                class="px-4 py-2 text-left font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
-                on:click={() => handleSort(col)}
-              >
-                <div class="flex items-center justify-between">
-                  <span class="truncate max-w-[200px]" title={col}>{col}</span>
-                  <span class="text-[#772953] text-[10px] ml-1">{getSortIcon(col)}</span>
-                </div>
-              </th>
+          {/each}
+        </tr>
+      </thead>
+      <tbody>
+        {#each pageRows as row, i}
+          <tr>
+            <td class="csv-n">{(firstShown + i).toLocaleString("en-US")}</td>
+            {#each columns as col (col)}
+              {@const kind = cellKind(row[col])}
+              <td class="is-{kind}"><span title={row[col] ?? ""}>{row[col] ?? ""}</span></td>
             {/each}
           </tr>
-        </thead>
-
-        <tbody class="bg-white divide-y divide-gray-200">
-          {#each paginatedData as row, idx}
-            <tr class="hover:bg-gray-50 transition-colors">
-              <!-- Row number -->
-              <td class="px-4 py-2 text-gray-600 font-medium text-xs sticky left-0 bg-white z-5 border-r border-gray-200">
-                {(currentPage - 1) * itemsPerPage + idx + 1}
-              </td>
-
-              <!-- Data cells -->
-              {#each processed.metadata.columns as col}
-                <td class="px-4 py-2 {getCellClass(row[col])}">
-                  <div class="truncate max-w-[300px]" title={row[col] || ''}>
-                    {row[col] || ''}
-                  </div>
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-
-      <!-- Empty state -->
-      {#if paginatedData.length === 0}
-        <div class="text-center py-12">
-          <i class="fas fa-search text-gray-400 text-4xl mb-4"></i>
-          <p class="text-gray-600">
-            {filterText.trim() ? 'No rows match your search criteria' : 'No data available'}
-          </p>
-          {#if filterText.trim()}
-            <button
-              on:click={() => filterText = ''}
-              class="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Clear search
-            </button>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Pagination Controls -->
-      {#if totalPages > 1}
-        <div class="bg-gray-50 border-t border-[#ddd] px-4 py-2.5">
-          <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-700">
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)}
-              of {filteredAndSortedData.length} results
-              {#if filteredAndSortedData.length !== processed.metadata.rowCount}
-                (from {processed.metadata.rowCount.toLocaleString()} total)
-              {/if}
-            </div>
-
-            <div class="flex items-center gap-2">
-              <!-- First/Previous -->
-              <button
-                on:click={() => goToPage(1)}
-                disabled={currentPage === 1}
-                class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-angle-double-left"></i>
-              </button>
-              <button
-                on:click={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-angle-left"></i>
-              </button>
-
-              <!-- Page numbers -->
-              {#each Array(Math.min(7, totalPages)) as _, i}
-                {@const startPage = Math.max(1, Math.min(currentPage - 3, totalPages - 6))}
-                {@const pageNum = startPage + i}
-                {#if pageNum > 0 && pageNum <= totalPages}
-                  <button
-                    on:click={() => goToPage(pageNum)}
-                    class="px-2 py-1 text-xs border {currentPage === pageNum ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-100'} rounded"
-                  >
-                    {pageNum}
-                  </button>
-                {/if}
-              {/each}
-
-              <!-- Next/Last -->
-              <button
-                on:click={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-angle-right"></i>
-              </button>
-              <button
-                on:click={() => goToPage(totalPages)}
-                disabled={currentPage === totalPages}
-                class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i class="fas fa-angle-double-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      {/if}
-    </div>
+        {/each}
+      </tbody>
+    </table>
+    {#if !pageRows.length}
+      <p class="csv-empty">
+        {filtered ? "No rows match your search." : "This file has no rows."}
+        {#if filtered}<button class="r-link" onclick={() => (search = "")}>Clear search</button>{/if}
+      </p>
+    {/if}
   </div>
 
-  <!-- Status Bar -->
-  <div class="bg-gray-50 border-t border-[#ddd] px-4 py-2.5">
-    <div class="flex items-center justify-between text-xs text-gray-600">
-      <div class="flex items-center gap-4">
-        <span>
-          <i class="fas fa-table mr-1"></i>
-          {processed.metadata.rowCount.toLocaleString()} total rows
-        </span>
-        {#if filterText.trim()}
-          <span class="text-blue-600">
-            <i class="fas fa-filter mr-1"></i>
-            Filtered by "{filterText}"
-          </span>
-        {/if}
-        {#if sortColumn}
-          <span class="text-green-600">
-            <i class="fas fa-sort mr-1"></i>
-            Sorted by {sortColumn} ({sortDirection})
-          </span>
-        {/if}
-      </div>
-
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">
-          Use ← → arrows to navigate pages
-        </span>
-      </div>
-    </div>
+  <div class="csv-foot">
+    <span>
+      {#if rows.length}Rows {firstShown.toLocaleString("en-US")}–{lastShown.toLocaleString("en-US")} of {rows.length.toLocaleString("en-US")}{:else}No rows{/if}
+      {#if filtered}<em>· {total.toLocaleString("en-US")} in all</em>{/if}
+      <em>· {columns.length} {columns.length === 1 ? "column" : "columns"}</em>
+      {#if processed.metadata?.fileSize}<em>· {formatBytes(processed.metadata.fileSize)}</em>{/if}
+      {#if sortColumn}<em>· sorted by {sortColumn}, {sortDir === "asc" ? "ascending" : "descending"}</em>{/if}
+    </span>
+    {#if pages > 1}
+      <nav class="csv-pager" aria-label="Pages">
+        <button onclick={() => go(1)} disabled={page === 1} title="First page" aria-label="First page"><Icon name="chevl" /><Icon name="chevl" /></button>
+        <button onclick={() => go(page - 1)} disabled={page === 1} title="Previous page (←)" aria-label="Previous page"><Icon name="chevl" /></button>
+        {#each pageNumbers as n (n)}
+          <button class:is-on={n === page} aria-current={n === page ? "page" : undefined} onclick={() => go(n)}>{n}</button>
+        {/each}
+        <button onclick={() => go(page + 1)} disabled={page === pages} title="Next page (→)" aria-label="Next page"><Icon name="chevr" /></button>
+        <button onclick={() => go(pages)} disabled={page === pages} title="Last page" aria-label="Last page"><Icon name="chevr" /><Icon name="chevr" /></button>
+      </nav>
+    {/if}
   </div>
 </div>
 
 <style>
-  .numeric-cell {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.875em;
+  .csv {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    color: var(--ink);
+    font: 13px/1.45 var(--font-sans);
   }
-
-  .date-cell {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.875em;
-    color: #059669;
+  .csv-opt select {
+    height: var(--control-md);
+    padding: 0 22px 0 8px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23877d85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center / 12px;
+    color: var(--ink);
+    font: 12.5px var(--font-sans);
+    appearance: none;
+    cursor: pointer;
   }
-
-  .text-cell {
+  .csv-export {
+    position: relative;
+  }
+  .csv-export :global(.r-icon) {
+    width: 13px;
+    height: 13px;
+  }
+  .csv-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    min-width: 220px;
+    padding: var(--space-1) 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-popover);
+  }
+  .csv-menu button {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 7px var(--space-3);
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: 13px var(--font-sans);
     text-align: left;
+    cursor: pointer;
   }
-
-  .empty-cell {
-    color: #9ca3af;
-    font-style: italic;
-    font-size: 0.875em;
+  .csv-menu button:hover:not(:disabled) {
+    background: var(--hover);
   }
-
-  /* Custom scrollbar for better UX */
-  .overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
+  .csv-menu button:disabled {
+    color: var(--ink-3);
+    cursor: not-allowed;
   }
-
-  .overflow-x-auto::-webkit-scrollbar-track {
-    background: #f1f5f9;
+  .csv-menu small {
+    color: var(--ink-3);
+    font-size: 11.5px;
   }
-
-  .overflow-x-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
+  .csv-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    outline: 0;
   }
-
-  .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+  .csv-scroll:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
-
-  /* Sticky header and row number column */
-  :global(thead.sticky th) {
+  table {
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  th,
+  td {
+    height: 30px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  thead th {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 2;
+    height: 28px;
+    background: var(--surface);
+    color: var(--ink-3);
+    font: 700 10.5px var(--font-mono);
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
   }
-
-  :global(.sticky) {
+  .csv-head {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 240px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+  }
+  th.is-num .csv-head {
+    flex-direction: row-reverse;
+    margin-left: auto;
+  }
+  .csv-head span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .csv-head:hover,
+  .csv-head.is-on {
+    color: var(--accent);
+  }
+  .csv-dir {
+    display: inline-flex;
+  }
+  .csv-dir :global(.r-icon) {
+    width: 11px;
+    height: 11px;
+    transform: rotate(180deg);
+  }
+  .csv-dir.is-asc :global(.r-icon) {
+    transform: none;
+  }
+  .csv-n {
     position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 1%;
+    border-right: 1px solid var(--line);
+    background: var(--subtle);
+    color: var(--ink-3);
+    font: 12px var(--font-mono);
+    text-align: right;
   }
-
-  /* Table focus for keyboard navigation */
-  table:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: -2px;
+  thead .csv-n {
+    z-index: 3;
+    background: var(--surface);
   }
-
-  /* Dropdown animation */
-  .group:hover .group-hover\:opacity-100 {
-    opacity: 1;
+  tbody tr:hover td {
+    background: var(--hover);
   }
-
-  .group:hover .group-hover\:visible {
-    visibility: visible;
+  td span {
+    display: block;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  td.is-num {
+    font: 12.5px var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  td.is-num span {
+    margin-left: auto;
+  }
+  td.is-date {
+    color: var(--ink-2);
+    font: 12.5px var(--font-mono);
+  }
+  .csv-empty {
+    display: flex;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-5) var(--space-4);
+    color: var(--ink-3);
+  }
+  .csv-empty button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+  }
+  .csv-foot {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    border-top: 1px solid var(--line);
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: 12.5px;
+  }
+  .csv-foot em {
+    margin-left: 4px;
+    color: var(--ink-3);
+    font-style: normal;
+  }
+  .csv-pager {
+    display: flex;
+    gap: 2px;
+  }
+  .csv-pager button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--ink-2);
+    font: 12px var(--font-mono);
+    cursor: pointer;
+  }
+  .csv-pager button :global(.r-icon) {
+    width: 13px;
+    height: 13px;
+  }
+  .csv-pager button :global(.r-icon + .r-icon) {
+    margin-left: -8px;
+  }
+  .csv-pager button:hover:not(:disabled) {
+    background: var(--hover);
+  }
+  .csv-pager button.is-on {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .csv-pager button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  @media (max-width: 767px) {
+    .csv-foot {
+      flex-wrap: wrap;
+      padding: var(--space-1\.5) var(--space-3);
+    }
+    .csv-opt {
+      display: none;
+    }
   }
 </style>

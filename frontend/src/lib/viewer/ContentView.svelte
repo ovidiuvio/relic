@@ -118,7 +118,7 @@
       {relicId}
     />
   {:else if processed.type === "csv"}
-    <CsvRenderer {processed} />
+    <CsvRenderer {processed} name={relic?.name} />
   {:else if processed.type === "archive"}
     <ArchiveRenderer
       {processed}
