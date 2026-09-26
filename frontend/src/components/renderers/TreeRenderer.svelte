@@ -3,6 +3,8 @@
   import { createEventDispatcher, setContext } from 'svelte'
   import { writable } from 'svelte/store'
   import TreeNode from './TreeNode.svelte'
+  import FilterStrip from '../../lib/viewer/FilterStrip.svelte'
+  import Icon from '../../lib/ui/Icon.svelte'
   import { tryParseJson } from '../../services/utils/jsonRepair.js'
   import { createRelic } from '../../services/api'
   import { showToast } from '../../stores/toastStore'
@@ -156,59 +158,75 @@
   }
 </script>
 
-<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0 {darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}">
+<div class="tree-view" class:is-dark={darkMode}>
   {#if parseError}
-    <div class="p-4">
-      <div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 mb-3">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Parse error: {parseError}</span>
-        <button
-          on:click={() => dispatch('parse-error')}
-          class="ml-auto text-xs underline hover:no-underline"
-        >
-          Switch to code view
-        </button>
-      </div>
-      <pre class="text-xs font-mono {darkMode ? 'text-gray-300' : 'text-gray-700'} whitespace-pre-wrap overflow-auto" style="font-size: {fontSize}px">{processed?.preview || processed?.text || ''}</pre>
+    <div class="r-banner r-banner-danger tree-notice" role="alert">
+      <Icon name="info" /><span class="tree-error">Couldn’t read it as a tree: {parseError}</span>
+      <button class="r-btn r-btn-secondary" on:click={() => dispatch('parse-error')}>Show as code</button>
     </div>
+    <pre class="tree-raw" style="font-size: {fontSize}px">{processed?.preview || processed?.text || ''}</pre>
   {:else if parsedValue !== null && parsedValue !== undefined}
     {#if repaired}
-      <div class="flex items-center gap-1.5 px-4 py-1.5 border-b {darkMode ? 'border-amber-900/40 bg-amber-950/30 text-amber-400' : 'border-amber-200 bg-amber-50 text-amber-700'} text-[11px] font-medium">
-        <i class="fas fa-wrench text-[10px]"></i>
-        auto-repaired — displaying best-effort output; stored relic is unchanged
+      <div class="r-banner r-banner-warning tree-notice" role="status">
+        <Icon name="info" />Repaired to show it: this is a best-effort reading, the stored relic is unchanged.
       </div>
     {/if}
-    <!-- Filter input -->
-    <div class="border-b {darkMode ? 'border-gray-700' : 'border-gray-200'} px-3 py-1.5">
-      <div class="relative">
-        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-[10px] {darkMode ? 'text-gray-500' : 'text-gray-400'}"></i>
-        <input
-          type="text"
-          placeholder="Filter keys and values…"
-          bind:value={filterValue}
-          on:input={onFilterInput}
-          class="w-full text-xs pl-6 {filterValue ? 'pr-6' : 'pr-2'} py-1 rounded border {darkMode ? 'bg-gray-800 border-gray-600 text-gray-200 placeholder-gray-600' : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'} focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-        {#if filterValue}
-          <button
-            on:click={clearFilter}
-            class="absolute right-2 top-1/2 -translate-y-1/2 {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
-          >
-            <i class="fas fa-times text-[10px]"></i>
-          </button>
-        {/if}
-      </div>
-    </div>
-    <div
-      class="overflow-auto p-4 flex-1 {darkMode ? 'text-gray-300' : 'text-gray-800'}"
-      style="font-size: {fontSize}px;"
-    >
+    <FilterStrip bind:value={filterValue} placeholder="Filter keys and values" dark={darkMode} oninput={onFilterInput} />
+    <div class="tree-body" style="font-size: {fontSize}px;">
       <TreeNode value={parsedValue} depth={0} />
     </div>
   {:else}
-    <div class="flex items-center justify-center p-12 text-gray-400">
-      <i class="fas fa-spinner fa-spin mr-2"></i>
-      Parsing...
-    </div>
+    <p class="tree-loading" role="status">Reading…</p>
   {/if}
 </div>
+
+<style>
+  .tree-view {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .tree-view.is-dark {
+    background: #1e1e1e;
+    color: #d4d4d4;
+  }
+  .tree-notice {
+    flex: none;
+  }
+  .tree-notice :global(.r-icon) {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+  .tree-error {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tree-notice .r-btn {
+    margin-left: auto;
+  }
+  .tree-raw {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: var(--space-4);
+    overflow: auto;
+    font-family: var(--font-mono);
+    white-space: pre-wrap;
+  }
+  .tree-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--space-3) var(--space-4);
+  }
+  .tree-loading {
+    margin: auto;
+    color: var(--ink-3);
+  }
+</style>

@@ -1,5 +1,6 @@
 <script>
-  import { modal } from '../../utils/modal';
+  import FilterStrip from '../../lib/viewer/FilterStrip.svelte'
+  import Icon from '../../lib/ui/Icon.svelte'
   import MonacoEditor from '../MonacoEditor.svelte'
   import { createEventDispatcher } from 'svelte'
   import { createEventForwarder } from '../../services/utils/eventUtils'
@@ -50,8 +51,18 @@
   let debouncedFilter = ''
   let filterCase = localStorage.getItem('filterCase') === 'true'
   let regexError = false
-  let showCheatsheet = false
   let filterDebounce
+
+  const REGEX_PATTERNS = [
+    ['error|warn', 'either term'],
+    ['error.*warn', 'error, then warn'],
+    ['^import', 'lines starting with'],
+    ['\\bfoo\\b', 'the whole word'],
+    ['};?$', 'lines ending with'],
+    ['\\d+', 'one or more digits'],
+    ['[A-Z]{2,}', 'two or more capitals'],
+    ['(TODO|FIXME)', 'either annotation'],
+  ]
 
   $: localStorage.setItem('filterCase', String(filterCase))
 
@@ -171,57 +182,24 @@
   $: totalLineCount = displayValue ? displayValue.split('\n').length : 0
 </script>
 
-<div class="border-t border-gray-200 flex flex-col flex-1 min-h-0">
+<div class="code-view">
   {#if beautify && beautifyRepaired}
-    <div class="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-700 font-medium">
-      <i class="fas fa-wrench text-[10px]"></i>
-      auto-repaired — displaying best-effort formatted output; stored relic is unchanged
+    <div class="r-banner r-banner-warning code-notice" role="status">
+      <Icon name="info" />Repaired to show it: this is a best-effort format, the stored relic is unchanged.
     </div>
   {/if}
-  <!-- Line filter bar -->
   {#if showLineFilter}
-    <div class="border-b {darkMode ? 'border-gray-700' : 'border-gray-200'} px-3 py-1.5">
-      <div class="relative">
-        <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-[10px] {regexError ? 'text-red-400' : (darkMode ? 'text-gray-500' : 'text-gray-400')}"></i>
-        <input
-          type="text"
-          placeholder="Filter lines… (regex)"
-          bind:value={filterValue}
-          on:input={onFilterInput}
-          class="w-full text-xs pl-6 {filterValue ? 'pr-20' : 'pr-12'} py-1 rounded border {darkMode ? 'bg-gray-800 border-gray-600 text-gray-200 placeholder-gray-600' : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'} focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-        <!-- Right-side controls -->
-        <div class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-          <!-- Case-sensitive toggle -->
-          <button
-            on:click={() => filterCase = !filterCase}
-            title="Case sensitive"
-            class="px-1 py-0.5 rounded text-[10px] font-mono leading-none transition-colors {filterCase ? 'text-blue-400' : (darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600')}"
-          >Aa</button>
-          <!-- Regex cheatsheet -->
-          <button
-            on:click={() => showCheatsheet = true}
-            title="Regex cheatsheet"
-            class="px-1 py-0.5 rounded text-[10px] font-mono leading-none transition-colors {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
-          >?</button>
-          <!-- Match count -->
-          {#if matchLine !== null}
-            <span class="text-[11px] {darkMode ? 'text-gray-400' : 'text-gray-500'} whitespace-nowrap pointer-events-none ml-0.5">
-              {filterMatchCount}/{totalLineCount}
-            </span>
-          {/if}
-          <!-- Clear button -->
-          {#if filterValue}
-            <button
-              on:click={clearFilter}
-              class="{darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} ml-0.5"
-            >
-              <i class="fas fa-times text-[10px]"></i>
-            </button>
-          {/if}
-        </div>
-      </div>
-    </div>
+    <FilterStrip
+      bind:value={filterValue}
+      bind:caseSensitive={filterCase}
+      placeholder="Filter lines (regular expression)"
+      label="Filter lines"
+      dark={darkMode}
+      error={regexError}
+      count={matchLine !== null ? { matched: filterMatchCount, total: totalLineCount } : null}
+      patterns={REGEX_PATTERNS}
+      oninput={onFilterInput}
+    />
   {/if}
   <!-- overflow-hidden: clientHeight is rounded, so the editor can end up a
        fraction of a pixel taller than this box; unclipped, that gives the
@@ -256,53 +234,25 @@
   </div>
 </div>
 {#if processed.truncated}
-  <div class="bg-blue-50 border-t border-gray-200 px-6 py-4 text-center text-sm text-blue-700 rounded-b-lg">
-    Content truncated. <a href="/{relicId}/raw" class="font-semibold hover:underline">Download full file</a>
+  <div class="r-banner r-banner-info code-notice" role="status">
+    <Icon name="info" />Only the start of this file is shown.
+    <a class="r-link" href="/{relicId}/raw">Open the full file</a>
   </div>
 {/if}
 
-<!-- Regex cheatsheet modal -->
-{#if showCheatsheet}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-    on:click={() => showCheatsheet = false}
-  >
-    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-    <div use:modal={{ onClose: () => (showCheatsheet = false) }}
-      class="w-96 rounded-xl shadow-2xl border overflow-hidden {darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}"
-      on:click|stopPropagation
-    >
-      <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b {darkMode ? 'border-gray-700' : 'border-gray-100'}">
-        <span class="text-sm font-semibold {darkMode ? 'text-gray-100' : 'text-gray-800'}">Regex cheatsheet</span>
-        <button
-          on:click={() => showCheatsheet = false}
-          class="{darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}"
-        ><i class="fas fa-times text-xs"></i></button>
-      </div>
-      <!-- Rows -->
-      <div class="px-4 py-3 space-y-2.5 text-[12px]">
-        {#each [
-          ['error|warn',           'match either term'],
-          ['error.*warn',          'error followed by warn'],
-          ['^import',              'line starts with'],
-          ['\\bfoo\\b',           'exact word boundary'],
-          ['};?$',                 'line ends with'],
-          ['\\d+',                'one or more digits'],
-          ['[A-Z]{2,}',           'two or more uppercase letters'],
-          ['(TODO|FIXME)',         'either annotation'],
-        ] as [pattern, desc]}
-          <div class="flex items-center gap-3">
-            <code class="font-mono text-[11px] w-36 shrink-0 {darkMode ? 'text-blue-300' : 'text-blue-600'}">{pattern}</code>
-            <span class="{darkMode ? 'text-gray-400' : 'text-gray-500'}">{desc}</span>
-          </div>
-        {/each}
-      </div>
-      <!-- Footer hint -->
-      <div class="px-4 py-2.5 border-t text-[11px] {darkMode ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-400'}">
-        Toggle <span class="font-mono font-medium">Aa</span> for case-sensitive matching
-      </div>
-    </div>
-  </div>
-{/if}
+<style>
+  .code-view {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .code-notice {
+    flex: none;
+  }
+  .code-notice :global(.r-icon) {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+</style>

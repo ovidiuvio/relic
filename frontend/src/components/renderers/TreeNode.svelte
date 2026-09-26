@@ -1,4 +1,5 @@
 <script>
+  import Icon from '../../lib/ui/Icon.svelte'
   import { getContext } from 'svelte'
   import { showToast } from '../../stores/toastStore'
   import { triggerDownload } from '../../services/utils/download'
@@ -100,7 +101,7 @@
     if (i === -1) return escapeHtml(text)
     return (
       escapeHtml(text.slice(0, i)) +
-      `<mark class="bg-yellow-200 text-yellow-900 rounded-sm">${escapeHtml(text.slice(i, i + f.length))}</mark>` +
+      `<mark class="tree-mark">${escapeHtml(text.slice(i, i + f.length))}</mark>` +
       escapeHtml(text.slice(i + f.length))
     )
   }
@@ -140,21 +141,21 @@
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Copy as JSON"
         >
-          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-[10px]"></i>
+          <Icon name={copied ? 'check' : 'copy'} size={11} />
         </button>
         <button
           on:click|stopPropagation={forkNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Fork node as new relic"
         >
-          <i class="fas fa-code-branch text-[10px]"></i>
+          <Icon name="fork" size={11} />
         </button>
         <button
           on:click|stopPropagation={downloadNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Download node"
         >
-          <i class="fas fa-download text-[10px]"></i>
+          <Icon name="download" size={11} />
         </button>
       </span>
     </div>
@@ -199,24 +200,33 @@
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Copy value"
         >
-          <i class="fas {copied ? 'fa-check text-green-500' : 'fa-copy'} text-[10px]"></i>
+          <Icon name={copied ? 'check' : 'copy'} size={11} />
         </button>
         <button
           on:click|stopPropagation={forkNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Fork node as new relic"
         >
-          <i class="fas fa-code-branch text-[10px]"></i>
+          <Icon name="fork" size={11} />
         </button>
         <button
           on:click|stopPropagation={downloadNode}
           class="px-0.5 py-0 leading-none rounded {darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors"
           title="Download node"
         >
-          <i class="fas fa-download text-[10px]"></i>
+          <Icon name="download" size={11} />
         </button>
       </span>
     </div>
   {/if}
 </div>
 {/if}
+
+<style>
+  /* Dark text on the highlight, so a match reads in the dark view too. */
+  :global(.tree-mark) {
+    border-radius: 2px;
+    background: var(--mark);
+    color: var(--ink);
+  }
+</style>
