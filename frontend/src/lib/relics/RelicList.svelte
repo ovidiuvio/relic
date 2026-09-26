@@ -27,6 +27,7 @@
     dateLabel = null, // header for the date column when it isn't "Time"/"Date" (e.g. "Bookmarked")
     showPublic = false, // mark public relics too (lists that mix visibilities)
     showOwner = true, // off where every relic is yours
+    head: showHead = true, // column headers; off in the search dropdown
     local = false, // items that live only in this browser (drafts): no owner, id or counters, and the name opens via onopen
     highlight = "", // search term to <mark> in names
     selectedId = null,
@@ -148,7 +149,7 @@
 <!-- Keys bubble up from the focused row; the rows themselves are the focus targets. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="list" bind:this={listEl} role="list" aria-busy={loading} onkeydown={onKeydown}>
-  {#if relics.length}
+  {#if relics.length && showHead}
     <div class="list-head cols" class:no-owner={!showOwner} class:is-local={local} role="presentation">
       {#snippet head(key, label, title, cls = "")}
         {#if !canSort(key)}

@@ -318,14 +318,14 @@ if relic.fork_of:
 ### Search & Filtering
 
 The relic lists (`GET /api/v1/relics`, `/api/v1/user/relics`, `/api/v1/bookmarks`, `/api/v1/spaces/:id/relics`, `/api/v1/admin/relics`) share these parameters, built from helpers in `backend/utils.py`:
-- `search`: case-insensitive match on name, ID, description and tag names (`apply_relic_search`)
+- `search`: every word must match the name, ID, description or a tag name, case-insensitively and in any order; `"quoted phrases"` match whole (`search_terms`, `apply_relic_search`)
 - `tag`: one tag name
 - `types`: comma-separated content types; parameters like `; charset=` are ignored on both sides (`parse_types`, `apply_type_filter`)
 - `facets=true`: adds `facets: {types: {content_type: count}, tags: [{name, count}]}`, counted before the type filter so each facet shows what it would give (`relic_facets`)
-- `sort_by` / `sort_order`: `created_at`, `name`, `owner`, `size`, `access_count`, `bookmark_count`, `comments_count`, `forks_count`; ties break by newest then ID so offset paging is stable (`relic_sort_order`)
+- `sort_by` / `sort_order`: `created_at`, `name`, `owner`, `size`, `access_count`, `bookmark_count`, `comments_count`, `forks_count`, and `relevance` (best name matches for `search` first; not on the admin list); ties break by newest then ID so offset paging is stable (`relic_sort_order`)
 - `limit` / `offset`: pagination (`clamp_limit`)
 
-In the UI, list filters live in the URL: `?search=`, `?type=` (a family such as `code` or `image`, mapped to MIME types in `lib/relics/typeFacets.js`, or one exact content type), `?tag=`, `?owner=` (a public ID) and `?sort=` (`size-desc`; omitted for newest first). The navbar search (`lib/shell/NavSearch.svelte`) holds the whole query as text, free words plus tokens `type:` `tag:` `by:` `in:` (parsed in `lib/search/query.js`), shows whatever the list is filtered by, and applies it all on Enter; the page bar shows the same filters as chips and facets.
+In the UI, list filters live in the URL: `?search=`, `?type=` (a family such as `code` or `image`, mapped to MIME types in `lib/relics/typeFacets.js`, or one exact content type), `?tag=`, `?owner=` (a public ID) and `?sort=` (`size-desc`; omitted for newest first). The navbar search (`lib/shell/NavSearch.svelte`) holds the whole query as text, free words plus tokens `type:` `tag:` `by:` `in:` (parsed in `lib/search/query.js`), shows whatever the list is filtered by, and applies it all on Enter; the page bar shows the same filters as chips and facets. While it has focus, a panel (`lib/search/SearchPanel.svelte`) lists the filters, completes the token being typed, and shows your searches: recent ones in this browser and pinned ones on the server (`GET/POST/PATCH/DELETE /api/v1/user/searches`, table `saved_search`). On a list page the list filters live as you type; on other pages the panel shows the matches (relevance order) with a preview.
 
 ### Frontend Routing
 

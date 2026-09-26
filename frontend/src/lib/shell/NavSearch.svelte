@@ -5,6 +5,13 @@
   // rewrites it, and Enter applies everything in it. The scope chip says where it searches:
   // pick another list or space there, or type in:. While it has focus, a panel under it lists the
   // filters you can type and completes the one you're typing.
+  // On a list page the list follows the bar as you type (a token applies once you've finished
+  // it). The first change adds a history entry and later ones replace it, so Back, or Esc,
+  // returns to the list as it was. Elsewhere (a relic, New relic…) the panel shows the matches
+  // with a preview: ↑↓ choose, Enter opens (Ctrl+Enter in a new tab), or shows them all.
+  // An empty bar lists your searches: pinned (on the server) and recent (this browser); typing
+  // narrows them. Searches you commit (Enter, a match opened, a live-filtered list you leave)
+  // go to Recent.
   //   / or Ctrl+K focus · ↑↓ choose · Tab complete · Enter applies · Esc closes the panel, then
   //   puts the field back and leaves
   import { tick, untrack } from "svelte";
@@ -16,7 +23,9 @@
   import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS } from "../search/query";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
-  import { spaces as spacesApi, listRelics, getUserRelics, getUserBookmarks, getAdminRelics } from "../../services/api";
+  import { spaces as spacesApi } from "../../services/api";
+  import { fetchScope } from "../search/scopeFetch";
+  import { searchHistory, pathLabel } from "../search/history.svelte.js";
   import { showToast } from "../../stores/toastStore";
 
   let { section, routeProps = {} } = $props();
@@ -40,12 +49,13 @@
   let menuEl = $state();
   let query = $state("");
   let focused = $state(false);
+  let within = $state(false); // focus is somewhere in the bar or its panel (a rename field)
   let caret = $state(0);
   let menuOpen = $state(false);
   let flagAll = $state(false); // after a failed Enter, underline problems even under the caret
   let applied = ""; // the text of the last search that ran, to show it back as you typed it
   let panelClosed = $state(false); // Esc closed the panel; typing opens it again
-  let active = $state(-1); // the suggestion chosen with ↑↓
+  let active = $state(-1); // the option chosen with ↑↓: a suggestion, a saved search or a match
   let tags = $state({}); // top tags per scope key, for tag: suggestions
 
   // What a query means, ignoring anything that doesn't resolve.
@@ -67,9 +77,56 @@
     const filters = urlFilters;
     untrack(() => {
       picked = null;
+      // Someone else moved the page (a link, Back): live filtering starts over and the panel closes.
+      const ours = live && location.pathname + location.search === live.url;
+      if (!ours) {
+        live = null;
+        if (focused) input?.blur();
+      }
       query = textFor(filters);
     });
   });
+
+  // ---- live filtering on list pages ----
+  let live = null; // { start: the URL before, text: the bar's text then, url: the last one set }
+  let liveTimer;
+
+  function scheduleLive() {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(applyLive, 250);
+  }
+
+  function applyLive() {
+    if (!focused || picked || location.pathname !== pageScope.path) return;
+    // A token applies once you've finished it, so tag:w doesn't empty the list on the way to tag:work.
+    if (segments(query).some((s) => s.kind === "token" && caret >= s.start && caret <= s.end)) return;
+    const { search, tokens } = parseQuery(query);
+    if ("in" in tokens) return; // another page: that waits for Enter
+    const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: pageScope.filters });
+    if (problems.length) return;
+    const url = urlFor(pageScope, search, params);
+    const here = location.pathname + location.search;
+    if (url === here) return;
+    applied = query;
+    if (!live) {
+      live = { start: here, text: textFor(urlFilters), url };
+      navigate(url);
+    } else {
+      live.url = url;
+      navigate(url, { replace: true });
+    }
+  }
+
+  /** Esc: put the list back as it was before you started typing. */
+  function cancelLive() {
+    clearTimeout(liveTimer);
+    if (!live) return false;
+    const { text } = live;
+    live = null;
+    applied = text;
+    history.back();
+    return true;
+  }
 
   // Tokens that won't work here are underlined, once the caret has left them.
   const segs = $derived(
@@ -89,27 +146,180 @@
   const suggestions = $derived(
     suggest(query, caret, { keys, tags: tags[scope.key], spaces: $sidebarData.spaces, scopeLabel: scope.label })
   );
-  const panelOpen = $derived(focused && !menuOpen && !panelClosed);
-  $effect(() => {
-    suggestions;
-    active = -1;
+  const panelOpen = $derived((focused || within) && !menuOpen && !panelClosed);
+
+  // ---- your searches ----
+  const here = $derived.by(() => {
+    routeProps;
+    return location.pathname + location.search;
+  });
+  const searches = $derived.by(() => {
+    const spaces = $sidebarData.spaces;
+    const pinned = (searchHistory.pinned ?? []).map((p) => ({ kind: "pinned", ...p, label: pathLabel(p.path, spaces) }));
+    const pinnedPaths = new Set(pinned.map((p) => p.path));
+    const recent = searchHistory.recent
+      .filter((e) => !pinnedPaths.has(e.path))
+      .map((e) => ({ kind: "recent", ...e, label: pathLabel(e.path, spaces) }));
+    const q = query.trim().toLowerCase();
+    // Until you change what the bar shows, you see them all; typing narrows them.
+    if (!q || untouched) return [...pinned, ...recent.slice(0, 8)];
+    // Typing narrows them; the search you're looking at isn't worth offering back.
+    return [...pinned, ...recent]
+      .filter((h) => h.path !== here && (h.query.toLowerCase().includes(q) || h.name?.toLowerCase().includes(q)))
+      .slice(0, 4);
   });
 
+  // The bar still shows the page's own filters (nothing typed since).
+  const untouched = $derived(sameFilters(filtersOf(query), urlFilters));
+
+  // On a filtered list, offer to pin what it shows.
+  const pinCurrent = $derived.by(() => {
+    if (!onListPage || picked || !QUERY_PARAMS.some((k) => urlFilters[k])) return null;
+    if (!sameFilters(filtersOf(query), urlFilters)) return null;
+    return { pinned: !!searchHistory.pinnedFor(here) };
+  });
+
+  // Everything ↑↓ moves through, in panel order.
+  const options = $derived(
+    suggestions.items.length
+      ? suggestions.items.map((item) => ({ kind: "suggestion", item }))
+      : [
+          ...searches.map((item) => ({ kind: "history", item })),
+          ...(showResults && results ? results.relics.map((item) => ({ kind: "relic", item })) : []),
+        ]
+  );
+  $effect(() => {
+    options;
+    active = -1;
+  });
+  const suggestionIndex = $derived(options[active]?.kind === "suggestion" ? active : -1);
+  const historyIndex = $derived(options[active]?.kind === "history" ? active : -1);
+  const resultIndex = $derived(options[active]?.kind === "relic" ? active - searches.length : -1);
+
+  function runHistory(entry, newTab = false) {
+    if (newTab) {
+      window.open(entry.path, "_blank", "noopener");
+      return;
+    }
+    searchHistory.record(entry);
+    applied = entry.query;
+    picked = null;
+    live = null;
+    input.blur();
+    if (entry.path !== location.pathname + location.search) navigate(entry.path);
+    else query = entry.query;
+  }
+
+  async function pinEntry(entry) {
+    try {
+      await searchHistory.pin({ query: entry.query, path: entry.path });
+      showToast("Pinned", "success");
+    } catch (e) {
+      showToast(e.response?.data?.detail || "Couldn’t pin that search", "error");
+    }
+  }
+
+  async function unpinEntry(entry) {
+    try {
+      await searchHistory.unpin(entry.id);
+    } catch {
+      showToast("Couldn’t unpin that search", "error");
+    }
+  }
+
+  async function renameEntry(entry, name) {
+    input.focus();
+    if (name === null || (name ?? "") === (entry.name ?? "")) return;
+    try {
+      await searchHistory.rename(entry.id, name);
+    } catch {
+      showToast("Couldn’t rename that search", "error");
+    }
+  }
+
+  function togglePinCurrent() {
+    const pinned = searchHistory.pinnedFor(here);
+    if (pinned) unpinEntry(pinned);
+    else pinEntry({ query: query.trim(), path: here });
+  }
+
   // Top tags for tag: suggestions, fetched once per scope when the bar gets focus.
-  const TAG_SOURCES = {
-    recent: () => listRelics({ limit: 1, facets: true }).then((r) => r.data),
-    "my-relics": () => getUserRelics({ limit: 1, facets: true }).then((r) => r.data),
-    "my-bookmarks": () => getUserBookmarks({ limit: 1, facets: true }).then((r) => r.data),
-    "admin-relics": () => getAdminRelics(1, 0, null, null, null, null, "created_at", "desc", { facets: true }).then((r) => r.data),
-  };
-  function loadTags(s) {
-    if (s.key in tags) return;
-    const source = TAG_SOURCES[s.key] ?? (s.key.startsWith("space:") ? () => spacesApi.getRelics(s.key.slice(6), { limit: 1, facets: true }) : null);
-    if (!source) return;
-    tags = { ...tags, [s.key]: undefined };
-    source()
-      .then((data) => (tags = { ...tags, [s.key]: data?.facets?.tags ?? [] }))
-      .catch(() => (tags = { ...tags, [s.key]: [] }));
+  function loadTags(sc) {
+    if (sc.key in tags) return;
+    tags = { ...tags, [sc.key]: undefined };
+    fetchScope(sc, {}, { limit: 1, facets: true })
+      .then((data) => (tags = { ...tags, [sc.key]: data?.facets?.tags ?? [] }))
+      .catch(() => (tags = { ...tags, [sc.key]: [] }));
+  }
+
+  // ---- matches, on pages without the scope's list ----
+  let results = $state(null); // { relics, total } for the query, or null
+  let resultsLoading = $state(false);
+  let resultsTimer;
+  let resultsSeq = 0;
+  let panelWidth = $state(null); // px when there's room for the preview
+
+  const onListPage = $derived.by(() => {
+    routeProps;
+    return location.pathname === pageScope.path;
+  });
+  const showResults = $derived(!onListPage || !!picked);
+
+  $effect(() => {
+    query;
+    scope;
+    caret;
+    const on = focused && showResults;
+    untrack(() => scheduleResults(on));
+  });
+
+  function scheduleResults(on) {
+    clearTimeout(resultsTimer);
+    if (!on) {
+      results = null;
+      return;
+    }
+    // Wait for a token to be finished, as the live list does.
+    if (segments(query).some((seg) => seg.kind === "token" && caret >= seg.start && caret <= seg.end)) return;
+    const { search, tokens } = parseQuery(query);
+    const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: scope.filters });
+    if ("in" in tokens || problems.length || (!search.trim() && !Object.keys(params).length)) {
+      results = null;
+      return;
+    }
+    resultsTimer = setTimeout(async () => {
+      const seq = ++resultsSeq;
+      resultsLoading = true;
+      try {
+        const data = await fetchScope(scope, { search: search.trim(), ...params }, { limit: 7, relevance: true });
+        if (seq !== resultsSeq) return;
+        results = data;
+      } catch {
+        if (seq === resultsSeq) results = null;
+      } finally {
+        if (seq === resultsSeq) resultsLoading = false;
+      }
+    }, 200);
+  }
+
+  function measure() {
+    if (!root) return;
+    const room = window.innerWidth - root.getBoundingClientRect().left - 12;
+    panelWidth = room >= 820 ? Math.min(940, room) : null;
+  }
+
+  function openResult(relic, newTab = false) {
+    if (newTab) {
+      window.open(`/${relic.id}`, "_blank", "noopener");
+      return;
+    }
+    // The search that found it goes to Recent, as the list it searched.
+    const { search, tokens } = parseQuery(query);
+    const { params } = resolveFilters(tokens, { publicId: $session.publicId, filters: scope.filters });
+    searchHistory.record({ query, path: urlFor(scope, search, params), label: scope.label });
+    picked = null;
+    input.blur();
+    navigate(`/${relic.id}`);
   }
 
   async function setQuery(text, at) {
@@ -119,6 +329,7 @@
     input.focus();
     input.setSelectionRange(at, at);
     sync();
+    scheduleLive();
   }
 
   function pickSuggestion(item) {
@@ -181,19 +392,28 @@
       showToast(target === pageScope || !("in" in tokens) ? problems[0] : `${problems[0]} (in ${target.label})`, "error");
       return;
     }
-    // Searching the same list keeps its sort and other options; another list starts fresh.
+    clearTimeout(liveTimer);
+    const url = urlFor(target, search, params);
+    // in: has done its job once the chip shows the new scope.
+    query = segments(query).filter((seg) => seg.key !== "in").map((seg) => seg.raw).join("").replace(/\s+/g, " ").trim();
+    applied = query;
+    searchHistory.record({ query, path: url, label: target.label });
+    picked = null;
+    // Live filtering already added this search's history entry; Enter just settles it.
+    const replace = !!live && target.path === pageScope.path;
+    live = null;
+    input.blur();
+    if (url !== location.pathname + location.search) navigate(url, { replace });
+  }
+
+  // The URL for a search: the same list keeps its sort and other options; another starts fresh.
+  function urlFor(target, search, params) {
     const next = new URLSearchParams(location.pathname === target.path ? location.search : "");
     for (const key of QUERY_PARAMS) next.delete(key);
     if (search.trim()) next.set("search", search.trim());
     for (const [key, value] of Object.entries(params)) next.set(key, value);
     const qs = next.toString();
-    const url = `${target.path}${qs ? `?${qs}` : ""}`;
-    // in: has done its job once the chip shows the new scope.
-    query = segments(query).filter((seg) => seg.key !== "in").map((seg) => seg.raw).join("").replace(/\s+/g, " ").trim();
-    applied = query;
-    picked = null;
-    input.blur();
-    if (url !== location.pathname + location.search) navigate(url);
+    return `${target.path}${qs ? `?${qs}` : ""}`;
   }
 
   function reset() {
@@ -202,17 +422,21 @@
   }
 
   function onkeydown(event) {
-    const items = panelOpen ? suggestions.items : [];
-    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && items.length) {
+    const opts = panelOpen ? options : [];
+    const chosen = opts[active];
+    const newTab = event.ctrlKey || event.metaKey || event.shiftKey;
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && opts.length) {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      active = active + step < -1 ? items.length - 1 : active + step >= items.length ? -1 : active + step;
-    } else if (event.key === "Tab" && items.length && !event.shiftKey) {
+      active = active + step < -1 ? opts.length - 1 : active + step >= opts.length ? -1 : active + step;
+    } else if (event.key === "Tab" && !event.shiftKey && opts[0]?.kind === "suggestion") {
       event.preventDefault();
-      pickSuggestion(items[Math.max(active, 0)]);
+      pickSuggestion((chosen ?? opts[0]).item);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (active >= 0 && items[active]) pickSuggestion(items[active]);
+      if (chosen?.kind === "suggestion") pickSuggestion(chosen.item);
+      else if (chosen?.kind === "history") runHistory(chosen.item, newTab);
+      else if (chosen?.kind === "relic") openResult(chosen.item, newTab);
       else submit();
     } else if (event.key === "Escape") {
       if (panelOpen) {
@@ -220,13 +444,22 @@
         active = -1;
         return;
       }
-      reset();
+      if (!cancelLive()) reset();
       input.blur();
     } else {
       flagAll = false;
       panelClosed = false;
       tick().then(sync);
     }
+  }
+
+  function onBlur() {
+    focused = false;
+    // Leaving a list you filtered as you typed keeps that search: it goes to Recent.
+    if (live && query.trim()) searchHistory.record({ query, path: live.url, label: pageScope.label });
+    live = null;
+    clearTimeout(liveTimer);
+    tick().then(sync);
   }
 
   function onWindowKeydown(event) {
@@ -302,10 +535,18 @@
   }
 </script>
 
-<svelte:window onkeydown={onWindowKeydown} onclick={onWindowClick} />
+<svelte:window onkeydown={onWindowKeydown} onclick={onWindowClick} onresize={() => focused && measure()} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="r-nav-search nav-search" class:is-focus={focused || menuOpen} role="search" bind:this={root} onmousedown={onBarMousedown}>
+<div
+  class="r-nav-search nav-search"
+  class:is-focus={focused || menuOpen}
+  role="search"
+  bind:this={root}
+  onmousedown={onBarMousedown}
+  onfocusin={() => (within = true)}
+  onfocusout={(e) => (within = root.contains(e.relatedTarget))}
+>
   <button
     type="button"
     class="r-nav-scope scope-btn"
@@ -328,19 +569,20 @@
       role="combobox"
       aria-expanded={panelOpen && suggestions.items.length > 0}
       aria-controls="search-suggestions"
-      aria-activedescendant={active >= 0 ? `search-sugg-${active}` : undefined}
+      aria-activedescendant={suggestionIndex >= 0 ? `search-sugg-${suggestionIndex}` : historyIndex >= 0 ? `search-hist-${historyIndex}` : undefined}
       aria-invalid={problem ? "true" : undefined}
       title={problem ?? ""}
       autocomplete="off"
       spellcheck="false"
       {onkeydown}
-      oninput={sync}
+      oninput={() => (sync(), scheduleLive())}
       onkeyup={sync}
       onclick={sync}
+      onmousedown={() => (panelClosed = false)}
       onselect={sync}
       onscroll={sync}
-      onfocus={() => ((focused = true), (panelClosed = false), loadTags(scope), $sidebarData.spaces.length || refreshSidebar(), sync())}
-      onblur={() => ((focused = false), tick().then(sync))}
+      onfocus={() => ((focused = true), (panelClosed = false), measure(), loadTags(scope), searchHistory.load(), $sidebarData.spaces.length || refreshSidebar(), sync())}
+      onblur={onBlur}
     />
   </div>
   <kbd class="r-kbd">{focused ? "Esc" : "/"}</kbd>
@@ -352,10 +594,27 @@
       heading={suggestions.heading}
       items={suggestions.items}
       note={suggestions.note}
-      {active}
-      empty={!query.trim()}
+      active={suggestionIndex}
+      empty={!query.trim() || untouched}
+      results={showResults ? results : null}
+      loading={resultsLoading}
+      highlight={parseQuery(query).search}
+      {resultIndex}
+      width={panelWidth}
       onpick={pickSuggestion}
       oninsert={insertText}
+      onopen={openResult}
+      onseeall={submit}
+      history={searches}
+      {historyIndex}
+      {pinCurrent}
+      onrun={runHistory}
+      onpin={pinEntry}
+      onunpin={unpinEntry}
+      onforget={(h) => searchHistory.forget(h.path)}
+      onrename={renameEntry}
+      onpincurrent={togglePinCurrent}
+      onclearrecent={() => searchHistory.clear()}
     />
   {/if}
 

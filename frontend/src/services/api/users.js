@@ -18,3 +18,20 @@ export async function registerUser() {
         throw error
     }
 }
+
+// Pinned searches: { id, name, query, path, created_at }
+export async function getSavedSearches() {
+    return api.get('/user/searches')
+}
+
+export async function createSavedSearch({ query, path, name = null }) {
+    return api.post('/user/searches', { query, path, name })
+}
+
+export async function renameSavedSearch(id, name) {
+    return api.patch(`/user/searches/${id}`, { name })
+}
+
+export async function deleteSavedSearch(id) {
+    return api.delete(`/user/searches/${id}`)
+}

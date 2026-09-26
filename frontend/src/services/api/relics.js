@@ -81,6 +81,42 @@ export async function getRelicRaw(relicId) {
     return { data: blob, headers: Object.fromEntries(response.headers.entries()) }
 }
 
+/**
+ * The first `bytes` of a relic's content as text, for a quick preview: the download stops there,
+ * so a large relic costs no more than a small one. Throws with `status` set on HTTP errors.
+ */
+export async function getRelicRawHead(relicId, bytes = 8192, signal = undefined) {
+    await waitForAuth()
+    const headers = {}
+    if (!usingSw) {
+        const key = getUserKey()
+        if (key) headers['X-User-Key'] = key
+    }
+    const controller = new AbortController()
+    signal?.addEventListener('abort', () => controller.abort())
+    const response = await fetch(`/${relicId}/raw`, { headers, signal: controller.signal })
+    if (!response.ok) throw Object.assign(new Error(`Raw fetch failed: ${response.status}`), { status: response.status })
+    const reader = response.body.getReader()
+    const chunks = []
+    let size = 0
+    while (size < bytes) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        size += value.length
+    }
+    controller.abort()
+    const all = new Uint8Array(Math.min(size, bytes))
+    let at = 0
+    for (const c of chunks) {
+        const part = c.subarray(0, Math.min(c.length, all.length - at))
+        all.set(part, at)
+        at += part.length
+        if (at >= all.length) break
+    }
+    return { text: new TextDecoder().decode(all), truncated: size >= bytes }
+}
+
 export async function getRelicLineage(relicId, params = {}) {
     return api.get(`/relics/${relicId}/lineage`, { params });
 }

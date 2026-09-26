@@ -1,11 +1,13 @@
 <script>
   // Wide-screen navigation (≥1600px): Relics and Spaces groups, each heading carrying its
-  // create action, your spaces, and Admin at the foot. Below 1600px the navbar tabs do this job.
+  // create action, your spaces, the searches you pinned, and Admin at the foot. Below 1600px the
+  // navbar tabs do this job (and pinned searches are in the search bar's panel).
   import Icon from "../ui/Icon.svelte";
   import { navigate } from "../../utils/navigation";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
   import { compactNumber } from "../relics/format";
+  import { searchHistory } from "../search/history.svelte.js";
 
   let { section, routeProps = {} } = $props();
 
@@ -16,6 +18,12 @@
   });
 
   const counts = $derived($sidebarData.counts);
+
+  searchHistory.load();
+  const here = $derived.by(() => {
+    routeProps;
+    return location.pathname + location.search;
+  });
 
   const relicLinks = $derived([
     { section: "recent", path: "/recent", icon: "clock", label: "Recent", count: counts.recent },
@@ -73,6 +81,18 @@
       </a>
     {/each}
   </nav>
+
+  {#if searchHistory.pinned?.length}
+    <nav class="sb-group" aria-labelledby="sb-searches">
+      <div class="sb-head"><span id="sb-searches">Searches</span></div>
+      {#each searchHistory.pinned as saved (saved.id)}
+        <a class="sb-sub" href={saved.path} aria-current={here === saved.path ? "page" : undefined} title={saved.name ? `${saved.name}: ${saved.query}` : saved.query}>
+          <Icon name="pin" size={12} />
+          <span class="sb-name">{saved.name || saved.query}</span>
+        </a>
+      {/each}
+    </nav>
+  {/if}
 
   {#if $session.isAdmin}
     <div class="sb-foot">

@@ -122,6 +122,8 @@
   $effect(() => {
     const id = relicId;
     const path = filePath;
+    // While the page is leaving for another route, it briefly has that route's props (no relicId).
+    if (!id) return;
     untrack(async () => {
       loading = true;
       error = null;
