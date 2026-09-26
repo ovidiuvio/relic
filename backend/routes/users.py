@@ -8,8 +8,8 @@ from typing import Optional
 import secrets
 
 from backend.database import get_db
-from backend.models import Relic, User, Tag, Comment
-from backend.schemas import UserNameUpdate
+from backend.models import Relic, User, Tag, Comment, SavedSearch
+from backend.schemas import UserNameUpdate, SavedSearchCreate, SavedSearchUpdate
 from backend.dependencies import get_current_user
 from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
 
@@ -198,3 +198,79 @@ async def update_user_name(
     await db.commit()
 
     return {"status": "updated", "name": user.name}
+
+
+# ---- pinned searches ----
+
+MAX_SAVED_SEARCHES = 50
+
+
+def _saved_search(s: SavedSearch) -> dict:
+    return {"id": s.id, "name": s.name, "query": s.query, "path": s.path, "created_at": s.created_at}
+
+
+async def _require_user(request: Request, db: AsyncSession) -> User:
+    user = await get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
+
+@router.get("/searches", response_model=dict)
+async def list_saved_searches(request: Request, db: AsyncSession = Depends(get_db)):
+    """The searches you pinned, oldest first (the order you pinned them in)."""
+    user = await _require_user(request, db)
+    rows = (await db.execute(
+        select(SavedSearch).where(SavedSearch.user_id == user.id).order_by(SavedSearch.created_at, SavedSearch.id)
+    )).scalars().all()
+    return {"searches": [_saved_search(s) for s in rows]}
+
+
+@router.post("/searches", response_model=dict)
+async def create_saved_search(body: SavedSearchCreate, request: Request, db: AsyncSession = Depends(get_db)):
+    """Pin a search. Pinning the same list URL again returns the pin you already have."""
+    user = await _require_user(request, db)
+    existing = (await db.execute(
+        select(SavedSearch).where(SavedSearch.user_id == user.id, SavedSearch.path == body.path)
+    )).scalar_one_or_none()
+    if existing:
+        return _saved_search(existing)
+    count = (await db.execute(
+        select(func.count(SavedSearch.id)).where(SavedSearch.user_id == user.id)
+    )).scalar() or 0
+    if count >= MAX_SAVED_SEARCHES:
+        raise HTTPException(status_code=400, detail=f"You can pin up to {MAX_SAVED_SEARCHES} searches")
+    search = SavedSearch(user_id=user.id, query=body.query.strip(), path=body.path, name=(body.name or "").strip() or None)
+    db.add(search)
+    await db.commit()
+    await db.refresh(search)
+    return _saved_search(search)
+
+
+async def _own_search(search_id: str, user: User, db: AsyncSession) -> SavedSearch:
+    search = (await db.execute(
+        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id)
+    )).scalar_one_or_none()
+    if not search:
+        raise HTTPException(status_code=404, detail="Pinned search not found")
+    return search
+
+
+@router.patch("/searches/{search_id}", response_model=dict)
+async def rename_saved_search(search_id: str, body: SavedSearchUpdate, request: Request, db: AsyncSession = Depends(get_db)):
+    """Name a pinned search, or clear its name."""
+    user = await _require_user(request, db)
+    search = await _own_search(search_id, user, db)
+    search.name = (body.name or "").strip() or None
+    await db.commit()
+    return _saved_search(search)
+
+
+@router.delete("/searches/{search_id}", response_model=dict)
+async def delete_saved_search(search_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Unpin a search."""
+    user = await _require_user(request, db)
+    search = await _own_search(search_id, user, db)
+    await db.delete(search)
+    await db.commit()
+    return {"status": "deleted"}

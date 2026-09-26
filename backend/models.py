@@ -190,6 +190,26 @@ class UserBookmark(Base):
     )
 
 
+class SavedSearch(Base):
+    """
+    A search a user pinned from the search bar: the query as they typed it, the list URL it
+    runs on (path and query string, e.g. /recent?search=x&tag=y&sort=size-desc) and an
+    optional name. Replaying one opens that URL.
+    """
+    __tablename__ = "saved_search"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(32), ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=True)
+    query = Column(Text, nullable=False)
+    path = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'path', name='unique_user_saved_search_path'),
+    )
+
+
 class RelicReport(Base):
     """Report model for flagging inappropriate relics."""
     __tablename__ = "relic_report"

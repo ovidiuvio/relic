@@ -1,5 +1,5 @@
 """Pydantic schemas for request/response validation."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Literal
 from datetime import datetime
 
@@ -220,6 +220,26 @@ class RelicAccessEntry(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SavedSearchCreate(BaseModel):
+    """A search to pin: the query as typed and the list URL it runs on."""
+    query: str = Field(..., max_length=500)
+    path: str = Field(..., max_length=1000)
+    name: Optional[str] = Field(None, max_length=100)
+
+    @field_validator("path")
+    @classmethod
+    def path_in_app(cls, v: str) -> str:
+        # An app path, never another site (//host or a scheme).
+        if not v.startswith("/") or v.startswith("//") or "\\" in v:
+            raise ValueError("path must be a path in this app, like /recent?search=x")
+        return v
+
+
+class SavedSearchUpdate(BaseModel):
+    """Renaming a pinned search; an empty name clears it."""
+    name: Optional[str] = Field(None, max_length=100)
 
 
 class UserNameUpdate(BaseModel):
