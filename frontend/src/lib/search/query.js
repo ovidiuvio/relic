@@ -5,23 +5,33 @@
 //   type:  a family (code, docs, text, data, images, archives, web), an extension (py), a
 //          language (python) or a content type (text/x-python)
 //   tag:   one tag
-//   by:    me, or an owner's public ID
+//   by:    me, an owner's public ID, or a display name (by:"Mara Ionescu")
+//   is:    visibility: public, private or restricted
+//   from:  why you can see it (Everywhere only): yours, bookmarked, shared, spaces, public
 //   in:    where to search: everywhere, recent, mine, bookmarks, or a space by name
 //   after: / before:  when it was created: today, mon, 7d, 2026-09-01… (see ranges.js)
 //   size:  >1mb, <10kb, 1mb..5mb
 //
 // Values with spaces take quotes: in:"team docs". Anything else, including key:value pairs with
 // other keys (a URL, say), is free text. A query maps to a list's URL parameters (?search=,
-// ?type=, ?tag=, ?owner=, ?after=, ?before=, ?size=) and back, so the bar always shows what the
-// list is filtered by.
+// ?type=, ?tag=, ?owner=, ?visibility=, ?source=, ?after=, ?before=, ?size=) and back, so the bar
+// always shows what the list is filtered by.
 import { FILE_TYPES } from "../../services/data/fileTypes";
 import { isTypeFacet, baseType } from "../relics/typeFacets";
 import { parseDate, parseSize, normalizeRange } from "./ranges";
 
-export const FILTER_KEYS = ["type", "tag", "by", "after", "before", "size"];
+export const FILTER_KEYS = ["type", "tag", "by", "is", "after", "before", "size"];
 /** The URL parameters a query sets. */
-export const QUERY_PARAMS = ["search", "type", "tag", "owner", "after", "before", "size"];
-const TOKEN_KEYS = [...FILTER_KEYS, "in"];
+export const QUERY_PARAMS = ["search", "type", "tag", "owner", "visibility", "source", "after", "before", "size"];
+const TOKEN_KEYS = [...FILTER_KEYS, "from", "in"];
+
+const VISIBILITIES = ["public", "private", "restricted"];
+const SOURCES = {
+  public: "public", yours: "yours", mine: "yours", me: "yours", bookmarked: "bookmarked", bookmarks: "bookmarked",
+  shared: "shared", spaces: "spaces", space: "spaces",
+};
+/** Whether a query needs Everywhere: from: only means something there. */
+export const needsEverywhere = (tokens) => "from" in tokens && !("in" in tokens);
 
 const FAMILIES = {
   code: "code", doc: "doc", docs: "doc", text: "text", data: "data",
@@ -105,10 +115,19 @@ export function resolveFilters(tokens, ctx) {
       if (tag) params.tag = tag;
       else problems.push("tag: needs a tag, like tag:work");
     } else if (key === "by") {
+      const v = value.trim();
+      if (v.toLowerCase() === "me" && ctx.publicId) params.owner = ctx.publicId;
+      else if (/^[0-9a-f]{16}$/i.test(v)) params.owner = v.toLowerCase();
+      else if (v) params.owner = v; // a display name
+      else problems.push("by: takes me, a name or a public ID");
+    } else if (key === "is") {
       const v = value.trim().toLowerCase();
-      if (v === "me" && ctx.publicId) params.owner = ctx.publicId;
-      else if (/^[0-9a-f]{16}$/.test(v)) params.owner = v;
-      else problems.push("by: takes me or a public ID");
+      if (VISIBILITIES.includes(v)) params.visibility = v;
+      else problems.push("is: takes public, private or restricted");
+    } else if (key === "from") {
+      const v = SOURCES[value.trim().toLowerCase()];
+      if (v) params.source = v;
+      else problems.push("from: takes yours, bookmarked, shared, spaces or public");
     } else if (key === "after" || key === "before") {
       if (parseDate(value)) params[key] = normalizeRange(value);
       else problems.push(`${key}: takes a date like 2026-09-01, or today, mon, 7d, 3m`);
@@ -121,12 +140,14 @@ export function resolveFilters(tokens, ctx) {
 }
 
 /** The query text for a list's URL filters: free text first, then the tokens. */
-export function formatQuery({ search, type, tag, owner, after, before, size }, ctx = {}) {
+export function formatQuery({ search, type, tag, owner, visibility, source, after, before, size }, ctx = {}) {
   return [
     search?.trim(),
     type && `type:${quote(typeToken(type))}`,
     tag && `tag:${quote(tag)}`,
-    owner && `by:${owner === ctx.publicId ? "me" : owner}`,
+    owner && `by:${owner === ctx.publicId ? "me" : quote(owner)}`,
+    visibility && `is:${visibility}`,
+    source && `from:${source}`,
     after && `after:${after}`,
     before && `before:${before}`,
     size && `size:${size}`,
@@ -139,6 +160,19 @@ export function formatQuery({ search, type, tag, owner, after, before, size }, c
 export function sameFilters(a, b) {
   const norm = (p) => [(p.search || "").trim().replace(/\s+/g, " "), ...QUERY_PARAMS.slice(1).map((k) => p[k] || "")].join("\u0000");
   return norm(a) === norm(b);
+}
+
+/**
+ * A search's words, as the server matches them: words, with "quoted phrases" kept whole (an
+ * unclosed quote runs to the end), no blanks or repeats, at most ten.
+ */
+export function searchWords(text) {
+  const words = [];
+  for (const m of (text || "").matchAll(/"([^"]*)"?|(\S+)/g)) {
+    const w = (m[1] ?? m[2] ?? "").trim();
+    if (w && !words.some((x) => x.toLowerCase() === w.toLowerCase())) words.push(w);
+  }
+  return words.slice(0, 10);
 }
 
 /** Where an in: value points among the built-in lists, or null (it may name a space). */

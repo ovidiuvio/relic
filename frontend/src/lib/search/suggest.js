@@ -14,7 +14,22 @@ export const KEY_HELP = {
   after: { example: "after:7d", text: "since" },
   before: { example: "before:2026-01-01", text: "until" },
   size: { example: "size:>1mb", text: "size" },
+  is: { example: "is:private", text: "visibility" },
+  from: { example: "from:shared", text: "why you see it" },
 };
+
+const VISIBILITY_VALUES = [
+  ["public", "listed in Recent"],
+  ["private", "anyone with the link"],
+  ["restricted", "only people added"],
+];
+const SOURCE_VALUES = [
+  ["yours", "relics you own"],
+  ["bookmarked", "relics you bookmarked"],
+  ["shared", "restricted, shared with you"],
+  ["spaces", "in spaces you’re in"],
+  ["public", "listed for everyone"],
+];
 
 const FAMILY_KEY = { code: "code", docs: "doc", text: "text", data: "data", images: "image", archives: "archive", web: "web" };
 
@@ -131,16 +146,25 @@ export function suggest(text, caret, data) {
     return { heading: "Size", items, note: "> >= < <= a size, or a range: 1mb..5mb (b, kb, mb, gb)" };
   }
   if (ctx.key === "tag") {
-    const items = (data.tags ?? [])
-      .filter((t) => !v || t.name.toLowerCase().includes(v))
-      .slice(0, 9)
-      .map((t) => ({ label: `tag:${t.name}`, detail: "", count: t.count, ...at(`tag:${quote(t.name)}`) }));
-    const note = data.tags && !items.length ? (v ? `No tag like “${ctx.value}” among ${data.inResults ? "these results’" : "the top"} tags` : `None of ${data.inResults ? "these results" : "these relics"} has a tag`) : null;
+    const counted = (data.tags ?? []).filter((t) => !v || t.name.toLowerCase().includes(v));
+    const known = new Set(counted.map((t) => t.name));
+    // Tags you can see beyond the counted top ones (what you've typed may be a rare one).
+    const more = (data.moreTags ?? []).filter((t) => !known.has(t.name));
+    const items = [
+      ...counted.map((t) => ({ label: `tag:${t.name}`, detail: "", count: t.count, ...at(`tag:${quote(t.name)}`) })),
+      ...more.map((t) => ({ label: `tag:${t.name}`, detail: data.inResults || data.tags ? "elsewhere" : "", count: data.inResults || data.tags ? null : t.count, ...at(`tag:${quote(t.name)}`) })),
+    ].slice(0, 9);
+    const note = data.tags && !items.length ? (v ? `No tag like “${ctx.value}” you can see` : `None of ${data.inResults ? "these results" : "these relics"} has a tag`) : null;
     return { heading: !data.tags ? "Tags" : data.inResults ? "Tags in these results" : `Top tags in ${data.scopeLabel}`, items, note };
+  }
+  if (ctx.key === "is" || ctx.key === "from") {
+    const values = ctx.key === "is" ? VISIBILITY_VALUES : SOURCE_VALUES;
+    const items = values.filter(([value]) => value.startsWith(v)).map(([value, detail]) => ({ label: `${ctx.key}:${value}`, detail, ...at(`${ctx.key}:${value}`) }));
+    return { heading: ctx.key === "is" ? "Visibility" : "Why you see it (Everywhere)", items };
   }
   if (ctx.key === "by") {
     const items = "me".startsWith(v) ? [{ label: "by:me", detail: "your relics", ...at("by:me") }] : [];
-    return { heading: "Owner", items, note: "or someone’s public ID: click their name in a list" };
+    return { heading: "Owner", items, note: "or a name (by:\"Mara Ionescu\") or a public ID; clicking a name in a list does it too" };
   }
   if (ctx.key === "in") {
     const items = [

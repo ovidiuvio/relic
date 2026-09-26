@@ -29,9 +29,9 @@
 <!-- The same choice as a sentence-style option, for a narrow page bar. -->
 <label class="r-pagebar-opt tf-compact" class:is-shown={compact}>type
   <select value={active ?? ""} onchange={(e) => navigate(hrefFor(e.currentTarget.value || null))} aria-label="Type">
-    <option value="">All{#if showCounts && counts} ({n(counts.all)}){/if}</option>
+    <option value="">All{#if showCounts && counts}{" "}({n(counts.all)}){/if}</option>
     {#each TYPE_FACETS as f (f.key)}
-      <option value={f.key}>{f.label}{#if showCounts && counts} ({n(counts[f.key])}){/if}</option>
+      <option value={f.key}>{f.label}{#if showCounts && counts}{" "}({n(counts[f.key])}){/if}</option>
     {/each}
   </select>
 </label>

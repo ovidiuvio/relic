@@ -33,8 +33,8 @@
 <!-- The same choice as a select, for a narrow page bar. -->
 <label class="r-pagebar-opt wf-compact">where
   <select value={active ?? ""} onchange={(e) => navigate(hrefFor(e.currentTarget.value || null))} aria-label="Where">
-    <option value="">All{#if total != null} ({n(total)}){/if}</option>
-    {#each shown as s (s.key)}<option value={s.key}>{s.label}{#if counts} ({n(counts[s.key])}){/if}</option>{/each}
+    <option value="">All{#if total != null}{" "}({n(total)}){/if}</option>
+    {#each shown as s (s.key)}<option value={s.key}>{s.label}{#if counts}{" "}({n(counts[s.key])}){/if}</option>{/each}
   </select>
 </label>
 

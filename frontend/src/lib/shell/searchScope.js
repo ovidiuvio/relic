@@ -3,11 +3,12 @@
 // user may see (its list is /search); pages without a list search it.
 import { FILTER_KEYS } from "../search/query";
 
-const RELIC_FILTERS = FILTER_KEYS; // everything
+const RELIC_FILTERS = FILTER_KEYS; // everything but from: (Everywhere's own)
 const OWN_FILTERS = FILTER_KEYS.filter((k) => k !== "by"); // lists where by: means nothing or isn't offered
+const PUBLIC_FILTERS = FILTER_KEYS.filter((k) => k !== "is"); // Recent: everything is public
 
-export const EVERYWHERE = { key: "everywhere", label: "Everywhere", icon: "globe", placeholder: "Search everything you can see", path: "/search", filters: RELIC_FILTERS };
-export const RECENT = { key: "recent", label: "Recent", icon: "clock", placeholder: "Search public relics", path: "/recent", filters: RELIC_FILTERS };
+export const EVERYWHERE = { key: "everywhere", label: "Everywhere", icon: "globe", placeholder: "Search everything you can see", path: "/search", filters: [...RELIC_FILTERS, "from"] };
+export const RECENT = { key: "recent", label: "Recent", icon: "clock", placeholder: "Search public relics", path: "/recent", filters: PUBLIC_FILTERS };
 export const MINE = { key: "my-relics", label: "My relics", icon: "user", placeholder: "Search your relics", path: "/my-relics", filters: OWN_FILTERS };
 export const BOOKMARKS = { key: "my-bookmarks", label: "Bookmarks", icon: "bookmark", placeholder: "Search your bookmarks", path: "/my-bookmarks", filters: RELIC_FILTERS };
 

@@ -33,6 +33,11 @@ export async function listRelics(params = {}) {
     return api.get('/relics', { params })
 }
 
+/** Tags matching a search, counted over the relics the user may see. */
+export async function searchTags(search, limit = 10) {
+    return api.get('/tags', { params: { search, limit } })
+}
+
 /** Everything the user may see (public, theirs, bookmarked, shared with them, in their spaces). */
 export async function searchEverywhere(params = {}) {
     return api.get('/search', { params })

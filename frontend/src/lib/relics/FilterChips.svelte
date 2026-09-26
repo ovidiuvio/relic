@@ -10,6 +10,7 @@
   let {
     owner = null, // public ID
     type = null,
+    visibility = null,
     after = null,
     before = null,
     size = null,
@@ -23,9 +24,9 @@
 {#if owner}
   <span class="r-chip-filter" title="Owner {owner}"><Icon name="user" />{ownerName || owner.slice(0, 8)}<button onclick={() => navigate(hrefFor({ owner: null }))} aria-label="Show every owner"><Icon name="x" /></button></span>
 {/if}
-{#each [["after", after], ["before", before], ["size", size]] as [key, value] (key)}
+{#each [["visibility", visibility, "is"], ["after", after, "after"], ["before", before, "before"], ["size", size, "size"]] as [key, value, word] (key)}
   {#if value}
-    <span class="r-chip-filter" title="{key}:{value}">{key} {value}<button onclick={() => navigate(hrefFor({ [key]: null }))} aria-label="Clear the {key} filter"><Icon name="x" /></button></span>
+    <span class="r-chip-filter" title="{word}:{value}">{word} {value}<button onclick={() => navigate(hrefFor({ [key]: null }))} aria-label="Clear the {word} filter"><Icon name="x" /></button></span>
   {/if}
 {/each}
 {#if isExactType(type)}

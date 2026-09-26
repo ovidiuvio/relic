@@ -17,6 +17,8 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
     search: filters.search || undefined,
     tag: filters.tag || undefined,
     owner: filters.owner || undefined,
+    access_level: filters.visibility || undefined,
+    source: filters.source || undefined,
     types: facetTypes(filters.type || null),
     facets: facets || undefined,
     sort_by: relevance && filters.search ? "relevance" : undefined,
@@ -29,7 +31,7 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
   if (key === "my-bookmarks") return getUserBookmarks(params).then((r) => shape(r.data, "bookmarks"));
   if (key.startsWith("space:")) return spacesApi.getRelics(key.slice(6), params).then((d) => shape(d));
   if (key === "admin-relics") {
-    return getAdminRelics(limit, 0, null, null, params.search, params.tag, "created_at", "desc", { types: params.types, facets, ...rangeParams(filters) }).then((r) => shape(r.data));
+    return getAdminRelics(limit, 0, null, null, params.search, params.tag, "created_at", "desc", { types: params.types, facets, access_level: params.access_level, ...rangeParams(filters) }).then((r) => shape(r.data));
   }
   return Promise.resolve(null);
 }

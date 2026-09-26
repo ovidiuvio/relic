@@ -8,6 +8,7 @@
   import { copyToClipboard } from "../../services/relicActions";
   import { clockTime, dayMonth, dayGroup, typeBadge, tagName, compactBytes, middleTruncate, expiryMarker, counterLevel } from "./format";
   import { sourceChip } from "./sources";
+  import { searchWords } from "../search/query";
 
   // The four counter columns, as in the old table. Each is coloured by how notable it is,
   // sorts the list from its header, and (all but views) opens its inspector section.
@@ -78,17 +79,46 @@
     return out;
   });
 
+  // The search's words, marked wherever they appear in a name.
+  const words = $derived(searchWords(highlight).map((w) => w.toLowerCase()));
+
   function nameParts(name) {
     const text = middleTruncate(name, 72);
-    const term = highlight.trim();
-    if (!term) return [{ text }];
-    const i = text.toLowerCase().indexOf(term.toLowerCase());
-    if (i < 0) return [{ text }];
-    return [
-      { text: text.slice(0, i) },
-      { text: text.slice(i, i + term.length), mark: true },
-      { text: text.slice(i + term.length) },
-    ];
+    if (!words.length) return [{ text }];
+    const lower = text.toLowerCase();
+    const marks = [];
+    for (const w of words) {
+      for (let i = lower.indexOf(w); i >= 0; i = lower.indexOf(w, i + w.length)) marks.push([i, i + w.length]);
+    }
+    if (!marks.length) return [{ text }];
+    marks.sort((a, b) => a[0] - b[0]);
+    const parts = [];
+    let at = 0;
+    for (const [from, to] of marks) {
+      if (to <= at) continue;
+      const start = Math.max(from, at);
+      if (start > at) parts.push({ text: text.slice(at, start) });
+      parts.push({ text: text.slice(start, to), mark: true });
+      at = to;
+    }
+    if (at < text.length) parts.push({ text: text.slice(at) });
+    return parts;
+  }
+
+  // Where the words not in the name matched, so a result that looks unrelated explains itself:
+  // "#devops", "ID", "description".
+  function matchNote(relic) {
+    if (!words.length) return null;
+    const name = (relic.name || "").toLowerCase();
+    const tags = (relic.tags ?? []).map(tagName);
+    const where = [];
+    for (const w of words) {
+      if (name.includes(w)) continue;
+      const tag = tags.find((t) => t.toLowerCase().includes(w));
+      const place = tag ? `#${tag}` : relic.id?.toLowerCase().includes(w) ? "ID" : relic.description?.toLowerCase().includes(w) ? "description" : null;
+      if (place && !where.includes(place)) where.push(place);
+    }
+    return where.length ? where.join(", ") : null;
   }
 
   function onRowClick(event, relic) {
@@ -197,6 +227,7 @@
     {@const badge = typeBadge(relic)}
     {@const expiry = expiryMarker(relic.expires_at)}
     {@const tags = (relic.tags ?? []).map(tagName)}
+    {@const note = matchNote(relic)}
     {@const viewable = local || hasViewer(relic.content_type)}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_click_events_have_key_events -->
     <div
@@ -242,6 +273,7 @@
         {#if expiry}
           <span class="r-marker" class:r-marker-warning={expiry.soon}><Icon name="clock" />{expiry.text}</span>
         {/if}
+        {#if note}<span class="row-match" title="The search matched this, not the name">{note}</span>{/if}
         {#if showSource}
           {@const src = sourceChip(relic)}
           {#if src}<span class="row-source" title={src.title}><Icon name={src.icon} />{src.label}</span>{/if}
@@ -503,6 +535,13 @@
     text-decoration: none;
   }
   /* Metadata like the id and tags beside it: mono-meta in ink-3, so only the name reads as text. */
+  .row-match {
+    flex: none;
+    margin-left: var(--space-2);
+    color: var(--ink-3);
+    font: 12px var(--font-mono);
+    white-space: nowrap;
+  }
   .row-source {
     display: inline-flex;
     flex: none;

@@ -28,7 +28,7 @@
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
 
-  let { spaceId, tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null, after = null, before = null, size = null } = $props();
+  let { spaceId, tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null, visibility = null, after = null, before = null, size = null } = $props();
 
   let space = $state(null);
   let error = $state(null); // HTTP status or "unknown"
@@ -70,7 +70,7 @@
   // Relics load once the space has: a space you can't open shows its error, not a failed list.
   const ready = $derived(!!spaceId && space?.id === spaceId);
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, access_level: visibility || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
     if (ready) untrack(() => feed.reset(params));
   });
 
@@ -144,7 +144,7 @@
     if (files.length) uploadFiles(files, spaceId);
   }
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || after || before || size));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || after || before || size || visibility));
 </script>
 
 {#if error}
@@ -195,7 +195,7 @@
           {#if tagFilter}
             <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
           {/if}
-          <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {after} {before} {size} hrefFor={withParams} />
+          <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {visibility} {after} {before} {size} hrefFor={withParams} />
           {#if filtered}<CopyResultsLink />{/if}
         <span class="r-pagebar-sep"></span>
           <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />

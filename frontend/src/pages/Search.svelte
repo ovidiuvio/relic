@@ -28,7 +28,7 @@
     ownerFilter = null,
     source = null,
     sort: sortValue = null,
-    after = null,
+    visibility = null, after = null,
     before = null,
     size = null,
   } = $props();
@@ -44,7 +44,7 @@
     const params = {
       tag: tagFilter || undefined,
       search: search || undefined,
-      owner: ownerFilter || undefined,
+      owner: ownerFilter || undefined, access_level: visibility || undefined,
       source: source || undefined,
       types: typesParam,
       ...(bestMatch ? { sort_by: "relevance" } : sortParams(sort)),
@@ -63,7 +63,7 @@
     { icon: "download", title: "Download", run: (r) => downloadRelic(r.id, r.name, r.content_type) },
   ];
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || source || after || before || size));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || source || after || before || size || visibility));
   // "All" counts every reason, before the source filter.
   const allCount = $derived(source ? null : feed.total);
 </script>
@@ -91,7 +91,7 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
-        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {after} {before} {size} hrefFor={withParams} />
+        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {visibility} {after} {before} {size} hrefFor={withParams} />
         {#if filtered}<CopyResultsLink />{/if}
         <span class="r-pagebar-sep"></span>
         <WhereFacets active={source} counts={feed.facets?.sources} total={source ? null : allCount} hrefFor={(s) => withParams({ source: s })} />

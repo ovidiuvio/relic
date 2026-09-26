@@ -21,7 +21,7 @@
   import { uploadFiles } from "../lib/compose/pendingUpload";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null, typeFilter = null, sort: sortValue = null, after = null, before = null, size = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, sort: sortValue = null, visibility = null, after = null, before = null, size = null } = $props();
 
   const feed = new PagedFeed((params) => getUserRelics(params).then((r) => r.data), { facets: true });
 
@@ -31,7 +31,7 @@
   const sort = $derived(parseSort(sortValue));
 
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, access_level: visibility || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
     untrack(() => feed.reset(params));
   });
 
@@ -53,7 +53,7 @@
     if (files.length) uploadFiles(files);
   }
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter || after || before || size));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || after || before || size || visibility));
 </script>
 
 <RelicWorkbench
@@ -82,7 +82,7 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
-        <FilterChips type={typeFilter} {after} {before} {size} hrefFor={withParams} />
+        <FilterChips type={typeFilter} {visibility} {after} {before} {size} hrefFor={withParams} />
         {#if filtered}<CopyResultsLink />{/if}
       <span class="r-pagebar-sep"></span>
         <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />

@@ -23,10 +23,10 @@
   import { suggest, applySuggestion } from "../search/suggest";
   import { navigate } from "../../utils/navigation";
   import { searchScope, spaceScope, LIST_SCOPES, EVERYWHERE } from "./searchScope";
-  import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS, QUERY_PARAMS } from "../search/query";
+  import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS, QUERY_PARAMS, needsEverywhere } from "../search/query";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
-  import { spaces as spacesApi } from "../../services/api";
+  import { spaces as spacesApi, searchTags } from "../../services/api";
   import { fetchScope } from "../search/scopeFetch";
   import { searchHistory, pathLabel } from "../search/history.svelte.js";
   import { showToast } from "../../stores/toastStore";
@@ -63,7 +63,7 @@
   // What a query means, ignoring anything that doesn't resolve.
   function filtersOf(text) {
     const { search, tokens } = parseQuery(text);
-    return { search, ...resolveFilters(tokens, { publicId: $session.publicId, filters: FILTER_KEYS }).params };
+    return { search, ...resolveFilters(tokens, { publicId: $session.publicId, filters: [...FILTER_KEYS, "from"] }).params };
   }
 
   // The text for the page's filters: what you typed if it means the same (keeping your order
@@ -103,7 +103,7 @@
     // A token applies once you've finished it, so tag:w doesn't empty the list on the way to tag:work.
     if (segments(query).some((s) => s.kind === "token" && caret >= s.start && caret <= s.end)) return;
     const { search, tokens } = parseQuery(query);
-    if ("in" in tokens) return; // another page: that waits for Enter
+    if ("in" in tokens || (needsEverywhere(tokens) && pageScope.key !== EVERYWHERE.key)) return; // another page: that waits for Enter
     const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: pageScope.filters });
     if (problems.length) return;
     const url = urlFor(pageScope, search, params);
@@ -176,11 +176,38 @@
   });
   const counted = $derived(completion && facetData?.key === completion.key ? facetData : null);
 
+  // Typing a tag: any tag you can see that matches, not only the top ones counted above.
+  const tagTyped = $derived.by(() => {
+    const seg = segments(query).find((x) => x.kind === "token" && x.key === "tag" && caret >= x.start && caret <= x.end);
+    return seg?.value.trim().toLowerCase() || "";
+  });
+  let moreTags = $state({ q: "", tags: [] });
+  const tagCache = new Map();
+  let tagTimer;
+  $effect(() => {
+    const q = tagTyped;
+    untrack(() => {
+      clearTimeout(tagTimer);
+      if (!q || moreTags.q === q) return;
+      if (tagCache.has(q)) return void (moreTags = { q, tags: tagCache.get(q) });
+      tagTimer = setTimeout(async () => {
+        try {
+          const { data } = await searchTags(q, 10);
+          tagCache.set(q, data.tags);
+          if (tagTyped === q) moreTags = { q, tags: data.tags };
+        } catch {
+          // Suggestions just stay with the counted ones.
+        }
+      }, 150);
+    });
+  });
+
   const suggestions = $derived(
     suggest(query, caret, {
       keys,
       tags: counted?.tags ?? tags[scope.key],
       typeCounts: counted?.types,
+      moreTags: tagTyped && moreTags.q === tagTyped ? moreTags.tags : [],
       inResults: !!counted && completion.narrowed,
       spaces: $sidebarData.spaces,
       scopeLabel: scope.label,
@@ -448,7 +475,7 @@
 
   async function submit() {
     const { search, tokens } = parseQuery(query);
-    let target = scope;
+    let target = needsEverywhere(tokens) ? EVERYWHERE : scope;
     if ("in" in tokens) {
       target = await scopeFor(tokens.in);
       if (!target) {

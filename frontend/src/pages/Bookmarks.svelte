@@ -20,7 +20,7 @@
   import { showToast } from "../stores/toastStore";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null, after = null, before = null, size = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null, visibility = null, after = null, before = null, size = null } = $props();
 
   const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks", facets: true });
 
@@ -31,7 +31,7 @@
 
   // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, access_level: visibility || undefined, types: typesParam, ...sortParams(sort), ...rangeParams({ after, before, size }) };
     untrack(() => feed.reset(params));
   });
 
@@ -73,7 +73,7 @@
     { icon: "bookmark", title: "Remove bookmark", run: removeRow },
   ];
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || after || before || size));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || after || before || size || visibility));
 </script>
 
 <RelicWorkbench
@@ -102,7 +102,7 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
-        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {after} {before} {size} hrefFor={withParams} />
+        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {visibility} {after} {before} {size} hrefFor={withParams} />
         {#if filtered}<CopyResultsLink />{/if}
       <span class="r-pagebar-sep"></span>
         <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
