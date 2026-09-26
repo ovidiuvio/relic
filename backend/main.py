@@ -9,7 +9,7 @@ from backend.storage import storage_service
 from backend.backup import perform_backup
 from backend.scheduler import start_scheduler, shutdown_scheduler
 
-from backend.routes import health, users, relics, bookmarks, comments, spaces, reports, admin
+from backend.routes import health, users, relics, bookmarks, comments, spaces, reports, admin, search
 
 # Configure logging
 logging.basicConfig(
@@ -84,6 +84,7 @@ app.include_router(bookmarks.router)
 app.include_router(comments.router)
 app.include_router(spaces.router)
 app.include_router(reports.router)
+app.include_router(search.router)
 app.include_router(relics.router)
 
 
