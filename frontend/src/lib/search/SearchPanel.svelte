@@ -36,6 +36,8 @@
     onrename, // (entry, name)
     onpincurrent, // pin or unpin the list's current search
     onclearrecent, // forget every recent search
+    elsewhere = [], // [{ scope, total }]: the same search finds these in the other lists
+    onelsewhere, // (scope) run it there
   } = $props();
 
   let renaming = $state(null); // the pinned entry being renamed
@@ -162,6 +164,18 @@
         <p class="panel-note">Nothing in {scopeLabel} matches. Try fewer words or filters, or another list with <code>in:</code>.</p>
       {/if}
     </div>
+  {/if}
+  {#if elsewhere.length && !items.length}
+    <div class="elsewhere">
+      <span>Also</span>
+      {#each elsewhere as e, i (e.scope.key)}
+        {#if i}<span class="sep">·</span>{/if}
+        <button type="button" onclick={() => onelsewhere(e.scope)}><b>{e.total.toLocaleString("en-US")}</b> in {e.scope.label}</button>
+      {/each}
+    </div>
+  {/if}
+  {#if items.length || results}
+    <!-- shown above -->
   {:else if note}
     <p class="panel-note">{note}</p>
   {:else if empty && !history.length}
@@ -250,6 +264,30 @@
   .panel-note code {
     color: var(--accent);
     font-family: var(--font-mono);
+  }
+  .elsewhere {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px var(--space-1\.5);
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 12.5px;
+  }
+  .elsewhere button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+  .elsewhere button:hover {
+    text-decoration: underline;
+  }
+  .elsewhere b {
+    font-weight: 600;
   }
   .pin-current {
     display: flex;

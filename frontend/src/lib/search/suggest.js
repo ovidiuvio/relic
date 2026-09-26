@@ -3,6 +3,7 @@
 // Picking one replaces that word or token.
 import { FILE_TYPES } from "../../services/data/fileTypes";
 import { segments } from "./query";
+import { facetCounts, baseType } from "../relics/typeFacets";
 
 /** One line of help per filter key, for the panel's "Narrow with" row. */
 export const KEY_HELP = {
@@ -10,7 +11,35 @@ export const KEY_HELP = {
   tag: { example: "tag:work", text: "a tag" },
   by: { example: "by:me", text: "owner" },
   in: { example: "in:mine", text: "where" },
+  after: { example: "after:7d", text: "since" },
+  before: { example: "before:2026-01-01", text: "until" },
+  size: { example: "size:>1mb", text: "size" },
 };
+
+const FAMILY_KEY = { code: "code", docs: "doc", text: "text", data: "data", images: "image", archives: "archive", web: "web" };
+
+function dateValues(key, now = new Date()) {
+  const since = key === "after";
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthName = now.toLocaleString("en-US", { month: "long" });
+  return [
+    ["today", since ? "created today" : "before today"],
+    ["yesterday", since ? "since yesterday" : "before yesterday"],
+    ["mon", since ? "since Monday" : "before Monday"],
+    ["7d", since ? "in the last 7 days" : "more than 7 days ago"],
+    ["30d", since ? "in the last 30 days" : "more than 30 days ago"],
+    [monthStart, since ? `since the start of ${monthName}` : `before ${monthName}`],
+    ["1y", since ? "in the last year" : "more than a year ago"],
+  ];
+}
+
+const SIZE_VALUES = [
+  [">1mb", "over 1 MB"],
+  [">100mb", "over 100 MB"],
+  ["<10kb", "under 10 KB"],
+  ["<1mb", "under 1 MB"],
+  ["1mb..10mb", "1 to 10 MB"],
+];
 
 const FAMILIES = [
   ["code", "Code"], ["docs", "Docs"], ["text", "Text"], ["data", "Data"],
@@ -37,7 +66,10 @@ export function caretContext(text, caret) {
  * Suggestions for the caret's context:
  *   { heading, items: [{ label, detail, count?, insert, from, to, done }] }
  * `done` says the token is complete (the panel then shows the next thing to type).
- *   data: { keys, tags: [{ name, count }], spaces: [{ id, name }], scopeLabel }
+ *   data: { keys, tags: [{ name, count }], typeCounts: { contentType: count }, inResults,
+ *           spaces: [{ id, name }], scopeLabel }
+ * With typeCounts, types show how many relics each would give (inResults: counted in the
+ * results of the rest of the query, not the whole list).
  */
 export function suggest(text, caret, data) {
   const ctx = caretContext(text, caret);
@@ -55,28 +87,55 @@ export function suggest(text, caret, data) {
   const v = ctx.value.toLowerCase();
   const starts = (s) => s.toLowerCase().startsWith(v);
   if (ctx.key === "type") {
+    const counts = data.typeCounts ?? null;
+    const family = counts ? facetCounts(counts) : null;
+    const countOf = (mime) => (counts ? counts[baseType(mime)] ?? 0 : null);
     const items = [];
     const seen = new Set();
     for (const [key, label] of FAMILIES) {
-      if (starts(key)) items.push({ label: `type:${key}`, detail: `${label}, every kind`, ...at(`type:${key}`) });
+      if (!starts(key)) continue;
+      const count = family ? family[FAMILY_KEY[key]] : null;
+      if (!v && count === 0) continue; // an empty family isn't worth offering
+      items.push({ label: `type:${key}`, detail: `${label}, every kind`, count, ...at(`type:${key}`) });
     }
+    const typed = [];
     for (const t of FILE_TYPES) {
       const ext = t.extensions?.[0];
-      if (!t.mime || !ext || seen.has(t.mime)) continue;
+      if (!t.mime || !ext || seen.has(baseType(t.mime))) continue;
+      const count = countOf(t.mime);
       if (v && !(t.extensions.some(starts) || starts(t.label || ""))) continue;
-      if (!v && !["py", "js", "json", "md", "txt", "csv", "pdf", "zip", "png", "html", "yaml", "sh"].includes(ext)) continue;
-      seen.add(t.mime);
+      // Nothing typed yet: the types these results have, or a few common ones.
+      if (!v && (counts ? !count : !["py", "js", "json", "md", "txt", "csv", "pdf", "zip", "png", "html", "yaml", "sh"].includes(ext))) continue;
+      seen.add(baseType(t.mime));
       const shown = t.extensions.find(starts) ?? ext;
-      items.push({ label: `type:${shown}`, detail: t.label, ...at(`type:${shown}`) });
+      typed.push({ label: `type:${shown}`, detail: t.label, count, ...at(`type:${shown}`) });
     }
-    return { heading: "Types", items: items.slice(0, 9) };
+    if (counts) {
+      items.sort((a, b) => b.count - a.count);
+      typed.sort((a, b) => b.count - a.count);
+    }
+    const heading = counts ? (data.inResults ? "Types in these results" : `Types in ${data.scopeLabel}`) : "Types";
+    const all = [...items, ...typed].slice(0, 9);
+    const note = counts && !all.length ? (v ? `No type starting with “${ctx.value}” here` : "Nothing here to narrow by type") : null;
+    return { heading, items: all, note };
+  }
+  if (ctx.key === "after" || ctx.key === "before") {
+    const items = dateValues(ctx.key)
+      .filter(([value]) => value.startsWith(v))
+      .map(([value, detail]) => ({ label: `${ctx.key}:${value}`, detail, ...at(`${ctx.key}:${value}`) }));
+    return { heading: ctx.key === "after" ? "Created since" : "Created before", items, note: "or a date: 2026-09-01, 2026-09, 2026; or 12h, 3d, 2w, 6m, 1y ago" };
+  }
+  if (ctx.key === "size") {
+    const items = SIZE_VALUES.filter(([value]) => value.startsWith(v)).map(([value, detail]) => ({ label: `size:${value}`, detail, ...at(`size:${value}`) }));
+    return { heading: "Size", items, note: "> >= < <= a size, or a range: 1mb..5mb (b, kb, mb, gb)" };
   }
   if (ctx.key === "tag") {
     const items = (data.tags ?? [])
       .filter((t) => !v || t.name.toLowerCase().includes(v))
       .slice(0, 9)
       .map((t) => ({ label: `tag:${t.name}`, detail: "", count: t.count, ...at(`tag:${quote(t.name)}`) }));
-    return { heading: data.tags ? `Top tags in ${data.scopeLabel}` : "Tags", items };
+    const note = data.tags && !items.length ? (v ? `No tag like “${ctx.value}” among ${data.inResults ? "these results’" : "the top"} tags` : `None of ${data.inResults ? "these results" : "these relics"} has a tag`) : null;
+    return { heading: !data.tags ? "Tags" : data.inResults ? "Tags in these results" : `Top tags in ${data.scopeLabel}`, items, note };
   }
   if (ctx.key === "by") {
     const items = "me".startsWith(v) ? [{ label: "by:me", detail: "your relics", ...at("by:me") }] : [];

@@ -8,6 +8,8 @@
   import TypeFacets from "../lib/relics/TypeFacets.svelte";
   import TagPicker from "../lib/relics/TagPicker.svelte";
   import FilterChips from "../lib/relics/FilterChips.svelte";
+  import CopyResultsLink from "../lib/relics/CopyResultsLink.svelte";
+  import { rangeParams } from "../lib/search/ranges";
   import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
@@ -19,7 +21,7 @@
   import { navigate } from "../utils/navigation";
   import { filterUrl } from "../lib/relics/filters";
 
-  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null, after = null, before = null, size = null } = $props();
 
   const feed = new PagedFeed((params) => listRelics(params).then((r) => r.data), { facets: true });
 
@@ -35,6 +37,7 @@
       owner: ownerFilter || undefined,
       types: typesParam,
       ...sortParams(sort),
+      ...rangeParams({ after, before, size }),
     };
     untrack(() => feed.reset(params));
   });
@@ -55,7 +58,7 @@
     if (files.length) uploadFiles(files);
   }
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter || after || before || size));
 </script>
 
 <RelicWorkbench
@@ -82,7 +85,8 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
-        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} hrefFor={withParams} />
+        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} {after} {before} {size} hrefFor={withParams} />
+        {#if filtered}<CopyResultsLink />{/if}
       <span class="r-pagebar-sep"></span>
         <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
       {/snippet}

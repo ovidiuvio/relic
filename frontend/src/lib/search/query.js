@@ -7,14 +7,20 @@
 //   tag:   one tag
 //   by:    me, or an owner's public ID
 //   in:    where to search: recent, mine, bookmarks, or a space by name
+//   after: / before:  when it was created: today, mon, 7d, 2026-09-01… (see ranges.js)
+//   size:  >1mb, <10kb, 1mb..5mb
 //
 // Values with spaces take quotes: in:"team docs". Anything else, including key:value pairs with
 // other keys (a URL, say), is free text. A query maps to a list's URL parameters (?search=,
-// ?type=, ?tag=, ?owner=) and back, so the bar always shows what the list is filtered by.
+// ?type=, ?tag=, ?owner=, ?after=, ?before=, ?size=) and back, so the bar always shows what the
+// list is filtered by.
 import { FILE_TYPES } from "../../services/data/fileTypes";
 import { isTypeFacet, baseType } from "../relics/typeFacets";
+import { parseDate, parseSize, normalizeRange } from "./ranges";
 
-export const FILTER_KEYS = ["type", "tag", "by"];
+export const FILTER_KEYS = ["type", "tag", "by", "after", "before", "size"];
+/** The URL parameters a query sets. */
+export const QUERY_PARAMS = ["search", "type", "tag", "owner", "after", "before", "size"];
 const TOKEN_KEYS = [...FILTER_KEYS, "in"];
 
 const FAMILIES = {
@@ -103,18 +109,27 @@ export function resolveFilters(tokens, ctx) {
       if (v === "me" && ctx.publicId) params.owner = ctx.publicId;
       else if (/^[0-9a-f]{16}$/.test(v)) params.owner = v;
       else problems.push("by: takes me or a public ID");
+    } else if (key === "after" || key === "before") {
+      if (parseDate(value)) params[key] = normalizeRange(value);
+      else problems.push(`${key}: takes a date like 2026-09-01, or today, mon, 7d, 3m`);
+    } else if (key === "size") {
+      if (parseSize(value)) params.size = normalizeRange(value);
+      else problems.push("size: takes >1mb, <10kb or 1mb..5mb");
     }
   }
   return { params, problems };
 }
 
-/** The query text for a list's URL filters: free text first, then type:, tag: and by:. */
-export function formatQuery({ search, type, tag, owner }, ctx = {}) {
+/** The query text for a list's URL filters: free text first, then the tokens. */
+export function formatQuery({ search, type, tag, owner, after, before, size }, ctx = {}) {
   return [
     search?.trim(),
     type && `type:${quote(typeToken(type))}`,
     tag && `tag:${quote(tag)}`,
     owner && `by:${owner === ctx.publicId ? "me" : owner}`,
+    after && `after:${after}`,
+    before && `before:${before}`,
+    size && `size:${size}`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -122,7 +137,7 @@ export function formatQuery({ search, type, tag, owner }, ctx = {}) {
 
 /** Whether two sets of URL filters are the same. */
 export function sameFilters(a, b) {
-  const norm = (p) => [(p.search || "").trim().replace(/\s+/g, " "), p.type || "", p.tag || "", p.owner || ""].join("\u0000");
+  const norm = (p) => [(p.search || "").trim().replace(/\s+/g, " "), ...QUERY_PARAMS.slice(1).map((k) => p[k] || "")].join("\u0000");
   return norm(a) === norm(b);
 }
 

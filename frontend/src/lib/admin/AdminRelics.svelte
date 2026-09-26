@@ -8,6 +8,8 @@
   import TypeFacets from "../relics/TypeFacets.svelte";
   import TagPicker from "../relics/TagPicker.svelte";
   import FilterChips from "../relics/FilterChips.svelte";
+  import CopyResultsLink from "../relics/CopyResultsLink.svelte";
+  import { rangeParams } from "../search/ranges";
   import { facetTypes, facetKeyOf, baseType } from "../relics/typeFacets";
   import RelicWorkbench from "../relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../data/PagedFeed.svelte.js";
@@ -18,7 +20,7 @@
   import { copyRelicContent, downloadRelic, copyToClipboard } from "../../services/relicActions";
   import { navigate } from "../../utils/navigation";
 
-  let { search = null, tag = null, visibility = null, type = null, sort: sortValue = null } = $props();
+  let { search = null, tag = null, visibility = null, type = null, sort: sortValue = null, after = null, before = null, size = null } = $props();
 
   const PATH = "/admin/relics";
   const VISIBILITIES = [
@@ -32,7 +34,7 @@
 
   const feed = new PagedFeed(
     (p) =>
-      getAdminRelics(p.limit, p.offset, p.visibility, p.user, p.search, p.tag, p.sort_by, p.sort_order, { types: p.types, facets: p.facets }).then(
+      getAdminRelics(p.limit, p.offset, p.visibility, p.user, p.search, p.tag, p.sort_by, p.sort_order, { types: p.types, facets: p.facets, ...p.range }).then(
         (r) => r.data
       ),
     { facets: true }
@@ -49,6 +51,7 @@
       types: typesParam,
       sort_by: SORT_FIELDS[sort.key],
       sort_order: sort.dir,
+      range: rangeParams({ after, before, size }),
     };
     untrack(() => feed.reset(params));
   });
@@ -67,7 +70,7 @@
     relicOwner.set({ id: relic.user_id, publicId: relic.user_public_id, label: relic.owner_name || "—" });
   }
 
-  const filtered = $derived(!!(search || tag || $relicOwner || visibility || type));
+  const filtered = $derived(!!(search || tag || $relicOwner || visibility || type || after || before || size));
 </script>
 
 <RelicWorkbench
@@ -99,7 +102,8 @@
         {#if tag}
           <span class="r-chip-filter">#{tag}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
-        <FilterChips {type} hrefFor={withParams} />
+        <FilterChips {type} {after} {before} {size} hrefFor={withParams} />
+        {#if filtered}<CopyResultsLink />{/if}
         <span class="r-pagebar-sep"></span>
         <TypeFacets active={facetKeyOf(type)} types={feed.facets?.types} showCounts={filtered} hrefFor={(t) => withParams({ type: t })} />
       {/snippet}

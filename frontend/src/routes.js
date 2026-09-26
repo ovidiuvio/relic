@@ -35,7 +35,10 @@ const routes = [
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
       ownerFilter: urlParams.get('owner'),
-      sort: urlParams.get('sort')
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
     })
   },
   {
@@ -47,7 +50,10 @@ const routes = [
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
-      sort: urlParams.get('sort')
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
     })
   },
   {
@@ -60,7 +66,10 @@ const routes = [
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
       ownerFilter: urlParams.get('owner'),
-      sort: urlParams.get('sort')
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
     })
   },
   {
@@ -84,7 +93,10 @@ const routes = [
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
       ownerFilter: urlParams.get('owner'),
-      sort: urlParams.get('sort')
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
     })
   },
   {
@@ -98,7 +110,10 @@ const routes = [
       tag: urlParams.get('tag'),
       visibility: urlParams.get('visibility'),
       type: urlParams.get('type'),
-      sort: urlParams.get('sort')
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
     })
   },
   {

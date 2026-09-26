@@ -2,6 +2,7 @@
 // the same way the scope's own page does. Returns { relics, total, facets }.
 import { listRelics, getUserRelics, getUserBookmarks, getAdminRelics, spaces as spacesApi } from "../../services/api";
 import { facetTypes } from "../relics/typeFacets";
+import { rangeParams } from "./ranges";
 
 const shape = (data, rows = "relics") => ({ relics: data?.[rows] ?? [], total: data?.total ?? 0, facets: data?.facets ?? null });
 
@@ -19,6 +20,7 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
     types: facetTypes(filters.type || null),
     facets: facets || undefined,
     sort_by: relevance && filters.search ? "relevance" : undefined,
+    ...rangeParams(filters),
   };
   const key = scope.key;
   if (key === "recent") return listRelics(params).then((r) => shape(r.data));
@@ -26,7 +28,7 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
   if (key === "my-bookmarks") return getUserBookmarks(params).then((r) => shape(r.data, "bookmarks"));
   if (key.startsWith("space:")) return spacesApi.getRelics(key.slice(6), params).then((d) => shape(d));
   if (key === "admin-relics") {
-    return getAdminRelics(limit, 0, null, null, params.search, params.tag, "created_at", "desc", { types: params.types, facets }).then((r) => shape(r.data));
+    return getAdminRelics(limit, 0, null, null, params.search, params.tag, "created_at", "desc", { types: params.types, facets, ...rangeParams(filters) }).then((r) => shape(r.data));
   }
   return Promise.resolve(null);
 }

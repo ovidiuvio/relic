@@ -20,7 +20,7 @@
   import { suggest, applySuggestion } from "../search/suggest";
   import { navigate } from "../../utils/navigation";
   import { searchScope, spaceScope, LIST_SCOPES } from "./searchScope";
-  import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS } from "../search/query";
+  import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS, QUERY_PARAMS } from "../search/query";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
   import { spaces as spacesApi } from "../../services/api";
@@ -30,7 +30,6 @@
 
   let { section, routeProps = {} } = $props();
 
-  const QUERY_PARAMS = ["search", "type", "tag", "owner"];
 
   const pageScope = $derived(searchScope(section, routeProps));
   let picked = $state(null); // a scope chosen in the menu, until the search runs or the page changes
@@ -143,9 +142,88 @@
   const problem = $derived(segs.find((s) => s.problem && !editing(s))?.problem ?? null);
 
   const keys = $derived([...scope.filters, "in"]);
+
+  // Completing tag: or type: counts what the rest of the query finds, so a suggestion says how
+  // far it would narrow the results. (The whole list's top tags stand in until those arrive.)
+  const completion = $derived.by(() => {
+    const seg = segments(query).find((x) => x.kind === "token" && (x.key === "tag" || x.key === "type") && caret >= x.start && caret <= x.end);
+    if (!seg) return null;
+    const rest = parseQuery(query.slice(0, seg.start) + query.slice(seg.end));
+    const { params } = resolveFilters(rest.tokens, { publicId: $session.publicId, filters: scope.filters });
+    const filters = { search: rest.search.trim(), ...params };
+    return { filters, key: `${scope.key}|${JSON.stringify(filters)}`, narrowed: Object.values(filters).some(Boolean) };
+  });
+  let facetData = $state(null); // { key, tags, types } for the completion
+  let facetTimer;
+  $effect(() => {
+    const c = completion;
+    const sc = scope;
+    untrack(() => {
+      clearTimeout(facetTimer);
+      if (!c || facetData?.key === c.key) return;
+      facetTimer = setTimeout(async () => {
+        try {
+          const data = await fetchScope(sc, c.filters, { limit: 1, facets: true });
+          if (data) facetData = { key: c.key, tags: data.facets?.tags ?? [], types: data.facets?.types ?? {} };
+        } catch {
+          // Suggestions just go without counts.
+        }
+      }, 150);
+    });
+  });
+  const counted = $derived(completion && facetData?.key === completion.key ? facetData : null);
+
   const suggestions = $derived(
-    suggest(query, caret, { keys, tags: tags[scope.key], spaces: $sidebarData.spaces, scopeLabel: scope.label })
+    suggest(query, caret, {
+      keys,
+      tags: counted?.tags ?? tags[scope.key],
+      typeCounts: counted?.types,
+      inResults: !!counted && completion.narrowed,
+      spaces: $sidebarData.spaces,
+      scopeLabel: scope.label,
+    })
   );
+
+  // ---- the same search in the other lists ----
+  let elsewhere = $state([]); // [{ scope, total }] with matches
+  let elsewhereTimer;
+  let elsewhereSeq = 0;
+  $effect(() => {
+    query;
+    scope;
+    caret;
+    const on = focused;
+    untrack(() => scheduleElsewhere(on));
+  });
+
+  function scheduleElsewhere(on) {
+    clearTimeout(elsewhereTimer);
+    if (!on) return void (elsewhere = []);
+    if (segments(query).some((x) => x.kind === "token" && caret >= x.start && caret <= x.end)) return;
+    const { search, tokens } = parseQuery(query);
+    if ("in" in tokens || (!search.trim() && !Object.keys(tokens).length)) return void (elsewhere = []);
+    elsewhereTimer = setTimeout(async () => {
+      const seq = ++elsewhereSeq;
+      const counts = await Promise.all(
+        LIST_SCOPES.filter((s) => s.key !== scope.key).map(async (s) => {
+          const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: s.filters });
+          if (problems.length) return null;
+          try {
+            const data = await fetchScope(s, { search: search.trim(), ...params }, { limit: 1 });
+            return data?.total ? { scope: s, total: data.total } : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (seq === elsewhereSeq) elsewhere = counts.filter(Boolean);
+    }, 300);
+  }
+
+  function searchElsewhere(s) {
+    picked = s;
+    submit();
+  }
   const panelOpen = $derived((focused || within) && !menuOpen && !panelClosed);
 
   // ---- your searches ----
@@ -615,6 +693,8 @@
       onrename={renameEntry}
       onpincurrent={togglePinCurrent}
       onclearrecent={() => searchHistory.clear()}
+      elsewhere={query.trim() ? elsewhere : []}
+      onelsewhere={searchElsewhere}
     />
   {/if}
 
