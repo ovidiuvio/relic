@@ -28,6 +28,8 @@ export function getFileTypeDefinition(contentType) {
   if (mimeMatch) return mimeMatch
 
   // Special cases for generic matches
+  // Patches are diffs: text/x-patch (what browsers and the CLI send for .patch) gets the diff view.
+  if (lowerType.startsWith('text/x-patch')) return FILE_TYPES.find(t => t.syntax === 'diff')
   if (lowerType.includes('pdf')) return FILE_TYPES.find(t => t.syntax === 'pdf')
   if (lowerType.includes('image')) return FILE_TYPES.find(t => t.syntax === 'image')
   if (lowerType.includes('csv')) return FILE_TYPES.find(t => t.syntax === 'csv')
