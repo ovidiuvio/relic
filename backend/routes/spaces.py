@@ -13,7 +13,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_parents
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_parents
 from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -349,6 +349,7 @@ async def get_space_relics(
     limit: int = 25,
     offset: int = 0,
     search: Optional[str] = None,
+    owner: Optional[str] = None,  # an owner's public ID
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     tag: Optional[str] = None,
@@ -394,6 +395,7 @@ async def get_space_relics(
 
     if search:
         stmt = apply_relic_search(stmt, search)
+    stmt = apply_owner_filter(stmt, owner)
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.

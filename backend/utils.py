@@ -91,6 +91,16 @@ def like_term(value: str) -> str:
     return f"%{like_escape(value)}%"
 
 
+def apply_owner_filter(stmt, owner: Optional[str]):
+    """Filter a Relic Select statement to one owner, named by public ID."""
+    from backend.models import Relic, User
+    from sqlalchemy import select
+    if not owner:
+        return stmt
+    owner_id = select(User.id).where(User.public_id == owner.strip()).scalar_subquery()
+    return stmt.where(Relic.user_id == owner_id)
+
+
 def apply_relic_search(stmt, search: str):
     """Filter a Relic Select statement by search term across name, id, description, and tags."""
     from backend.models import Relic, Tag

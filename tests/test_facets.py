@@ -108,3 +108,35 @@ def test_facets_on_recent(http):
     facets = resp.json()["facets"]
     assert isinstance(facets["types"], dict)
     assert isinstance(facets["tags"], list)
+
+
+@pytest.mark.integration
+def test_owner_filter(http):
+    """?owner= (a public ID) narrows a list to one owner's relics, and the facets follow it."""
+    token = uuid.uuid4().hex[:12]
+    users = []
+    for content_type in ("text/x-python", "image/png"):
+        key = uuid.uuid4().hex
+        public_id = http.post("/api/v1/user/register", headers={"X-User-Key": key}).json()["public_id"]
+        relic = http.post(
+            "/api/v1/relics",
+            headers={"X-User-Key": key},
+            data={"name": f"owner-{token}", "access_level": "public"},
+            files={"file": ("f", b"content", content_type)},
+        ).json()["id"]
+        users.append((key, public_id, relic))
+    try:
+        (_, alice, alice_relic), (_, bob, bob_relic) = users
+        base = {"search": token, "limit": 100}
+        both = http.get("/api/v1/relics", params=base).json()
+        assert {r["id"] for r in both["relics"]} == {alice_relic, bob_relic}
+
+        data = http.get("/api/v1/relics", params={**base, "owner": alice, "facets": "true"}).json()
+        assert [r["id"] for r in data["relics"]] == [alice_relic]
+        assert data["facets"]["types"] == {"text/x-python": 1}
+
+        data = http.get("/api/v1/relics", params={**base, "owner": "0000000000000000"}).json()
+        assert data["relics"] == [] and data["total"] == 0
+    finally:
+        for key, _, relic in users:
+            http.delete(f"/api/v1/relics/{relic}", headers={"X-User-Key": key})

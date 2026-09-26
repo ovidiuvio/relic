@@ -15,7 +15,7 @@ from backend.database import get_db
 from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service, FileTooLargeError
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_relic_ids, hidden_parents
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_relic_ids, hidden_parents
 from backend.dependencies import (
     get_current_user, check_ownership_or_admin, is_admin_user, is_admin_user_id,
     process_tags, generate_unique_relic_id, check_space_access
@@ -693,6 +693,7 @@ async def list_relics(
     offset: int = 0,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    owner: Optional[str] = None,  # an owner's public ID
     types: Optional[str] = None,  # comma-separated content types (a type facet)
     facets: bool = False,  # include type counts and top tags
     sort_by: str = "created_at",
@@ -714,6 +715,7 @@ async def list_relics(
 
     if search:
         stmt = apply_relic_search(stmt, search)
+    stmt = apply_owner_filter(stmt, owner)
 
     # Type facet counts and top tags describe the list before its type filter, so every facet
     # shows how many it would give.
