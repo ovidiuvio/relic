@@ -325,7 +325,7 @@ The relic lists (`GET /api/v1/relics`, `/api/v1/user/relics`, `/api/v1/bookmarks
 - `sort_by` / `sort_order`: `created_at`, `name`, `owner`, `size`, `access_count`, `bookmark_count`, `comments_count`, `forks_count`; ties break by newest then ID so offset paging is stable (`relic_sort_order`)
 - `limit` / `offset`: pagination (`clamp_limit`)
 
-In the UI, search lives in the navbar (`?search=`), and type facets (`?type=`, a family such as `code` or `image`, mapped to MIME types in `lib/relics/typeFacets.js`) and the tag picker (`?tag=`) sit in the page bar.
+In the UI, list filters live in the URL: `?search=`, `?type=` (a family such as `code` or `image`, mapped to MIME types in `lib/relics/typeFacets.js`, or one exact content type), `?tag=`, `?owner=` (a public ID) and `?sort=` (`size-desc`; omitted for newest first). The navbar search (`lib/shell/NavSearch.svelte`) holds the whole query as text, free words plus tokens `type:` `tag:` `by:` `in:` (parsed in `lib/search/query.js`), shows whatever the list is filtered by, and applies it all on Enter; the page bar shows the same filters as chips and facets.
 
 ### Frontend Routing
 

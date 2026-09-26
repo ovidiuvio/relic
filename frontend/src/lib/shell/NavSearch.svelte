@@ -1,64 +1,524 @@
 <script>
-  // Scoped search in the navbar. `/` focuses it from anywhere; Enter shows the results
-  // on the scope's list page (?search=), Esc puts the field back and leaves it.
+  // Scoped search in the navbar. The bar holds the whole query: free text plus filter tokens
+  // (type: tag: by: in:, see search/query.js), coloured as you type. It always shows what the
+  // list is filtered by (?search= ?type= ?tag= ?owner=), so clicking a facet, a tag or an owner
+  // rewrites it, and Enter applies everything in it. The scope chip says where it searches:
+  // pick another list or space there, or type in:. While it has focus, a panel under it lists the
+  // filters you can type and completes the one you're typing.
+  //   / or Ctrl+K focus · ↑↓ choose · Tab complete · Enter applies · Esc closes the panel, then
+  //   puts the field back and leaves
+  import { tick, untrack } from "svelte";
   import Icon from "../ui/Icon.svelte";
+  import SearchPanel from "../search/SearchPanel.svelte";
+  import { suggest, applySuggestion } from "../search/suggest";
   import { navigate } from "../../utils/navigation";
-  import { searchScope } from "./searchScope";
+  import { searchScope, spaceScope, LIST_SCOPES } from "./searchScope";
+  import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS } from "../search/query";
+  import { session } from "../../stores/session";
+  import { sidebarData, refreshSidebar } from "./sidebarData";
+  import { spaces as spacesApi, listRelics, getUserRelics, getUserBookmarks, getAdminRelics } from "../../services/api";
+  import { showToast } from "../../stores/toastStore";
 
   let { section, routeProps = {} } = $props();
 
-  const scope = $derived(searchScope(section, routeProps));
-  const active = $derived(routeProps?.search || "");
+  const QUERY_PARAMS = ["search", "type", "tag", "owner"];
 
-  let input = $state();
-  let query = $state("");
-  let focused = $state(false);
+  const pageScope = $derived(searchScope(section, routeProps));
+  let picked = $state(null); // a scope chosen in the menu, until the search runs or the page changes
+  const scope = $derived(picked ?? pageScope);
 
-  // Keep the field in step with the page: it shows the search the list is filtered by.
-  $effect(() => {
-    query = active;
+  // The filters in the page's URL, re-read on every route change.
+  const urlFilters = $derived.by(() => {
+    routeProps;
+    const p = new URLSearchParams(location.search);
+    return Object.fromEntries(QUERY_PARAMS.map((k) => [k, p.get(k) || ""]));
   });
 
-  function submit() {
-    const q = query.trim();
-    navigate(q ? `${scope.path}?search=${encodeURIComponent(q)}` : scope.path);
+  let root = $state();
+  let input = $state();
+  let mirror = $state();
+  let menuEl = $state();
+  let query = $state("");
+  let focused = $state(false);
+  let caret = $state(0);
+  let menuOpen = $state(false);
+  let flagAll = $state(false); // after a failed Enter, underline problems even under the caret
+  let applied = ""; // the text of the last search that ran, to show it back as you typed it
+  let panelClosed = $state(false); // Esc closed the panel; typing opens it again
+  let active = $state(-1); // the suggestion chosen with ↑↓
+  let tags = $state({}); // top tags per scope key, for tag: suggestions
+
+  // What a query means, ignoring anything that doesn't resolve.
+  function filtersOf(text) {
+    const { search, tokens } = parseQuery(text);
+    return { search, ...resolveFilters(tokens, { publicId: $session.publicId, filters: FILTER_KEYS }).params };
+  }
+
+  // The text for the page's filters: what you typed if it means the same (keeping your order
+  // and spelling), else the filters written out.
+  function textFor(filters) {
+    if (sameFilters(filtersOf(query), filters)) return query;
+    if (applied && sameFilters(filtersOf(applied), filters)) return applied;
+    return formatQuery(filters, { publicId: $session.publicId });
+  }
+
+  // Follow the page, so a facet, tag or owner click shows up in the bar.
+  $effect(() => {
+    const filters = urlFilters;
+    untrack(() => {
+      picked = null;
+      query = textFor(filters);
+    });
+  });
+
+  // Tokens that won't work here are underlined, once the caret has left them.
+  const segs = $derived(
+    segments(query).map((s) => {
+      if (s.kind !== "token") return s;
+      const problem =
+        s.key === "in"
+          ? s.value ? null : "in: needs a list or a space"
+          : resolveFilters({ [s.key]: s.value }, { publicId: $session.publicId, filters: scope.filters }).problems[0] ?? null;
+      return { ...s, problem };
+    })
+  );
+  const editing = (s) => focused && !flagAll && caret >= s.start && caret <= s.end;
+  const problem = $derived(segs.find((s) => s.problem && !editing(s))?.problem ?? null);
+
+  const keys = $derived([...scope.filters, "in"]);
+  const suggestions = $derived(
+    suggest(query, caret, { keys, tags: tags[scope.key], spaces: $sidebarData.spaces, scopeLabel: scope.label })
+  );
+  const panelOpen = $derived(focused && !menuOpen && !panelClosed);
+  $effect(() => {
+    suggestions;
+    active = -1;
+  });
+
+  // Top tags for tag: suggestions, fetched once per scope when the bar gets focus.
+  const TAG_SOURCES = {
+    recent: () => listRelics({ limit: 1, facets: true }).then((r) => r.data),
+    "my-relics": () => getUserRelics({ limit: 1, facets: true }).then((r) => r.data),
+    "my-bookmarks": () => getUserBookmarks({ limit: 1, facets: true }).then((r) => r.data),
+    "admin-relics": () => getAdminRelics(1, 0, null, null, null, null, "created_at", "desc", { facets: true }).then((r) => r.data),
+  };
+  function loadTags(s) {
+    if (s.key in tags) return;
+    const source = TAG_SOURCES[s.key] ?? (s.key.startsWith("space:") ? () => spacesApi.getRelics(s.key.slice(6), { limit: 1, facets: true }) : null);
+    if (!source) return;
+    tags = { ...tags, [s.key]: undefined };
+    source()
+      .then((data) => (tags = { ...tags, [s.key]: data?.facets?.tags ?? [] }))
+      .catch(() => (tags = { ...tags, [s.key]: [] }));
+  }
+
+  async function setQuery(text, at) {
+    query = text;
+    panelClosed = false;
+    await tick();
+    input.focus();
+    input.setSelectionRange(at, at);
+    sync();
+  }
+
+  function pickSuggestion(item) {
+    const next = applySuggestion(query, item);
+    setQuery(next.text, next.caret);
+  }
+
+  // A filter key or the example, clicked in the panel: the example replaces the query, a key is
+  // added where the caret is (with a space before it when needed).
+  function insertText(text) {
+    if (text.includes(" ")) return setQuery(text, text.length);
+    const before = query.slice(0, caret);
+    const pad = before && !/\s$/.test(before) ? " " : "";
+    setQuery(before + pad + text + query.slice(caret), caret + pad.length + text.length);
+  }
+
+  // The mirror draws the coloured text under the (transparent) input; keep them scrolled together.
+  function sync() {
+    if (!input || !mirror) return;
+    mirror.scrollLeft = input.scrollLeft;
+    caret = input.selectionStart ?? 0;
+  }
+  $effect(() => {
+    query;
+    tick().then(sync);
+  });
+
+  // Where an in: value points: a list, one of your spaces, or any space you can see by name or ID.
+  async function scopeFor(value) {
+    const builtin = builtinScope(value);
+    if (builtin) return LIST_SCOPES.find((s) => s.key === builtin);
+    const v = value.trim().toLowerCase();
+    if (!v) return null;
+    const match = (list) => list.find((s) => s.id === v || s.name?.toLowerCase() === v);
+    const known = match($sidebarData.spaces);
+    if (known) return spaceScope(known);
+    try {
+      const { spaces } = await spacesApi.list({ search: value.trim(), limit: 10 });
+      const found = match(spaces) ?? (spaces.length === 1 ? spaces[0] : null);
+      return found ? spaceScope(found) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function submit() {
+    const { search, tokens } = parseQuery(query);
+    let target = scope;
+    if ("in" in tokens) {
+      target = await scopeFor(tokens.in);
+      if (!target) {
+        flagAll = true;
+        showToast(`No list or space called “${tokens.in}”`, "error");
+        return;
+      }
+    }
+    const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: target.filters });
+    if (problems.length) {
+      flagAll = true;
+      showToast(target === pageScope || !("in" in tokens) ? problems[0] : `${problems[0]} (in ${target.label})`, "error");
+      return;
+    }
+    // Searching the same list keeps its sort and other options; another list starts fresh.
+    const next = new URLSearchParams(location.pathname === target.path ? location.search : "");
+    for (const key of QUERY_PARAMS) next.delete(key);
+    if (search.trim()) next.set("search", search.trim());
+    for (const [key, value] of Object.entries(params)) next.set(key, value);
+    const qs = next.toString();
+    const url = `${target.path}${qs ? `?${qs}` : ""}`;
+    // in: has done its job once the chip shows the new scope.
+    query = segments(query).filter((seg) => seg.key !== "in").map((seg) => seg.raw).join("").replace(/\s+/g, " ").trim();
+    applied = query;
+    picked = null;
     input.blur();
+    if (url !== location.pathname + location.search) navigate(url);
+  }
+
+  function reset() {
+    picked = null;
+    query = applied && sameFilters(filtersOf(applied), urlFilters) ? applied : formatQuery(urlFilters, { publicId: $session.publicId });
   }
 
   function onkeydown(event) {
-    if (event.key === "Enter") {
+    const items = panelOpen ? suggestions.items : [];
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && items.length) {
       event.preventDefault();
-      submit();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      active = active + step < -1 ? items.length - 1 : active + step >= items.length ? -1 : active + step;
+    } else if (event.key === "Tab" && items.length && !event.shiftKey) {
+      event.preventDefault();
+      pickSuggestion(items[Math.max(active, 0)]);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (active >= 0 && items[active]) pickSuggestion(items[active]);
+      else submit();
     } else if (event.key === "Escape") {
-      query = active;
+      if (panelOpen) {
+        panelClosed = true;
+        active = -1;
+        return;
+      }
+      reset();
       input.blur();
+    } else {
+      flagAll = false;
+      panelClosed = false;
+      tick().then(sync);
     }
   }
 
   function onWindowKeydown(event) {
-    if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+    const slash = event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey;
+    const ctrlK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+    if (!slash && !ctrlK) return;
     if (event.target.closest?.('input, textarea, select, [contenteditable="true"], .monaco-editor')) return;
     event.preventDefault();
     input.focus();
     input.select();
   }
+
+  // A click on the bar's padding or icon goes to the field.
+  function onBarMousedown(event) {
+    if (event.target.closest("button, input, .scope-menu, .search-panel")) return;
+    event.preventDefault();
+    input.focus();
+  }
+
+  // ---- scope menu ----
+  const menuItems = $derived.by(() => {
+    const items = [...LIST_SCOPES, ...$sidebarData.spaces.map((s) => ({ ...spaceScope(s), space: true }))];
+    // The page's own scope (a space you only visit, All relics…) stays pickable.
+    if (!items.some((i) => i.key === pageScope.key)) items.unshift(pageScope);
+    return items;
+  });
+
+  async function openMenu() {
+    menuOpen = true;
+    if (!$sidebarData.spaces.length) refreshSidebar();
+    await tick();
+    const items = [...(menuEl?.querySelectorAll("[role=menuitemradio]") ?? [])];
+    (items.find((el) => el.getAttribute("aria-checked") === "true") ?? items[0])?.focus();
+  }
+
+  function closeMenu(refocus = true) {
+    menuOpen = false;
+    if (refocus) input.focus();
+  }
+
+  function pick(item) {
+    picked = item.key === pageScope.key ? null : item;
+    closeMenu();
+    // With something to search for, search there now; otherwise wait for the query.
+    if (query.trim()) submit();
+  }
+
+  function onChipKeydown(event) {
+    if (["ArrowDown", "Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      openMenu();
+    }
+  }
+
+  function onMenuKeydown(event) {
+    const items = [...menuEl.querySelectorAll("[role=menuitemradio]")];
+    const i = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = event.key === "ArrowDown" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next]?.focus();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenu();
+    } else if (event.key === "Tab") {
+      closeMenu(false);
+    }
+  }
+
+  function onWindowClick(event) {
+    if (menuOpen && !root.contains(event.target)) menuOpen = false;
+  }
 </script>
 
-<svelte:window onkeydown={onWindowKeydown} />
+<svelte:window onkeydown={onWindowKeydown} onclick={onWindowClick} />
 
-<label class="r-nav-search" role="search">
-  <span class="r-nav-scope">{scope.label}</span>
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div class="r-nav-search nav-search" class:is-focus={focused || menuOpen} role="search" bind:this={root} onmousedown={onBarMousedown}>
+  <button
+    type="button"
+    class="r-nav-scope scope-btn"
+    onclick={() => (menuOpen ? closeMenu() : openMenu())}
+    onkeydown={onChipKeydown}
+    aria-haspopup="menu"
+    aria-expanded={menuOpen}
+    title="Where to search"
+  >
+    {scope.label}<Icon name="chev" />
+  </button>
   <Icon name="search" />
-  <input
-    bind:this={input}
-    bind:value={query}
-    placeholder={scope.placeholder}
-    aria-label={scope.placeholder}
-    autocomplete="off"
-    spellcheck="false"
-    {onkeydown}
-    onfocus={() => (focused = true)}
-    onblur={() => (focused = false)}
-  />
+  <div class="q-field">
+    <div class="q-mirror" bind:this={mirror} aria-hidden="true"><span>{#each segs as s (s.start)}{#if s.kind === "token"}<span class="q-tok" class:is-bad={s.problem && !editing(s)}>{s.raw}</span>{:else}{s.raw}{/if}{/each}</span></div>
+    <input
+      bind:this={input}
+      bind:value={query}
+      placeholder={scope.placeholder}
+      aria-label={scope.placeholder}
+      role="combobox"
+      aria-expanded={panelOpen && suggestions.items.length > 0}
+      aria-controls="search-suggestions"
+      aria-activedescendant={active >= 0 ? `search-sugg-${active}` : undefined}
+      aria-invalid={problem ? "true" : undefined}
+      title={problem ?? ""}
+      autocomplete="off"
+      spellcheck="false"
+      {onkeydown}
+      oninput={sync}
+      onkeyup={sync}
+      onclick={sync}
+      onselect={sync}
+      onscroll={sync}
+      onfocus={() => ((focused = true), (panelClosed = false), loadTags(scope), $sidebarData.spaces.length || refreshSidebar(), sync())}
+      onblur={() => ((focused = false), tick().then(sync))}
+    />
+  </div>
   <kbd class="r-kbd">{focused ? "Esc" : "/"}</kbd>
-</label>
+
+  {#if panelOpen}
+    <SearchPanel
+      {keys}
+      scopeLabel={scope.label}
+      heading={suggestions.heading}
+      items={suggestions.items}
+      note={suggestions.note}
+      {active}
+      empty={!query.trim()}
+      onpick={pickSuggestion}
+      oninsert={insertText}
+    />
+  {/if}
+
+  {#if menuOpen}
+    <!-- svelte-ignore a11y_interactive_supports_focus -->
+    <div class="scope-menu" role="menu" aria-label="Search in" bind:this={menuEl} tabindex="-1" onkeydown={onMenuKeydown}>
+      <div class="scope-menu-head">Search in</div>
+      {#each menuItems as item, i (item.key)}
+        {#if item.space && !menuItems[i - 1]?.space}<div class="scope-menu-head">Your spaces</div>{/if}
+        <button type="button" role="menuitemradio" aria-checked={item.key === scope.key} onclick={() => pick(item)}>
+          <Icon name={item.icon} />
+          <span class="scope-menu-label">{item.label}</span>
+          {#if item.key === scope.key}<Icon name="check" />{/if}
+        </button>
+      {/each}
+      <div class="scope-menu-foot">or type <code>in:</code> followed by a list or space name</div>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .nav-search {
+    position: relative;
+    --q-caret: var(--on-accent);
+  }
+  .nav-search.is-focus {
+    --q-caret: var(--ink);
+  }
+  .scope-btn {
+    flex: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .scope-btn :global(.r-icon) {
+    margin-right: -2px;
+  }
+
+  /* The field: a transparent input over a mirror that draws the same text with tokens coloured. */
+  .q-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+  }
+  .q-field input,
+  .q-mirror {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    letter-spacing: normal;
+  }
+  .q-field input {
+    background: transparent;
+    color: transparent;
+    caret-color: var(--q-caret);
+    outline: 0;
+  }
+  .q-field input::selection {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    color: transparent;
+  }
+  .q-mirror {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    color: inherit;
+    pointer-events: none;
+  }
+  .q-mirror > span {
+    white-space: pre;
+  }
+  .q-tok {
+    border-radius: 3px;
+    background: var(--nav-fill);
+    color: var(--on-accent);
+  }
+  .is-focus .q-tok {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .q-tok.is-bad {
+    text-decoration: underline wavy var(--danger);
+    text-underline-offset: 3px;
+  }
+
+  /* Where to search: the lists, then your spaces. */
+  .scope-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 60;
+    display: grid;
+    min-width: 240px;
+    max-height: min(70vh, 480px);
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-popover);
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .scope-menu-head {
+    padding: 8px 10px 4px;
+    color: var(--ink-3);
+    font: 700 10.5px var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .scope-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .scope-menu button :global(.r-icon) {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--ink-3);
+  }
+  .scope-menu button:hover,
+  .scope-menu button:focus-visible {
+    background: var(--subtle);
+    outline: 0;
+  }
+  .scope-menu button[aria-checked="true"] {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .scope-menu button[aria-checked="true"] :global(.r-icon) {
+    color: var(--accent);
+  }
+  .scope-menu-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .scope-menu-foot {
+    margin-top: 4px;
+    padding: 7px 10px 4px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 11.5px;
+  }
+  .scope-menu-foot code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+</style>
