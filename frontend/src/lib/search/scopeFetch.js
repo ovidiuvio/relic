@@ -1,6 +1,6 @@
 // Querying a search scope's list directly (for the dropdown's matches and the tag suggestions),
 // the same way the scope's own page does. Returns { relics, total, facets }.
-import { listRelics, getUserRelics, getUserBookmarks, getAdminRelics, spaces as spacesApi } from "../../services/api";
+import { listRelics, searchEverywhere, getUserRelics, getUserBookmarks, getAdminRelics, spaces as spacesApi } from "../../services/api";
 import { facetTypes } from "../relics/typeFacets";
 import { rangeParams } from "./ranges";
 
@@ -23,6 +23,7 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
     ...rangeParams(filters),
   };
   const key = scope.key;
+  if (key === "everywhere") return searchEverywhere(params).then((r) => shape(r.data));
   if (key === "recent") return listRelics(params).then((r) => shape(r.data));
   if (key === "my-relics") return getUserRelics(params).then((r) => shape(r.data));
   if (key === "my-bookmarks") return getUserBookmarks(params).then((r) => shape(r.data, "bookmarks"));

@@ -123,3 +123,24 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Why an Everywhere result is visible to you. */
+.r-inspector .ins-why {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.r-inspector .ins-why li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.r-inspector .ins-why .r-icon {
+  margin-top: 2px;
+  color: var(--accent);
+}

@@ -11,6 +11,7 @@
   import { getRelicRawHead } from "../../services/api";
   import { getFileTypeDefinition, isBinaryType } from "../../services/typeUtils";
   import { typeBadge, tagName, compactBytes, fullDate, relativeTime } from "../relics/format";
+  import { whyLines } from "../relics/sources";
 
   let { relic, label = "" } = $props();
 
@@ -58,6 +59,8 @@
 
   const badge = $derived(relic ? typeBadge(relic) : null);
   const tags = $derived((relic?.tags ?? []).map(tagName));
+  // Everywhere results say why they're visible; public-only ones don't need saying.
+  const why = $derived(relic?.sources && relic.sources.join() !== "public" ? whyLines(relic).slice(0, 2) : []);
 </script>
 
 {#if relic}
@@ -74,6 +77,9 @@
       {#if relic.owner_name}<span>by {relic.owner_name}</span>{/if}
       {#if relic.access_level && relic.access_level !== "public"}<span class="pv-vis"><Icon name="lock" size={12} />{relic.access_level}</span>{/if}
     </div>
+    {#each why as line, i (i)}
+      <div class="pv-why"><Icon name={line.icon} size={13} /><span>{line.text}{#if line.space}{" "}{line.space.name}{/if}</span></div>
+    {/each}
     {#if tags.length}
       <div class="pv-tags">{#each tags.slice(0, 6) as t (t)}<span class="r-chip">{t}</span>{/each}</div>
     {/if}
@@ -138,6 +144,20 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
+  }
+  .pv-why {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: 12px;
+  }
+  .pv-why :global(.r-icon) {
+    color: var(--accent);
   }
   .pv-tags {
     display: flex;

@@ -47,6 +47,7 @@ const FAMILIES = [
 ];
 
 const LISTS = [
+  ["everywhere", "Everywhere", "everything you can see"],
   ["recent", "Recent", "public relics"],
   ["mine", "My relics", "yours"],
   ["bookmarks", "Bookmarks", "what you saved"],

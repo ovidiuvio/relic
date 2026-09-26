@@ -42,6 +42,23 @@ const routes = [
     })
   },
   {
+    pattern: /^\/search$/,
+    loader: () => import("./pages/Search.svelte"),
+    section: "search",
+    fullBleed: true,
+    getProps: (match, urlParams) => ({
+      tagFilter: urlParams.get('tag'),
+      search: urlParams.get('search'),
+      typeFilter: urlParams.get('type'),
+      ownerFilter: urlParams.get('owner'),
+      source: urlParams.get('source'),
+      sort: urlParams.get('sort'),
+      after: urlParams.get('after'),
+      before: urlParams.get('before'),
+      size: urlParams.get('size')
+    })
+  },
+  {
     pattern: /^\/my-relics$/,
     loader: () => import("./pages/MyRelics.svelte"),
     section: "my-relics",
@@ -128,7 +145,7 @@ const routes = [
       // Validate that the first param is not a known root-level route path.
       // "new" is included even though there's no /new route: old links to /new?space=id must
       // fall through to the fallback (RelicForm) rather than match as a relic ID.
-      const reserved = ["api", "recent", "my-relics", "my-bookmarks", "spaces", "new", "fork", "admin"];
+      const reserved = ["api", "recent", "search", "my-relics", "my-bookmarks", "spaces", "new", "fork", "admin"];
       if (reserved.includes(match[1])) {
         return null; // Signals this route shouldn't match
       }

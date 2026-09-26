@@ -24,6 +24,7 @@
     dateLabel = null,
     showPublic = false,
     showOwner = true,
+    showSource = false, // Everywhere: each row says why it's visible
     highlight = "",
     actions = [], // [{ icon, title, run(relic) }] or { icon, title, request: "edit" | "delete" }
     emptyText,
@@ -126,6 +127,7 @@
     {dateLabel}
     {showPublic}
     {showOwner}
+    {showSource}
     {highlight}
     actions={rowActions}
     {emptyText}

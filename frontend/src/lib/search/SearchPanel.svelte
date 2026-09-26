@@ -36,8 +36,10 @@
     onrename, // (entry, name)
     onpincurrent, // pin or unpin the list's current search
     onclearrecent, // forget every recent search
-    elsewhere = [], // [{ scope, total }]: the same search finds these in the other lists
-    onelsewhere, // (scope) run it there
+    resultsLabel = null, // the list the matches come from; null for Everywhere
+    here = null, // { label, total }: the list under the panel, filtered by the same query
+    spaceIndex = -1, // the matching space chosen with ↑↓
+    onopenspace, // (space)
   } = $props();
 
   let renaming = $state(null); // the pinned entry being renamed
@@ -88,6 +90,14 @@
 
   <div class="panel-body">
   <div class="panel-main">
+  {#if here && !items.length}
+    <div class="here">
+      <Icon name="filter" />
+      <span>{here.label} is filtered below: <b>{here.total.toLocaleString("en-US")}</b> {here.total === 1 ? "match" : "matches"}</span>
+      <span class="r-gap"></span>
+      <span class="here-key"><kbd class="r-kbd">↵</kbd>keep it and close</span>
+    </div>
+  {/if}
   {#if pinCurrent && !items.length}
     <button type="button" class="pin-current" onclick={onpincurrent}>
       <Icon name="pin" />
@@ -139,10 +149,27 @@
       {/each}
     </div>
   {:else if results}
+    {#if results.spaces?.length}
+      <div class="r-dropdown-group" role="listbox" aria-label="Spaces">
+        <div class="r-dropdown-head"><b>Spaces</b><span>{results.spaces.length === 1 ? "1 match" : `${results.spaces.length} matches`}</span></div>
+        {#each results.spaces as space, i (space.id)}
+          <button type="button" class="space-hit" class:is-active={i === spaceIndex} role="option" aria-selected={i === spaceIndex} onclick={() => onopenspace(space)}>
+            <Icon name="layers" />
+            <span class="space-name">{space.name}</span>
+            <span class="space-meta">{(space.relic_count ?? 0).toLocaleString("en-US")} {space.relic_count === 1 ? "relic" : "relics"} · {space.role ? (space.role === "owner" ? "yours" : "you’re a member") : "public"}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
     <div class="r-dropdown-group results">
       <div class="r-dropdown-head">
-        <b>{results.total ? `${results.total.toLocaleString("en-US")} ${results.total === 1 ? "match" : "matches"}` : "No matches"}</b>
-        <span>in {scopeLabel}</span>
+        {#if resultsLabel}
+          <b>{results.total ? `${results.total.toLocaleString("en-US")} ${results.total === 1 ? "match" : "matches"}` : "No matches"}</b>
+          <span>in {resultsLabel}</span>
+        {:else}
+          <b>Everywhere</b>
+          <span>{results.total ? `${results.total.toLocaleString("en-US")} ${results.total === 1 ? "match" : "matches"} in everything you can see` : "nothing you can see matches"}</span>
+        {/if}
         {#if loading}<span class="r-gap"></span><span>Searching…</span>{/if}
       </div>
       {#if results.relics.length}
@@ -150,6 +177,7 @@
           relics={results.relics}
           head={false}
           showOwner={false}
+          showSource={!resultsLabel}
           grouped={!highlight.trim()}
           {highlight}
           selectedId={chosen?.id ?? null}
@@ -157,21 +185,12 @@
           onopen={(r) => onopen(r, false)}
         />
         <button type="button" class="r-dropdown-all see-all" onclick={onseeall}>
-          <Icon name="search" /><span>See all <b>{results.total.toLocaleString("en-US")}</b> in {scopeLabel}</span>
-          <span class="r-gap"></span><kbd class="r-kbd">↵</kbd>
+          <Icon name={resultsLabel ? "search" : "globe"} /><span>See all <b>{results.total.toLocaleString("en-US")}</b> {resultsLabel ? `in ${resultsLabel}` : "everywhere"}</span>
+          <span class="r-gap"></span><kbd class="r-kbd">Ctrl</kbd><kbd class="r-kbd">↵</kbd>
         </button>
       {:else}
-        <p class="panel-note">Nothing in {scopeLabel} matches. Try fewer words or filters, or another list with <code>in:</code>.</p>
+        <p class="panel-note">{resultsLabel ? `Nothing in ${resultsLabel} matches.` : "Nothing you can see matches."} Try fewer words or filters{resultsLabel ? ", or another list with" : "."} {#if resultsLabel}<code>in:</code>.{/if}</p>
       {/if}
-    </div>
-  {/if}
-  {#if elsewhere.length && !items.length}
-    <div class="elsewhere">
-      <span>Also</span>
-      {#each elsewhere as e, i (e.scope.key)}
-        {#if i}<span class="sep">·</span>{/if}
-        <button type="button" onclick={() => onelsewhere(e.scope)}><b>{e.total.toLocaleString("en-US")}</b> in {e.scope.label}</button>
-      {/each}
     </div>
   {/if}
   {#if items.length || results}
@@ -193,8 +212,8 @@
   <div class="r-dropdown-foot panel-keys">
     {#if (results?.relics.length || history.length) && !items.length}
       <span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>choose</span>
-      <span><kbd class="r-kbd">↵</kbd>{chosen || historyIndex >= 0 ? "open" : results?.relics.length ? "see all" : "search"}</span>
-      <span><kbd class="r-kbd">Ctrl</kbd><kbd class="r-kbd">↵</kbd>new tab</span>
+      <span><kbd class="r-kbd">↵</kbd>{chosen || historyIndex >= 0 || spaceIndex >= 0 ? "open" : here ? `keep ${here.label} filtered` : results?.relics.length ? "see all" : "search"}</span>
+      {#if results?.relics.length}<span><kbd class="r-kbd">⇧</kbd><kbd class="r-kbd">↵</kbd>new tab</span><span><kbd class="r-kbd">Ctrl</kbd><kbd class="r-kbd">↵</kbd>see all</span>{/if}
     {:else}
       <span><kbd class="r-kbd">↵</kbd>search</span>
     {/if}
@@ -221,7 +240,9 @@
       left: 8px;
       width: auto;
     }
-    .panel-keys {
+    .search-panel .panel-keys,
+    .search-panel .here-key,
+    .search-panel .pin-hint {
       display: none;
     }
     .has-preview .panel-body {
@@ -265,29 +286,66 @@
     color: var(--accent);
     font-family: var(--font-mono);
   }
-  .elsewhere {
+  .here {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px var(--space-1\.5);
+    align-items: center;
+    gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
-    border-top: 1px solid var(--line);
-    color: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-2);
     font-size: 12.5px;
   }
-  .elsewhere button {
-    padding: 0;
+  .here :global(.r-icon) {
+    width: 14px;
+    height: 14px;
+    color: var(--accent);
+  }
+  .here b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .here-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink-3);
+    font-size: 11.5px;
+  }
+  .space-hit {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2\.5);
+    width: 100%;
+    height: 30px;
+    padding: 0 var(--space-4);
     border: 0;
     background: none;
-    color: var(--accent);
+    color: var(--ink);
     font: inherit;
+    text-align: left;
     cursor: pointer;
   }
-  .elsewhere button:hover {
-    text-decoration: underline;
+  .space-hit:hover,
+  .space-hit.is-active {
+    background: var(--accent-soft);
   }
-  .elsewhere b {
-    font-weight: 600;
+  .space-hit :global(.r-icon) {
+    width: 14px;
+    height: 14px;
+    color: var(--ink-3);
+  }
+  .space-name {
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .space-meta {
+    margin-left: auto;
+    color: var(--ink-3);
+    font-size: 12px;
+    white-space: nowrap;
   }
   .pin-current {
     display: flex;

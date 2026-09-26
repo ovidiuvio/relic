@@ -6,7 +6,7 @@
 //          language (python) or a content type (text/x-python)
 //   tag:   one tag
 //   by:    me, or an owner's public ID
-//   in:    where to search: recent, mine, bookmarks, or a space by name
+//   in:    where to search: everywhere, recent, mine, bookmarks, or a space by name
 //   after: / before:  when it was created: today, mon, 7d, 2026-09-01… (see ranges.js)
 //   size:  >1mb, <10kb, 1mb..5mb
 //
@@ -144,7 +144,8 @@ export function sameFilters(a, b) {
 /** Where an in: value points among the built-in lists, or null (it may name a space). */
 export function builtinScope(value) {
   const v = (value || "").trim().toLowerCase();
-  if (["recent", "public", "everyone", "all"].includes(v)) return "recent";
+  if (["everywhere", "all", "anywhere", "any"].includes(v)) return "everywhere";
+  if (["recent", "public", "everyone"].includes(v)) return "recent";
   if (["mine", "me", "my", "my-relics", "myrelics"].includes(v)) return "my-relics";
   if (["bookmarks", "bookmarked", "saved"].includes(v)) return "my-bookmarks";
   return null;

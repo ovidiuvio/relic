@@ -33,6 +33,11 @@ export async function listRelics(params = {}) {
     return api.get('/relics', { params })
 }
 
+/** Everything the user may see (public, theirs, bookmarked, shared with them, in their spaces). */
+export async function searchEverywhere(params = {}) {
+    return api.get('/search', { params })
+}
+
 export async function forkRelic(relicId, file, name, accessLevel, expiresIn, tags) {
     const data = new FormData()
     if (file) data.append('file', file)

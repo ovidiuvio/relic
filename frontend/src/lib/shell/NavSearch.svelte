@@ -7,8 +7,11 @@
   // filters you can type and completes the one you're typing.
   // On a list page the list follows the bar as you type (a token applies once you've finished
   // it). The first change adds a history entry and later ones replace it, so Back, or Esc,
-  // returns to the list as it was. Elsewhere (a relic, New relic…) the panel shows the matches
-  // with a preview: ↑↓ choose, Enter opens (Ctrl+Enter in a new tab), or shows them all.
+  // returns to the list as it was. Meanwhile the panel shows what the query finds Everywhere
+  // (everything you can see); on pages without a list it searches the scope, Everywhere unless
+  // you pick another. Matches come with a preview: ↑↓ choose, Enter opens (Shift+Enter in a new
+  // tab), Ctrl+Enter shows them all. Ctrl+K starts in Everywhere, and Backspace at the start of
+  // the bar widens to it.
   // An empty bar lists your searches: pinned (on the server) and recent (this browser); typing
   // narrows them. Searches you commit (Enter, a match opened, a live-filtered list you leave)
   // go to Recent.
@@ -19,7 +22,7 @@
   import SearchPanel from "../search/SearchPanel.svelte";
   import { suggest, applySuggestion } from "../search/suggest";
   import { navigate } from "../../utils/navigation";
-  import { searchScope, spaceScope, LIST_SCOPES } from "./searchScope";
+  import { searchScope, spaceScope, LIST_SCOPES, EVERYWHERE } from "./searchScope";
   import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS, QUERY_PARAMS } from "../search/query";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
@@ -184,46 +187,6 @@
     })
   );
 
-  // ---- the same search in the other lists ----
-  let elsewhere = $state([]); // [{ scope, total }] with matches
-  let elsewhereTimer;
-  let elsewhereSeq = 0;
-  $effect(() => {
-    query;
-    scope;
-    caret;
-    const on = focused;
-    untrack(() => scheduleElsewhere(on));
-  });
-
-  function scheduleElsewhere(on) {
-    clearTimeout(elsewhereTimer);
-    if (!on) return void (elsewhere = []);
-    if (segments(query).some((x) => x.kind === "token" && caret >= x.start && caret <= x.end)) return;
-    const { search, tokens } = parseQuery(query);
-    if ("in" in tokens || (!search.trim() && !Object.keys(tokens).length)) return void (elsewhere = []);
-    elsewhereTimer = setTimeout(async () => {
-      const seq = ++elsewhereSeq;
-      const counts = await Promise.all(
-        LIST_SCOPES.filter((s) => s.key !== scope.key).map(async (s) => {
-          const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: s.filters });
-          if (problems.length) return null;
-          try {
-            const data = await fetchScope(s, { search: search.trim(), ...params }, { limit: 1 });
-            return data?.total ? { scope: s, total: data.total } : null;
-          } catch {
-            return null;
-          }
-        })
-      );
-      if (seq === elsewhereSeq) elsewhere = counts.filter(Boolean);
-    }, 300);
-  }
-
-  function searchElsewhere(s) {
-    picked = s;
-    submit();
-  }
   const panelOpen = $derived((focused || within) && !menuOpen && !panelClosed);
 
   // ---- your searches ----
@@ -263,6 +226,7 @@
       ? suggestions.items.map((item) => ({ kind: "suggestion", item }))
       : [
           ...searches.map((item) => ({ kind: "history", item })),
+          ...(showResults && results ? results.spaces.map((item) => ({ kind: "space", item })) : []),
           ...(showResults && results ? results.relics.map((item) => ({ kind: "relic", item })) : []),
         ]
   );
@@ -272,7 +236,9 @@
   });
   const suggestionIndex = $derived(options[active]?.kind === "suggestion" ? active : -1);
   const historyIndex = $derived(options[active]?.kind === "history" ? active : -1);
-  const resultIndex = $derived(options[active]?.kind === "relic" ? active - searches.length : -1);
+  const spaceCount = $derived(showResults && results ? results.spaces.length : 0);
+  const spaceIndex = $derived(options[active]?.kind === "space" ? active - searches.length : -1);
+  const resultIndex = $derived(options[active]?.kind === "relic" ? active - searches.length - spaceCount : -1);
 
   function runHistory(entry, newTab = false) {
     if (newTab) {
@@ -330,8 +296,9 @@
       .catch(() => (tags = { ...tags, [sc.key]: [] }));
   }
 
-  // ---- matches, on pages without the scope's list ----
-  let results = $state(null); // { relics, total } for the query, or null
+  // ---- matches: Everywhere on a list page, else the scope ----
+  let results = $state(null); // { relics, total, spaces } for the query, or null
+  let listHere = $state(null); // { label, total }: what the list under the panel shows for the query
   let resultsLoading = $state(false);
   let resultsTimer;
   let resultsSeq = 0;
@@ -341,11 +308,14 @@
     routeProps;
     return location.pathname === pageScope.path;
   });
-  const showResults = $derived(!onListPage || !!picked);
+  // On a list the list shows its own matches, so the panel searches Everywhere (except on
+  // Everywhere's own page, where the list already is that).
+  const resultsScope = $derived(onListPage && !picked ? EVERYWHERE : scope);
+  const showResults = $derived(!(onListPage && !picked && pageScope.key === EVERYWHERE.key));
 
   $effect(() => {
     query;
-    scope;
+    resultsScope;
     caret;
     const on = focused && showResults;
     untrack(() => scheduleResults(on));
@@ -355,29 +325,52 @@
     clearTimeout(resultsTimer);
     if (!on) {
       results = null;
+      listHere = null;
       return;
     }
     // Wait for a token to be finished, as the live list does.
     if (segments(query).some((seg) => seg.kind === "token" && caret >= seg.start && caret <= seg.end)) return;
     const { search, tokens } = parseQuery(query);
-    const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: scope.filters });
+    const target = resultsScope;
+    const { params, problems } = resolveFilters(tokens, { publicId: $session.publicId, filters: target.filters });
     if ("in" in tokens || problems.length || (!search.trim() && !Object.keys(params).length)) {
       results = null;
+      listHere = null;
       return;
     }
+    const filters = { search: search.trim(), ...params };
+    const listToo = onListPage && !picked && pageScope.key !== target.key;
     resultsTimer = setTimeout(async () => {
       const seq = ++resultsSeq;
       resultsLoading = true;
       try {
-        const data = await fetchScope(scope, { search: search.trim(), ...params }, { limit: 7, relevance: true });
+        const [data, spaceData, listData] = await Promise.all([
+          fetchScope(target, filters, { limit: 7, relevance: true }),
+          // Everywhere also finds spaces by name.
+          target.key === EVERYWHERE.key && search.trim() ? spacesApi.list({ search: search.trim(), limit: 3 }).catch(() => null) : null,
+          listToo ? fetchScope(pageScope, { search: search.trim(), ...resolveFilters(tokens, { publicId: $session.publicId, filters: pageScope.filters }).params }, { limit: 1 }).catch(() => null) : null,
+        ]);
         if (seq !== resultsSeq) return;
-        results = data;
+        results = data ? { ...data, spaces: spaceData?.spaces ?? [] } : null;
+        listHere = listToo && listData ? { label: pageScope.label, total: listData.total } : null;
       } catch {
         if (seq === resultsSeq) results = null;
       } finally {
         if (seq === resultsSeq) resultsLoading = false;
       }
     }, 200);
+  }
+
+  /** Every match on its list: Everywhere's page, or the scope's. */
+  function seeAll() {
+    if (resultsScope.key === EVERYWHERE.key) picked = pageScope.key === EVERYWHERE.key ? null : EVERYWHERE;
+    submit();
+  }
+
+  function openSpace(space) {
+    picked = null;
+    input.blur();
+    navigate(`/spaces/${space.id}`);
   }
 
   function measure() {
@@ -393,8 +386,8 @@
     }
     // The search that found it goes to Recent, as the list it searched.
     const { search, tokens } = parseQuery(query);
-    const { params } = resolveFilters(tokens, { publicId: $session.publicId, filters: scope.filters });
-    searchHistory.record({ query, path: urlFor(scope, search, params), label: scope.label });
+    const { params } = resolveFilters(tokens, { publicId: $session.publicId, filters: resultsScope.filters });
+    searchHistory.record({ query, path: urlFor(resultsScope, search, params), label: resultsScope.label });
     picked = null;
     input.blur();
     navigate(`/${relic.id}`);
@@ -502,7 +495,7 @@
   function onkeydown(event) {
     const opts = panelOpen ? options : [];
     const chosen = opts[active];
-    const newTab = event.ctrlKey || event.metaKey || event.shiftKey;
+    const newTab = event.shiftKey;
     if ((event.key === "ArrowDown" || event.key === "ArrowUp") && opts.length) {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
@@ -510,9 +503,18 @@
     } else if (event.key === "Tab" && !event.shiftKey && opts[0]?.kind === "suggestion") {
       event.preventDefault();
       pickSuggestion((chosen ?? opts[0]).item);
+    } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      seeAll();
+    } else if (event.key === "Backspace" && input.selectionStart === 0 && input.selectionEnd === 0 && scope.key !== EVERYWHERE.key) {
+      // Backspace at the very start removes the list chip: search everything instead.
+      event.preventDefault();
+      picked = pageScope.key === EVERYWHERE.key ? null : EVERYWHERE;
+      panelClosed = false;
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (chosen?.kind === "suggestion") pickSuggestion(chosen.item);
+      else if (chosen?.kind === "space") openSpace(chosen.item);
       else if (chosen?.kind === "history") runHistory(chosen.item, newTab);
       else if (chosen?.kind === "relic") openResult(chosen.item, newTab);
       else submit();
@@ -546,6 +548,7 @@
     if (!slash && !ctrlK) return;
     if (event.target.closest?.('input, textarea, select, [contenteditable="true"], .monaco-editor')) return;
     event.preventDefault();
+    if (ctrlK && pageScope.key !== EVERYWHERE.key) picked = EVERYWHERE;
     input.focus();
     input.select();
   }
@@ -675,6 +678,10 @@
       active={suggestionIndex}
       empty={!query.trim() || untouched}
       results={showResults ? results : null}
+      resultsLabel={resultsScope.key === EVERYWHERE.key ? null : resultsScope.label}
+      here={query.trim() ? listHere : null}
+      {spaceIndex}
+      onopenspace={openSpace}
       loading={resultsLoading}
       highlight={parseQuery(query).search}
       {resultIndex}
@@ -682,7 +689,7 @@
       onpick={pickSuggestion}
       oninsert={insertText}
       onopen={openResult}
-      onseeall={submit}
+      onseeall={seeAll}
       history={searches}
       {historyIndex}
       {pinCurrent}
@@ -693,8 +700,6 @@
       onrename={renameEntry}
       onpincurrent={togglePinCurrent}
       onclearrecent={() => searchHistory.clear()}
-      elsewhere={query.trim() ? elsewhere : []}
-      onelsewhere={searchElsewhere}
     />
   {/if}
 

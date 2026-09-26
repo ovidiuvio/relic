@@ -30,6 +30,7 @@ function writeRecent(list) {
 /** The list a path belongs to, for showing where an entry runs. */
 export function pathLabel(path, spaces = []) {
   const p = path.split("?")[0];
+  if (p === "/search") return "Everywhere";
   if (p === "/recent") return "Recent";
   if (p === "/my-relics") return "My relics";
   if (p === "/my-bookmarks") return "Bookmarks";

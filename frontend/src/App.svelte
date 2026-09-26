@@ -17,6 +17,7 @@
   const SECTION_TITLES = {
     new: "New relic",
     recent: "Recent relics",
+    search: "Everywhere",
     spaces: "Spaces",
     "space-view": "Space",
     "my-relics": "My relics",

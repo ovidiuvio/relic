@@ -7,6 +7,7 @@
   import { hasViewer } from "../../services/typeUtils";
   import { copyToClipboard } from "../../services/relicActions";
   import { clockTime, dayMonth, dayGroup, typeBadge, tagName, compactBytes, middleTruncate, expiryMarker, counterLevel } from "./format";
+  import { sourceChip } from "./sources";
 
   // The four counter columns, as in the old table. Each is coloured by how notable it is,
   // sorts the list from its header, and (all but views) opens its inspector section.
@@ -28,6 +29,7 @@
     showPublic = false, // mark public relics too (lists that mix visibilities)
     showOwner = true, // off where every relic is yours
     head: showHead = true, // column headers; off in the search dropdown
+    showSource = false, // Everywhere results: say why each relic is visible (yours, a space…)
     local = false, // items that live only in this browser (drafts): no owner, id or counters, and the name opens via onopen
     highlight = "", // search term to <mark> in names
     selectedId = null,
@@ -239,6 +241,10 @@
         {/if}
         {#if expiry}
           <span class="r-marker" class:r-marker-warning={expiry.soon}><Icon name="clock" />{expiry.text}</span>
+        {/if}
+        {#if showSource}
+          {@const src = sourceChip(relic)}
+          {#if src}<span class="row-source" title={src.title}><Icon name={src.icon} />{src.label}</span>{/if}
         {/if}
       </span>
       {#if showOwner && !local}
@@ -497,6 +503,26 @@
     text-decoration: none;
   }
   /* Metadata like the id and tags beside it: mono-meta in ink-3, so only the name reads as text. */
+  .row-source {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    height: 18px;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+    margin-left: var(--space-2);
+    padding: 0 6px;
+    border-radius: var(--radius-xs);
+    background: var(--chip);
+    color: var(--ink-2);
+    font: 11.5px var(--font-sans);
+    vertical-align: 1px;
+  }
+  .row-source :global(.r-icon) {
+    width: 11px;
+    height: 11px;
+  }
   .row-owner {
     min-width: 0;
     overflow: hidden;

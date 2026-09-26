@@ -18,6 +18,7 @@
   import { isBinaryType } from "../../../services/typeUtils";
   import { showToast } from "../../../stores/toastStore";
   import { typeBadge, tagName, fullDate, shortDate, clockTime, expiryMarker, dayGroup, counterLevel } from "../format";
+  import { whyLines } from "../sources";
 
   let {
     relic = null,
@@ -271,6 +272,18 @@
     </div>
 
     <div class="r-ins-body">
+      {#if relic.sources && relic.sources.join() !== "public"}
+        {@const why = whyLines(relic)}
+        {#if why.length}
+          <InsSection id="why" title="Why you see it" defaultOpen aside={why.length > 1 ? `${why.length} reasons` : ""}>
+            <ul class="ins-why">
+              {#each why as line, i (i)}
+                <li><Icon name={line.icon} size={14} /><span>{line.text}{#if line.space}{" "}<a class="r-link" href="/spaces/{line.space.id}">{line.space.name}</a>{/if}</span></li>
+              {/each}
+            </ul>
+          </InsSection>
+        {/if}
+      {/if}
       <InsSection id="details" title="Details" defaultOpen>
         <dl class="r-kv">
           <dt>Type</dt><dd>{badge.name}{showHint ? ` · ${relic.language_hint}` : ""}</dd>
