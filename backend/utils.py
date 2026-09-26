@@ -102,6 +102,69 @@ def apply_relic_search(stmt, search: str):
     ).distinct()
 
 
+MAX_TYPE_FILTER = 400  # content types in one ?types= filter (a facet sends its whole family)
+
+
+def parse_types(types: Optional[str]) -> List[str]:
+    """Split a ?types= value ("text/x-python,application/json") into lowercase content types.
+
+    Parameters after ';' are dropped, blanks and oversized entries are ignored, and the list is
+    capped, so a crafted value can't blow up the query.
+    """
+    if not types:
+        return []
+    out = []
+    for part in types.split(","):
+        t = part.split(";", 1)[0].strip().lower()
+        if t and len(t) <= 100 and t not in out:
+            out.append(t)
+        if len(out) >= MAX_TYPE_FILTER:
+            break
+    return out
+
+
+def apply_type_filter(stmt, types: List[str]):
+    """Keep relics whose content type is one of `types`, ignoring parameters such as charset."""
+    from backend.models import Relic
+    from sqlalchemy import func, or_
+    if not types:
+        return stmt
+    ct = func.lower(Relic.content_type)
+    return stmt.where(or_(ct.in_(types), *[ct.like(f"{like_escape(t)};%", escape="\\") for t in types]))
+
+
+async def relic_facets(db: AsyncSession, stmt, tag_limit: int = 20) -> Dict:
+    """Counts for a filtered relic list: relics per content type, and its most used tags.
+
+    `stmt` is the list's Select with its scope and filters (any entity columns; Relic is joined).
+    Content types are reported lowercase without parameters; the client groups them into its
+    type families, so the server needs no copy of the type catalogue.
+    """
+    from backend.models import Relic, Tag, relic_tags
+    from sqlalchemy import select, func
+
+    ids = stmt.with_only_columns(Relic.id).order_by(None).subquery()
+    type_rows = await db.execute(
+        select(func.lower(Relic.content_type), func.count())
+        .where(Relic.id.in_(select(ids.c.id)))
+        .group_by(func.lower(Relic.content_type))
+    )
+    types: Dict[str, int] = {}
+    for content_type, count in type_rows.all():
+        base = (content_type or "application/octet-stream").split(";", 1)[0].strip()
+        types[base] = types.get(base, 0) + count
+
+    tag_rows = await db.execute(
+        select(Tag.name, func.count())
+        .join(relic_tags, relic_tags.c.tag_id == Tag.id)
+        .where(relic_tags.c.relic_id.in_(select(ids.c.id)))
+        .group_by(Tag.name)
+        .order_by(func.count().desc(), Tag.name)
+        .limit(tag_limit)
+    )
+    return {"types": types, "tags": [{"name": name, "count": count} for name, count in tag_rows.all()]}
+
+
 def relic_sort_order(sort_by: str, sort_order: str, overrides: dict = None) -> tuple:
     """Return SQLAlchemy ORDER BY clauses for the common relic sort options.
 

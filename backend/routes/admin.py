@@ -15,7 +15,7 @@ from backend.models import Relic, User, UserBookmark, RelicReport, Comment, Tag,
 from backend.schemas import AdminGrant
 from backend.storage import storage_service
 from backend.dependencies import get_current_user, get_admin_user, is_admin_user
-from backend.utils import get_fork_counts, clamp_limit, apply_relic_search
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, parse_types, apply_type_filter, relic_facets
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -42,6 +42,8 @@ async def admin_list_all_relics(
     access_level: Optional[str] = None,
     user_id: Optional[str] = None,
     search: Optional[str] = None,
+    types: Optional[str] = None,  # comma-separated content types (a type facet)
+    facets: bool = False,  # include type counts and top tags
     tag: Optional[str] = None,
     sort_by: Optional[str] = "created_at",
     sort_order: Optional[str] = "desc",
@@ -67,6 +69,11 @@ async def admin_list_all_relics(
 
     if search:
         stmt = apply_relic_search(stmt, search)
+
+    # Type facet counts and top tags describe the list before its type filter, so every facet
+    # shows how many it would give.
+    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_type_filter(stmt, parse_types(types))
 
     if tag:
         tag_result = await db.execute(select(Tag).where(Tag.name == tag.strip().lower()))
@@ -110,6 +117,7 @@ async def admin_list_all_relics(
         "limit": limit,
         "offset": offset,
         "user_id": user_id,
+        "facets": facet_counts,
         "relics": [
             {
                 "id": r.id,

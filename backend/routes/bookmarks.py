@@ -9,7 +9,7 @@ from typing import Optional
 from backend.database import get_db
 from backend.models import Relic, UserBookmark, Comment, User, Tag
 from backend.dependencies import get_current_user
-from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order
+from backend.utils import get_fork_counts, clamp_limit, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
 
 router = APIRouter(prefix="/api/v1/bookmarks")
 
@@ -145,6 +145,8 @@ async def get_user_bookmarks(
     request: Request,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    types: Optional[str] = None,  # comma-separated content types (a type facet)
+    facets: bool = False,  # include type counts and top tags
     sort_by: str = "created_at",
     sort_order: str = "desc",
     limit: int = 25,
@@ -191,6 +193,11 @@ async def get_user_bookmarks(
     if search:
         stmt = apply_relic_search(stmt, search)
 
+    # Type facet counts and top tags describe the list before its type filter, so every facet
+    # shows how many it would give.
+    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_type_filter(stmt, parse_types(types))
+
     order = relic_sort_order(sort_by, sort_order, {"created_at": UserBookmark.created_at})
 
     total_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
@@ -215,6 +222,7 @@ async def get_user_bookmarks(
         "user_id": user.id,
         "bookmark_count": total,
         "total": total,
+        "facets": facet_counts,
         "limit": limit,
         "offset": offset,
         "bookmarks": [

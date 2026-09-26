@@ -15,7 +15,7 @@ from backend.database import get_db
 from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service, FileTooLargeError
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
 from backend.dependencies import (
     get_current_user, check_ownership_or_admin,
     process_tags, generate_unique_relic_id, check_space_access
@@ -671,6 +671,8 @@ async def list_relics(
     offset: int = 0,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    types: Optional[str] = None,  # comma-separated content types (a type facet)
+    facets: bool = False,  # include type counts and top tags
     sort_by: str = "created_at",
     sort_order: str = "desc",
     db: AsyncSession = Depends(get_db)
@@ -690,6 +692,11 @@ async def list_relics(
 
     if search:
         stmt = apply_relic_search(stmt, search)
+
+    # Type facet counts and top tags describe the list before its type filter, so every facet
+    # shows how many it would give.
+    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_type_filter(stmt, parse_types(types))
 
     order = relic_sort_order(sort_by, sort_order)
 
@@ -719,7 +726,7 @@ async def list_relics(
         relic_response.forks_count = forks_counts.get(relic.id, 0)
         relic_responses.append(relic_response)
 
-    return {"relics": relic_responses, "total": total, "limit": limit, "offset": offset}
+    return {"relics": relic_responses, "total": total, "limit": limit, "offset": offset, "facets": facet_counts}
 
 
 @router.get("/api/v1/relics/{relic_id}/access", response_model=dict)

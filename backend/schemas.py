@@ -140,6 +140,7 @@ class RelicListResponse(BaseModel):
     total: int = 0
     limit: Optional[int] = None
     offset: Optional[int] = None
+    facets: Optional[dict] = None  # {types: {content_type: count}, tags: [{name, count}]} when asked for
 
 
 

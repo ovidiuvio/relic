@@ -13,7 +13,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
 from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -360,6 +360,8 @@ async def get_space_relics(
     limit: int = 25,
     offset: int = 0,
     search: Optional[str] = None,
+    types: Optional[str] = None,  # comma-separated content types (a type facet)
+    facets: bool = False,  # include type counts and top tags
     tag: Optional[str] = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
@@ -403,6 +405,11 @@ async def get_space_relics(
 
     if search:
         stmt = apply_relic_search(stmt, search)
+
+    # Type facet counts and top tags describe the list before its type filter, so every facet
+    # shows how many it would give.
+    facet_counts = await relic_facets(db, stmt) if facets else None
+    stmt = apply_type_filter(stmt, parse_types(types))
 
     order = relic_sort_order(sort_by, sort_order)
 
@@ -448,7 +455,7 @@ async def get_space_relics(
             "tags": [{"name": t.name, "id": t.id} for t in relic.tags]
         })
 
-    return {"relics": result, "total": total, "limit": limit, "offset": offset}
+    return {"relics": result, "total": total, "limit": limit, "offset": offset, "facets": facet_counts}
 
 @router.post("/{space_id}/relics")
 async def add_relic_to_space(
