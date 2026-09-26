@@ -1,7 +1,7 @@
 <script>
   import { onMount, tick } from "svelte";
   import Toasts from "./lib/ui/Toasts.svelte";
-  import KeyRevealModal from "./components/KeyRevealModal.svelte";
+  import KeyBanner from "./lib/shell/KeyBanner.svelte";
   import { toastStore } from "./stores/toastStore";
   import { matchRoute, sectionToPath } from "./routes";
   import { initUserKey } from "./services/api";
@@ -161,6 +161,10 @@
 
   <NavBar section={currentSection} {routeProps} />
 
+  {#if showKeyReveal && userKeyOnce}
+    <KeyBanner userKey={userKeyOnce} onsaved={() => { showKeyReveal = false; userKeyOnce = null; }} />
+  {/if}
+
   <div class="flex-1 min-h-0 flex">
   <!-- The admin area brings its own side navigation. -->
   {#if $layout.rail && currentSection !== "admin"}
@@ -212,11 +216,6 @@
   <BottomTabs section={currentSection} />
 
   <Toasts />
-  <KeyRevealModal
-    show={showKeyReveal}
-    userKey={userKeyOnce || ''}
-    on:confirm={() => { showKeyReveal = false; userKeyOnce = null; }}
-  />
 </div>
 
 
