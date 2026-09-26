@@ -1,5 +1,5 @@
 <script>
-  import { modal } from '../utils/modal';
+  import Icon from '../lib/ui/Icon.svelte'
   import { onMount, onDestroy } from 'svelte'
   import { renderPDFPage,processPDF } from '../services/processors/pdfProcessor.js'
   import { getRelicRaw } from '../services/api'
@@ -163,9 +163,10 @@
     }
   }
 
+  let cancelled = false
   function cancelPassword() {
     showPasswordModal = false
-    showToast('PDF preview cancelled. You can download the file instead.', 'info')
+    cancelled = true
   }
 
   // Keyboard navigation
@@ -226,103 +227,127 @@
   })
 </script>
 
-<!-- Password Modal -->
 {#if showPasswordModal}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div use:modal={{ onClose: cancelPassword }} class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-      <div class="flex items-center gap-3 mb-4">
-        <i class="fas fa-lock text-red-600 text-2xl"></i>
-        <h3 class="text-lg font-bold text-gray-900">Password Protected PDF</h3>
-      </div>
-
-      <p class="text-sm text-gray-600 mb-4">
-        This PDF is password protected. Please enter the password to view it.
-      </p>
-
-      <div class="mb-4">
+  <!-- Asked inline, where the PDF will show; no dialog. -->
+  <div class="pdf-state">
+    <form class="pdf-lock" on:submit|preventDefault={submitPassword}>
+      <Icon name="lock" size={22} />
+      <h3>This PDF has a password</h3>
+      <p>Enter it to see the pages. It stays in this browser tab.</p>
+      <span class="r-input" class:is-error={passwordError}>
+        <!-- svelte-ignore a11y-autofocus -->
         <input
           type="password"
           bind:value={passwordInput}
-          on:keydown={handlePasswordKeydown}
-          placeholder="Enter password"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          on:keydown={(e) => e.key === 'Escape' && cancelPassword()}
+          placeholder="Password"
+          aria-label="PDF password"
           disabled={processingPassword}
           autofocus
         />
-        {#if passwordError}
-          <p class="text-sm text-red-600 mt-2">
-            <i class="fas fa-exclamation-circle mr-1"></i>
-            {passwordError}
-          </p>
-        {/if}
+      </span>
+      {#if passwordError}<p class="pdf-error" role="alert">{passwordError}</p>{/if}
+      <div class="pdf-actions">
+        <button type="button" class="r-btn r-btn-secondary r-btn-md" on:click={cancelPassword} disabled={processingPassword}>Cancel</button>
+        <button class="r-btn r-btn-primary r-btn-md" disabled={processingPassword || !passwordInput}>{processingPassword ? 'Unlocking…' : 'Unlock'}</button>
       </div>
-
-      <div class="flex gap-3">
-        <button
-          on:click={submitPassword}
-          disabled={processingPassword}
-          class="btn-primary flex-1"
-        >
-          {#if processingPassword}
-            <i class="fas fa-spinner fa-spin mr-2"></i>
-            Unlocking...
-          {:else}
-            <i class="fas fa-unlock mr-2"></i>
-            Unlock
-          {/if}
-        </button>
-        <button
-          on:click={cancelPassword}
-          disabled={processingPassword}
-          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    </form>
   </div>
-{/if}
-
-{#if pdfDocument}
-  <!-- PDF Canvas Container - Continuous Scroll -->
-  <div
-    bind:this={scrollContainer}
-    on:scroll={handleScroll}
-    class="bg-gray-100 p-6 overflow-auto flex-1 min-h-0"
-    style="min-height: 500px;"
-  >
-    <div class="flex flex-col items-center gap-4">
-      {#if loading}
-        <div class="flex items-center gap-2 mb-4">
-          <i class="fas fa-spinner fa-spin text-blue-600 text-xl"></i>
-          <p class="text-sm text-gray-600">Rendering {numPages} pages...</p>
-        </div>
-      {/if}
-      {#each Array(numPages) as _, i}
-        <div class="relative">
-          <div class="absolute -top-6 left-0 text-xs text-gray-500">
-            Page {i + 1}
-          </div>
-          <canvas
-            bind:this={canvasElements[i]}
-            class="shadow-lg bg-white"
-          ></canvas>
-        </div>
-      {/each}
-    </div>
+{:else if pdfDocument}
+  <div bind:this={scrollContainer} on:scroll={handleScroll} class="pdf-pages">
+    {#if loading}<p class="pdf-loading" role="status">Rendering {numPages} {numPages === 1 ? 'page' : 'pages'}…</p>{/if}
+    {#each Array(numPages) as _, i}
+      <figure class="pdf-page">
+        <figcaption>Page {i + 1}</figcaption>
+        <canvas bind:this={canvasElements[i]}></canvas>
+      </figure>
+    {/each}
   </div>
-
-{:else if !showPasswordModal}
-  <div class="p-6 text-center text-gray-600">
-    <i class="fas fa-exclamation-circle text-4xl mb-4"></i>
-    <p>Failed to load PDF. Please try downloading the file instead.</p>
+{:else}
+  <div class="pdf-state">
+    <Icon name={cancelled ? 'lock' : 'file'} size={22} />
+    <p>{cancelled ? 'No preview without the password.' : 'This PDF couldn’t be shown.'}</p>
+    <div class="pdf-actions">
+      {#if cancelled}<button class="r-btn r-btn-secondary r-btn-md" on:click={() => { cancelled = false; showPasswordModal = true }}>Enter the password</button>{/if}
+      {#if relicId}<a class="r-btn r-btn-primary r-btn-md" href="/{relicId}/raw" data-reload><Icon name="download" />Open the raw file</a>{/if}
+    </div>
   </div>
 {/if}
 
 <style>
-  /* Ensure canvas doesn't overflow container */
+  .pdf-pages {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    overflow: auto;
+    background: var(--chip);
+  }
+  .pdf-page {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+  }
+  .pdf-page figcaption {
+    color: var(--ink-3);
+    font: 11.5px var(--font-mono);
+  }
   canvas {
     max-width: 100%;
     height: auto;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+  .pdf-loading {
+    margin: 0;
+    color: var(--ink-3);
+    font-size: 12.5px;
+  }
+  .pdf-state {
+    flex: 1;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    background: var(--surface);
+    color: var(--ink-3);
+    font: 13px/1.5 var(--font-sans);
+    text-align: center;
+  }
+  .pdf-state p {
+    margin: 0;
+    color: var(--ink-2);
+  }
+  .pdf-lock {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    width: min(320px, 100%);
+  }
+  .pdf-lock h3 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .pdf-lock .r-input {
+    width: 100%;
+    margin-top: var(--space-1);
+  }
+  .pdf-lock .r-input.is-error {
+    border-color: var(--danger);
+  }
+  .pdf-error {
+    color: var(--danger) !important;
+    font-size: 12.5px;
+  }
+  .pdf-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
   }
 </style>
