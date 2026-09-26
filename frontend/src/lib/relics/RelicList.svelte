@@ -35,6 +35,8 @@
     emptyAction = null, // { href, label } link under the empty message
     sort = null, // { key, dir } (see relics/sort.js); the column headers show and change it
     onsort, // (column key) => void
+    sortable = null, // the column keys the API can sort by; null: all of them
+    onowner = null, // (relic) — the owner's name was clicked (admin: show that user's relics)
     onselect,
     onopen,
     oncounter, // (relic, section) — a counter was clicked; section is "bookmarkers" | "comments" | "lineage" | "tags"
@@ -133,6 +135,7 @@
   });
 
   const sortedBy = (key) => sort?.key === key;
+  const canSort = (key) => !!onsort && (!sortable || sortable.includes(key));
   // Header buttons say their state: "Size, sorted largest first" style labels for screen readers.
   const sortLabel = (key, title) =>
     sortedBy(key) ? `${title}, sorted ${sort.dir === "asc" ? "ascending" : "descending"}` : `Sort by ${title.toLowerCase()}`;
@@ -147,11 +150,15 @@
   {#if relics.length}
     <div class="list-head cols" class:no-owner={!showOwner} class:is-local={local} role="presentation">
       {#snippet head(key, label, title, cls = "")}
+        {#if !canSort(key)}
+          <span class="head-plain {cls}" title={title}>{@render label()}</span>
+        {:else}
         <button class="head-sort {cls}" class:is-on={sortedBy(key)} aria-label={sortLabel(key, title)} onclick={() => onsort?.(key)} title="Sort by {title.toLowerCase()}">
           {#if cls.includes("head-num") && sortedBy(key)}<span class="head-dir" class:is-asc={sort.dir === "asc"}><Icon name="arrowup" /></span>{/if}
           {@render label()}
           {#if !cls.includes("head-num") && sortedBy(key)}<span class="head-dir" class:is-asc={sort.dir === "asc"}><Icon name="arrowup" /></span>{/if}
         </button>
+        {/if}
       {/snippet}
       {#snippet dateHead()}{dateLabel ?? (grouped ? "Time" : "Date")}{/snippet}
       {#snippet nameLabel()}Name{/snippet}
@@ -161,7 +168,7 @@
       <span></span>
       {@render head("name", nameLabel, "Name")}
       {#if showOwner && !local}{@render head("owner", ownerLabel, "Owner", "head-owner")}{/if}
-      {#if !local}<span>ID</span>{/if}
+      {#if !local}<span class="head-id">ID</span>{/if}
       <span class="head-tags">Tags</span>
       {@render head("size", sizeLabel, "Size", "head-num")}
       {#if !local}
@@ -228,7 +235,13 @@
           <span class="r-marker" class:r-marker-warning={expiry.soon}><Icon name="clock" />{expiry.text}</span>
         {/if}
       </span>
-      {#if showOwner && !local}<span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>{/if}
+      {#if showOwner && !local}
+        {#if onowner && relic.user_id}
+          <button class="row-owner row-owner-link" tabindex="-1" title="Show relics by {relic.owner_name || relic.user_public_id || 'this user'}" onclick={() => onowner(relic)} ondblclick={(e) => e.stopPropagation()}>{relic.owner_name || "—"}</button>
+        {:else}
+          <span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>
+        {/if}
+      {/if}
       {#if !local}
       <button
         class="r-row-id row-id"
@@ -397,7 +410,8 @@
     text-transform: inherit;
     cursor: pointer;
   }
-  .head-sort {
+  .head-sort,
+  .head-plain {
     display: flex;
     align-items: center;
     gap: 2px;
@@ -485,6 +499,18 @@
   .row-owner.is-anon {
     color: var(--line-2);
   }
+  .row-owner-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+  }
+  .row-owner-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
   .row-id {
     display: inline-flex;
     align-items: center;
@@ -539,8 +565,11 @@
   }
 
   /* Narrower lists drop columns from the right-hand metadata first; the name always stays. */
+  /* Narrower: tags go; where there's an owner it stays (it filters, in admin) and the ID goes. */
   @media (max-width: 1180px) {
-    .cols,
+    .cols {
+      grid-template-columns: 38px 34px minmax(0, 1fr) 110px 44px repeat(4, 34px);
+    }
     .cols.no-owner {
       grid-template-columns: 38px 34px minmax(0, 1fr) 64px 44px repeat(4, 34px);
     }
@@ -549,8 +578,8 @@
     }
     .r-row-tags,
     .head-tags,
-    .row-owner,
-    .head-owner {
+    .cols:not(.no-owner) .row-id,
+    .cols:not(.no-owner) .head-id {
       display: none;
     }
   }

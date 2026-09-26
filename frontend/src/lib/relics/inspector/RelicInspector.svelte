@@ -247,7 +247,8 @@
         {:else}
           <span class="r-pill"><Icon name="clock" />never expires</span>
         {/if}
-        <span>{editable ? "You" : relic.owner_name || "Anonymous"} · {when}</span>
+        <!-- An owner without a display name is named in Details (by public ID); only ownerless relics are "Anonymous". -->
+        <span>{#if editable}You · {:else if relic.owner_name}{relic.owner_name} · {:else if !relic.owner_public_id && !relic.user_id}Anonymous · {/if}{when}</span>
       </div>
 
       {#if counters.length}
@@ -273,11 +274,12 @@
           <dt>Created</dt><dd>{fullDate(relic.created_at)}</dd>
           {#if relic.expires_at}<dt>Expires</dt><dd>{fullDate(relic.expires_at)}</dd>{/if}
           <dt>Views</dt><dd>{relic.access_count ?? 0}</dd>
-          {#if relic.owner_name}
+          {#if relic.owner_name || relic.owner_public_id}
             <dt>Owner</dt>
             <dd>
               {#if relic.owner_public_id}
-                <button class="r-link" onclick={() => copyToClipboard(relic.owner_public_id, "Public ID copied")} title="Copy the owner's public ID">{relic.owner_name}</button>
+                <!-- Without a display name the owner is known by their public ID. -->
+                <button class="r-link" class:r-mono={!relic.owner_name} onclick={() => copyToClipboard(relic.owner_public_id, "Public ID copied")} title="Copy the owner's public ID">{relic.owner_name || relic.owner_public_id}</button>
               {:else}{relic.owner_name}{/if}
             </dd>
           {/if}

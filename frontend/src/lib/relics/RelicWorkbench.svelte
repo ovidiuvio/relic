@@ -32,8 +32,12 @@
     status, // snippet for the status bar
     aside = null, // snippet({ close }) shown in the inspector instead of the selected relic
     editable = false, // your own relics: Edit, Access and Delete in the inspector
+    deletable = editable, // Delete in the inspector (Relic admins can delete any relic)
+    sortable = null, // column keys the API sorts by (null: all)
+    onowner = null, // (relic) the owner's name was clicked
     onbookmark, // (relic, bookmarked) after the inspector's bookmark toggle
     onselect, // (relic) after a row is selected, e.g. to leave `aside`
+    ondeleted = null, // (relic) after the inspector deleted it
     ondropfiles = null,
     dropLabel,
   } = $props();
@@ -77,6 +81,7 @@
     feed.remove(relic.id);
     selectedId = feed.items[Math.min(i, feed.items.length - 1)]?.id ?? null;
     refreshSidebar();
+    ondeleted?.(relic);
   }
 
   function open(relic) {
@@ -114,6 +119,8 @@
     {ontag}
     {sort}
     {onsort}
+    {sortable}
+    {onowner}
     onloadmore={() => feed.more()}
   />
 
@@ -125,6 +132,7 @@
         relic={selected}
         {focus}
         {editable}
+        {deletable}
         {ontag}
         {onbookmark}
         onupdated={(relic) => feed.update(relic)}
