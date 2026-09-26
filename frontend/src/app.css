@@ -32,6 +32,21 @@
   outline: 0;
 }
 
+/* The design system has no disabled state for buttons; without one a disabled Save or Create
+   looks clickable. Faded, no hover change, and the not-allowed cursor. */
+.r-btn:disabled,
+.r-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+.r-btn-secondary:disabled:hover {
+  background: var(--surface);
+}
+.r-btn-ghost:disabled:hover {
+  background: transparent;
+}
+
 /* Keyboard focus: one consistent ring everywhere; mouse clicks stay clean. */
 :focus-visible {
   outline: 2px solid theme('colors.brand.500');
