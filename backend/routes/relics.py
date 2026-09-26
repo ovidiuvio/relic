@@ -15,9 +15,9 @@ from backend.database import get_db
 from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
 from backend.storage import storage_service, FileTooLargeError
-from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
+from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_relic_ids, hidden_parents
 from backend.dependencies import (
-    get_current_user, check_ownership_or_admin,
+    get_current_user, check_ownership_or_admin, is_admin_user, is_admin_user_id,
     process_tags, generate_unique_relic_id, check_space_access
 )
 
@@ -319,6 +319,9 @@ async def get_relic(
     relic_response = RelicResponse.from_orm(relic)
     relic_response.comments_count = comments_count or 0
     relic_response.forks_count = await get_fork_count(db, relic_id)
+    if await hidden_parents(db, [relic], user.id if user else None, is_admin_user(user)):
+        relic_response.fork_of = None
+        relic_response.fork_of_hidden = True
     return relic_response
 
 @router.get("/{relic_id}")
@@ -507,8 +510,14 @@ async def fork_relic(
 
 
 @router.get("/api/v1/relics/{relic_id}/lineage")
-async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: AsyncSession = Depends(get_db)):
-    """Get the fork lineage tree for a relic."""
+async def get_relic_lineage(relic_id: str, request: Request, max_nodes: int = 200, db: AsyncSession = Depends(get_db)):
+    """Get the fork lineage tree for a relic.
+
+    Relics the requester may not see (hidden_relic_ids) keep their place in the tree, so its
+    shape stays right, but as {"id": null, "hidden": true} with no name or date. The requested
+    relic is always shown (its ID is what was asked with), and so is the parent of any relic
+    the requester owns.
+    """
     max_nodes = min(max(max_nodes, 1), 5000)
     result = await db.execute(select(Relic).where(Relic.id == relic_id))
     current = result.scalar_one_or_none()
@@ -536,6 +545,8 @@ async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: AsyncSessio
     tree_nodes = {
         root_id: {"id": root_relic_obj.id, "name": root_relic_obj.name, "created_at": root_relic_obj.created_at, "children": []}
     }
+    owner_of = {root_id: root_relic_obj.user_id}
+    parent_of = {}
 
     # Level-by-level BFS with batched IN queries — O(depth) queries regardless of tree size
     current_level_ids = [root_id]
@@ -554,8 +565,18 @@ async def get_relic_lineage(relic_id: str, max_nodes: int = 200, db: AsyncSessio
             child_data = {"id": child.id, "name": child.name, "created_at": child.created_at, "children": []}
             tree_nodes[child.id] = child_data
             tree_nodes[child.fork_of]["children"].append(child_data)
+            owner_of[child.id] = child.user_id
+            parent_of[child.id] = child.fork_of
             next_level_ids.append(child.id)
         current_level_ids = next_level_ids
+
+    user_id = request.headers.get("X-User-Key")
+    shown = {relic_id}
+    if user_id:
+        shown |= {parent_of[i] for i, owner in owner_of.items() if owner == user_id and i in parent_of}
+    hidden = await hidden_relic_ids(db, set(tree_nodes) - shown, user_id, await is_admin_user_id(db, user_id))
+    for node_id in hidden:
+        tree_nodes[node_id].update(id=None, name=None, created_at=None, hidden=True)
 
     return {
         "current_relic_id": relic_id,
@@ -667,6 +688,7 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
 
 @router.get("/api/v1/relics", response_model=RelicListResponse)
 async def list_relics(
+    request: Request,
     limit: int = 25,
     offset: int = 0,
     tag: Optional[str] = None,
@@ -718,12 +740,17 @@ async def list_relics(
         comments_counts = {row[0]: row[1] for row in comments_result.all()}
 
     forks_counts = await get_fork_counts(db, relic_ids)
+    user_id = request.headers.get("X-User-Key")
+    parents_hidden = await hidden_parents(db, relics, user_id, await is_admin_user_id(db, user_id))
 
     relic_responses = []
     for relic in relics:
         relic_response = RelicResponse.from_orm(relic)
         relic_response.comments_count = comments_counts.get(relic.id, 0)
         relic_response.forks_count = forks_counts.get(relic.id, 0)
+        if relic.id in parents_hidden:
+            relic_response.fork_of = None
+            relic_response.fork_of_hidden = True
         relic_responses.append(relic_response)
 
     return {"relics": relic_responses, "total": total, "limit": limit, "offset": offset, "facets": facet_counts}

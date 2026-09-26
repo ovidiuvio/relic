@@ -118,6 +118,7 @@ class RelicResponse(BaseModel):
     language_hint: Optional[str]
     size_bytes: int
     fork_of: Optional[str]
+    fork_of_hidden: bool = False  # a fork of a relic this user may not see; fork_of is then null
     access_level: Literal["public", "private", "restricted"]
     created_at: datetime
     expires_at: Optional[datetime]

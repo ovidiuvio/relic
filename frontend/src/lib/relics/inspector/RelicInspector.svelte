@@ -289,6 +289,8 @@
           {/if}
           {#if relic.fork_of}
             <dt>Forked from</dt><dd><a class="r-link" href="/{relic.fork_of}">{relic.fork_of.slice(0, 8)}<Icon name="chevr" /></a></dd>
+          {:else if relic.fork_of_hidden}
+            <dt>Forked from</dt><dd class="r-muted">a private relic</dd>
           {/if}
         </dl>
       </InsSection>
@@ -311,7 +313,7 @@
       </InsSection>
 
       {#key relic.id}
-        <InsSection id="lineage" focus={sectionFocus} title="Lineage" aside={relic.fork_of ? `a fork · ${plural(relic.forks_count ?? 0, "fork")}` : `original · ${plural(relic.forks_count ?? 0, "fork")}`}>
+        <InsSection id="lineage" focus={sectionFocus} title="Lineage" aside={relic.fork_of || relic.fork_of_hidden ? `a fork · ${plural(relic.forks_count ?? 0, "fork")}` : `original · ${plural(relic.forks_count ?? 0, "fork")}`}>
           <LineageSection relicId={relic.id} />
         </InsSection>
 

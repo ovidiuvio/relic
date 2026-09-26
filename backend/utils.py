@@ -238,3 +238,39 @@ async def get_fork_count(db: AsyncSession, relic_id: str) -> int:
     return result.scalar() or 0
 
 
+async def hidden_relic_ids(db: AsyncSession, relic_ids, user_id: Optional[str], is_admin: bool = False) -> set:
+    """Which of these relic IDs this user may not be shown.
+
+    A private relic's ID is its access token, and a restricted relic is only for its owner and
+    the people on its access list, so their IDs must not turn up anywhere else (a fork's
+    fork_of, a lineage tree) unless the user owns the relic, is on its list, or is an admin.
+    IDs of relics that no longer exist are not hidden.
+    """
+    from backend.models import Relic, RelicAccess
+    from sqlalchemy import select
+
+    relic_ids = {i for i in relic_ids if i}
+    if not relic_ids or is_admin:
+        return set()
+    rows = (await db.execute(
+        select(Relic.id, Relic.user_id).where(Relic.id.in_(relic_ids), Relic.access_level != "public")
+    )).all()
+    hidden = {r.id for r in rows if not (user_id and r.user_id == user_id)}
+    if hidden and user_id:
+        allowed = await db.execute(
+            select(RelicAccess.relic_id).where(RelicAccess.relic_id.in_(hidden), RelicAccess.user_id == user_id)
+        )
+        hidden -= set(allowed.scalars().all())
+    return hidden
+
+
+async def hidden_parents(db: AsyncSession, relics, user_id: Optional[str], is_admin: bool = False) -> set:
+    """IDs of these relics whose fork_of the user may not be shown (see hidden_relic_ids).
+
+    A fork's owner always sees its parent: they had its ID to fork it.
+    """
+    others = [r for r in relics if r.fork_of and not (user_id and r.user_id == user_id)]
+    hidden = await hidden_relic_ids(db, {r.fork_of for r in others}, user_id, is_admin)
+    return {r.id for r in others if r.fork_of in hidden}
+
+

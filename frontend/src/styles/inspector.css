@@ -66,6 +66,12 @@
 .r-inspector .ins-tree a:hover {
   color: var(--accent);
 }
+.r-inspector .ins-tree .ins-private {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-3);
+}
 .r-inspector .ins-tree li.is-current a {
   font-weight: 500;
 }

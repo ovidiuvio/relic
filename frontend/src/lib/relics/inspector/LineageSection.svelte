@@ -1,6 +1,7 @@
 <script>
   // The fork tree this relic belongs to, drawn as an indented list with the current relic marked.
-  // Deep trees fold below their first level; a node's toggle opens it.
+  // Deep trees fold below their first level; a node's toggle opens it. Relics this user may not
+  // see come without an ID or name and show as a locked "Private" row.
   import Icon from "../../ui/Icon.svelte";
   import { getRelicLineage } from "../../../services/api";
   import { shortDate } from "../format";
@@ -40,20 +41,21 @@
     load();
   });
 
-  // Depth-first rows, skipping the children of folded nodes.
+  // Depth-first rows, skipping the children of folded nodes. Hidden nodes have no ID, so rows
+  // are keyed by their path in the tree.
   const rows = $derived.by(() => {
     const out = [];
-    const walk = (node, depth) => {
-      out.push({ node, depth });
-      if (!folded.has(node.id)) node.children?.forEach((c) => walk(c, depth + 1));
+    const walk = (node, depth, key) => {
+      out.push({ node, depth, key });
+      if (!folded.has(key)) node.children?.forEach((c, i) => walk(c, depth + 1, c.id ?? `${key}/${i}`));
     };
-    if (root) walk(root, 0);
+    if (root) walk(root, 0, root.id ?? "root");
     return out;
   });
 
-  function toggle(id) {
+  function toggle(key) {
     const next = new Set(folded);
-    next.has(id) ? next.delete(id) : next.add(id);
+    next.has(key) ? next.delete(key) : next.add(key);
     folded = next;
   }
 </script>
@@ -66,18 +68,22 @@
   <p class="ins-note">An original with no forks yet.</p>
 {:else}
   <ul class="ins-tree">
-    {#each rows as { node, depth } (node.id)}
-      <li style:--depth={depth} class:is-current={node.id === currentId}>
+    {#each rows as { node, depth, key } (key)}
+      <li style:--depth={depth} class:is-current={node.id && node.id === currentId}>
         {#if node.children?.length}
-          <button class="ins-fold" onclick={() => toggle(node.id)} aria-label={folded.has(node.id) ? "Show forks" : "Hide forks"} aria-expanded={!folded.has(node.id)}>
-            <Icon name={folded.has(node.id) ? "chevr" : "chev"} size={12} />
+          <button class="ins-fold" onclick={() => toggle(key)} aria-label={folded.has(key) ? "Show forks" : "Hide forks"} aria-expanded={!folded.has(key)}>
+            <Icon name={folded.has(key) ? "chevr" : "chev"} size={12} />
           </button>
         {:else}
           <span class="ins-fold"></span>
         {/if}
-        <a href="/{node.id}" title={node.id}>{node.name || "Untitled"}</a>
-        {#if node.id === currentId}<span class="r-chip">this</span>{/if}
-        <span class="ins-when">{shortDate(node.created_at)}</span>
+        {#if node.hidden}
+          <span class="ins-private" title="You don’t have access to this relic"><Icon name="lock" size={12} />{depth ? "Private fork" : "Private relic"}</span>
+        {:else}
+          <a href="/{node.id}" title={node.id}>{node.name || "Untitled"}</a>
+          {#if node.id === currentId}<span class="r-chip">this</span>{/if}
+          <span class="ins-when">{shortDate(node.created_at)}</span>
+        {/if}
       </li>
     {/each}
   </ul>

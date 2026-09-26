@@ -13,7 +13,7 @@ from backend.schemas import (
     RelicListResponse, SpaceCreate, SpaceUpdate, SpaceResponse,
     SpaceAccessBase, SpaceAccessResponse, SpaceTransferOwnership
 )
-from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets
+from backend.utils import generate_relic_id, get_fork_counts, clamp_limit, like_term, apply_relic_search, relic_sort_order, parse_types, apply_type_filter, relic_facets, hidden_parents
 from backend.dependencies import get_current_user, get_space_role, check_space_access, get_space_relic_count, is_admin_user_id
 
 router = APIRouter(prefix="/api/v1/spaces")
@@ -419,6 +419,7 @@ async def get_space_relics(
         comments_counts = {row[0]: row[1] for row in comments_result.all()}
 
     forks_counts = await get_fork_counts(db, relic_ids)
+    parents_hidden = await hidden_parents(db, relics, user_id, is_admin)
 
     result = []
     for relic in relics:
@@ -430,7 +431,8 @@ async def get_space_relics(
             "content_type": relic.content_type,
             "language_hint": relic.language_hint,
             "size_bytes": relic.size_bytes,
-            "fork_of": relic.fork_of,
+            "fork_of": None if relic.id in parents_hidden else relic.fork_of,
+            "fork_of_hidden": relic.id in parents_hidden,
             "access_level": relic.access_level,
             "created_at": relic.created_at,
             "expires_at": relic.expires_at,
