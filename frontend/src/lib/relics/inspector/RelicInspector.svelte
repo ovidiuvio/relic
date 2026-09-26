@@ -3,6 +3,7 @@
   // (Details, Tags, Lineage, Bookmarked by, Comments) that replace the old modals.
   // With `editable` (your own relics) it adds the Edit details mode, the Access section for
   // restricted relics, and Delete with an inline confirmation.
+  import { session } from "../../../stores/session";
   import Icon from "../../ui/Icon.svelte";
   import InsSection from "./InsSection.svelte";
   import BookmarkersSection from "./BookmarkersSection.svelte";
@@ -31,6 +32,9 @@
     ondeleted, // (relic) after a delete
     onbookmark, // (relic, bookmarked) after the bookmark toggle
   } = $props();
+
+  // "You" only for your own relics: admins can edit anyone's, so editing rights don't say whose it is.
+  const mine = $derived(relic?.owner_public_id ? relic.owner_public_id === $session.publicId : editable);
 
   let mode = $state("view"); // "view" | "edit"
   let confirming = $state(false);
@@ -248,7 +252,7 @@
           <span class="r-pill"><Icon name="clock" />never expires</span>
         {/if}
         <!-- An owner without a display name is named in Details (by public ID); only ownerless relics are "Anonymous". -->
-        <span>{#if editable}You · {:else if relic.owner_name}{relic.owner_name} · {:else if !relic.owner_public_id && !relic.user_id}Anonymous · {/if}{when}</span>
+        <span>{#if mine}You · {:else if relic.owner_name}{relic.owner_name} · {:else if !relic.owner_public_id && !relic.user_id}Anonymous · {/if}{when}</span>
       </div>
 
       {#if counters.length}
