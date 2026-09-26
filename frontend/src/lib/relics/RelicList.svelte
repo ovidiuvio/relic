@@ -318,12 +318,15 @@
 </div>
 
 <style>
+  /* Columns follow the list's own width, not the window's: the sidebar, admin navigation and a
+     docked inspector can leave a wide window with a narrow list. */
   .list {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     padding-bottom: var(--space-4);
     outline: 0;
+    container: relic-list / inline-size;
   }
   .r-row {
     cursor: default;
@@ -564,22 +567,38 @@
     height: 1px;
   }
 
-  /* Narrower lists drop columns from the right-hand metadata first; the name always stays. */
-  /* Narrower: tags go; where there's an owner it stays (it filters, in admin) and the ID goes. */
-  @media (max-width: 1180px) {
+  /* Narrower lists drop columns from the right-hand metadata first; the name always keeps
+     ~220px. With an owner (which filters, in admin) the tags and ID go below 960px; without
+     one, the tags go below 840px and the ID stays. */
+  /* Templates use plain selectors so the phone layout below, later in the source, still wins. */
+  @container relic-list (max-width: 960px) {
     .cols {
       grid-template-columns: 38px 34px minmax(0, 1fr) 110px 44px repeat(4, 34px);
     }
+    .cols.no-owner {
+      grid-template-columns: 38px 34px minmax(0, 1fr) 64px 150px 44px repeat(4, 38px);
+    }
+    .cols.is-local {
+      grid-template-columns: 38px 34px minmax(0, 1fr) 180px 64px;
+    }
+    .cols:not(.no-owner):not(.is-local) .r-row-tags,
+    .cols:not(.no-owner):not(.is-local) .head-tags,
+    .cols:not(.no-owner) .row-id,
+    .cols:not(.no-owner) .head-id {
+      display: none;
+    }
+  }
+  @container relic-list (max-width: 840px) {
     .cols.no-owner {
       grid-template-columns: 38px 34px minmax(0, 1fr) 64px 44px repeat(4, 34px);
     }
     .cols.is-local {
       grid-template-columns: 38px 34px minmax(0, 1fr) 64px;
     }
-    .r-row-tags,
-    .head-tags,
-    .cols:not(.no-owner) .row-id,
-    .cols:not(.no-owner) .head-id {
+    .cols.no-owner .r-row-tags,
+    .cols.no-owner .head-tags,
+    .cols.is-local .r-row-tags,
+    .cols.is-local .head-tags {
       display: none;
     }
   }
