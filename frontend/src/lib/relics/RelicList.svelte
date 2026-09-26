@@ -36,7 +36,8 @@
     sort = null, // { key, dir } (see relics/sort.js); the column headers show and change it
     onsort, // (column key) => void
     sortable = null, // the column keys the API can sort by; null: all of them
-    onowner = null, // (relic) — the owner's name was clicked (admin: show that user's relics)
+    onowner = null, // (relic) — the owner's name was clicked: show that user's relics
+    ontype = null, // (relic) — the type badge was clicked: show relics of that type
     onselect,
     onopen,
     oncounter, // (relic, section) — a counter was clicked; section is "bookmarkers" | "comments" | "lineage" | "tags"
@@ -209,7 +210,11 @@
     >
       <!-- Under a month header the row needs its day; under a day header, its time. -->
       <span class="r-row-time" title={new Date(relic[dateField]).toLocaleString()}>{grouped && !dated ? clockTime(relic[dateField]) : dayMonth(relic[dateField])}</span>
-      <span class="r-type r-t-{badge.cls}" title={badge.name}>{badge.label}</span>
+      {#if ontype}
+        <button class="r-type r-t-{badge.cls} row-type-link" tabindex="-1" title="Show only {badge.name}" onclick={() => ontype(relic)} ondblclick={(e) => e.stopPropagation()}>{badge.label}</button>
+      {:else}
+        <span class="r-type r-t-{badge.cls}" title={badge.name}>{badge.label}</span>
+      {/if}
       <span class="r-row-name">
         {#snippet name()}
           {#if relic.access_level === "private"}
@@ -236,8 +241,8 @@
         {/if}
       </span>
       {#if showOwner && !local}
-        {#if onowner && relic.user_id}
-          <button class="row-owner row-owner-link" tabindex="-1" title="Show relics by {relic.owner_name || relic.user_public_id || 'this user'}" onclick={() => onowner(relic)} ondblclick={(e) => e.stopPropagation()}>{relic.owner_name || "—"}</button>
+        {#if onowner && (relic.owner_public_id || relic.user_id)}
+          <button class="row-owner row-owner-link" tabindex="-1" title="Show relics by {relic.owner_name || relic.owner_public_id || 'this user'}" onclick={() => onowner(relic)} ondblclick={(e) => e.stopPropagation()}>{relic.owner_name || "—"}</button>
         {:else}
           <span class="row-owner" class:is-anon={!relic.owner_name} title={relic.owner_name ? `Owner: ${relic.owner_name}` : "No owner"}>{relic.owner_name || "—"}</span>
         {/if}
@@ -508,6 +513,17 @@
     background: none;
     text-align: left;
     cursor: pointer;
+  }
+  .row-type-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+  }
+  .row-type-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .row-owner-link:hover {
     color: var(--accent);

@@ -7,7 +7,8 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import TypeFacets from "../lib/relics/TypeFacets.svelte";
   import TagPicker from "../lib/relics/TagPicker.svelte";
-  import { facetTypes } from "../lib/relics/typeFacets";
+  import FilterChips from "../lib/relics/FilterChips.svelte";
+  import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import SpaceInspector from "../lib/spaces/SpaceInspector.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
@@ -25,7 +26,7 @@
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
 
-  let { spaceId, tagFilter = null, search = null, typeFilter = null } = $props();
+  let { spaceId, tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
 
   let space = $state(null);
   let error = $state(null); // HTTP status or "unknown"
@@ -64,7 +65,7 @@
   // Relics load once the space has: a space you can't open shows its error, not a failed list.
   const ready = $derived(space?.id === spaceId);
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, types: typesParam, ...sortParams(sort) };
     if (ready) untrack(() => feed.reset(params));
   });
 
@@ -138,7 +139,7 @@
     if (files.length) uploadFiles(files, spaceId);
   }
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter));
 </script>
 
 {#if error}
@@ -168,6 +169,8 @@
     emptyText={filtered ? "No relics in this space match these filters." : "This space is empty."}
     emptyAction={filtered ? { href: `/spaces/${spaceId}`, label: "Clear filters" } : canAdd ? { href: `/?space=${spaceId}`, label: "Create the first relic here" } : null}
     ontag={(tag) => navigate(withParams({ tag, search: null }))}
+    onowner={(r) => navigate(withParams({ owner: r.owner_public_id }))}
+    ontype={(r) => navigate(withParams({ type: baseType(r.content_type) }))}
     onselect={() => (showSpace = false)}
     aside={showSpace && space ? spaceAside : null}
     ondropfiles={canAdd ? onDropFiles : null}
@@ -187,8 +190,9 @@
           {#if tagFilter}
             <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
           {/if}
+          <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} hrefFor={withParams} />
         <span class="r-pagebar-sep"></span>
-          <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+          <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
         {/snippet}
         {#snippet options()}
           <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />

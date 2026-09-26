@@ -6,7 +6,8 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import TypeFacets from "../lib/relics/TypeFacets.svelte";
   import TagPicker from "../lib/relics/TagPicker.svelte";
-  import { facetTypes } from "../lib/relics/typeFacets";
+  import FilterChips from "../lib/relics/FilterChips.svelte";
+  import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -65,6 +66,7 @@
   emptyText={filtered ? "None of your relics match these filters." : "You haven’t made any relics yet."}
   emptyAction={filtered ? { href: "/my-relics", label: "Clear filters" } : { href: "/", label: "Create your first relic" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}
+  ontype={(r) => navigate(withParams({ type: baseType(r.content_type) }))}
   ondropfiles={onDropFiles}
   dropLabel="Drop files to add them to your relics"
 >
@@ -77,8 +79,9 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+        <FilterChips type={typeFilter} hrefFor={withParams} />
       <span class="r-pagebar-sep"></span>
-        <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+        <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
       {/snippet}
       {#snippet options()}
         <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />

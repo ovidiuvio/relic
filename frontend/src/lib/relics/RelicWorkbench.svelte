@@ -38,6 +38,7 @@
     deletable = editable, // Delete in the inspector (Relic admins can delete any relic)
     sortable = null, // column keys the API sorts by (null: all)
     onowner = null, // (relic) the owner's name was clicked
+    ontype = null, // (relic) the type badge was clicked
     onbookmark, // (relic, bookmarked) after the inspector's bookmark toggle
     onselect, // (relic) after a row is selected, e.g. to leave `aside`
     ondeleted = null, // (relic) after the inspector deleted it
@@ -138,6 +139,7 @@
     {onsort}
     {sortable}
     {onowner}
+    {ontype}
     onloadmore={() => feed.more()}
   />
 

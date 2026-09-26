@@ -1,12 +1,14 @@
 <script>
   // Recent: every public relic, newest first, as the compact day-grouped log.
-  // Search comes from the navbar (?search=), tag filters from ?tag=; both show as chips.
+  // Search comes from the navbar (?search=); tag, owner and type filters from ?tag=, ?owner= and
+  // ?type= (clicking a tag, an owner's name or a type badge sets them). Filters show as chips.
   import { untrack } from "svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import PageBar from "../lib/shell/PageBar.svelte";
   import TypeFacets from "../lib/relics/TypeFacets.svelte";
   import TagPicker from "../lib/relics/TagPicker.svelte";
-  import { facetTypes } from "../lib/relics/typeFacets";
+  import FilterChips from "../lib/relics/FilterChips.svelte";
+  import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -17,7 +19,7 @@
   import { navigate } from "../utils/navigation";
   import { filterUrl } from "../lib/relics/filters";
 
-  let { tagFilter = null, search = null, typeFilter = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
 
   const feed = new PagedFeed((params) => listRelics(params).then((r) => r.data), { facets: true });
 
@@ -29,6 +31,7 @@
     const params = {
       tag: tagFilter || undefined,
       search: search || undefined,
+      owner: ownerFilter || undefined,
       types: typesParam,
       ...sortParams(sort),
     };
@@ -51,7 +54,7 @@
     if (files.length) uploadFiles(files);
   }
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter));
 </script>
 
 <RelicWorkbench
@@ -64,11 +67,13 @@
   emptyText={filtered ? "No public relics match these filters." : "No public relics yet."}
   emptyAction={filtered ? { href: "/recent", label: "Clear filters" } : { href: "/", label: "Create the first one" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}
+  onowner={(r) => navigate(withParams({ owner: r.owner_public_id }))}
+  ontype={(r) => navigate(withParams({ type: baseType(r.content_type) }))}
   ondropfiles={onDropFiles}
   dropLabel="Drop files to upload them as public relics"
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={search || tagFilter ? "Results" : "Recent"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={search || tagFilter || ownerFilter ? "Results" : "Recent"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -76,8 +81,9 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} hrefFor={withParams} />
       <span class="r-pagebar-sep"></span>
-        <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+        <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
       {/snippet}
       {#snippet options()}
         <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />

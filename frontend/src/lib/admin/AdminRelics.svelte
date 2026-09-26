@@ -7,7 +7,8 @@
   import PageBar from "../shell/PageBar.svelte";
   import TypeFacets from "../relics/TypeFacets.svelte";
   import TagPicker from "../relics/TagPicker.svelte";
-  import { facetTypes } from "../relics/typeFacets";
+  import FilterChips from "../relics/FilterChips.svelte";
+  import { facetTypes, facetKeyOf, baseType } from "../relics/typeFacets";
   import RelicWorkbench from "../relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort } from "../relics/sort";
@@ -84,6 +85,7 @@
   emptyText={filtered ? "No relics match these filters." : "No relics on this instance yet."}
   emptyAction={filtered ? { href: PATH, label: "Clear filters" } : null}
   ontag={(t) => navigate(withParams({ tag: t }))}
+  ontype={(r) => navigate(withParams({ type: baseType(r.content_type) }))}
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
     <PageBar title="Relics" count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
@@ -97,8 +99,9 @@
         {#if tag}
           <span class="r-chip-filter">#{tag}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+        <FilterChips {type} hrefFor={withParams} />
         <span class="r-pagebar-sep"></span>
-        <TypeFacets active={type} types={feed.facets?.types} showCounts={filtered} hrefFor={(t) => withParams({ type: t })} />
+        <TypeFacets active={facetKeyOf(type)} types={feed.facets?.types} showCounts={filtered} hrefFor={(t) => withParams({ type: t })} />
       {/snippet}
       {#snippet options()}
         <label class="r-pagebar-opt">visibility

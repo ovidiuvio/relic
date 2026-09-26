@@ -33,7 +33,8 @@ const routes = [
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
-      typeFilter: urlParams.get('type')
+      typeFilter: urlParams.get('type'),
+      ownerFilter: urlParams.get('owner')
     })
   },
   {
@@ -55,7 +56,8 @@ const routes = [
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
-      typeFilter: urlParams.get('type')
+      typeFilter: urlParams.get('type'),
+      ownerFilter: urlParams.get('owner')
     })
   },
   {
@@ -77,7 +79,8 @@ const routes = [
       spaceId: match[1],
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
-      typeFilter: urlParams.get('type')
+      typeFilter: urlParams.get('type'),
+      ownerFilter: urlParams.get('owner')
     })
   },
   {

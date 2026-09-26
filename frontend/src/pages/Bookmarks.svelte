@@ -6,7 +6,8 @@
   import PageBar from "../lib/shell/PageBar.svelte";
   import TypeFacets from "../lib/relics/TypeFacets.svelte";
   import TagPicker from "../lib/relics/TagPicker.svelte";
-  import { facetTypes } from "../lib/relics/typeFacets";
+  import FilterChips from "../lib/relics/FilterChips.svelte";
+  import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
@@ -17,7 +18,7 @@
   import { showToast } from "../stores/toastStore";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null, typeFilter = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
 
   const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks", facets: true });
 
@@ -27,7 +28,7 @@
 
   // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
   $effect(() => {
-    const params = { tag: tagFilter || undefined, search: search || undefined, types: typesParam, ...sortParams(sort) };
+    const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, types: typesParam, ...sortParams(sort) };
     untrack(() => feed.reset(params));
   });
 
@@ -69,7 +70,7 @@
     { icon: "bookmark", title: "Remove bookmark", run: removeRow },
   ];
 
-  const filtered = $derived(!!(search || tagFilter || typeFilter));
+  const filtered = $derived(!!(search || tagFilter || typeFilter || ownerFilter));
 </script>
 
 <RelicWorkbench
@@ -85,10 +86,12 @@
   emptyText={filtered ? "None of your bookmarks match these filters." : "No bookmarks yet. Bookmark a relic to keep it here."}
   emptyAction={filtered ? { href: "/my-bookmarks", label: "Clear filters" } : { href: "/recent", label: "Browse recent relics" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}
+  onowner={(r) => navigate(withParams({ owner: r.owner_public_id }))}
+  ontype={(r) => navigate(withParams({ type: baseType(r.content_type) }))}
   onbookmark={(relic, bookmarked) => !bookmarked && removed(relic)}
 >
   {#snippet pagebar({ inspectorOpen, toggleInspector })}
-    <PageBar title={search || tagFilter ? "Results" : "Bookmarks"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
+    <PageBar title={search || tagFilter || ownerFilter ? "Results" : "Bookmarks"} count={feed.total} {inspectorOpen} ontoggleinspector={toggleInspector}>
       {#snippet filters()}
         {#if search}
           <span class="r-chip-filter">{search}<button onclick={() => navigate(withParams({ search: null }))} aria-label="Clear search"><Icon name="x" /></button></span>
@@ -96,8 +99,9 @@
         {#if tagFilter}
           <span class="r-chip-filter">#{tagFilter}<button onclick={() => navigate(withParams({ tag: null }))} aria-label="Clear tag filter"><Icon name="x" /></button></span>
         {/if}
+        <FilterChips owner={ownerFilter} type={typeFilter} relics={feed.items} hrefFor={withParams} />
       <span class="r-pagebar-sep"></span>
-        <TypeFacets active={typeFilter} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
+        <TypeFacets active={facetKeyOf(typeFilter)} types={feed.facets?.types} showCounts={filtered} hrefFor={(type) => withParams({ type })} />
       {/snippet}
       {#snippet options()}
         <TagPicker active={tagFilter} tags={feed.facets?.tags} hrefFor={(tag) => withParams({ tag })} />
