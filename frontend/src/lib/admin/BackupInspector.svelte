@@ -13,6 +13,7 @@
   import { showToast } from "../../stores/toastStore";
   import { formatBytes } from "../../services/typeUtils";
   import { fullDate, relativeTime } from "../relics/format";
+  import { backupTime } from "./adminState";
 
   let {
     target = null,
@@ -126,7 +127,7 @@
     {#if logs}
       <span class="r-mono">{logs.filename}</span>
     {:else}
-      {#if isUpload}<span class="r-pill"><Icon name="upload" />From this computer</span>{:else}<span>{relativeTime(target.timestamp)}</span>{/if}
+      {#if isUpload}<span class="r-pill"><Icon name="upload" />From this computer</span>{:else}<span>{relativeTime(backupTime(target))}</span>{/if}
       <span>{formatBytes(target.size_bytes)}</span>
     {/if}
   {/snippet}
@@ -147,7 +148,7 @@
       <div class="r-confirm ins-pad-confirm">
         <b>Restore the database from {target.filename}?</b>
         <span>
-          Everything in the database now is replaced with this backup’s contents{#if !isUpload}, from {fullDate(target.timestamp)}{/if}.
+          Everything in the database now is replaced with this backup’s contents{#if !isUpload}, from {fullDate(backupTime(target))}{/if}.
           Open connections are closed; the service stays up and shows the restored data straight away. This can’t be undone.
         </span>
         <label class="restore-type">
@@ -164,7 +165,7 @@
     <InsSection id="admin-backup-details" title="Details" defaultOpen>
       <dl class="r-kv">
         <dt>File</dt><dd class="r-mono" title={target.filename}>{target.filename}</dd>
-        {#if !isUpload}<dt>Taken</dt><dd>{fullDate(target.timestamp)}</dd>{/if}
+        {#if !isUpload}<dt>Taken</dt><dd>{fullDate(backupTime(target))}</dd>{/if}
         <dt>Size</dt><dd>{formatBytes(target.size_bytes)}</dd>
         <dt>Stored</dt><dd>{isUpload ? "This computer" : "Backup storage (S3)"}</dd>
       </dl>

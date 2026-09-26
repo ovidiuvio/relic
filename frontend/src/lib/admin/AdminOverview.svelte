@@ -8,7 +8,7 @@
   import Workbench from "../shell/Workbench.svelte";
   import InsSection from "../relics/inspector/InsSection.svelte";
   import { InspectorPanel } from "../shell/inspectorPanel.svelte.js";
-  import { adminStats, lastBackup, refreshAdminStats, refreshLastBackup } from "./adminState";
+  import { adminStats, lastBackup, refreshAdminStats, refreshLastBackup, backupTime } from "./adminState";
   import { runStatus } from "./jobs";
   import { getAdminJobs, getAdminReports } from "../../services/api";
   import { formatBytes } from "../../services/typeUtils";
@@ -41,7 +41,7 @@
   const n = (v) => (v ?? 0).toLocaleString("en-US");
   const plural = (v, one, many = `${one}s`) => `${n(v)} ${v === 1 ? one : many}`;
   // A backup older than two days is worth a look.
-  const backupStale = $derived(!!$lastBackup && Date.now() - new Date($lastBackup.timestamp) > 2 * 86400000);
+  const backupStale = $derived(!!$lastBackup && Date.now() - new Date(backupTime($lastBackup)) > 2 * 86400000);
 
   const health = $derived([
     {
@@ -54,7 +54,7 @@
     {
       label: "Last backup",
       dot: $lastBackup === undefined ? "r-dot-idle" : !$lastBackup || backupStale ? "r-dot-warning" : "",
-      state: $lastBackup === undefined ? "…" : $lastBackup ? relativeTime($lastBackup.timestamp) : "None yet",
+      state: $lastBackup === undefined ? "…" : $lastBackup ? relativeTime(backupTime($lastBackup)) : "None yet",
       detail: $lastBackup ? `${$lastBackup.filename} · ${formatBytes($lastBackup.size_bytes)}` : "",
       link: { href: "/admin/backups", label: "Backups" },
     },

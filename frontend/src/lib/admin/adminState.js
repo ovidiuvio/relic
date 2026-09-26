@@ -29,3 +29,7 @@ export async function refreshLastBackup() {
 
 /** { id, publicId, label } of the user the Relics section shows, or null for everyone. */
 export const relicOwner = writable(null);
+
+/** When a backup was taken. Startup and shutdown backups have no time in their file name (the
+ *  API reports noon for them), so the storage's last-modified time is the real one. */
+export const backupTime = (backup) => backup?.last_modified || backup?.timestamp;

@@ -9,7 +9,7 @@
   import { PagedFeed } from "../data/PagedFeed.svelte.js";
   import { InspectorPanel } from "../shell/inspectorPanel.svelte.js";
   import { layout } from "../shell/layout";
-  import { refreshAdminStats, refreshLastBackup } from "./adminState";
+  import { refreshAdminStats, refreshLastBackup, backupTime } from "./adminState";
   import { getAdminBackups, createAdminBackup, downloadAdminBackup } from "../../services/api";
   import { showToast } from "../../stores/toastStore";
   import { formatBytes } from "../../services/typeUtils";
@@ -134,9 +134,9 @@
       {#if c.key === "filename"}
         <Icon name="database" size={13} />{backup.filename}
       {:else if c.key === "timestamp"}
-        {fullDate(backup.timestamp)}
+        {fullDate(backupTime(backup))}
       {:else if c.key === "age"}
-        {relativeTime(backup.timestamp)}
+        {relativeTime(backupTime(backup))}
       {:else if c.key === "size_bytes"}
         {formatBytes(backup.size_bytes)}
       {/if}
