@@ -2,6 +2,7 @@
   // The 28px bar under a relic: where it is and what it is on the left, the current renderer's
   // view toggles on the right (only the ones that apply), then the inspector toggle.
   import Icon from "../ui/Icon.svelte";
+  import FontSizeSelect from "../ui/FontSizeSelect.svelte";
   import { compactBytes } from "../relics/format";
   import { getTypeLabel } from "../../services/typeUtils";
 
@@ -20,7 +21,6 @@
     ontoggleinspector,
   } = $props();
 
-  const FONT_SIZES = [11, 12, 13, 14, 15, 16, 18, 20, 24];
   const TREE_PAGES = [25, 50, 100, 250, 500];
 
   const type = $derived(processed?.type);
@@ -98,12 +98,7 @@
   {/if}
 
   {#if hasText || type === "archive"}
-    <label class="vs-select" title="Font size">
-      <Icon name="type" />
-      <select value={prefs.fontSize} onchange={(e) => prefs.set("fontSize", Number(e.currentTarget.value))} aria-label="Font size">
-        {#each FONT_SIZES.includes(prefs.fontSize) ? FONT_SIZES : [...FONT_SIZES, prefs.fontSize].sort((a, b) => a - b) as n (n)}<option value={n}>{n}px</option>{/each}
-      </select>
-    </label>
+    <FontSizeSelect value={prefs.fontSize} onchange={(n) => prefs.set("fontSize", n)} />
     <button aria-pressed={prefs.darkMode} onclick={() => prefs.toggle("darkMode")} title={prefs.darkMode ? "Dark theme (on)" : "Dark theme"}><Icon name="moon" /></button>
   {/if}
 

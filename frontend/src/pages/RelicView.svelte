@@ -198,9 +198,12 @@
   const inspectorOpen = $derived(panel.isOpen($layout.dock, true));
   const binary = $derived(relic ? isBinaryType(relic.content_type) : false);
 
+  // The relic's link as it stands, keeping selected lines (#L12-L20), like the old Share link.
+  const currentLink = () => `${location.origin}${location.pathname}${location.hash}`;
+
   function onKeydown(event) {
     if (event.key === "y" && relic && !archive) {
-      copyToClipboard(`${location.origin}/${relic.id}`, "Link copied");
+      copyToClipboard(currentLink(), "Link copied");
     }
   }
 </script>
@@ -245,7 +248,7 @@
       {#if !inspectorOpen}
         <div class="r-float view-float" role="toolbar" aria-label="Relic actions">
           {#if !archive}
-            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={() => copyToClipboard(`${location.origin}/${relic.id}`, "Link copied")} title="Copy link (y)" aria-label="Copy link"><Icon name="link" /></button>
+            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={() => copyToClipboard(currentLink(), "Link copied")} title="Copy link (y)" aria-label="Copy link"><Icon name="link" /></button>
             <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={() => copyRelicContent(relic.id)} disabled={binary} title="Copy content" aria-label="Copy content"><Icon name="copy" /></button>
             <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={() => downloadRelic(relic.id, relic.name, relic.content_type)} title="Download" aria-label="Download"><Icon name="download" /></button>
           {/if}
@@ -279,6 +282,7 @@
           deletable={!!relic.can_edit || $session.isAdmin}
           ontag={(tag) => navigate(`/recent?tag=${encodeURIComponent(tag)}`)}
           onfork={() => (forking = true)}
+          linkUrl={currentLink}
           onupdated={onUpdated}
           ondeleted={onDeleted}
           onclose={close}

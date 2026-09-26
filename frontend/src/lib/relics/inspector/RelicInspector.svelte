@@ -12,11 +12,11 @@
   import EditForm from "./EditForm.svelte";
   import SpacesSection from "./SpacesSection.svelte";
   import ReportForm from "./ReportForm.svelte";
-  import { checkBookmark, addBookmark, removeBookmark, deleteRelic } from "../../../services/api";
+  import { checkBookmark, addBookmark, removeBookmark, deleteRelic, updateRelic } from "../../../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../../../services/relicActions";
   import { isBinaryType } from "../../../services/typeUtils";
   import { showToast } from "../../../stores/toastStore";
-  import { typeBadge, tagName, fullDate, shortDate, clockTime, expiryMarker, dayGroup } from "../format";
+  import { typeBadge, tagName, fullDate, shortDate, clockTime, expiryMarker, dayGroup, counterLevel } from "../format";
 
   let {
     relic = null,
@@ -24,6 +24,7 @@
     editable = false,
     deletable = editable, // owners, and Relic admins for any relic
     onfork = null, // (relic) instead of a fast fork (the viewer opens the fork form)
+    linkUrl = null, // () => the link Copy link copies; the viewer reads the current address, keeping selected lines (#L12)
     ontag,
     onclose,
     onupdated, // (relic) after an edit
@@ -42,6 +43,7 @@
     mode = "view";
     confirming = false;
     reporting = false;
+    opened = null;
   });
 
   // Requests from the list: the Edit and Delete row actions.
@@ -106,8 +108,13 @@
       // A page that reacts to bookmark changes reports them itself (Bookmarks offers Undo).
       if (onbookmark) onbookmark(relic, !was);
       else showToast(was ? "Removed from bookmarks" : "Bookmarked", "success");
-    } catch {
-      showToast("Couldn’t update the bookmark", "error");
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 409) {
+        bookmarked = true;
+        showToast("Already bookmarked", "info");
+      } else if (status === 401) showToast("Bookmarking needs your user key", "error");
+      else showToast("Couldn’t update the bookmark", "error");
     } finally {
       bookmarkBusy = false;
     }
@@ -128,6 +135,38 @@
   });
 
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+  // Counters as in the old header, coloured by the list's levels; each opens its section.
+  const counters = $derived(
+    relic
+      ? [
+          { key: "views", icon: "eye", n: relic.access_count ?? 0, views: true, label: "views" },
+          { key: "bookmarkers", icon: "bookmark", n: bookmarks, label: "bookmarks" },
+          { key: "comments", icon: "msg", n: relic.comments_count ?? 0, label: "comments" },
+          { key: "lineage", icon: "fork", n: relic.forks_count ?? 0, label: "forks" },
+        ].filter((c) => c.n > 0)
+      : []
+  );
+  let opened = $state(null); // a section a counter asked for: { id, n }
+  const sectionFocus = $derived(opened ?? focus);
+
+  // Owners remove a tag straight from the Tags section (as the old header's × did).
+  async function removeTag(tag) {
+    const next = tags.filter((t) => t !== tag);
+    try {
+      const { data } = await updateRelic(relic.id, { tags: next });
+      onupdated?.({ ...relic, tags: data.tags ?? next.map((name) => ({ name })) });
+      showToast(`Removed #${tag}`, "success", 3000, {
+        label: "Undo",
+        run: async () => {
+          const { data: back } = await updateRelic(relic.id, { tags: [...next, tag] });
+          onupdated?.({ ...relic, tags: back.tags });
+        },
+      });
+    } catch {
+      showToast("Couldn’t remove the tag", "error");
+    }
+  }
 </script>
 
 <aside class="r-inspector" aria-label="Relic details">
@@ -171,7 +210,7 @@
       </button>
 
       <div class="r-ins-actions">
-        <button class="r-btn r-btn-primary r-btn-md" onclick={() => copyToClipboard(`${location.origin}/${relic.id}`, "Link copied")}>
+        <button class="r-btn r-btn-primary r-btn-md" onclick={() => copyToClipboard(linkUrl?.() ?? `${location.origin}/${relic.id}`, "Link copied")}>
           <Icon name="link" />Copy link
         </button>
         <button class="r-btn r-btn-secondary r-btn-md r-btn-icon" onclick={() => copyRelicContent(relic.id)} disabled={binary} title={binary ? "Binary content can’t be copied as text" : "Copy content"} aria-label="Copy content">
@@ -198,7 +237,11 @@
       </div>
 
       <div class="r-ins-meta">
-        <span class="r-pill" class:r-pill-accent={relic.access_level === "public"} title={vis.hint}><Icon name={vis.icon} />{vis.label}</span>
+        {#if editable}
+          <button class="r-pill ins-pill" class:r-pill-accent={relic.access_level === "public"} onclick={() => (mode = "edit")} title="{vis.hint}. Change visibility"><Icon name={vis.icon} />{vis.label}<Icon name="chev" /></button>
+        {:else}
+          <span class="r-pill" class:r-pill-accent={relic.access_level === "public"} title={vis.hint}><Icon name={vis.icon} />{vis.label}</span>
+        {/if}
         {#if expiry}
           <span class="r-pill" class:r-pill-warning={expiry.soon} title={fullDate(relic.expires_at)}><Icon name="clock" />{expiry.text}</span>
         {:else}
@@ -206,6 +249,20 @@
         {/if}
         <span>{editable ? "You" : relic.owner_name || "Anonymous"} · {when}</span>
       </div>
+
+      {#if counters.length}
+        <div class="ins-counters">
+          {#each counters as c (c.key)}
+            {#if c.views}
+              <span class="ins-count" data-level={counterLevel(c.n, true)} title="{c.n} {c.label}"><Icon name={c.icon} />{c.n}</span>
+            {:else}
+              <button class="ins-count" data-level={counterLevel(c.n)} title="{c.n} {c.label}: show" onclick={() => (opened = { id: c.key, n: (opened?.n ?? 0) + 1 })}>
+                <Icon name={c.icon} />{c.n}
+              </button>
+            {/if}
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <div class="r-ins-body">
@@ -234,7 +291,12 @@
         {#if tags.length}
           <div class="ins-tags">
             {#each tags as tag (tag)}
-              <button class="r-chip-tag ins-tag" onclick={() => ontag?.(tag)} title="Show relics tagged #{tag}"><Icon name="hash" />{tag}</button>
+              <span class="ins-tag-wrap">
+                <button class="r-chip-tag ins-tag" onclick={() => ontag?.(tag)} title="Show relics tagged #{tag}"><Icon name="hash" />{tag}</button>
+                {#if editable}
+                  <button class="ins-untag" onclick={() => removeTag(tag)} title="Remove tag" aria-label="Remove tag {tag}"><Icon name="x" size={11} /></button>
+                {/if}
+              </span>
             {/each}
           </div>
         {:else}
@@ -243,15 +305,15 @@
       </InsSection>
 
       {#key relic.id}
-        <InsSection id="lineage" {focus} title="Lineage" aside={relic.fork_of ? `a fork · ${plural(relic.forks_count ?? 0, "fork")}` : `original · ${plural(relic.forks_count ?? 0, "fork")}`}>
+        <InsSection id="lineage" focus={sectionFocus} title="Lineage" aside={relic.fork_of ? `a fork · ${plural(relic.forks_count ?? 0, "fork")}` : `original · ${plural(relic.forks_count ?? 0, "fork")}`}>
           <LineageSection relicId={relic.id} />
         </InsSection>
 
-        <InsSection id="bookmarkers" {focus} title="Bookmarked by" aside={bookmarks ? plural(bookmarks, "person", "people") : "nobody yet"}>
+        <InsSection id="bookmarkers" focus={sectionFocus} title="Bookmarked by" aside={bookmarks ? plural(bookmarks, "person", "people") : "nobody yet"}>
           <BookmarkersSection relicId={relic.id} />
         </InsSection>
 
-        <InsSection id="comments" {focus} title="Comments" aside={relic.comments_count ? plural(relic.comments_count, "comment") : "none"}>
+        <InsSection id="comments" focus={sectionFocus} title="Comments" aside={relic.comments_count ? plural(relic.comments_count, "comment") : "none"}>
           <CommentsSection relicId={relic.id} />
         </InsSection>
 
@@ -265,14 +327,12 @@
           <SpacesSection relicId={relic.id} />
         </InsSection>
 
-        <InsSection id="more" focus={confirming ? { id: "more", n: focus?.n ?? 0 } : focus} title="More" aside={[editable && "edit", deletable && "delete", !editable && "report"].filter(Boolean).join(" · ")}>
+        <InsSection id="more" focus={confirming ? { id: "more", n: focus?.n ?? 0 } : focus} title="More" aside={[editable && "edit", deletable && "delete", "report"].filter(Boolean).join(" · ")}>
             <div class="ins-more-actions">
               {#if editable}
                 <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (mode = "edit")}><Icon name="edit" />Edit details</button>
               {/if}
-              {#if !editable}
-                <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (reporting = true)} disabled={reporting}><Icon name="flag" />Report</button>
-              {/if}
+              <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (reporting = true)} disabled={reporting}><Icon name="flag" />Report</button>
               {#if deletable}
                 <button class="r-btn r-btn-danger-text r-btn-md" onclick={() => (confirming = true)} disabled={confirming}><Icon name="trash" />Delete</button>
               {/if}
@@ -349,6 +409,71 @@
   }
   .ins-empty p {
     margin: 0;
+  }
+  .ins-pill {
+    border: 0;
+    cursor: pointer;
+  }
+  .ins-pill:hover {
+    filter: brightness(0.96);
+  }
+  .ins-counters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    margin-top: var(--space-2);
+  }
+  .ins-count {
+    --level: var(--ink-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--level);
+    font: 12.5px var(--font-mono);
+  }
+  .ins-count :global(.r-icon) {
+    width: 13px;
+    height: 13px;
+  }
+  button.ins-count {
+    cursor: pointer;
+  }
+  button.ins-count:hover {
+    text-decoration: underline;
+  }
+  .ins-count[data-level] {
+    font-weight: 700;
+  }
+  .ins-count[data-level="low"] {
+    --level: var(--type-doc);
+  }
+  .ins-count[data-level="medium"] {
+    --level: var(--warning);
+  }
+  .ins-count[data-level="high"] {
+    --level: var(--danger);
+  }
+  .ins-tag-wrap {
+    display: inline-flex;
+    align-items: center;
+  }
+  .ins-untag {
+    display: grid;
+    place-items: center;
+    margin-left: -4px;
+    padding: 3px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: none;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .ins-untag:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
   }
   .ins-tags {
     display: flex;

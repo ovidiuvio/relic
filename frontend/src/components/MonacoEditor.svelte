@@ -180,7 +180,9 @@
       });
 
       editor.onDidBlurEditorText(() => {
-        isFocused = false;
+        // Blur also fires while the page is being torn down (e.g. navigating away on submit);
+        // writing state then is an error, so defer it.
+        queueMicrotask(() => (isFocused = false));
       });
 
       // Check for line number fragment on mount
