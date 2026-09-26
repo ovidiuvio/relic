@@ -11,7 +11,7 @@
   import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
-  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
+  import { nextSort, sortParams, sortQuery, parseSort } from "../lib/relics/sort";
   import { listRelics } from "../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../services/relicActions";
   import { getFilesFromDrop } from "../services/utils/fileProcessing";
@@ -19,13 +19,14 @@
   import { navigate } from "../utils/navigation";
   import { filterUrl } from "../lib/relics/filters";
 
-  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null } = $props();
 
   const feed = new PagedFeed((params) => listRelics(params).then((r) => r.data), { facets: true });
 
   // The type facet as the content types to send; derived, so new counts don't reload the same list.
   const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
-  let sort = $state(DEFAULT_SORT);
+  // The sort lives in the URL (?sort=size-desc) so links and search history keep it.
+  const sort = $derived(parseSort(sortValue));
 
   $effect(() => {
     const params = {
@@ -63,7 +64,7 @@
   highlight={search || ""}
   {actions}
   {sort}
-  onsort={(key) => (sort = nextSort(sort, key))}
+  onsort={(key) => navigate(withParams({ sort: sortQuery(nextSort(sort, key)) }), { replace: true })}
   emptyText={filtered ? "No public relics match these filters." : "No public relics yet."}
   emptyAction={filtered ? { href: "/recent", label: "Clear filters" } : { href: "/", label: "Create the first one" }}
   ontag={(tag) => navigate(withParams({ tag, search: null }))}

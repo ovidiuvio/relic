@@ -13,7 +13,7 @@
   import SpaceInspector from "../lib/spaces/SpaceInspector.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
   import { InspectorPanel } from "../lib/shell/inspectorPanel.svelte.js";
-  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
+  import { nextSort, sortParams, sortQuery, parseSort } from "../lib/relics/sort";
   import { filterUrl } from "../lib/relics/filters";
   import { refreshSidebar } from "../lib/shell/sidebarData";
   import { layout } from "../lib/shell/layout";
@@ -26,7 +26,7 @@
   import { pageTitle } from "../stores/pageTitle";
   import { navigate } from "../utils/navigation";
 
-  let { spaceId, tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
+  let { spaceId, tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null } = $props();
 
   let space = $state(null);
   let error = $state(null); // HTTP status or "unknown"
@@ -35,7 +35,8 @@
   // The type facet as the content types to send; derived, so new counts don't reload the same list.
   const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
   const panel = new InspectorPanel();
-  let sort = $state(DEFAULT_SORT);
+  // The sort lives in the URL (?sort=size-desc) so links and search history keep it.
+  const sort = $derived(parseSort(sortValue));
   let showSpace = $state(false); // the inspector shows the space instead of a relic
   let spaceMode = $state("view");
 
@@ -49,8 +50,10 @@
     }
   }
 
+  // While the page is leaving for another route, it briefly has that route's props (no spaceId).
   $effect(() => {
     const id = spaceId;
+    if (!id) return;
     untrack(() => {
       space = null;
       showSpace = false;
@@ -63,7 +66,7 @@
   });
 
   // Relics load once the space has: a space you can't open shows its error, not a failed list.
-  const ready = $derived(space?.id === spaceId);
+  const ready = $derived(!!spaceId && space?.id === spaceId);
   $effect(() => {
     const params = { tag: tagFilter || undefined, search: search || undefined, owner: ownerFilter || undefined, types: typesParam, ...sortParams(sort) };
     if (ready) untrack(() => feed.reset(params));
@@ -164,7 +167,7 @@
     highlight={search || ""}
     {actions}
     {sort}
-    onsort={(key) => (sort = nextSort(sort, key))}
+    onsort={(key) => navigate(withParams({ sort: sortQuery(nextSort(sort, key)) }), { replace: true })}
     showPublic
     emptyText={filtered ? "No relics in this space match these filters." : "This space is empty."}
     emptyAction={filtered ? { href: `/spaces/${spaceId}`, label: "Clear filters" } : canAdd ? { href: `/?space=${spaceId}`, label: "Create the first relic here" } : null}

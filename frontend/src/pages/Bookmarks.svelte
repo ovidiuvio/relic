@@ -10,7 +10,7 @@
   import { facetTypes, facetKeyOf, baseType } from "../lib/relics/typeFacets";
   import RelicWorkbench from "../lib/relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../lib/data/PagedFeed.svelte.js";
-  import { DEFAULT_SORT, nextSort, sortParams } from "../lib/relics/sort";
+  import { nextSort, sortParams, sortQuery, parseSort } from "../lib/relics/sort";
   import { filterUrl } from "../lib/relics/filters";
   import { refreshSidebar } from "../lib/shell/sidebarData";
   import { getUserBookmarks, addBookmark, removeBookmark } from "../services/api";
@@ -18,13 +18,14 @@
   import { showToast } from "../stores/toastStore";
   import { navigate } from "../utils/navigation";
 
-  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null } = $props();
+  let { tagFilter = null, search = null, typeFilter = null, ownerFilter = null, sort: sortValue = null } = $props();
 
   const feed = new PagedFeed((params) => getUserBookmarks(params).then((r) => r.data), { rows: "bookmarks", facets: true });
 
   // The type facet as the content types to send; derived, so new counts don't reload the same list.
   const typesParam = $derived(facetTypes(typeFilter, feed.facets?.types));
-  let sort = $state(DEFAULT_SORT);
+  // The sort lives in the URL (?sort=size-desc) so links and search history keep it.
+  const sort = $derived(parseSort(sortValue));
 
   // The API sorts "created_at" by when you bookmarked, which is what the date column shows.
   $effect(() => {
@@ -81,7 +82,7 @@
   highlight={search || ""}
   {actions}
   {sort}
-  onsort={(key) => (sort = nextSort(sort, key))}
+  onsort={(key) => navigate(withParams({ sort: sortQuery(nextSort(sort, key)) }), { replace: true })}
   showPublic
   emptyText={filtered ? "None of your bookmarks match these filters." : "No bookmarks yet. Bookmark a relic to keep it here."}
   emptyAction={filtered ? { href: "/my-bookmarks", label: "Clear filters" } : { href: "/recent", label: "Browse recent relics" }}

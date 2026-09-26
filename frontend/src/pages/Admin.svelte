@@ -22,7 +22,7 @@
   import { pageTitle } from "../stores/pageTitle";
   import { checkAdminStatus } from "../services/api";
 
-  let { tab = "overview", search = null, tag = null, visibility = null, type = null } = $props();
+  let { tab = "overview", search = null, tag = null, visibility = null, type = null, sort = null } = $props();
 
   let access = $state(knownAdmin ? "admin" : "checking"); // "checking" | "admin" | "denied"
 
@@ -70,7 +70,7 @@
       {/if}
       {#key section.key}
         {#if section.key === "overview"}<AdminOverview />
-        {:else if section.key === "relics"}<AdminRelics {search} {tag} {visibility} {type} />
+        {:else if section.key === "relics"}<AdminRelics {search} {tag} {visibility} {type} {sort} />
         {:else if section.key === "users"}<AdminUsers {search} />
         {:else if section.key === "reports"}<AdminReports />
         {:else if section.key === "backups"}<AdminBackups />

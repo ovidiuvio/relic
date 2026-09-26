@@ -34,7 +34,8 @@ const routes = [
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
-      ownerFilter: urlParams.get('owner')
+      ownerFilter: urlParams.get('owner'),
+      sort: urlParams.get('sort')
     })
   },
   {
@@ -45,7 +46,8 @@ const routes = [
     getProps: (match, urlParams) => ({
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
-      typeFilter: urlParams.get('type')
+      typeFilter: urlParams.get('type'),
+      sort: urlParams.get('sort')
     })
   },
   {
@@ -57,7 +59,8 @@ const routes = [
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
-      ownerFilter: urlParams.get('owner')
+      ownerFilter: urlParams.get('owner'),
+      sort: urlParams.get('sort')
     })
   },
   {
@@ -80,7 +83,8 @@ const routes = [
       tagFilter: urlParams.get('tag'),
       search: urlParams.get('search'),
       typeFilter: urlParams.get('type'),
-      ownerFilter: urlParams.get('owner')
+      ownerFilter: urlParams.get('owner'),
+      sort: urlParams.get('sort')
     })
   },
   {
@@ -93,7 +97,8 @@ const routes = [
       search: urlParams.get('search'),
       tag: urlParams.get('tag'),
       visibility: urlParams.get('visibility'),
-      type: urlParams.get('type')
+      type: urlParams.get('type'),
+      sort: urlParams.get('sort')
     })
   },
   {

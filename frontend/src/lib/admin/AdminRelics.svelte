@@ -11,14 +11,14 @@
   import { facetTypes, facetKeyOf, baseType } from "../relics/typeFacets";
   import RelicWorkbench from "../relics/RelicWorkbench.svelte";
   import { PagedFeed } from "../data/PagedFeed.svelte.js";
-  import { DEFAULT_SORT, nextSort } from "../relics/sort";
+  import { nextSort, sortQuery, parseSort } from "../relics/sort";
   import { filterUrl } from "../relics/filters";
   import { relicOwner, refreshAdminStats } from "./adminState";
   import { getAdminRelics } from "../../services/api";
   import { copyRelicContent, downloadRelic, copyToClipboard } from "../../services/relicActions";
   import { navigate } from "../../utils/navigation";
 
-  let { search = null, tag = null, visibility = null, type = null } = $props();
+  let { search = null, tag = null, visibility = null, type = null, sort: sortValue = null } = $props();
 
   const PATH = "/admin/relics";
   const VISIBILITIES = [
@@ -38,7 +38,7 @@
     { facets: true }
   );
   const typesParam = $derived(facetTypes(type, feed.facets?.types));
-  let sort = $state(DEFAULT_SORT);
+  const sort = $derived(parseSort(sortValue, Object.keys(SORT_FIELDS)));
 
   $effect(() => {
     const params = {
@@ -77,7 +77,7 @@
   {actions}
   {sort}
   sortable={Object.keys(SORT_FIELDS)}
-  onsort={(key) => (sort = nextSort(sort, key))}
+  onsort={(key) => navigate(withParams({ sort: sortQuery(nextSort(sort, key)) }), { replace: true })}
   deletable
   showPublic
   onowner={showOwner}
