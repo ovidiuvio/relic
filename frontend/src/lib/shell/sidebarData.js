@@ -24,7 +24,10 @@ export function refreshSidebar() {
       spacesApi.list({ category: "my", sort_by: "name", sort_order: "asc", limit: MAX_SPACES }),
       spacesApi.list({ category: "shared", sort_by: "name", sort_order: "asc", limit: MAX_SPACES }),
     ]);
-    const yours = [...(total(own)?.spaces ?? []), ...(total(shared)?.spaces ?? [])].slice(0, MAX_SPACES);
+    // Own and shared spaces sorted together, so neither crowds the other out of the cut.
+    const yours = [...(total(own)?.spaces ?? []), ...(total(shared)?.spaces ?? [])]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .slice(0, MAX_SPACES);
     sidebarData.set({
       counts: { recent: total(recent), mine: total(mine), bookmarks: total(bookmarks), spaces: total(all) },
       spaces: yours,

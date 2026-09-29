@@ -1,6 +1,6 @@
 <script>
   // Wide-screen navigation (≥1600px): Relics and Spaces groups, each heading carrying its
-  // create action, your spaces, the searches you pinned, and Admin at the foot. Below 1600px the
+  // create action, the spaces and searches you pinned, and Admin at the foot. Below 1600px the
   // navbar tabs do this job (and pinned searches are in the search bar's panel).
   import Icon from "../ui/Icon.svelte";
   import { navigate } from "../../utils/navigation";
@@ -8,6 +8,7 @@
   import { sidebarData, refreshSidebar } from "./sidebarData";
   import { compactNumber } from "../relics/format";
   import { searchHistory } from "../search/history.svelte.js";
+  import { pinnedSpaces } from "./pinnedSpaces.svelte.js";
 
   let { section, routeProps = {} } = $props();
 
@@ -31,13 +32,10 @@
     { section: "my-bookmarks", path: "/my-bookmarks", icon: "bookmark", label: "Bookmarks", count: counts.bookmarks },
   ]);
 
-  // A stable colour per space, from the type palette, so a space is recognisable at a glance.
-  const DOTS = ["code", "doc", "data", "archive", "image", "web", "text"];
-  function dotFor(id) {
-    let h = 0;
-    for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return `var(--type-${DOTS[h % DOTS.length]})`;
-  }
+  // A pinned space shows the name the server sent last when the sidebar knows it.
+  const pinned = $derived(
+    pinnedSpaces.list.map((p) => ({ ...p, ...($sidebarData.spaces.find((s) => s.id === p.id) ?? {}) }))
+  );
 
   const current = (s) => (section === s ? "page" : undefined);
 </script>
@@ -67,17 +65,16 @@
     <a href="/spaces" aria-current={current("spaces")}>
       <Icon name="layers" />All spaces<em>{compactNumber(counts.spaces)}</em>
     </a>
-    {#each $sidebarData.spaces as space (space.id)}
+    {#each pinned as space (space.id)}
       <a
         class="sb-sub"
         href="/spaces/{space.id}"
         aria-current={section === "space-view" && routeProps.spaceId === space.id ? "page" : undefined}
         title={space.name}
       >
-        <span class="sb-dot" style:background={dotFor(space.id)}></span>
+        <Icon name="layers" size={12} />
         <span class="sb-name">{space.name}</span>
         {#if space.visibility === "private"}<Icon name="lock" size={12} />{/if}
-        <em>{compactNumber(space.relic_count)}</em>
       </a>
     {/each}
   </nav>
@@ -188,13 +185,6 @@
   .sb-sub :global(.r-icon) {
     width: 12px;
     height: 12px;
-  }
-  .sb-dot {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    margin: 0 3px;
-    border-radius: 2px;
   }
   .sb-name {
     min-width: 0;

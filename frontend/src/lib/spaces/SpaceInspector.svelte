@@ -9,6 +9,7 @@
   import { navigate } from "../../utils/navigation";
   import { canAddRelics, canManagePeople, canConfigure, canSeePeople, roleLabel } from "./roles";
   import { session } from "../../stores/session";
+  import { pinnedSpaces } from "../shell/pinnedSpaces.svelte.js";
   import { fullDate, compactNumber } from "../relics/format";
 
   let {
@@ -80,6 +81,15 @@
         {/if}
         <button class={showOpen ? "r-btn r-btn-secondary r-btn-md" : "r-btn r-btn-primary r-btn-md"} onclick={() => copyToClipboard(link, "Space link copied")}>
           <Icon name="link" />Copy link
+        </button>
+        <button
+          class="r-btn r-btn-secondary r-btn-md r-btn-icon"
+          aria-pressed={pinnedSpaces.has(space.id)}
+          onclick={() => pinnedSpaces.toggle(space)}
+          title={pinnedSpaces.has(space.id) ? "Unpin from the sidebar" : "Pin to the sidebar"}
+          aria-label={pinnedSpaces.has(space.id) ? "Unpin from the sidebar" : "Pin to the sidebar"}
+        >
+          <Icon name="pin" />
         </button>
         {#if canAddRelics(space)}
           <button class="r-btn r-btn-secondary r-btn-md" onclick={() => navigate(`/?space=${space.id}`)}><Icon name="plus" />New relic here</button>
