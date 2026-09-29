@@ -2,6 +2,7 @@
   // Inspector mode for a space: "New space" (space = null) or "Space settings". Settings also
   // hold ownership transfer and deleting, each confirmed in place. Ctrl+Enter saves, Esc cancels.
   import Icon from "../ui/Icon.svelte";
+  import VisibilityField from "../relics/fields/VisibilityField.svelte";
   import { spaces as spacesApi } from "../../services/api";
   import { showToast } from "../../stores/toastStore";
 
@@ -104,18 +105,7 @@
       <span class="r-input"><input bind:value={form.name} placeholder="Platform team" autofocus={creating} /></span>
     </label>
 
-    <div class="r-field" role="radiogroup" aria-labelledby="space-vis">
-      <span class="r-label" id="space-vis">Visibility</span>
-      <div class="r-options space-options">
-        {#each VISIBILITY as v (v.value)}
-          <label class="r-option">
-            <input type="radio" class="r-radio" name="space-visibility" value={v.value} bind:group={form.visibility} />
-            <b><Icon name={v.icon} />{v.label}</b>
-            <small>{v.hint}</small>
-          </label>
-        {/each}
-      </div>
-    </div>
+    <VisibilityField bind:value={form.visibility} name="space-visibility" options={VISIBILITY} />
 
     {#if !creating}
       <div class="r-field danger-zone">
@@ -167,9 +157,6 @@
     flex-direction: column;
     flex: 1;
     min-height: 0;
-  }
-  .space-options {
-    grid-template-columns: repeat(2, 1fr);
   }
   .danger-zone {
     gap: var(--space-2);
