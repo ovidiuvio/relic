@@ -123,11 +123,6 @@
   .ins-confirm {
     margin: var(--space-3) var(--space-4) 0;
   }
-  .r-confirm.is-mild {
-    border-color: var(--line-2);
-    background: var(--subtle);
-    color: var(--ink-2);
-  }
   .reason {
     margin: 0;
     color: var(--ink);
@@ -135,12 +130,5 @@
     line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-  }
-  .r-kv button.r-link {
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    cursor: pointer;
   }
 </style>

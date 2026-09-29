@@ -227,8 +227,13 @@
         <button class="r-btn r-btn-secondary r-btn-md r-btn-icon" onclick={() => downloadRelic(relic.id, relic.name, relic.content_type)} title="Download" aria-label="Download">
           <Icon name="download" />
         </button>
-        <button class="r-btn r-btn-secondary r-btn-md" onclick={() => (onfork ? onfork(relic) : fastForkRelic(relic))} title="Fork: make your own copy">
-          <Icon name="fork" />Fork
+        <button
+          class="r-btn r-btn-secondary r-btn-md"
+          onclick={() => (onfork ? onfork(relic) : fastForkRelic(relic))}
+          title="Fork: make your own copy ({plural(relic.forks_count ?? 0, "fork")})"
+          aria-label="Fork"
+        >
+          <Icon name="fork" />{relic.forks_count ?? 0}
         </button>
         <button
           class="r-btn r-btn-secondary r-btn-md"
@@ -385,12 +390,6 @@
 </aside>
 
 <style>
-  .r-kv dd button.r-link {
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-  }
   .ins-more-actions {
     display: flex;
     gap: var(--space-1\.5);

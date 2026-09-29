@@ -150,13 +150,6 @@
     font-family: var(--font-mono);
     font-size: 14px;
   }
-  .r-kv .r-link {
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    cursor: pointer;
-  }
   .ins-key {
     display: flex;
     align-items: center;

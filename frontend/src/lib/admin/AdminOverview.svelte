@@ -132,7 +132,7 @@
           <h2>Recent activity</h2>
           <p>Since the server started</p>
         </div>
-        {#if close}<button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={close} aria-label="Hide inspector"><Icon name="x" /></button>{/if}
+        {#if close}<button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={close} title="Hide inspector ( ] )" aria-label="Hide inspector"><Icon name="x" /></button>{/if}
       </div>
       <div class="r-ins-body">
         <InsSection id="admin-ov-runs" title="Job runs" aside={runs.length ? String(runs.length) : "none"} defaultOpen>
@@ -238,9 +238,6 @@
     margin: 0;
     padding: var(--space-3) var(--space-4);
     color: var(--ink-3);
-  }
-  .r-inspector {
-    height: 100%;
   }
   .r-feed a {
     min-width: 0;

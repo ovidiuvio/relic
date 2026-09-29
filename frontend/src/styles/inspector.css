@@ -183,3 +183,17 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Links and buttons in key/value lists look the same. */
+.r-inspector .r-kv .r-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.r-inspector .r-confirm.is-mild {
+  border-color: var(--line-2);
+  background: var(--subtle);
+  color: var(--ink-2);
+}

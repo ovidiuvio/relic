@@ -137,11 +137,6 @@
   .ins-confirm {
     margin: var(--space-3) var(--space-4) 0;
   }
-  .r-confirm.is-mild {
-    border-color: var(--line-2);
-    background: var(--subtle);
-    color: var(--ink-2);
-  }
   .r-pill .r-dot {
     width: 7px;
     height: 7px;
@@ -150,7 +145,6 @@
     background: var(--danger-soft);
     color: var(--danger-ink);
   }
-  .r-kv button.r-link,
   .more-runs {
     padding: 0;
     border: 0;

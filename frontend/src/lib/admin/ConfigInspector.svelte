@@ -161,9 +161,6 @@
     flex: 1;
     min-height: 0;
   }
-  .r-inspector {
-    height: 100%;
-  }
   .add input {
     font-family: var(--font-mono);
   }
