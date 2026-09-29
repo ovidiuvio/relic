@@ -1,21 +1,20 @@
 <script>
-  // Public / Private / Restricted as the design system's option cards.
+  // Public / Private / Restricted as a segmented control, with the chosen option's hint below.
   import Icon from "../../ui/Icon.svelte";
   import { VISIBILITY } from "./options";
 
   let { value = $bindable("public"), name = "visibility", note = "" } = $props();
 </script>
 
-<div class="r-field" role="radiogroup" aria-labelledby="{name}-label">
+<div class="r-field">
   <span class="r-label" id="{name}-label">Visibility</span>
-  <div class="r-options">
+  <div class="r-seg r-seg-block" role="radiogroup" aria-labelledby="{name}-label">
     {#each VISIBILITY as v (v.value)}
-      <label class="r-option">
-        <input type="radio" class="r-radio" {name} value={v.value} bind:group={value} />
-        <b><Icon name={v.icon} />{v.label}</b>
-        <small>{v.hint}</small>
+      <label title={v.hint}>
+        <input type="radio" {name} value={v.value} bind:group={value} />
+        <Icon name={v.icon} />{v.label}
       </label>
     {/each}
   </div>
-  {#if note && value === "restricted"}<span class="r-help">{note}</span>{/if}
+  <span class="r-help">{VISIBILITY.find((v) => v.value === value)?.hint}{#if note && value === "restricted"}. {note}{/if}</span>
 </div>
