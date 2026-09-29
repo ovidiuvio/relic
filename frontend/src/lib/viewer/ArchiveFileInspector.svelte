@@ -1,6 +1,7 @@
 <script>
   // The inspector for a file opened from inside an archive. It isn't a relic of its own, so its
   // actions work on the extracted file, and "Save as relic" makes it one.
+  import InsSection from "../relics/inspector/InsSection.svelte";
   import Icon from "../ui/Icon.svelte";
   import { copyArchiveFileContent, downloadArchiveFile, viewArchiveFileRaw, fastForkArchiveFile } from "../../services/relicActions";
   import { copyToClipboard } from "../../services/relicActions";
@@ -29,7 +30,7 @@
       <span class="r-badge r-t-{badge.cls}" title={badge.name}>{badge.label}</span>
       <h2>{file.name}</h2>
       {#if onclose}
-        <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={onclose} aria-label="Hide inspector"><Icon name="x" /></button>
+        <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" onclick={onclose} title="Hide inspector ( ] )" aria-label="Hide inspector"><Icon name="x" /></button>
       {/if}
     </div>
     <p class="r-ins-desc">A file inside an archive. Save it as a relic to share, bookmark or comment on it.</p>
@@ -44,7 +45,7 @@
   </div>
 
   <div class="r-ins-body">
-    <div class="r-ins-sec">
+    <InsSection id="archive-file-details" title="Details" defaultOpen>
       <dl class="r-kv">
         <dt>Archive</dt><dd><a class="r-link" href="/{archive.archiveId}" title={archive.archiveName}>{archive.archiveName || archive.archiveId.slice(0, 8)}</a></dd>
         <dt>Path</dt><dd title={archive.filePath}>{archive.filePath}</dd>
@@ -52,15 +53,10 @@
         <dt>Size</dt><dd>{compactBytes(file.size_bytes)}</dd>
         <dt>Archive added</dt><dd>{fullDate(file.created_at)}</dd>
       </dl>
-    </div>
+    </InsSection>
+  </div>
+
+  <div class="r-ins-foot r-hints">
+    <span><kbd class="r-kbd">]</kbd>hide</span>
   </div>
 </aside>
-
-<style>
-  .r-inspector {
-    height: 100%;
-  }
-  .r-ins-name h2 {
-    overflow-wrap: anywhere;
-  }
-</style>

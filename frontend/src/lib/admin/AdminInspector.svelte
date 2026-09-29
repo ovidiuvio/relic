@@ -44,63 +44,8 @@
       {#if meta}<div class="r-ins-meta">{@render meta()}</div>{/if}
     </div>
     <div class="r-ins-body">{@render children?.()}</div>
+    {#if onclose}
+      <div class="r-ins-foot r-hints"><span><kbd class="r-kbd">]</kbd>hide</span></div>
+    {/if}
   {/if}
 </aside>
-
-<style>
-  .r-inspector {
-    height: 100%;
-  }
-  .r-ins-name h2 {
-    overflow-wrap: anywhere;
-  }
-  .r-ins-name .r-badge {
-    min-width: 24px;
-  }
-  .r-ins-fid {
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-  }
-  .ins-empty {
-    display: grid;
-    justify-items: center;
-    gap: var(--space-2);
-    margin: auto;
-    padding: var(--space-5);
-    color: var(--ink-3);
-    text-align: center;
-  }
-  .ins-empty p {
-    margin: 0;
-  }
-  .r-ins-body :global(.ins-note) {
-    margin: 0;
-    color: var(--ink-3);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-  .r-ins-body :global(.ins-log) {
-    max-height: 320px;
-    margin: 0;
-    padding: 8px 10px;
-    overflow: auto;
-    border-radius: var(--radius-sm);
-    background: var(--night);
-    color: var(--night-ink);
-    font: 11.5px/1.5 var(--font-mono);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .r-ins-body :global(.ins-stack) {
-    display: grid;
-    gap: var(--space-2\.5);
-  }
-  .r-ins-body :global(.ins-row) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-1\.5);
-  }
-</style>

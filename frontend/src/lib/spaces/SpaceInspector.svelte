@@ -56,6 +56,7 @@
     <div class="ins-empty">
       <Icon name="layers" size={22} />
       <p>Select a space to see who’s in it.</p>
+      <p class="r-hints"><span><kbd class="r-kbd">↑</kbd><kbd class="r-kbd">↓</kbd>move</span><span><kbd class="r-kbd">↵</kbd>open</span></p>
     </div>
   {:else}
     <div class="r-ins-id">
@@ -70,7 +71,7 @@
         {/if}
       </div>
       <button class="r-ins-fid" title="Copy space ID" onclick={() => copyToClipboard(space.id, "Space ID copied")}>
-        {space.id.match(/.{1,8}/g).join(" ")}<Icon name="copy" />
+        <span class="r-ins-fid-text">{space.id}</span><Icon name="copy" />
       </button>
 
       <div class="r-ins-actions">
@@ -112,41 +113,10 @@
         {/key}
       {/if}
     </div>
+
+    <div class="r-ins-foot r-hints">
+      <span><kbd class="r-kbd">]</kbd>hide</span>
+      <span><kbd class="r-kbd">↵</kbd>open</span>
+    </div>
   {/if}
 </aside>
-
-<style>
-  .r-inspector {
-    height: 100%;
-  }
-  .r-ins-name h2 a {
-    color: inherit;
-    text-decoration: none;
-    overflow-wrap: anywhere;
-  }
-  .r-ins-name h2 a:hover {
-    text-decoration: underline;
-    text-decoration-color: var(--line-2);
-  }
-  .r-ins-name .r-badge {
-    min-width: 24px;
-  }
-  .r-ins-fid {
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-  }
-  .ins-empty {
-    display: grid;
-    justify-items: center;
-    gap: var(--space-2);
-    margin: auto;
-    padding: var(--space-5);
-    color: var(--ink-3);
-    text-align: center;
-  }
-  .ins-empty p {
-    margin: 0;
-  }
-</style>

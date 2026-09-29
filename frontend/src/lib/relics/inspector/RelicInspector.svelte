@@ -210,7 +210,7 @@
       </div>
       {#if relic.description}<p class="r-ins-desc">{relic.description}</p>{/if}
       <button class="r-ins-fid" title="Copy ID" onclick={() => copyToClipboard(relic.id, "Relic ID copied")}>
-        {relic.id.match(/.{1,8}/g).join(" ")}
+        <span class="r-ins-fid-text">{relic.id}</span>
         <Icon name="copy" />
       </button>
 
@@ -385,27 +385,6 @@
 </aside>
 
 <style>
-  .r-inspector {
-    height: 100%;
-  }
-  .r-ins-name h2 a {
-    color: inherit;
-    text-decoration: none;
-    overflow-wrap: anywhere;
-  }
-  .r-ins-name h2 a:hover {
-    text-decoration: underline;
-    text-decoration-color: var(--line-2);
-  }
-  .r-ins-fid {
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-  }
-  .r-ins-fid:hover {
-    color: var(--ink-2);
-  }
   .r-kv dd button.r-link {
     padding: 0;
     border: 0;
@@ -418,18 +397,6 @@
   }
   .ins-confirm {
     margin-top: var(--space-2\.5);
-  }
-  .ins-empty {
-    display: grid;
-    justify-items: center;
-    gap: var(--space-2);
-    margin: auto;
-    padding: var(--space-5);
-    color: var(--ink-3);
-    text-align: center;
-  }
-  .ins-empty p {
-    margin: 0;
   }
   .ins-pill {
     border: 0;

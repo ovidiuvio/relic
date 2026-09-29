@@ -210,16 +210,21 @@ body { margin: 0; background: var(--surface); color: var(--ink); font: 13px/1.45
 .r-strip-draft .r-input { flex: 1; width: auto; }
 
 /* ---------- inspector ---------- */
-.r-inspector { display: flex; flex-direction: column; flex: none; width: var(--inspector-width); min-height: 0; overflow: hidden; border-left: 1px solid var(--line); background: var(--inset); }
+.r-inspector { display: flex; flex-direction: column; flex: none; width: var(--inspector-width); height: 100%; min-height: 0; overflow: hidden; border-left: 1px solid var(--line); background: var(--inset); }
 .r-ins-id { padding: var(--space-3\.5) var(--space-4) var(--space-3); border-bottom: 1px solid var(--line); background: var(--surface); }
 .r-ins-name { display: flex; align-items: flex-start; gap: var(--space-2); }
-.r-ins-name h2 { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 500; line-height: 1.3; letter-spacing: -.01em; }
-.r-ins-name .r-badge { margin-top: 3px; }
+.r-ins-name h2 { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 17px; font-weight: 500; line-height: 1.3; letter-spacing: -.01em; }
+.r-ins-name .r-badge { min-width: 24px; margin-top: 3px; }
+.r-ins-name h2 a { color: inherit; text-decoration: none; }
+.r-ins-name h2 a:hover { text-decoration: underline; text-decoration-color: var(--line-2); }
 .r-ins-name .r-btn { margin-top: -2px; color: var(--ink-3); }
 .r-ins-desc { margin-top: 5px; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
 .r-ins-desc.is-empty { color: var(--ink-3); font-style: italic; }
 .r-ins-fid { display: flex; align-items: center; gap: var(--space-1\.5); margin-top: var(--space-1\.5); color: var(--ink-3); font: 12px var(--font-mono); }
-.r-ins-fid .r-icon { width: 12px; height: 12px; }
+.r-ins-fid .r-icon { flex: none; width: 12px; height: 12px; }
+.r-ins-fid-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.r-ins-fid { align-self: flex-start; max-width: 100%; padding: 0; border: 0; background: none; cursor: pointer; }
+button.r-ins-fid:hover { color: var(--ink-2); }
 .r-ins-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3); }
 .r-ins-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1\.5); margin-top: var(--space-2\.5); color: var(--ink-2); font-size: 12px; }
 .r-ins-body { flex: 1; min-height: 0; overflow: auto; }

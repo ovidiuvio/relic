@@ -1,9 +1,10 @@
-/* Shared inspector pieces used by relic and space inspector sections: notes, "show more"
+/* Shared inspector pieces used by every inspector: notes, "show more"
    links, people and fork-tree lists, comments. Component-specific styles stay in components. */
 .r-inspector .ins-note {
   margin: 0;
   color: var(--ink-3);
   font-size: 12.5px;
+  line-height: 1.5;
 }
 .r-inspector .ins-more {
   margin-top: var(--space-2);
@@ -143,4 +144,42 @@
 .r-inspector .ins-why .r-icon {
   margin-top: 2px;
   color: var(--accent);
+}
+
+/* Nothing selected. */
+.r-inspector .ins-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: auto;
+  padding: var(--space-5);
+  color: var(--ink-3);
+  text-align: center;
+}
+.r-inspector .ins-empty p {
+  margin: 0;
+}
+
+/* Layout helpers for section bodies. */
+.r-inspector .ins-stack {
+  display: grid;
+  gap: var(--space-2\.5);
+}
+.r-inspector .ins-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1\.5);
+}
+.r-inspector .ins-log {
+  max-height: 320px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--night);
+  color: var(--night-ink);
+  font: 11.5px/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
