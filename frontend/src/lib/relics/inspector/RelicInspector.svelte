@@ -141,7 +141,7 @@
 
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-  // Counters as in the old header, coloured by the list's levels; each opens its section.
+  // Counters coloured by the list's levels; each opens its section.
   const counters = $derived(
     relic
       ? [
@@ -209,10 +209,25 @@
         {/if}
       </div>
       {#if relic.description}<p class="r-ins-desc">{relic.description}</p>{/if}
-      <button class="r-ins-fid" title="Copy ID" onclick={() => copyToClipboard(relic.id, "Relic ID copied")}>
-        <span class="r-ins-fid-text">{relic.id}</span>
-        <Icon name="copy" />
-      </button>
+      <div class="ins-idrow">
+        <button class="r-ins-fid" title="Copy ID" onclick={() => copyToClipboard(relic.id, "Relic ID copied")}>
+          <span class="r-ins-fid-text">{relic.id}</span>
+          <Icon name="copy" />
+        </button>
+        {#if counters.length}
+          <div class="ins-counters">
+            {#each counters as c (c.key)}
+              {#if c.views}
+                <span class="ins-count" data-level={counterLevel(c.n, true)} title="{c.n} {c.label}"><Icon name={c.icon} />{c.n}</span>
+              {:else}
+                <button class="ins-count" data-level={counterLevel(c.n)} title="{c.n} {c.label}: show" onclick={() => (opened = { id: c.key, n: (opened?.n ?? 0) + 1 })}>
+                  <Icon name={c.icon} />{c.n}
+                </button>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
 
       <div class="r-ins-actions">
         <button class="r-btn r-btn-primary r-btn-md" onclick={() => copyToClipboard(linkUrl?.() ?? `${location.origin}/${relic.id}`, "Link copied")}>
@@ -260,20 +275,6 @@
         <!-- An owner without a display name is named in Details (by public ID); only ownerless relics are "Anonymous". -->
         <span>{#if mine}You · {:else if relic.owner_name}{relic.owner_name} · {:else if !relic.owner_public_id && !relic.user_id}Anonymous · {/if}{when}</span>
       </div>
-
-      {#if counters.length}
-        <div class="ins-counters">
-          {#each counters as c (c.key)}
-            {#if c.views}
-              <span class="ins-count" data-level={counterLevel(c.n, true)} title="{c.n} {c.label}"><Icon name={c.icon} />{c.n}</span>
-            {:else}
-              <button class="ins-count" data-level={counterLevel(c.n)} title="{c.n} {c.label}: show" onclick={() => (opened = { id: c.key, n: (opened?.n ?? 0) + 1 })}>
-                <Icon name={c.icon} />{c.n}
-              </button>
-            {/if}
-          {/each}
-        </div>
-      {/if}
     </div>
 
     <div class="r-ins-body">
@@ -404,11 +405,22 @@
   .ins-pill:hover {
     filter: brightness(0.96);
   }
+  .ins-idrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-1\.5);
+  }
+  .ins-idrow .r-ins-fid {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-top: 0;
+  }
   .ins-counters {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-3);
-    margin-top: var(--space-2);
+    flex: none;
+    gap: var(--space-3);
   }
   .ins-count {
     --level: var(--ink-3);
