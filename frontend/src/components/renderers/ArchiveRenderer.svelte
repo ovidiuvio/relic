@@ -1,6 +1,6 @@
 <script>
   import { navigate } from '../../utils/navigation';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, createEventDispatcher } from 'svelte';
   import { processContent } from '../../services/processors/index.js';
   import CodeRenderer from './CodeRenderer.svelte';
   import ImageRenderer from './ImageRenderer.svelte';
@@ -11,7 +11,6 @@
   import DiffRenderer from './DiffRenderer.svelte';
   import PDFViewer from '../PDFViewer.svelte';
   import TreeRenderer from './TreeRenderer.svelte';
-  import { createEventDispatcher } from 'svelte';
   import { getFileTypeDefinition, getSyntaxFromExtension } from '../../services/typeUtils.js';
   import { triggerDownload } from '../../services/utils/download';
   import Icon from '../../lib/ui/Icon.svelte';
@@ -20,10 +19,20 @@
 
   export let processed
   export let relicId
+  // The viewer's display settings, passed one by one (the status bar changes them, the preview follows).
   export let showSyntaxHighlighting = true
   export let showLineNumbers = true
   export let fontSize = 13
   export let darkMode = true
+  export let beautify = false
+  export let showLineFilter = false
+  export let diffViewMode = 'unified'
+  export let treeMode = 'code'
+  export let treePageSize = 100
+  export let showSource = false
+  // What the preview needs from the status bar: the previewed file's type and what it supports.
+  export let preview = null // { type, treeSupported, formattable } while a file is open
+  export let treeRenderer = null // the tree view of the previewed file, for Expand / Collapse all
 
   const dispatch = createEventDispatcher()
 
@@ -37,30 +46,6 @@
   let sidebarWidth = parseInt(localStorage.getItem('archiveSidebarWidth') || '400')
   let isDragging = false
   let containerRef
-  let treeRendererRef = null
-
-  let treeViewMode = (() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("relic_viewer_tree_mode") ?? "code";
-    }
-    return "code";
-  })();
-
-  let treePageSize = (() => {
-    if (typeof window !== "undefined") {
-      const saved = parseInt(localStorage.getItem("relic_viewer_tree_page_size"), 10);
-      return isNaN(saved) ? 100 : saved;
-    }
-    return 100;
-  })();
-
-  $: if (typeof window !== "undefined") {
-    localStorage.setItem("relic_viewer_tree_mode", treeViewMode);
-  }
-
-  $: if (typeof window !== "undefined") {
-    localStorage.setItem("relic_viewer_tree_page_size", treePageSize.toString());
-  }
 
   const TREE_LANGS = new Set(['json', 'yaml', 'yml', 'toml', 'xml'])
   let effectiveLang = null
@@ -76,6 +61,7 @@
   }
   $: isTreeSupported = TREE_LANGS.has(effectiveLang)
   $: isFormattable = effectiveLang === 'json'
+  $: preview = previewedFile ? { type: previewType, treeSupported: isTreeSupported, formattable: isFormattable } : null
 
   // Handle resize divider drag
   function startDrag(e) {
@@ -123,6 +109,7 @@
 
   // Cleanup on component destroy
   onDestroy(() => {
+    preview = null
     if (typeof window !== 'undefined') {
       window.removeEventListener('mousemove', handleDrag)
       window.removeEventListener('mouseup', stopDrag)
@@ -303,49 +290,27 @@
           <span title={selectedFile.path}>{selectedFile.path}</span>
         </div>
         <span class="r-gap"></span>
-        {#if isTreeSupported && isTextLike}
-          {#if treeViewMode === 'tree'}
-            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => treeRendererRef?.expandAll()} title="Expand all" aria-label="Expand all"><Icon name="expand" /></button>
-            <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => treeRendererRef?.collapseAll()} title="Collapse all" aria-label="Collapse all"><Icon name="collapse" /></button>
-            <select class="arc-select" value={treePageSize} on:change={(e) => (treePageSize = parseInt(e.currentTarget.value, 10))} aria-label="Nodes per page">
-              {#each [25, 50, 100, 250, 500] as size}<option value={size}>{size} / page</option>{/each}
-            </select>
-          {/if}
-          <div class="arc-seg" role="group" aria-label="View">
-            <button aria-pressed={treeViewMode === 'code'} on:click={() => (treeViewMode = 'code')}><Icon name="code" />Code</button>
-            <button aria-pressed={treeViewMode === 'tree'} on:click={() => (treeViewMode = 'tree')}><Icon name="tree" />Tree</button>
-          </div>
-        {/if}
-        {#if isTextLike || previewType === 'markdown' || previewType === 'html' || previewType === 'diff'}
-          <button
-            class="r-btn r-btn-ghost r-btn-sm r-btn-icon"
-            aria-pressed={darkMode}
-            on:click={() => { darkMode = !darkMode; dispatch('toggle-dark-mode', darkMode) }}
-            title={darkMode ? 'Dark theme (on)' : 'Dark theme'}
-            aria-label="Dark theme"
-          ><Icon name="moon" /></button>
-        {/if}
         <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => openInFullView(selectedFile)} title="Open on its own page" aria-label="Open on its own page"><Icon name="max" /></button>
         <button class="r-btn r-btn-ghost r-btn-sm r-btn-icon" on:click={() => downloadFile(selectedFile)} title="Download this file" aria-label="Download this file"><Icon name="download" /></button>
       </header>
 
       <div class="arc-content">
-        {#if isTextLike && isTreeSupported && treeViewMode === 'tree'}
+        {#if isTextLike && isTreeSupported && treeMode === 'tree'}
           <TreeRenderer
-            bind:this={treeRendererRef}
+            bind:this={treeRenderer}
             processed={previewedFile.processed}
-            {darkMode}
-            {fontSize}
+            darkMode={darkMode}
+            fontSize={fontSize}
             lang={effectiveLang}
             pageSize={treePageSize}
-            on:parse-error={() => (treeViewMode = 'code')}
+            on:parse-error={() => dispatch('tree-parse-error')}
           />
         {:else if isTextLike}
-          <CodeRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {fontSize} {darkMode} />
+          <CodeRenderer processed={previewedFile.processed} {relicId} showSyntaxHighlighting={showSyntaxHighlighting} showLineNumbers={showLineNumbers} showComments={false} fontSize={fontSize} darkMode={darkMode} beautify={beautify} isFormattable={isFormattable} showLineFilter={showLineFilter} />
         {:else if previewType === 'markdown'}
-          <MarkdownRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {darkMode} />
+          <MarkdownRenderer processed={previewedFile.processed} {relicId} {showSource} showSyntaxHighlighting={showSyntaxHighlighting} showLineNumbers={showLineNumbers} showComments={false} fontSize={fontSize} darkMode={darkMode} />
         {:else if previewType === 'html'}
-          <HtmlRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {darkMode} />
+          <HtmlRenderer processed={previewedFile.processed} {relicId} {showSource} showSyntaxHighlighting={showSyntaxHighlighting} showLineNumbers={showLineNumbers} showComments={false} fontSize={fontSize} darkMode={darkMode} />
         {:else if previewType === 'csv'}
           <CsvRenderer processed={previewedFile.processed} name={selectedFile.name} />
         {:else if previewType === 'image'}
@@ -353,7 +318,7 @@
         {:else if previewType === 'excalidraw'}
           <ExcalidrawRenderer processed={previewedFile.processed} />
         {:else if previewType === 'diff'}
-          <DiffRenderer processed={previewedFile.processed} {relicId} {showSyntaxHighlighting} {showLineNumbers} {fontSize} {darkMode} />
+          <DiffRenderer processed={previewedFile.processed} {relicId} {showSource} showSyntaxHighlighting={showSyntaxHighlighting} showLineNumbers={showLineNumbers} showComments={false} fontSize={fontSize} darkMode={darkMode} diffViewMode={diffViewMode} />
         {:else if previewType === 'pdf'}
           <PDFViewer
             pdfDocument={previewedFile.processed.pdfDocument}
@@ -513,49 +478,6 @@
   .arc-file-name span {
     color: var(--ink-3);
     font: 11.5px var(--font-mono);
-  }
-  .arc-select {
-    height: var(--control-sm);
-    padding: 0 6px;
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--ink-2);
-    font: 12px var(--font-sans);
-  }
-  .arc-seg {
-    display: inline-flex;
-    margin: 0 var(--space-1);
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-  .arc-seg button {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: var(--control-sm);
-    padding: 0 8px;
-    border: 0;
-    background: var(--surface);
-    color: var(--ink-2);
-    font: 12px var(--font-sans);
-    cursor: pointer;
-  }
-  .arc-seg button + button {
-    border-left: 1px solid var(--line-2);
-  }
-  .arc-seg button[aria-pressed='true'] {
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-weight: 500;
-  }
-  .arc-seg :global(.r-icon) {
-    width: 13px;
-    height: 13px;
-  }
-  .arc-file [aria-pressed='true'].r-btn {
-    color: var(--accent);
   }
   .arc-content {
     flex: 1;

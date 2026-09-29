@@ -42,6 +42,7 @@
   let comments = $state([]);
   let pdfViewer = $state(null);
   let treeRenderer = $state(null);
+  let archivePreview = $state(null); // { type, treeSupported, formattable } of the file open inside an archive
   let pdf = $state(null);
   // A relic index (.rix): its list, and the row the inspector shows instead of the index itself.
   let indexView = $state(null);
@@ -132,6 +133,7 @@
       archive = null;
       comments = [];
       showSource = false;
+      archivePreview = null;
       indexPick = null;
       try {
         await (path ? loadArchiveFile(id, path) : loadRelic(id));
@@ -295,6 +297,7 @@
         {formattable}
         bind:pdfViewer
         bind:treeRenderer
+        bind:archivePreview
         {oncomment}
         bind:indexView
         indexSelectedId={indexPick?.relic.id ?? null}
@@ -323,6 +326,7 @@
         {pdf}
         {pdfViewer}
         {treeRenderer}
+        {archivePreview}
         {inspectorOpen}
         ontoggleinspector={() => panel.toggle($layout.dock)}
         {listNav}

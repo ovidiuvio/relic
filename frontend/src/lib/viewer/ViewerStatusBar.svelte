@@ -17,6 +17,7 @@
     pdf = null, // { currentPage, numPages, scale } while a PDF is open
     pdfViewer = null,
     treeRenderer = null,
+    archivePreview = null, // { type, treeSupported, formattable } of the file open inside an archive
     inspectorOpen = null, // null hides the toggle (phones)
     ontoggleinspector,
     listNav = null, // { label, path, index, count, prev, canNext, onprev, onnext } for the list this relic was opened from
@@ -25,10 +26,16 @@
   const TREE_PAGES = [25, 50, 100, 250, 500];
 
   const type = $derived(processed?.type);
-  const hasSource = $derived(type === "markdown" || type === "html" || type === "diff");
-  const inTree = $derived(treeSupported && prefs.treeMode === "tree" && (type === "code" || type === "text"));
+  // Inside an archive the controls follow the file being previewed, so they are the same ones
+  // (and in the same place) as when that file is open on its own.
+  const inArchive = $derived(type === "archive" && !!archivePreview);
+  const vt = $derived(inArchive ? archivePreview.type : type);
+  const canTree = $derived(inArchive ? archivePreview.treeSupported : treeSupported);
+  const canFormat = $derived(inArchive ? archivePreview.formattable : formattable);
+  const hasSource = $derived(vt === "markdown" || vt === "html" || vt === "diff");
+  const inTree = $derived(canTree && prefs.treeMode === "tree" && (vt === "code" || vt === "text"));
   const editorLike = $derived(
-    !inTree && (type === "code" || type === "text" || type === "diff" || ((type === "markdown" || type === "html") && showSource))
+    !inTree && (vt === "code" || vt === "text" || vt === "diff" || ((vt === "markdown" || vt === "html") && showSource))
   );
   const hasText = $derived(editorLike || inTree);
 </script>
@@ -63,7 +70,7 @@
       <button aria-pressed={!showSource} onclick={() => (showSource = false)} title="Rendered preview">Preview</button>
       <button aria-pressed={showSource} onclick={() => (showSource = true)} title="Source">Source</button>
     </div>
-    {#if type === "diff" && !showSource}
+    {#if vt === "diff" && !showSource}
       <div class="vs-seg" role="group" aria-label="Diff layout">
         <button aria-pressed={prefs.diffView === "unified"} onclick={() => prefs.set("diffView", "unified")}>Unified</button>
         <button aria-pressed={prefs.diffView === "split"} onclick={() => prefs.set("diffView", "split")}><Icon name="split" />Split</button>
@@ -71,7 +78,7 @@
     {/if}
   {/if}
 
-  {#if treeSupported && (type === "code" || type === "text")}
+  {#if canTree && (vt === "code" || vt === "text")}
     <div class="vs-seg" role="group" aria-label="View">
       <button aria-pressed={prefs.treeMode !== "tree"} onclick={() => prefs.set("treeMode", "code")}><Icon name="code" />Code</button>
       <button aria-pressed={prefs.treeMode === "tree"} onclick={() => prefs.set("treeMode", "tree")}><Icon name="tree" />Tree</button>
@@ -91,11 +98,13 @@
   {#if editorLike}
     <button aria-pressed={prefs.syntax} onclick={() => prefs.toggle("syntax")} title="Syntax highlighting"><Icon name="palette" /></button>
     <button aria-pressed={prefs.lineNumbers} onclick={() => prefs.toggle("lineNumbers")} title="Line numbers"><Icon name="list" /></button>
-    <button aria-pressed={prefs.comments} onclick={() => prefs.toggle("comments")} title="Comments"><Icon name="msg" /></button>
-    {#if formattable}
+    {#if !inArchive}
+      <button aria-pressed={prefs.comments} onclick={() => prefs.toggle("comments")} title="Comments"><Icon name="msg" /></button>
+    {/if}
+    {#if canFormat}
       <button aria-pressed={prefs.beautify} onclick={() => prefs.toggle("beautify")} title="Pretty print"><Icon name="braces" /></button>
     {/if}
-    {#if type === "code" || type === "text"}
+    {#if vt === "code" || vt === "text"}
       <button aria-pressed={prefs.lineFilter} onclick={() => prefs.toggle("lineFilter")} title="Filter lines"><Icon name="filter" /></button>
     {/if}
   {/if}

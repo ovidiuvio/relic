@@ -29,6 +29,7 @@
     formattable = false,
     pdfViewer = $bindable(null),
     treeRenderer = $bindable(null),
+    archivePreview = $bindable(null), // the file previewed inside an archive, for the status bar
     oncomment, // { create, update, delete } handlers taking the renderer's event
     indexView = $bindable(null), // the .rix list, so the viewer can update or remove its rows
     indexSelectedId = null, // the .rix row the viewer's inspector shows
@@ -123,11 +124,19 @@
     <ArchiveRenderer
       {processed}
       {relicId}
+      {showSource}
       showSyntaxHighlighting={prefs.syntax}
       showLineNumbers={prefs.lineNumbers}
       fontSize={prefs.fontSize}
       darkMode={prefs.darkMode}
-      on:toggle-dark-mode={(e) => prefs.set("darkMode", e.detail)}
+      beautify={prefs.beautify}
+      showLineFilter={prefs.lineFilter}
+      diffViewMode={prefs.diffView}
+      treeMode={prefs.treeMode}
+      treePageSize={prefs.treePageSize}
+      bind:preview={archivePreview}
+      bind:treeRenderer
+      on:tree-parse-error={() => prefs.set("treeMode", "code")}
     />
   {:else if processed.type === "relicindex"}
     <RelicIndexView bind:this={indexView} {processed} selectedId={indexSelectedId} onselect={onindexselect} />
