@@ -26,6 +26,7 @@
   import { segments, parseQuery, resolveFilters, formatQuery, sameFilters, builtinScope, FILTER_KEYS, QUERY_PARAMS, needsEverywhere } from "../search/query";
   import { session } from "../../stores/session";
   import { sidebarData, refreshSidebar } from "./sidebarData";
+  import { pinnedSpaces } from "./pinnedSpaces.svelte.js";
   import { spaces as spacesApi, searchTags } from "../../services/api";
   import { fetchScope } from "../search/scopeFetch";
   import { searchHistory, pathLabel } from "../search/history.svelte.js";
@@ -209,7 +210,7 @@
       typeCounts: counted?.types,
       moreTags: tagTyped && moreTags.q === tagTyped ? moreTags.tags : [],
       inResults: !!counted && completion.narrowed,
-      spaces: $sidebarData.spaces,
+      spaces: pinnedSpaces.list,
       scopeLabel: scope.label,
     })
   );
@@ -222,7 +223,7 @@
     return location.pathname + location.search;
   });
   const searches = $derived.by(() => {
-    const spaces = $sidebarData.spaces;
+    const spaces = [...pinnedSpaces.list, ...$sidebarData.spaces]; // names for the lists' labels
     const pinned = (searchHistory.pinned ?? []).map((p) => ({ kind: "pinned", ...p, label: pathLabel(p.path, spaces) }));
     const pinnedPaths = new Set(pinned.map((p) => p.path));
     const recent = searchHistory.recent
@@ -455,14 +456,14 @@
     tick().then(sync);
   });
 
-  // Where an in: value points: a list, one of your spaces, or any space you can see by name or ID.
+  // Where an in: value points: a list, a pinned or your own space, or any space you can see by name or ID.
   async function scopeFor(value) {
     const builtin = builtinScope(value);
     if (builtin) return LIST_SCOPES.find((s) => s.key === builtin);
     const v = value.trim().toLowerCase();
     if (!v) return null;
     const match = (list) => list.find((s) => s.id === v || s.name?.toLowerCase() === v);
-    const known = match($sidebarData.spaces);
+    const known = match([...pinnedSpaces.list, ...$sidebarData.spaces]);
     if (known) return spaceScope(known);
     try {
       const { spaces } = await spacesApi.list({ search: value.trim(), limit: 10 });
@@ -589,7 +590,7 @@
 
   // ---- scope menu ----
   const menuItems = $derived.by(() => {
-    const items = [...LIST_SCOPES, ...$sidebarData.spaces.map((s) => ({ ...spaceScope(s), space: true }))];
+    const items = [...LIST_SCOPES, ...pinnedSpaces.list.map((s) => ({ ...spaceScope(s), space: true }))];
     // The page's own scope (a space you only visit, All relics…) stays pickable.
     if (!items.some((i) => i.key === pageScope.key)) items.unshift(pageScope);
     return items;
@@ -735,7 +736,7 @@
     <div class="scope-menu" role="menu" aria-label="Search in" bind:this={menuEl} tabindex="-1" onkeydown={onMenuKeydown}>
       <div class="scope-menu-head">Search in</div>
       {#each menuItems as item, i (item.key)}
-        {#if item.space && !menuItems[i - 1]?.space}<div class="scope-menu-head">Your spaces</div>{/if}
+        {#if item.space && !menuItems[i - 1]?.space}<div class="scope-menu-head">Pinned spaces</div>{/if}
         <button type="button" role="menuitemradio" aria-checked={item.key === scope.key} onclick={() => pick(item)}>
           <Icon name={item.icon} />
           <span class="scope-menu-label">{item.label}</span>
@@ -817,7 +818,7 @@
     text-underline-offset: 3px;
   }
 
-  /* Where to search: the lists, then your spaces. */
+  /* Where to search: the lists, then your pinned spaces. */
   .scope-menu {
     position: absolute;
     top: calc(100% + 6px);
