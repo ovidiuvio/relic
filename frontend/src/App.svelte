@@ -23,6 +23,7 @@
     "my-relics": "My relics",
     "my-bookmarks": "Bookmarks",
     admin: "Admin",
+    about: "About",
     relic: "Relic",
     fork: "Fork",
   };

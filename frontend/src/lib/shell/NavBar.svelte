@@ -10,8 +10,21 @@
   import { NAV_ITEMS, ADMIN_ITEM, isActive } from "./navItems";
   import { layout } from "./layout";
   import { session, initials } from "../../stores/session";
+  import { appVersion, loadVersion, REPO_URL } from "./appVersion";
 
   let { section, routeProps = {} } = $props();
+
+  loadVersion();
+  // "1.4.0" reads as v1.4.0; a build label such as "dev" or a commit hash stays as it is.
+  const versionLabel = $derived(/^\d+\.\d+/.test($appVersion ?? "") ? `v${$appVersion}` : $appVersion);
+
+  // Where this version lives on GitHub: its release, or its commit when the server reports a hash.
+  const versionUrl = $derived.by(() => {
+    const v = $appVersion ?? "";
+    if (/^\d+\.\d+/.test(v)) return `${REPO_URL}/releases/tag/v${v}`;
+    if (/^[0-9a-f]{7,40}$/.test(v)) return `${REPO_URL}/commit/${v}`;
+    return null;
+  });
 
   let profileOpen = $state(false);
   let profileEl = $state();
@@ -54,6 +67,17 @@
   </div>
 
   <div class="nav-end">
+    <div class="nav-meta">
+      {#if $appVersion}
+        {#if versionUrl}
+          <a class="nav-ver" href={versionUrl} target="_blank" rel="noopener" title="This version on GitHub">{versionLabel}</a>
+        {:else}
+          <span class="nav-ver" title="Relic version">{versionLabel}</span>
+        {/if}
+      {/if}
+      <a href={REPO_URL} target="_blank" rel="noopener" title="Relic on GitHub" aria-label="Relic on GitHub"><Icon name="github" /></a>
+      <a href="/about" aria-current={section === "about" ? "page" : undefined}>About</a>
+    </div>
     {#if !$layout.rail}
       {#if $session.isAdmin}
         <nav class="r-nav-links" aria-label="Administration">
@@ -122,6 +146,40 @@
   .r-nav-links a :global(.r-icon) {
     width: 15px;
     height: 15px;
+  }
+  /* Quiet links for wide screens, where the bar has room to spare. */
+  .nav-meta {
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+    margin-right: var(--space-2);
+    color: var(--nav-ink-2);
+    font-size: 12.5px;
+  }
+  .nav-meta a {
+    display: flex;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+  }
+  .nav-meta a:hover,
+  .nav-meta a[aria-current="page"] {
+    color: var(--on-accent);
+  }
+  .nav-meta .r-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .nav-ver {
+    font-family: var(--font-mono);
+  }
+  span.nav-ver {
+    cursor: default;
+  }
+  @media (min-width: 1440px) {
+    .nav-meta {
+      display: flex;
+    }
   }
   .profile-anchor {
     position: relative;

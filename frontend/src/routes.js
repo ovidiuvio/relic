@@ -121,6 +121,12 @@ const routes = [
     })
   },
   {
+    pattern: /^\/about$/,
+    loader: () => import("./pages/About.svelte"),
+    section: "about",
+    getProps: () => ({})
+  },
+  {
     pattern: /^\/admin(?:\/([a-z]+))?$/,
     loader: () => import("./pages/Admin.svelte"),
     section: "admin",
@@ -149,7 +155,7 @@ const routes = [
       // Validate that the first param is not a known root-level route path.
       // "new" is included even though there's no /new route: old links to /new?space=id must
       // fall through to the fallback (RelicForm) rather than match as a relic ID.
-      const reserved = ["api", "recent", "search", "my-relics", "my-bookmarks", "spaces", "new", "fork", "admin"];
+      const reserved = ["api", "recent", "search", "my-relics", "my-bookmarks", "spaces", "new", "fork", "admin", "about"];
       if (reserved.includes(match[1])) {
         return null; // Signals this route shouldn't match
       }
