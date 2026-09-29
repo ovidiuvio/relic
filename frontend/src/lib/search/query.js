@@ -182,5 +182,6 @@ export function builtinScope(value) {
   if (["recent", "public", "everyone"].includes(v)) return "recent";
   if (["mine", "me", "my", "my-relics", "myrelics"].includes(v)) return "my-relics";
   if (["bookmarks", "bookmarked", "saved"].includes(v)) return "my-bookmarks";
+  if (["journal", "journals", "notes", "diary"].includes(v)) return "journal";
   return null;
 }

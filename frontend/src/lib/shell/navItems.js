@@ -4,6 +4,7 @@ export const NAV_ITEMS = [
   { section: "spaces", label: "Spaces", icon: "layers", path: "/spaces", alsoActive: ["space-view"] },
   { section: "my-relics", label: "My relics", icon: "user", path: "/my-relics" },
   { section: "my-bookmarks", label: "Bookmarks", icon: "bookmark", path: "/my-bookmarks" },
+  { section: "journal", label: "Journals", icon: "book", path: "/journal" },
 ];
 
 export const ADMIN_ITEM = { section: "admin", label: "Admin", icon: "shield", path: "/admin" };

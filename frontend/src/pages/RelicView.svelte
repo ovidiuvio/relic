@@ -51,9 +51,14 @@
   // Navigating between relics reuses this page, so a slow response for the previous one is dropped.
   let gen = 0;
 
+  // A journal is a folder of entries, not content: it has its own page.
+  const JOURNAL_TYPE = "application/x-relic-journal";
+  const openJournal = (id) => navigate(`/journal/${id}`, { replace: true });
+
   async function loadRelic(id) {
     const g = ++gen;
     const data = (await getRelic(id)).data;
+    if (data.content_type === JOURNAL_TYPE) return openJournal(id);
     const raw = await (await getRelicRaw(id)).data.arrayBuffer();
     if (g !== gen) return;
     const result = await processContent(new Uint8Array(raw), data.content_type, data.language_hint);
@@ -66,6 +71,7 @@
   async function loadArchiveFile(id, path) {
     const g = ++gen;
     const archiveRelic = (await getRelic(id)).data;
+    if (archiveRelic.content_type === JOURNAL_TYPE) return openJournal(id);
     const raw = await (await getRelicRaw(id)).data.arrayBuffer();
     const unpacked = await processArchive(new Uint8Array(raw), archiveRelic.content_type);
     const content = await unpacked.extractFile(path);

@@ -23,18 +23,18 @@ all: build
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	$(BUILDFLAGS) go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/relic/main.go
+	$(BUILDFLAGS) go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/relic
 	@echo "✓ Built $(BUILD_DIR)/$(BINARY_NAME)"
 
 ## build-all: Build binaries for all platforms
 build-all:
 	@echo "Building for all platforms..."
 	@mkdir -p $(BUILD_DIR)
-	$(BUILDFLAGS) GOOS=linux GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 cmd/relic/main.go
-	$(BUILDFLAGS) GOOS=linux GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 cmd/relic/main.go
-	$(BUILDFLAGS) GOOS=darwin GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 cmd/relic/main.go
-	$(BUILDFLAGS) GOOS=darwin GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 cmd/relic/main.go
-	$(BUILDFLAGS) GOOS=windows GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe cmd/relic/main.go
+	$(BUILDFLAGS) GOOS=linux GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/relic
+	$(BUILDFLAGS) GOOS=linux GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./cmd/relic
+	$(BUILDFLAGS) GOOS=darwin GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./cmd/relic
+	$(BUILDFLAGS) GOOS=darwin GOARCH=arm64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./cmd/relic
+	$(BUILDFLAGS) GOOS=windows GOARCH=amd64 go build -trimpath $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./cmd/relic
 	@echo "✓ Built all platform binaries in $(BUILD_DIR)/"
 
 ## install: Install binary to /usr/local/bin
@@ -72,7 +72,7 @@ deps:
 
 ## run: Run the CLI (development)
 run:
-	go run cmd/relic/main.go $(ARGS)
+	go run ./cmd/relic $(ARGS)
 
 ## help: Show this help message
 help:

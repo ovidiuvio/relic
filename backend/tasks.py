@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import select
 from backend.database import AsyncSessionLocal
+from backend.journal import is_journal
 from backend.models import Relic
 from backend.storage import storage_service
 
@@ -29,6 +30,7 @@ async def cleanup_expired_relics():
         for relic in expired_relics:
             relic_id = relic.id
             s3_key = relic.s3_key
+            journal = is_journal(relic.content_type)
             try:
                 # Delete DB record first — if S3 delete later fails, the orphaned
                 # S3 object is harmless and reclaimable. The reverse order risks a
@@ -36,7 +38,10 @@ async def cleanup_expired_relics():
                 await db.delete(relic)
                 await db.commit()
                 try:
-                    await storage_service.delete(s3_key)
+                    if journal:
+                        await storage_service.delete_prefix(f"relics/{relic_id}/")
+                    else:
+                        await storage_service.delete(s3_key)
                 except Exception as s3_err:
                     logger.warning(f"Relic {relic_id} removed from DB but S3 delete failed (orphaned object {s3_key}): {s3_err}")
                 logger.info(f"Expired relic {relic_id} permanently deleted")

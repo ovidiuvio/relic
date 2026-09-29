@@ -75,6 +75,45 @@ Key queries:
 - **Anonymous relics**: No user association
 - **URL format**: 32-character hexadecimal (GitHub Gist-style), cryptographically secure, practically collision-proof
 
+### 5. Journals
+
+A journal is a **relic** (content type `application/x-relic-journal`, **restricted by default**: only the owner, admins and people added to it can read it; knowing the URL is not enough) whose content is a folder of Markdown files, one per entry, stored at `relics/{journal_id}/entries/{path}` (e.g. `2026/09/2026-09-29.md`). It is the one relic that is edited in place. Journals take **no password**.
+
+- `journal_entry` (+ `journal_entry_tag`) hold what lists and search need: title, `entry_date`, `daily`, `pinned`, excerpt, word/task counts, `search_text` (the body, capped at 256 KB), tags. The file in S3 is the source of truth; tags come from `#tags` in the body (private to the journal, never the global `Tag` table).
+- Pure helpers (paths, tags, tasks, excerpts, appending to a `## Log` section) live in `backend/journal.py` and are unit-tested in `tests/test_journal_helpers.py`.
+- A file path is fixed when an entry is created; an entry created untitled (`untitled.md`) is renamed once, when it first gets a title. Daily entries are named by date and stay on it.
+- Writes are owner-only (admins do not write); reads follow the relic rules (private: the URL is the token; restricted: owner, admins, access list). Saving an entry locks its row (`FOR UPDATE`), so concurrent quick captures keep every line.
+- Deleting a journal relic (or its expiry cleanup) deletes every object under its prefix. `GET /{id}/raw` and forking a journal are refused for now, and no relic can be uploaded as, or relabelled into, the journal type (or out of it). Name, visibility and people are changed through the ordinary relic endpoints (`PUT /relics/:id`, `/relics/:id/access`) from the inspector's Journal tab.
+
+```
+POST   /api/v1/journals                          Create a journal {name, access_level? (default restricted)}
+GET    /api/v1/journals                          Your journals, with entry counts
+GET    /api/v1/journals/:id                      Details (entry_count, size_bytes, can_edit)
+GET    /api/v1/journals/:id/entries              List (search, tag, after, before, pinned, has_tasks, sort_by=date|title|words|tasks|updated, facets)
+POST   /api/v1/journals/:id/entries              Create an entry {title?, body?, entry_date?, pinned?}
+GET    /api/v1/journals/:id/entries/:entry_id    An entry with its body
+PATCH  /api/v1/journals/:id/entries/:entry_id    Change title, body, entry_date, pinned
+DELETE /api/v1/journals/:id/entries/:entry_id    Delete an entry
+POST   /api/v1/journals/:id/daily                Open or create the daily entry for a date
+POST   /api/v1/journals/:id/append               Quick capture: add a line under ## Log of a day's entry
+GET    /api/v1/journals/:id/days                 Entry counts per day (calendar, week strip)
+GET    /api/v1/journals/:id/export               The journal as a .zip of Markdown files with front matter
+POST   /api/v1/journals/:id/import               Add .md/.txt files or zips of them (multipart `files`); front matter is read
+POST   /api/v1/journals/:id/resolve              What [[links]] and ![[embeds]] point at: an entry (by title), a relic (ID or name), or nothing
+GET    /api/v1/journals/:id/entries/:eid/backlinks        Entries of the journal that link to this one
+GET    /api/v1/journals/:id/entries/:eid/revisions        Earlier versions (owner); GET .../:rid returns one with its text
+POST   /api/v1/journals/:id/entries/:eid/revisions        Keep the current text as a version; POST .../:rid/restore puts one back
+GET    /api/v1/journals/mentions/:relic_id      Entries in the caller's own journals that link to a relic
+```
+
+- **Links and history.** `[[Entry title]]` links to another entry of the journal; `![[relic name]]` or `![[relic id]]` embeds a relic (its first lines, or the image). Targets are stored per entry (`journal_entry_link`, with the heading they sit under) and resolved when shown: an entry of the journal by title, else a relic by ID, else by name among the reader's own and public relics. Backlinks and "In your journals" (relic inspector) come from those rows. A save that follows a 10 minute pause keeps the previous text as a revision (30 kept per entry; entries over 256 KB are skipped), and "Keep this version" / Restore are explicit.
+- **Opening.** In every layout one click opens an entry in the editor (arrow keys move a selection that the inspector previews, Enter opens it). In the calendar an entry chip opens that entry, and a day with one entry opens it; a day with several is selected.
+- **Pinning.** A journal can be pinned from the switcher (pin button on each row) or the inspector's Journal tab. Pins live in this browser (`lib/journal/pinnedJournals.svelte.js`, like pinned spaces): pinned journals list first in the switcher, and the wide sidebar shows only the pinned ones, or all of them when none is pinned.
+- **Demo.** `python scripts/seed_journal_tour.py --key <user key>` creates a "Journal tour" journal (25 entries, two small relics for the embeds) that uses every feature; `--replace` makes a fresh one.
+- **CLI.** `relic note`, `relic journal list|new|today|pull|import` (`cli/client/cmd/relic/journal.go`). The CLI's `cmd/relic` is a package of two files now: build it as `./cmd/relic`, not `cmd/relic/main.go`.
+
+Frontend: `pages/Journal.svelte` (`/journal`, `/journal/:id`) with `lib/journal/` (`EntryList`, `EntryTable`, `EntryTimeline`, `EntryCalendar`, `EntryEditor`, `EntryInspector`, `JournalSettings`, `JournalSwitcher`, `text.js`, `dates.js`); layouts are `?view=list|timeline|calendar` with `?filter=pinned|tasks` and `services/api/journal.js`. The editor (`lib/journal/EntryEditor.svelte`) has three views: **Write**, a live-preview editor built on CodeMirror 6 (`lib/journal/live/`: `livePreview.js` turns the Markdown syntax tree into decorations, so headings are big, bullets and checkboxes are widgets, pipe tables draw as tables, and `[[links]]`/`![[embeds]]` are links and cards, with the syntax hidden except on the cursor's line); **Source**, the plain Markdown as a textarea over a colour layer (monospace, so metrics match); and **Read**, rendered through `processMarkdown` with the same typography. The title, meta line and text scroll as one page. Pasting or dropping files into Write uploads each as a **private** relic and embeds it (`![[id]]`); readers who can't open that relic see the embed as missing, so a shared journal never leaks it. Editor packages: `@codemirror/{state,view,commands,language,lang-markdown}`, `@lezer/highlight`. Ctrl+J opens `QuickCapture` (mounted in `App.svelte`, a docked strip, not a dialog) on any page: it posts to `/append` with the reader's local date and time, then fires a `journal:changed` window event so an open journal page refreshes. The navbar search has a Journal scope (`in:journal`, or the scope menu; `lib/shell/searchScope.js`, `lib/search/scopeFetch.js`): it searches the entries of the journal you used last, shows them as rows with a preview, and a result opens at `/journal/:id?entry=:entry_id`. Everywhere does not search entries. Journals list in My relics with the Journal type and facet, and opening one by its relic URL redirects to the journal page.
+
 ## Storage Architecture
 
 - **Primary storage**: S3-compatible (MinIO) - one object per relic
@@ -153,7 +192,8 @@ Admins see everything by design (keys, private relics, full config); don't add r
 relic/
 ├── backend/
 │   ├── main.py              # FastAPI application and routes
-│   ├── models.py            # SQLAlchemy ORM models (Relic, User, Tag)
+│   ├── models.py            # SQLAlchemy ORM models (Relic, User, Tag, JournalEntry)
+│   ├── journal.py           # Pure journal helpers (entry paths, tags, tasks, quick capture)
 │   ├── schemas.py           # Pydantic validation schemas
 │   ├── database.py          # Database initialization and session management
 │   ├── config.py            # Configuration (settings, env vars)
@@ -170,6 +210,7 @@ relic/
 │   │   ├── bookmarks.py
 │   │   ├── comments.py
 │   │   ├── health.py
+│   │   ├── journal.py
 │   │   ├── relics.py
 │   │   ├── reports.py
 │   │   ├── spaces.py
@@ -185,7 +226,7 @@ relic/
 │   │   ├── styles/          # tailwind-base.css, inspector.css
 │   │   ├── pages/           # One component per route
 │   │   │   ├── NewRelic.svelte, Fork.svelte
-│   │   │   ├── Recent.svelte, MyRelics.svelte, Bookmarks.svelte
+│   │   │   ├── Recent.svelte, MyRelics.svelte, Bookmarks.svelte, Journal.svelte
 │   │   │   ├── Spaces.svelte, Space.svelte
 │   │   │   ├── RelicView.svelte
 │   │   │   └── Admin.svelte
@@ -197,6 +238,7 @@ relic/
 │   │   │   ├── relics/      # RelicList, RelicWorkbench, TypeFacets, TagPicker, format, filters
 │   │   │   │   ├── inspector/  # RelicInspector and its sections (details, lineage, comments…)
 │   │   │   │   └── fields/     # Visibility, expiry, tags and space fields
+│   │   │   ├── journal/     # Journal: EntryList, EntryEditor, EntryInspector, text.js, dates.js
 │   │   │   ├── viewer/      # ContentView, ViewerStatusBar, FilterStrip, RelicIndexView,
 │   │   │   │                #   listContext (previous/next), viewerPrefs
 │   │   │   ├── compose/     # New relic: drafts, uploads, create, ComposeInspector

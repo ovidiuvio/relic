@@ -12,8 +12,12 @@ export const RECENT = { key: "recent", label: "Recent", icon: "clock", placehold
 export const MINE = { key: "my-relics", label: "My relics", icon: "user", placeholder: "Search your relics", path: "/my-relics", filters: OWN_FILTERS };
 export const BOOKMARKS = { key: "my-bookmarks", label: "Bookmarks", icon: "bookmark", placeholder: "Search your bookmarks", path: "/my-bookmarks", filters: RELIC_FILTERS };
 
+// Journal entries, not relics: the results are entries of your journal (see scopeFetch), and only
+// tag: applies (an entry's dates are its own, not a relic's created and size).
+export const JOURNAL = { key: "journal", label: "Journal", icon: "book", placeholder: "Search your journal", path: "/journal", filters: ["tag"] };
+
 /** The lists you can pick in the scope menu, Everywhere first (spaces are added from the sidebar's list). */
-export const LIST_SCOPES = [EVERYWHERE, RECENT, MINE, BOOKMARKS];
+export const LIST_SCOPES = [EVERYWHERE, RECENT, MINE, BOOKMARKS, JOURNAL];
 
 export function spaceScope(space) {
   return {
@@ -40,6 +44,8 @@ export function searchScope(section, props = {}) {
         : { key: "admin-relics", label: "All relics", icon: "shield", placeholder: "Search every relic", path: "/admin/relics", filters: OWN_FILTERS };
     case "recent":
       return RECENT;
+    case "journal":
+      return JOURNAL;
     case "space-view":
       return { key: `space:${props.spaceId}`, label: "This space", icon: "layers", placeholder: "Search this space", path: `/spaces/${props.spaceId}`, filters: RELIC_FILTERS };
     default:

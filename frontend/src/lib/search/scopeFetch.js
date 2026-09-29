@@ -1,10 +1,31 @@
 // Querying a search scope's list directly (for the dropdown's matches and the tag suggestions),
 // the same way the scope's own page does. Returns { relics, total, facets }.
-import { listRelics, searchEverywhere, getUserRelics, getUserBookmarks, getAdminRelics, spaces as spacesApi } from "../../services/api";
+import { listRelics, searchEverywhere, getUserRelics, getUserBookmarks, getAdminRelics, listJournalEntries, spaces as spacesApi } from "../../services/api";
+import { currentJournalId } from "../journal/current";
 import { facetTypes } from "../relics/typeFacets";
 import { rangeParams } from "./ranges";
 
 const shape = (data, rows = "relics") => ({ relics: data?.[rows] ?? [], total: data?.total ?? 0, facets: data?.facets ?? null });
+
+// Journal entries in the shape of the relic rows the dropdown draws. `journalId` says the row is
+// an entry: opening or previewing it goes to the journal, not to a relic.
+async function journalRows(filters, limit) {
+  const journalId = await currentJournalId();
+  if (!journalId) return { relics: [], total: 0, facets: null };
+  const { data } = await listJournalEntries(journalId, { search: filters.search || undefined, tag: filters.tag || undefined, limit });
+  const relics = data.entries.map((e) => ({
+    id: e.id,
+    journalId,
+    name: e.title || "Untitled",
+    content_type: "text/markdown",
+    size_bytes: e.size_bytes,
+    created_at: e.created_at,
+    tags: e.tags,
+    access_level: "restricted",
+    description: e.excerpt,
+  }));
+  return { relics, total: data.total, facets: null };
+}
 
 /**
  * filters: { search, type, tag, owner } as in the URL; options: { limit, facets, relevance }
@@ -25,6 +46,7 @@ export function fetchScope(scope, filters = {}, { limit = 7, facets = false, rel
     ...rangeParams(filters),
   };
   const key = scope.key;
+  if (key === "journal") return journalRows(filters, limit);
   if (key === "everywhere") return searchEverywhere(params).then((r) => shape(r.data));
   if (key === "recent") return listRelics(params).then((r) => shape(r.data));
   if (key === "my-relics") return getUserRelics(params).then((r) => shape(r.data));

@@ -95,6 +95,8 @@ func main() {
 	rootCmd.AddCommand(recentCmd())
 	rootCmd.AddCommand(installCmd())
 	rootCmd.AddCommand(spacesCmd())
+	rootCmd.AddCommand(noteCmd())
+	rootCmd.AddCommand(journalCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		utils.HandleError(err)

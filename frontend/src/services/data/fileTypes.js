@@ -393,6 +393,14 @@ export const FILE_TYPES = [
         category: 'relicindex'
     },
     {
+        syntax: 'plaintext',
+        label: 'Journal',
+        icon: 'fa-solid fa-book',
+        mime: 'application/x-relic-journal',
+        extensions: ['jrnl'],
+        category: 'journal'
+    },
+    {
         syntax: 'yaml',
         label: 'YAML',
         icon: 'fa-code',

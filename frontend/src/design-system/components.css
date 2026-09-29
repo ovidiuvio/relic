@@ -47,6 +47,7 @@ body { margin: 0; background: var(--surface); color: var(--ink); font: 13px/1.45
 .r-t-archive { --tc: var(--type-archive); }
 .r-t-image { --tc: var(--type-image); }
 .r-t-web { --tc: var(--type-web); }
+.r-t-journal { --tc: var(--type-journal); }
 .r-t-binary { --tc: var(--type-binary); }
 .r-badge { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 36px; height: 18px; padding: 0 5px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--tc, var(--type-text)) 12%, var(--surface)); color: var(--tc, var(--type-text)); font: 700 10px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
 .r-type { color: var(--tc, var(--type-text)); font: 700 11.5px var(--font-mono); }

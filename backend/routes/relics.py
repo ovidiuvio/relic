@@ -14,6 +14,7 @@ from backend.config import settings
 from backend.database import get_db
 from backend.models import Relic, User, Tag, Space, Comment, RelicAccess, space_relics
 from backend.schemas import RelicResponse, RelicListResponse, RelicUpdate, RelicAccessAdd, RelicAccessEntry
+from backend.journal import is_journal
 from backend.storage import storage_service, FileTooLargeError
 from backend.utils import parse_expiry_string, is_expired, hash_password, get_fork_count, get_fork_counts, clamp_limit, like_term, apply_relic_search, apply_owner_filter, relic_sort_order, parse_types, apply_type_filter, relic_facets, apply_range_filters, apply_visibility_filter, hidden_relic_ids, hidden_parents
 from backend.dependencies import (
@@ -25,6 +26,13 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+def _reject_journal_type(content_type: Optional[str]) -> None:
+    """A journal is a folder of entry files made through /api/v1/journals, never an uploaded relic
+    or a relic re-labelled as one (its delete and read paths would then look in the wrong place)."""
+    if is_journal(content_type):
+        raise HTTPException(status_code=400, detail="Journals are created with POST /api/v1/journals")
 
 
 async def _create_relic_record(
@@ -135,6 +143,7 @@ async def create_relic(
     try:
         if not content_type:
             content_type = file.content_type or "application/octet-stream"
+        _reject_journal_type(content_type)
         if not name:
             name = file.filename
 
@@ -212,6 +221,7 @@ async def create_relic_raw(
 
     if not content_type:
         content_type = request.headers.get("content-type") or "application/octet-stream"
+    _reject_journal_type(content_type)
 
     # Adapt the request body stream to the read(n) interface of upload_stream
     body_iter = request.stream().__aiter__()
@@ -339,6 +349,9 @@ async def get_relic_raw(relic_id: str, request: Request, password: Optional[str]
     if is_expired(relic.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
 
+    if is_journal(relic.content_type):
+        raise HTTPException(status_code=400, detail="A journal has no raw content. Use /api/v1/journals/{id}")
+
     # Check password protection
     if relic.password_hash:
         if not password:
@@ -415,6 +428,9 @@ async def fork_relic(
     if is_expired(original.expires_at):
         raise HTTPException(status_code=410, detail="Relic has expired")
 
+    if is_journal(original.content_type):
+        raise HTTPException(status_code=400, detail="A journal cannot be forked yet")
+
     # Check password protection
     if original.password_hash:
         password = request.headers.get("X-Relic-Password")
@@ -439,6 +455,7 @@ async def fork_relic(
         if file:
             # New content provided: stream it to storage
             content_type = file.content_type or original.content_type
+            _reject_journal_type(content_type)
             size_bytes = await storage_service.upload_stream(
                 s3_key, file.read, content_type, max_size=settings.MAX_UPLOAD_SIZE
             )
@@ -616,6 +633,8 @@ async def update_relic(
         relic.name = update.name
 
     if update.content_type is not None:
+        if is_journal(relic.content_type) or is_journal(update.content_type):
+            raise HTTPException(status_code=400, detail="A journal's type cannot be changed, and no other relic can become one")
         relic.content_type = update.content_type
 
     if update.language_hint is not None:
@@ -661,9 +680,12 @@ async def delete_relic(relic_id: str, request: Request, db: AsyncSession = Depen
     relic_user_id = relic.user_id
     was_owner = user and user.id == relic.user_id
 
-    # Delete file from S3 storage
+    # Delete file from S3 storage (a journal is a folder of entry files)
     try:
-        await storage_service.delete(relic.s3_key)
+        if is_journal(relic.content_type):
+            await storage_service.delete_prefix(f"relics/{relic.id}/")
+        else:
+            await storage_service.delete(relic.s3_key)
     except Exception as e:
         # Log error but don't fail the delete operation
         logger.error(f"Failed to delete file from S3 for relic {relic_id}: {e}", exc_info=True)

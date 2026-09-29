@@ -1,5 +1,5 @@
 // Type facets for relic lists (design system PageBar): All, Code, Docs, Text, Data, Images,
-// Archives, Web. A facet is a family of content types, grouped the way type badges are coloured,
+// Archives, Web, Journals. A facet is a family of content types, grouped the way type badges are coloured,
 // so a facet and the badges in it always agree.
 //
 // The list endpoints count relics per content type (?facets=true) and filter by a list of
@@ -20,6 +20,7 @@ export const TYPE_FACETS = [
   { key: "image", label: "Images" },
   { key: "archive", label: "Archives" },
   { key: "web", label: "Web" },
+  { key: "journal", label: "Journals" },
 ];
 
 export const isTypeFacet = (key) => TYPE_FACETS.some((f) => f.key === key);

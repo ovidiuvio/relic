@@ -8,7 +8,7 @@
   // description, and a peek at the content (the first lines of text, or the image). Text reads
   // only the first 8 KB, so a large relic previews as fast as a small one.
   import Icon from "../ui/Icon.svelte";
-  import { getRelicRawHead } from "../../services/api";
+  import { getJournalEntry, getRelicRawHead } from "../../services/api";
   import { getFileTypeDefinition, isBinaryType } from "../../services/typeUtils";
   import { typeBadge, tagName, compactBytes, fullDate, relativeTime } from "../relics/format";
   import { whyLines } from "../relics/sources";
@@ -35,12 +35,14 @@
     if (kind === "big-image") return void (peek = { kind: "none", note: "Large image: open it to view" });
     if (kind === "binary") return void (peek = { kind: "none", note: `${getFileTypeDefinition(r.content_type).label || "Binary"} file: open it to view` });
     if (cache.has(r.id)) return void (peek = cache.get(r.id));
+    const head = async (signal) =>
+      r.journalId ? { text: (await getJournalEntry(r.journalId, r.id)).body, truncated: false } : getRelicRawHead(r.id, 8192, signal);
     peek = null;
     const controller = new AbortController();
     // Wait a moment: arrowing through the list shouldn't fetch every row it passes.
     const timer = setTimeout(async () => {
       try {
-        const { text, truncated } = await getRelicRawHead(r.id, 8192, controller.signal);
+        const { text, truncated } = await head(controller.signal);
         const all = text.replace(/\r\n?/g, "\n").split("\n");
         const result = { kind: "text", lines: all.slice(0, LINES), more: truncated || all.length > LINES };
         cache.set(r.id, result);

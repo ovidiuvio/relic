@@ -11,6 +11,7 @@ export * from './admin'
 export * from './users'
 export * from './comments'
 export * from './spaces'
+export * from './journal'
 
 // Default export checks out
 export default api

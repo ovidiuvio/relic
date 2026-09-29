@@ -13,6 +13,7 @@
   import EditForm from "./EditForm.svelte";
   import SpacesSection from "./SpacesSection.svelte";
   import ReportForm from "./ReportForm.svelte";
+  import MentionsSection from "../../journal/MentionsSection.svelte";
   import { checkBookmark, addBookmark, removeBookmark, deleteRelic, updateRelic } from "../../../services/api";
   import { copyRelicContent, downloadRelic, fastForkRelic, copyToClipboard } from "../../../services/relicActions";
   import { isBinaryType } from "../../../services/typeUtils";
@@ -132,6 +133,7 @@
   const bookmarks = $derived((relic?.bookmark_count ?? 0) + bookmarkDelta);
   const showHint = $derived(!!relic?.language_hint && !["auto", badge?.name.toLowerCase()].includes(relic.language_hint.toLowerCase()));
   const binary = $derived(relic ? isBinaryType(relic.content_type) : false);
+  const isJournal = $derived(relic?.content_type === "application/x-relic-journal");
   const when = $derived.by(() => {
     if (!relic) return "";
     const g = dayGroup(relic.created_at);
@@ -233,6 +235,9 @@
         <button class="r-btn r-btn-primary r-btn-md" onclick={() => copyToClipboard(linkUrl?.() ?? `${location.origin}/${relic.id}`, "Link copied")}>
           <Icon name="link" />Copy link
         </button>
+        {#if isJournal}
+          <a class="r-btn r-btn-secondary r-btn-md" href="/journal/{relic.id}" title="Open the journal"><Icon name="book" />Open journal</a>
+        {:else}
         <button class="r-btn r-btn-secondary r-btn-md r-btn-icon" onclick={() => copyRelicContent(relic.id)} disabled={binary} title={binary ? "Binary content can’t be copied as text" : "Copy content"} aria-label="Copy content">
           <Icon name="copy" />
         </button>
@@ -250,6 +255,7 @@
         >
           <Icon name="fork" />{relic.forks_count ?? 0}
         </button>
+        {/if}
         <button
           class="r-btn r-btn-secondary r-btn-md"
           aria-pressed={bookmarked}
@@ -339,6 +345,12 @@
         <InsSection id="bookmarkers" focus={sectionFocus} title="Bookmarked by" aside={bookmarks ? plural(bookmarks, "person", "people") : "nobody yet"}>
           <BookmarkersSection relicId={relic.id} />
         </InsSection>
+
+        {#if $session.publicId && !isJournal}
+          <InsSection id="journals" title="In your journals" aside="only you">
+            <MentionsSection {relic} />
+          </InsSection>
+        {/if}
 
         <InsSection id="comments" focus={sectionFocus} title="Comments" aside={relic.comments_count ? plural(relic.comments_count, "comment") : "none"}>
           <CommentsSection relicId={relic.id} />

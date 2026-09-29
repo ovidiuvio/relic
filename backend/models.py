@@ -1,5 +1,5 @@
 """Database models for the relic application."""
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, DateTime, ForeignKey, Text, Table, UniqueConstraint, text
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Date, DateTime, ForeignKey, Index, Text, Table, UniqueConstraint, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
@@ -242,3 +242,79 @@ class Comment(Base):
     relic = relationship("Relic", backref=backref("comments", passive_deletes=True, lazy="raise"), lazy="raise")
     user = relationship("User", backref="comments", lazy="raise")
     replies = relationship("Comment", backref=backref("parent", remote_side=[id], lazy="raise"), cascade="all, delete-orphan", lazy="raise")
+
+
+class JournalEntry(Base):
+    """
+    One Markdown entry of a journal.
+
+    A journal is a relic (content type application/x-relic-journal). Each entry is a file stored
+    at relics/{relic_id}/entries/{path}; this row holds what lists and searches need so they
+    never have to read S3: title, date, derived counts, an excerpt and the searchable body text.
+    """
+    __tablename__ = "journal_entry"
+
+    id = Column(String(32), primary_key=True)  # 32-char hex, like relic IDs
+    relic_id = Column(String(32), ForeignKey('relic.id', ondelete="CASCADE"), nullable=False, index=True)
+    path = Column(String, nullable=False)  # e.g. 2026/09/2026-09-29.md, fixed at creation
+    title = Column(String, nullable=False, default="")
+    entry_date = Column(Date, nullable=False)
+    daily = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    pinned = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+    # Derived from the body on every save
+    excerpt = Column(String, nullable=False, default="", server_default="")
+    search_text = Column(Text, nullable=False, default="", server_default="")
+    word_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    open_tasks = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    total_tasks = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    size_bytes = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    tags = relationship("JournalEntryTag", cascade="all, delete-orphan", lazy="raise")
+    links = relationship("JournalEntryLink", cascade="all, delete-orphan", lazy="raise")
+
+    __table_args__ = (
+        UniqueConstraint('relic_id', 'path', name='uq_journal_entry_relic_path'),
+        Index('ix_journal_entry_relic_date', 'relic_id', 'entry_date'),
+    )
+
+    @property
+    def tag_names(self) -> list:
+        return sorted(t.name for t in self.tags)
+
+
+class JournalEntryTag(Base):
+    """A #tag used in a journal entry. Private to the journal: it never touches the global Tag table."""
+    __tablename__ = "journal_entry_tag"
+
+    entry_id = Column(String(32), ForeignKey('journal_entry.id', ondelete="CASCADE"), primary_key=True)
+    name = Column(String, primary_key=True, index=True)
+
+
+class JournalEntryLink(Base):
+    """A [[wiki link]] or ![[embed]] in a journal entry: what it points at (an entry title, a relic
+    name or a relic ID, lowercased for matching) and the heading it sits under."""
+    __tablename__ = "journal_entry_link"
+
+    entry_id = Column(String(32), ForeignKey('journal_entry.id', ondelete="CASCADE"), primary_key=True)
+    target = Column(String, primary_key=True, index=True)
+    label = Column(String, nullable=False, default="", server_default="")  # the target as written
+    embed = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    section = Column(String, nullable=False, default="", server_default="")
+
+
+class JournalEntryRevision(Base):
+    """An earlier body of a journal entry, kept so an edit can be undone. Snapshots are taken when
+    a save follows a pause, and only the newest few per entry are kept."""
+    __tablename__ = "journal_entry_revision"
+
+    id = Column(String(32), primary_key=True)
+    entry_id = Column(String(32), ForeignKey('journal_entry.id', ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False, default="")
+    body = Column(Text, nullable=False, default="")
+    word_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+

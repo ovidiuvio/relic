@@ -20,6 +20,10 @@
   ];
   const counted = (n, name) => `${n} ${n === 1 ? name.slice(0, -1).toLowerCase() : name.toLowerCase()}`;
 
+  // A journal is a folder of entries: it has no content to copy, view raw, fork or download.
+  const JOURNAL_TYPE = "application/x-relic-journal";
+  const CONTENT_ACTIONS = new Set(["Copy content", "View raw", "Fast fork", "Download"]);
+
   let {
     relics = [],
     loading = false,
@@ -115,7 +119,7 @@
     for (const w of words) {
       if (name.includes(w)) continue;
       const tag = tags.find((t) => t.toLowerCase().includes(w));
-      const place = tag ? `#${tag}` : relic.id?.toLowerCase().includes(w) ? "ID" : relic.description?.toLowerCase().includes(w) ? "description" : null;
+      const place = tag ? `#${tag}` : relic.id?.toLowerCase().includes(w) ? "ID" : relic.description?.toLowerCase().includes(w) ? (relic.journalId ? "text" : "description") : null;
       if (place && !where.includes(place)) where.push(place);
     }
     return where.length ? where.join(", ") : null;
@@ -326,7 +330,7 @@
       {/if}
       {#if actions.length}
         <span class="r-row-actions">
-          {#each actions as action (action.title)}
+          {#each relic.content_type === JOURNAL_TYPE ? actions.filter((a) => !CONTENT_ACTIONS.has(a.title)) : actions as action (action.title)}
             <button
               class="r-btn r-btn-ghost"
               title={action.title}

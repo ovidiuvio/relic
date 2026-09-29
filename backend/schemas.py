@@ -1,7 +1,7 @@
 """Pydantic schemas for request/response validation."""
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Literal
-from datetime import datetime
+from datetime import date, datetime
 
 
 
@@ -245,3 +245,100 @@ class SavedSearchUpdate(BaseModel):
 class UserNameUpdate(BaseModel):
     """Schema for updating user name."""
     name: str
+
+
+class JournalCreate(BaseModel):
+    """Create a journal (a relic of type journal). Restricted by default: only its owner, admins
+    and the people added to it can read it. Journals take no password."""
+    name: str = Field(min_length=1, max_length=100)
+    access_level: Literal["public", "private", "restricted"] = "restricted"
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("name must not be blank")
+        return v
+
+
+class JournalEntryCreate(BaseModel):
+    """Create a Markdown entry."""
+    title: Optional[str] = Field(default=None, max_length=200)
+    body: str = ""
+    entry_date: Optional[date] = None  # defaults to today (UTC)
+    pinned: bool = False
+
+
+class JournalEntryUpdate(BaseModel):
+    """Change an entry. Only the fields sent are changed; the file path never changes."""
+    title: Optional[str] = Field(default=None, max_length=200)
+    body: Optional[str] = None
+    entry_date: Optional[date] = None
+    pinned: Optional[bool] = None
+
+
+class JournalAppend(BaseModel):
+    """Quick capture: add a line to a daily entry's section (Log by default)."""
+    text: str = Field(min_length=1, max_length=10000)
+    entry_date: Optional[date] = None  # the caller's local date; defaults to today (UTC)
+    time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    heading: str = Field(default="Log", min_length=1, max_length=60)
+
+
+class JournalDaily(BaseModel):
+    """Open or create the daily entry for a date."""
+    entry_date: Optional[date] = None
+
+
+class JournalEntrySummary(BaseModel):
+    """An entry without its body, as lists show it."""
+    id: str
+    path: str
+    title: str
+    entry_date: date
+    daily: bool
+    pinned: bool
+    excerpt: str
+    word_count: int
+    open_tasks: int
+    total_tasks: int
+    size_bytes: int
+    tags: List[str]
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class JournalEntryDetail(JournalEntrySummary):
+    """An entry with its Markdown body."""
+    body: str
+    created: bool = False  # set by the daily/append endpoints when they created the entry
+
+
+class JournalEntryList(BaseModel):
+    entries: List[JournalEntrySummary]
+    total: int = 0
+    limit: Optional[int] = None
+    offset: Optional[int] = None
+    facets: Optional[dict] = None  # {tags: [{name, count}]} when asked for
+
+
+class JournalResponse(BaseModel):
+    """A journal's own details."""
+    id: str
+    name: Optional[str] = None
+    access_level: str
+    entry_count: int
+    size_bytes: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    can_edit: bool = False
+    owner_public_id: Optional[str] = None
+    owner_name: Optional[str] = None
+
+
+class JournalResolve(BaseModel):
+    """Targets of [[links]] and ![[embeds]] to resolve: entry titles, relic names or relic IDs."""
+    targets: List[str] = Field(max_length=100)
+

@@ -1,13 +1,14 @@
 <script>
   // The 44px bar under the navbar: the page's title and count, its filters, view options,
-  // page actions and the inspector toggle. Markup follows the design system's PageBar.
+  // page actions and the inspector toggle. `heading` replaces the plain title with a snippet
+  // (the journal's name as a menu). Markup follows the design system's PageBar.
   import Icon from "../ui/Icon.svelte";
 
-  let { title, count = null, filters, options, actions, inspectorOpen = null, ontoggleinspector } = $props();
+  let { title, heading, count = null, filters, options, actions, inspectorOpen = null, ontoggleinspector } = $props();
 </script>
 
 <div class="r-pagebar">
-  <h1>{title}{#if count != null}<span>{count.toLocaleString("en-US")}</span>{/if}</h1>
+  <h1>{#if heading}{@render heading()}{:else}{title}{/if}{#if count != null}<span>{count.toLocaleString("en-US")}</span>{/if}</h1>
   {#if filters}{@render filters()}{/if}
   <span class="r-gap"></span>
   {#if options}{@render options()}{/if}

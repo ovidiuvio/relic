@@ -141,3 +141,39 @@ type SpaceCreateRequest struct {
 type ErrorResponse struct {
 	Detail string `json:"detail"`
 }
+
+// JournalInfo represents a journal (a relic that holds Markdown entries)
+type JournalInfo struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	AccessLevel string    `json:"access_level"`
+	EntryCount  int       `json:"entry_count"`
+	SizeBytes   int64     `json:"size_bytes"`
+	UpdatedAt   RelicTime `json:"updated_at"`
+}
+
+// JournalEntry represents a journal entry with its Markdown body
+type JournalEntry struct {
+	ID        string `json:"id"`
+	Path      string `json:"path"`
+	Title     string `json:"title"`
+	EntryDate string `json:"entry_date"`
+	Body      string `json:"body"`
+	Created   bool   `json:"created"`
+}
+
+// JournalAppendRequest is the payload for adding a line to a day's Log
+type JournalAppendRequest struct {
+	Text      string `json:"text"`
+	EntryDate string `json:"entry_date,omitempty"`
+	Time      string `json:"time,omitempty"`
+}
+
+// JournalImportResult reports what an import added and skipped
+type JournalImportResult struct {
+	Imported int `json:"imported"`
+	Skipped  []struct {
+		Name   string `json:"name"`
+		Reason string `json:"reason"`
+	} `json:"skipped"`
+}

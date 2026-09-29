@@ -79,6 +79,7 @@ export const CATEGORY_CLASS = {
   image: "image",
   excalidraw: "image",
   html: "web",
+  journal: "journal",
 };
 
 /** A content type's family, as its badge colours it: code, doc, text, data, image, archive, web or binary. */

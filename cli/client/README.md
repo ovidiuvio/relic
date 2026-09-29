@@ -278,6 +278,27 @@ relic config defaults.access_level public
 relic config user.key abc123def456
 ```
 
+### Note and Journal Commands
+
+Journals hold your notes as Markdown files (see the web app's Journals). `relic note` adds a
+timestamped line under `Log` in today's entry, creating the entry when needed.
+
+```bash
+relic note "deploy went fine"
+make test 2>&1 | tail -5 | relic note --tag ci          # piped text is one note
+git log --oneline -3 | relic note --each                 # one note per line
+relic note -j personal "call the bank" --tag todo        # a journal by name or ID prefix
+
+relic journal list                                       # your journals and entry counts
+relic journal new "Work log"                             # restricted unless -a private|public
+relic journal today                                      # print today's entry
+relic journal pull ./work-log                            # every entry as files, with front matter
+relic journal import ./work-log ./notes/2026-09-29.md   # add .md files, folders or zips
+```
+
+Without `--journal` (or `$RELIC_JOURNAL`) the journal with the most recent activity is used, which is
+the one you just created or wrote to.
+
 ### Init Command
 
 ```bash

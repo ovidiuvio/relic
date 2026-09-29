@@ -408,8 +408,10 @@
   }
 
   function openResult(relic, newTab = false) {
+    // A journal entry opens in its journal; anything else is a relic.
+    const href = relic.journalId ? `/journal/${relic.journalId}?entry=${relic.id}` : `/${relic.id}`;
     if (newTab) {
-      window.open(`/${relic.id}`, "_blank", "noopener");
+      window.open(href, "_blank", "noopener");
       return;
     }
     // The search that found it goes to Recent, as the list it searched.
@@ -418,7 +420,7 @@
     searchHistory.record({ query, path: urlFor(resultsScope, search, params), label: resultsScope.label });
     picked = null;
     input.blur();
-    navigate(`/${relic.id}`);
+    navigate(href);
   }
 
   async function setQuery(text, at) {

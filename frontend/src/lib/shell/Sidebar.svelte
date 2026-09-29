@@ -9,6 +9,7 @@
   import { compactNumber } from "../relics/format";
   import { searchHistory } from "../search/history.svelte.js";
   import { pinnedSpaces } from "./pinnedSpaces.svelte.js";
+  import { pinnedJournals } from "../journal/pinnedJournals.svelte.js";
 
   let { section, routeProps = {} } = $props();
 
@@ -37,6 +38,13 @@
     pinnedSpaces.list.map((p) => ({ ...p, ...($sidebarData.spaces.find((s) => s.id === p.id) ?? {}) }))
   );
 
+  // Pinned journals only; with none pinned, all of them (never an empty group for someone with journals).
+  const sidebarJournals = $derived.by(() => {
+    const all = $sidebarData.journals;
+    const pinned = all.filter((j) => pinnedJournals.has(j.id));
+    return pinned.length ? pinned : all;
+  });
+
   const current = (s) => (section === s ? "page" : undefined);
 </script>
 
@@ -51,6 +59,30 @@
     {#each relicLinks as link (link.section)}
       <a href={link.path} aria-current={current(link.section)}>
         <Icon name={link.icon} />{link.label}<em>{compactNumber(link.count)}</em>
+      </a>
+    {/each}
+  </nav>
+
+  <nav class="sb-group" aria-labelledby="sb-journals">
+    <div class="sb-head">
+      <span id="sb-journals">Journals</span>
+      <button class="sb-add" onclick={() => navigate("/journal?newjournal=1")} title="New journal" aria-label="New journal">
+        <Icon name="plus" />
+      </button>
+    </div>
+    <a href="/journal" aria-current={section === "journal" && !routeProps.journalId ? "page" : undefined}>
+      <Icon name="book" />All entries<em>{compactNumber(counts.journals)}</em>
+    </a>
+    {#each sidebarJournals as j (j.id)}
+      <a
+        class="sb-sub"
+        href="/journal/{j.id}"
+        aria-current={section === "journal" && routeProps.journalId === j.id ? "page" : undefined}
+        title={j.name}
+      >
+        <Icon name="book" size={12} />
+        <span class="sb-name">{j.name}</span>
+        <em>{compactNumber(j.entry_count)}</em>
       </a>
     {/each}
   </nav>

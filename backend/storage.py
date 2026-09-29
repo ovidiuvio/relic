@@ -292,6 +292,14 @@ class StorageService:
         except ClientError as e:
             raise Exception(f"Failed to delete from S3: {e}")
 
+    async def delete_prefix(self, prefix: str) -> int:
+        """Delete every object under a key prefix (a journal's entry files). Returns how many were deleted."""
+        deleted = 0
+        async for obj in self.list_objects(prefix=prefix):
+            await self.delete(obj['key'])
+            deleted += 1
+        return deleted
+
     async def exists(self, key: str) -> bool:
         """Check if object exists in S3."""
         try:

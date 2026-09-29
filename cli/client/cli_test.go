@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	relicBinaryPath = filepath.Join(tempDir, "relic")
 
 	// Compile binary
-	cmd := exec.Command("go", "build", "-o", relicBinaryPath, "cmd/relic/main.go")
+	cmd := exec.Command("go", "build", "-o", relicBinaryPath, "./cmd/relic")
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Failed to build relic binary: %v", err)
 	}

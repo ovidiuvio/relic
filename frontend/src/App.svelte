@@ -9,6 +9,7 @@
   import { loadSession } from "./stores/session";
   import NavBar from "./lib/shell/NavBar.svelte";
   import BottomTabs from "./lib/shell/BottomTabs.svelte";
+  import QuickCapture from "./lib/journal/QuickCapture.svelte";
   import Sidebar from "./lib/shell/Sidebar.svelte";
   import { layout } from "./lib/shell/layout";
   import { navigate, internalLinkTarget } from "./utils/navigation";
@@ -22,6 +23,7 @@
     "space-view": "Space",
     "my-relics": "My relics",
     "my-bookmarks": "Bookmarks",
+    journal: "Journals",
     admin: "Admin",
     about: "About",
     relic: "Relic",
@@ -52,7 +54,9 @@
     console.log("[App] Route update - path:", path, "search:", urlParams.toString());
 
     const matched = matchRoute(path, urlParams);
-    routeLoader = matched.loader;
+    // Assigning the same function still invalidates (Svelte treats functions as always changed), and
+    // the {#await} below would then remount the page on every query change and lose its state.
+    if (matched.loader !== routeLoader) routeLoader = matched.loader;
     routeProps = matched.props;
     fullBleed = !!matched.fullBleed;
     currentSection = matched.section;
@@ -214,6 +218,8 @@
     </div>
   </main>
   </div>
+
+  <QuickCapture />
 
   <BottomTabs section={currentSection} />
 
