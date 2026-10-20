@@ -6,7 +6,7 @@ aiofiles==25.1.0
     # via -r requirements.in
 aiohappyeyeballs==2.7.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.4
     # via aiobotocore
 aioitertools==0.13.0
     # via aiobotocore
@@ -125,7 +125,7 @@ requests==2.34.2
     # via -r requirements.in
 six==1.17.0
     # via python-dateutil
-sqlalchemy==2.1.0
+sqlalchemy[asyncio]==2.1.0
     # via
     #   -r requirements.in
     #   alembic
